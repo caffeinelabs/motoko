@@ -1,1 +1,1 @@
-stable-sig-more.mo:52.2-52.6: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+stable-sig-more.mo:52.3-52.7: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

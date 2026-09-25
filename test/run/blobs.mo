@@ -14,37 +14,36 @@ assert (("\00":Blob) < ("\01":Blob));
 assert (("\00":Blob) <= ("\01":Blob));
 
 do {
-let i1 = ("\00\01☃":Blob).values();
-switch(i1.next()) {
-  case (?b) { assert (b == (0:Nat8)); };
-  case null { assert false; };
+  let i1 = ("\00\01☃":Blob).values();
+  switch i1.next() {
+    case ?b { assert (b == (0:Nat8)); }
+    case null { assert false; }
+  };
+  switch i1.next() {
+    case ?b { assert (b == (1:Nat8)); }
+    case null { assert false; }
+  };
+  switch i1.next() {
+    case ?b { assert (b == (0xe2:Nat8)); }
+    case null { assert false; }
+  };
+  switch i1.next() {
+    case ?b { assert (b == (0x98:Nat8)); }
+    case null { assert false; }
+  };
+  switch i1.next() {
+    case ?b { assert (b == (0x83:Nat8)); }
+    case null { assert false; }
+  };
+  switch i1.next() {
+    case ?b { assert false; }
+    case null {}
+  };
 };
-switch(i1.next()) {
-  case (?b) { assert (b == (1:Nat8)); };
-  case null { assert false; };
-};
-switch(i1.next()) {
-  case (?b) { assert (b == (0xe2:Nat8)); };
-  case null { assert false; };
-};
-switch(i1.next()) {
-  case (?b) { assert (b == (0x98:Nat8)); };
-  case null { assert false; };
-};
-switch(i1.next()) {
-  case (?b) { assert (b == (0x83:Nat8)); };
-  case null { assert false; };
-};
-switch(i1.next()) {
-  case (?b) { assert false; };
-  case null {};
-};
-};
-
 
 do {
   let i2 : Blob = "Hi\00\01☃";
-  for (i in i2.keys()) debugPrint (debug_show i2.get(i));
+  for i in i2.keys() { debugPrint (debug_show i2.get(i)) };
 };
 
 do {

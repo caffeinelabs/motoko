@@ -1,5 +1,3 @@
-
-
-(switch (true,false) {
-  case (a,b) { d # a # b };
+(switch (true, false) {
+  case (a, b) { d # a # b }
 }) : Text;

@@ -7,7 +7,7 @@ func f():() -> Int {
       func g() : Int = x; // reference x
       break exit (func() : Int{ g(); }); // early exit omits definition of x
       let x:Int = 666;
-      func():Int{777;};
+      func():Int{ 777; };
     }
   };
 };

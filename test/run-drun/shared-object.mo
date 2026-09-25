@@ -7,8 +7,8 @@ actor a {
   // check whether we can pattern match shared objects
 
   public func baz(sh : Shob) : async Int = async (switch sh {
-    case {a; b = {c = null}} a;
-    case {a; b = {c = ?c}} (a + c)
+    case { a; b = { c = null } } { a }
+    case { a; b = { c = ?c } } { (a + c) }
   });
 
   public func go() : () {

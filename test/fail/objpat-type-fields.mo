@@ -59,7 +59,7 @@ func _f2(x : V2) {
 
 func _f2_1(x : V2) {
   // Error for different set of type bindings in patterns
-  let (#left{ type N } or #right { }) = x else {
+  let (#left{ type N } or #right {}) = x else {
     return ()
   };
   let _n : N = 10;

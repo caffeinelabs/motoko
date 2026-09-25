@@ -1,1 +1,1 @@
-for (x in true) {}
+for x in true {}

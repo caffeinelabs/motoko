@@ -1,4 +1,4 @@
-contextual-dot-biased.mo:24.13-24.18: type error [M0234], field other does exist in type:
+contextual-dot-biased.mo:23.13-23.18: type error [M0234], field other does exist in type:
   Map<Nat, Text> = {var other : Nat; var size : Nat}
 but is not a function.
 help: did you mean field other?

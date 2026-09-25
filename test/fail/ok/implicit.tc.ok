@@ -1,15 +1,15 @@
-implicit.mo:58.1-58.15: type error [M0230], Cannot determine implicit argument `c` of type
+implicit.mo:55.1-55.15: type error [M0230], Cannot determine implicit argument `c` of type
   (Bool, Bool) -> Order
 note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
-implicit.mo:60.1-60.9: type error [M0230], Cannot determine implicit argument `d` of type
+implicit.mo:57.1-57.9: type error [M0230], Cannot determine implicit argument `d` of type
   Nat -> Order
 note: If you're trying to omit an implicit argument named `d` you need to have a matching declaration named `d` in scope.
-implicit.mo:65.1-65.9: type error [M0230], Cannot determine implicit argument `bogus` of type
+implicit.mo:61.1-61.9: type error [M0230], Cannot determine implicit argument `bogus` of type
   (Nat, Nat) -> Order
 note: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
-implicit.mo:75.1-75.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type 
+implicit.mo:70.1-70.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type 
   (Nat, Nat) -> Order.
 note: The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
-implicit.mo:92.27-92.29: type error [M0231], ambiguous implicit argument named `zero` of type 
+implicit.mo:86.27-86.29: type error [M0231], ambiguous implicit argument named `zero` of type 
   {x : Nat}.
 note: The ambiguous implicit candidates are: `XY.zero`, `XZ.zero`.

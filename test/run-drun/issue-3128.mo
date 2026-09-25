@@ -6,6 +6,6 @@ actor {
   type pair = (fst, snd);
   type alias = (pair, pair);
 
-  var p  = ((1,true),(1,true)) : alias;
+  var p  = ((1, true), (1, true)) : alias;
 
 }

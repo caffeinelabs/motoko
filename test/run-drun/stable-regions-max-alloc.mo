@@ -1,21 +1,21 @@
 //MOC-FLAG --stable-regions
 import P "mo:⛔";
-import {new; size } "stable-region/Region";
+import { new; size } "stable-region/Region";
 
 // test region allocation is infinite
 actor {
 
   public func go() : async() {
-    let l = 65536*8;
+    let l = 65536 * 8;
     var n = 16; // first 16 regions are reserved
     loop {
       let r = new();
       assert P.regionId(r) == n;
-//      P.debugPrint(debug_show {n; id = P.regionId(r)});
+      //      P.debugPrint(debug_show {n; id = P.regionId(r)});
       assert size(r) == 0;
       n += 1;
     } while (n < l);
-    P.debugPrint(debug_show {alloced = n});
+    P.debugPrint(debug_show { alloced = n });
   };
 
 }
@@ -25,4 +25,3 @@ actor {
 //SKIP run-ir
 
 //CALL ingress go "DIDL\x00\x00"
-

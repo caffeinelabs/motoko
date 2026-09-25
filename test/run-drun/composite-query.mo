@@ -5,37 +5,36 @@ import Prim "mo:prim";
 // test composite queries (within canister.)
 actor Composites {
 
-   var o : ?Class.Class = null;
+  var o : ?Class.Class = null;
 
-   public func init() : async () {
-     o := ? (await Class.Class());
-     Prim.debugPrint ("init");
-   };
+  public func init() : async () {
+    o := ? (await Class.Class());
+    Prim.debugPrint ("init");
+  };
 
-   public query func q() : async () {
-   };
+  public query func q() : async () {};
 
-   public composite query func cq1() : async () {
-      assert 0 : Nat64 == Prim.replyDeadline();
-   };
+  public composite query func cq1() : async () {
+    assert 0 : Nat64 == Prim.replyDeadline();
+  };
 
-   public composite query func cq2() : async () {
-      await q(); // should succeed (though recursive)
-   };
+  public composite query func cq2() : async () {
+    await q(); // should succeed (though recursive)
+  };
 
-   public composite query func cq3() : async () {
-      await cq2(); // should succeed (though recursive)
-   };
+  public composite query func cq3() : async () {
+    await cq2(); // should succeed (though recursive)
+  };
 
-   public composite query func cq4() : async () {
-      let ?c = o;
-      await c.q(); // should succeed (non-recursive)
-   };
+  public composite query func cq4() : async () {
+    let ?c = o;
+    await c.q(); // should succeed (non-recursive)
+  };
 
-   public composite query func cq5() : async () {
-      let ?c = o;
-      await c.cq(); // should succeed (non-recursive)
-   };
+  public composite query func cq5() : async () {
+    let ?c = o;
+    await c.cq(); // should succeed (non-recursive)
+  };
 
 }
 

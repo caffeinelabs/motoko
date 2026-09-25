@@ -7,11 +7,11 @@ actor a {
   public func f1_0(x:Int) : async () {
     assert(x == 1);
   };
-  public func f2_0(x:Int,y:Bool) : async () {
-    assert(x==1);
-    assert(y==true);
+  public func f2_0(x:Int, y:Bool) : async () {
+    assert(x == 1);
+    assert(y == true);
   };
-  public func f3_0(x:Int,y:Bool,z:Text) : async () {
+  public func f3_0(x:Int, y:Bool, z:Text) : async () {
     assert(x == 1);
     assert(y == true);
     assert(z == "a");
@@ -37,15 +37,15 @@ actor a {
     do {
       let t = "2_0";
       await async {
-        await f2_0(1,true);
+        await f2_0(1, true);
         Prim.debugPrint t;
       };
     };
 
     do {
-    let t = "3_0";
+      let t = "3_0";
       await async {
-        await f3_0(1,true,"a");
+        await f3_0(1, true, "a");
         Prim.debugPrint t;
       };
     };
@@ -54,13 +54,13 @@ actor a {
   /* n-ary returns */
   public func g0_0() : async () {};
   public func g0_1() : async Int {
-     1;
+    1;
   };
-  public func g0_2() : async (Int,Bool) {
-     (1,true);
+  public func g0_2() : async (Int, Bool) {
+    (1, true);
   };
-  public func g0_3() : async (Int,Bool,Text) {
-     (1,true,"a");
+  public func g0_3() : async (Int, Bool, Text) {
+    (1, true, "a");
   };
 
   public func go2() : async () {
@@ -85,24 +85,23 @@ actor a {
     do {
       let t = "0_2";
       ignore await async {
-        let (x,y) = await g0_2();
-        assert(x==1);
-        assert(y==true);
+        let (x, y) = await g0_2();
+        assert(x == 1);
+        assert(y == true);
         Prim.debugPrint t;
-        (x,y);
+        (x, y);
       };
     };
-
 
     do {
       let t = "0_3";
       ignore await async {
-        let (x,y,z) = await g0_3();
-        assert(x==1);
-        assert(y==true);
-        assert(z=="a");
+        let (x, y, z) = await g0_3();
+        assert(x == 1);
+        assert(y == true);
+        assert(z == "a");
         Prim.debugPrint t;
-        (x,y,z);
+        (x, y, z);
       };
     };
   };

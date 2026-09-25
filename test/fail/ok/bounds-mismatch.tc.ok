@@ -31,38 +31,38 @@ because elements have inconsistent types
 bounds-mismatch.mo:58.11-58.53: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-bounds-mismatch.mo:75.21-75.22: type error [M0096], expression of type
+bounds-mismatch.mo:74.23-74.24: type error [M0096], expression of type
   A = <X>X -> X
 cannot produce expected type
   <Y <: Nat>Y -> Y
-bounds-mismatch.mo:81.21-81.22: type error [M0096], expression of type
+bounds-mismatch.mo:80.23-80.24: type error [M0096], expression of type
   A = <X <: Int, Y <: {}>X -> Y
 cannot produce expected type
   <X <: Int, Y <: {x : Nat}>X -> Y
-bounds-mismatch.mo:87.21-87.22: type error [M0096], expression of type
+bounds-mismatch.mo:86.23-86.24: type error [M0096], expression of type
   A = <X <: Nat, Y>X -> Y
 cannot produce expected type
   <Y <: Nat, X <: Y>Y -> X
-bounds-mismatch.mo:93.21-93.22: type error [M0096], expression of type
+bounds-mismatch.mo:92.23-92.24: type error [M0096], expression of type
   A = <X, Y>X -> X
 cannot produce expected type
   <X <: Y, Y>X -> X
-bounds-mismatch.mo:99.21-99.22: type error [M0096], expression of type
+bounds-mismatch.mo:98.23-98.24: type error [M0096], expression of type
   A = <X, Y, Z <: X>X -> X
 cannot produce expected type
   <X, Y <: X, Z <: Y>X -> X
-bounds-mismatch.mo:106.21-106.22: type error [M0096], expression of type
+bounds-mismatch.mo:105.23-105.24: type error [M0096], expression of type
   A = <X <: {x : Int}>X -> X
 cannot produce expected type
   <X <: C>X -> X
-bounds-mismatch.mo:113.21-113.22: type error [M0096], expression of type
+bounds-mismatch.mo:112.23-112.24: type error [M0096], expression of type
   A = <X, Y <: {f : () -> X}>X -> X
 cannot produce expected type
   <X <: Nat, Y <: C<X>>X -> X
-bounds-mismatch.mo:120.21-120.22: type error [M0096], expression of type
+bounds-mismatch.mo:119.23-119.24: type error [M0096], expression of type
   A = <X, Y <: {f : () -> Nat}>X -> X
 cannot produce expected type
   <X <: Nat, Y <: C<X>>X -> X
-bounds-mismatch.mo:125.21-128.4: warning [M0074], this array has type
+bounds-mismatch.mo:123.21-126.4: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types

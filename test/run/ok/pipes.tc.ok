@@ -1,10 +1,10 @@
+pipes.mo:74.5-74.8: warning [M0145], this pattern of type
+  Nat32
+does not cover value
+  0 or 1 or _
 pipes.mo:76.5-76.8: warning [M0145], this pattern of type
   Nat32
 does not cover value
   0 or 1 or _
-pipes.mo:78.5-78.8: warning [M0145], this pattern of type
-  Nat32
-does not cover value
-  0 or 1 or _
-pipes.mo:12.1: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-pipes.mo:14.1: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+pipes.mo:11.1: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+pipes.mo:13.1: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

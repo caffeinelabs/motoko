@@ -1,5 +1,5 @@
 type-combine-forward.mo:2.18-2.19: type error [M0168], cannot compute intersection of types containing recursive or forward references to other type definitions
 type-combine-forward.mo:8.17-8.18: type error [M0168], cannot compute union of types containing recursive or forward references to other type definitions
-type-combine-forward.mo:14.42-14.66: type error [M0168], cannot compute intersection of types containing recursive or forward references to other type definitions
+type-combine-forward.mo:14.44-14.70: type error [M0168], cannot compute intersection of types containing recursive or forward references to other type definitions
 type-combine-forward.mo:27.18-27.24: type error [M0168], cannot compute intersection of types containing recursive or forward references to other type definitions
 type-combine-forward.mo:31.18-31.20: type error [M0168], cannot compute intersection of types containing recursive or forward references to other type definitions

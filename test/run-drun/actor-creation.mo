@@ -7,9 +7,9 @@ actor a {
     Prim.debugPrint ("a creating b");
     actor b {
       public func foo() : () {
-      Prim.debugPrint ("b.foo() called");
-    };
-    Prim.debugPrint ("b created");
+        Prim.debugPrint ("b.foo() called");
+      };
+      Prim.debugPrint ("b created");
     };
 
     Prim.debugPrint ("a calling b.foo()");

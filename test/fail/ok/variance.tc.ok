@@ -1,16 +1,16 @@
-variance.mo:17.3-17.5: type error [M0096], expression of type
+variance.mo:18.3-18.5: type error [M0096], expression of type
   Co<None> = {get : () -> ?None}
 cannot produce expected type
   ()
-variance.mo:32.3-32.9: type error [M0096], expression of type
+variance.mo:34.3-34.9: type error [M0096], expression of type
   Contra<Any> = {put : (i : Any) -> ()}
 cannot produce expected type
   ()
-variance.mo:44.24-44.27: type error [M0046], type argument
+variance.mo:47.24-47.27: type error [M0046], type argument
   Any
 does not match parameter bound
   Nat
-variance.mo:44.10-44.15: type error [M0096], expression of type
+variance.mo:47.10-47.15: type error [M0096], expression of type
   Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   {put : (i : Any) -> ()}
@@ -19,23 +19,23 @@ because the type
  is not compatible with type 
   Nat
  in `(i : _)` (used by arguments of `put`)
-variance.mo:48.3-48.8: type error [M0096], expression of type
+variance.mo:51.3-51.8: type error [M0096], expression of type
   Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   ()
-variance.mo:64.3-64.6: type error [M0096], expression of type
+variance.mo:68.3-68.6: type error [M0096], expression of type
   Non<None> = {get : () -> ?Any; put : (i : Any) -> ()}
 cannot produce expected type
   ()
-variance.mo:80.3-80.10: type error [M0096], expression of type
+variance.mo:84.3-84.10: type error [M0096], expression of type
   Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
-variance.mo:81.3-81.10: type error [M0096], expression of type
+variance.mo:85.3-85.10: type error [M0096], expression of type
   Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
-variance.mo:82.11-82.18: type error [M0096], expression of type
+variance.mo:86.11-86.18: type error [M0096], expression of type
   Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   {get : () -> ?Any; put : (i : Any) -> ()}
@@ -44,7 +44,7 @@ because the type
  is not compatible with type 
   Nat
  in `(i : _)` (used by arguments of `put`)
-variance.mo:84.15-84.20: type error [M0098], cannot apply function of type
+variance.mo:88.15-88.20: type error [M0098], cannot apply function of type
   <A>() -> Inv<A>
 to argument of type
   ()

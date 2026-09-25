@@ -1,4 +1,4 @@
-em-baseline-with-x-bad-n.mo:11.9-11.10: Compatibility error [M0170], stable variable `n` is not compatible with the previous version.
+em-baseline-with-x-bad-n.mo:11.7-11.8: Compatibility error [M0170], stable variable `n` is not compatible with the previous version.
 Previous type
   var Int
  is not a subtype of

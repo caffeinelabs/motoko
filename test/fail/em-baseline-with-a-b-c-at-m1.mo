@@ -6,6 +6,6 @@
 // (produced by the already-applied m1, so it must live in the deployed
 // state), and c. All present in the baseline, so the check is silent.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

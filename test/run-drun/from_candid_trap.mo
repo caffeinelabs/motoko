@@ -9,8 +9,7 @@ actor {
         let ohoh : ?() = from_candid "";
         assert false;
       }
-    } catch e {
-    };
+    } catch e {};
   }
 }
 

@@ -1,4 +1,4 @@
-one-tuple-ambiguity.mo:16.3-16.5: type error [M0050], literal of type
+one-tuple-ambiguity.mo:15.3-15.5: type error [M0050], literal of type
   Nat
 does not have expected type
   (Nat, Bool)

@@ -3,7 +3,8 @@
 // TIP: best visually verified in VSCode
 
 do {
-  class Co<A>() { // covariant in A
+  class Co<A>() {
+    // covariant in A
     var item : ?A = null;
     public func get() : ?A{
       item
@@ -18,7 +19,8 @@ do {
 };
 
 do {
-  class Contra<A>() { // contravariant in A
+  class Contra<A>() {
+    // contravariant in A
     var item : ?A = null;
     public func put(i : A) {
       item := ?i
@@ -33,7 +35,8 @@ do {
 };
 
 do {
-  class Bound<A <: Nat>() { // contravariant in A
+  class Bound<A <: Nat>() {
+    // contravariant in A
     var item : ?A = null;
     public func put(i : A) {
       item := ?i
@@ -49,7 +52,8 @@ do {
 };
 
 do {
-  class Non<A>() { // bivariant in A
+  class Non<A>() {
+    // bivariant in A
     var item : ?Any = null;
     public func put(i : Any) {
       item := ?i
@@ -81,26 +85,26 @@ do {
   invNat2; // reject, so we can see the type
   let _ = invNat1 : Inv<Any>; // reject due to invariance of Inv<_>.
   do {
-    let inv = Inv();  // reject, A invariant and underconstrained
+    let inv = Inv(); // reject, A invariant and underconstrained
   }
 };
 
 do {
-  func contraBi<T,U>(x : T, f : U -> ()) : T { x };
-  ignore contraBi(1,func (x:Nat){}); // accept
+  func contraBi<T, U>(x : T, f : U -> ()) : T { x };
+  ignore contraBi(1, func (x:Nat){}); // accept
 };
 
 do {
-  func coBi<T,U>(x : T, f : () -> U) : T { x };
-  ignore coBi(1,func () : Nat { 0 }); // accept
+  func coBi<T, U>(x : T, f : () -> U) : T { x };
+  ignore coBi(1, func () : Nat { 0 }); // accept
 };
 
 do {
-  func invBi<T,U>(x : T, f : U -> U) : T { x };
-  ignore invBi(1,func (x:Int) : Nat { 0 }); // accept
+  func invBi<T, U>(x : T, f : U -> U) : T { x };
+  ignore invBi(1, func (x:Int) : Nat { 0 }); // accept
 };
 
 do {
-  func invBi<T,U>(x : T, f : U -> (U,U)) : T { x };
-  ignore invBi(1,func (x:{#A;#B;#C}) : ({#A},{#B}) { (#A,#B) }); // accept
+  func invBi<T, U>(x : T, f : U -> (U, U)) : T { x };
+  ignore invBi(1, func (x:{ #A; #B; #C }) : ({ #A }, { #B }) { (#A, #B) }); // accept
 };

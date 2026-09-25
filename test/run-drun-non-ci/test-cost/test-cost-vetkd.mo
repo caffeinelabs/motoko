@@ -15,7 +15,7 @@ actor client {
     vetkd_derive_key : shared Args -> async { encrypted_key : Blob };
   };
   func encodeCurve(curve : VetKDCurve) : Nat32 = switch curve {
-    case (#bls12_381) 0;
+    case #bls12_381 { 0 }
   };
 
   public shared ({ caller }) func go() : async () {

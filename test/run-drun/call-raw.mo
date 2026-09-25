@@ -25,7 +25,7 @@ actor self {
   };
 
   public shared func int(n : Int) : async Int {
-    P.debugPrint(debug_show("int",n));
+    P.debugPrint(debug_show("int", n));
     return n;
   };
 
@@ -64,7 +64,7 @@ actor self {
       let arg : Blob = "DIDL\00\01\7c\01";
       let res = await P.call_raw(p, "int", arg);
       assert res == arg;
-     };
+    };
 
     do {
       let arg : Blob = "DIDL\00\01\7c\02";
@@ -124,4 +124,3 @@ actor self {
 //CALL ingress stext 0x4449444C0000
 //CALL ingress stuple 0x4449444C0000
 //CALL ingress go 0x4449444C0000
-

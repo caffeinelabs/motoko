@@ -25,8 +25,14 @@ module {
   ) : ([var [var Bool]], List<Bool>) {
 
     let tests = List.fromArray<(Nat, Nat) -> Bool>([
-      maskTest000, maskTest001, maskTest010, maskTest011,
-      maskTest100, maskTest101, maskTest110, maskTest111
+      maskTest000,
+      maskTest001,
+      maskTest010,
+      maskTest011,
+      maskTest100,
+      maskTest101,
+      maskTest110,
+      maskTest111
     ]);
 
     let masks = List.map<(Nat, Nat) -> Bool, List<Bool>>(tests, func (test) {
@@ -45,8 +51,14 @@ module {
     });
 
     let maskRefs = List.fromArray<List<Bool>>([
-      maskRef000, maskRef001, maskRef010, maskRef011,
-      maskRef100, maskRef101, maskRef110, maskRef111
+      maskRef000,
+      maskRef001,
+      maskRef010,
+      maskRef011,
+      maskRef100,
+      maskRef101,
+      maskRef110,
+      maskRef111
     ]);
 
     let candidates = List.zip<[var [var Bool]], List<Bool>>(
@@ -59,13 +71,13 @@ module {
   };
 
   let maskRef000 = ?(false, ?(false, ?(false, null)));
-  let maskRef001 = ?(false, ?(false, ?(true,  null)));
-  let maskRef010 = ?(false, ?(true,  ?(false, null)));
-  let maskRef011 = ?(false, ?(true,  ?(true,  null)));
-  let maskRef100 = ?(true,  ?(false, ?(false, null)));
-  let maskRef101 = ?(true,  ?(false, ?(true,  null)));
-  let maskRef110 = ?(true,  ?(true,  ?(false, null)));
-  let maskRef111 = ?(true,  ?(true,  ?(true,  null)));
+  let maskRef001 = ?(false, ?(false, ?(true, null)));
+  let maskRef010 = ?(false, ?(true, ?(false, null)));
+  let maskRef011 = ?(false, ?(true, ?(true, null)));
+  let maskRef100 = ?(true, ?(false, ?(false, null)));
+  let maskRef101 = ?(true, ?(false, ?(true, null)));
+  let maskRef110 = ?(true, ?(true, ?(false, null)));
+  let maskRef111 = ?(true, ?(true, ?(true, null)));
 
   func maskTest000(i : Nat, j : Nat) : Bool { (i + j) % 2 == 0 };
   func maskTest001(i : Nat, j : Nat) : Bool { i % 2 == 0 };

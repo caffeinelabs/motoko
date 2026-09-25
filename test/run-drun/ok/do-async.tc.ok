@@ -1,1 +1,1 @@
-do-async.mo:50.5-50.21: warning [M0222], ignored argument of `async*` type has no effect
+do-async.mo:47.5-47.21: warning [M0222], ignored argument of `async*` type has no effect

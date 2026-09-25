@@ -37,31 +37,31 @@ do { let _ = func(#A or #A(_ : Any)) {}; };
 do { let _ = func(#A(5) or #A(_ : Any)) {}; };*/
 
 // No coverage check for ill-typed cases
-switch (#A : {#A}) {
-  case (#A) {};
-  case ({B = _}) {};
-  case _ {};
-  case _ {};
+switch (#A : { #A }) {
+  case #A {}
+  case { B = _ } {}
+  case _ {}
+  case _ {}
 };
 
 switch (true : Bool) {
-  case true {};
-  case 1 {};
-  case false {};
+  case true {}
+  case 1 {}
+  case false {}
 };
 
 switch (true : Bool) {
-  case (#geese) {};
+  case #geese {}
 };
 
 // Coverage check for disjoint variants
 switch (#sparrows : { #sparrows }) {
-  case (#geese) {};
+  case #geese {}
 };
 
-func absurd(birds : {#}) =
+func absurd(birds : { # }) =
   switch birds {
-    case (#geese) {};
+    case #geese {}
   };
 
 func bad_pat() {

@@ -1,2 +1,2 @@
-objpat-duplicate.mo:4.19-4.20: type error [M0121], duplicate field a in object pattern
-objpat-duplicate.mo:8.8-8.18: type error [M0017], duplicate binding for a in pattern
+objpat-duplicate.mo:4.20-4.21: type error [M0121], duplicate field a in object pattern
+objpat-duplicate.mo:8.8-8.20: type error [M0017], duplicate binding for a in pattern

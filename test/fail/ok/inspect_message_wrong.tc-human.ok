@@ -12,6 +12,6 @@ instead of expected type
         #set : () -> (n : Nat)
       }
   } -> Bool
-    ┌─ inspect_message_wrong.mo:10:4
- 10 │     system func inspect()  {}
-    │     ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ inspect_message_wrong.mo:10:3
+ 10 │    system func inspect()  {}
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^ 

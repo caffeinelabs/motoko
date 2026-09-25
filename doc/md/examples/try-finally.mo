@@ -4,15 +4,15 @@ import Debug "mo:core/Debug";
 actor {
 
   public func tryFunction() {
-   try {
+    try {
       func greetOptional(optionalName : ?Text) : Text =
         switch optionalName {
-          case null { "No name to be found." };
-          case (?name) { "Hello, " # name # "!" };
+          case null { "No name to be found." }
+          case ?name { "Hello, " # name # "!" }
         };
-       assert greetOptional(?"Motoko") == "Motoko";
+      assert greetOptional(?"Motoko") == "Motoko";
     } finally {
-       Debug.print("Finally block executed");
+      Debug.print("Finally block executed");
     }
   }
 

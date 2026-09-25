@@ -4,5 +4,5 @@ error[M0118]: tuple pattern has 0 components but expected type has 2
     │        ^^ 
 error[M0118]: tuple pattern has 2 components but expected type has 3
     ┌─ issue2281.mo:5:7
-  5 │    let (_,_) = (true, false, true);
-    │        ^^^^^ 
+  5 │    let (_, _) = (true, false, true);
+    │        ^^^^^^ 

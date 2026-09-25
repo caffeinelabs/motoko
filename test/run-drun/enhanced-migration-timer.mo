@@ -6,16 +6,16 @@ import Timer "mo:core/Timer";
 import Prim "mo:prim";
 
 actor {
-    let zero : Nat;
-    let one : [var Nat];
-    let two : [var Text];
+  let zero : Nat;
+  let one : [var Nat];
+  let two : [var Text];
 
-    func check() : async () {
-        Prim.debugPrint(debug_show "Version 0");
-        Prim.debugPrint(debug_show { zero; one; two });
-    };
+  func check() : async () {
+    Prim.debugPrint(debug_show "Version 0");
+    Prim.debugPrint(debug_show { zero; one; two });
+  };
 
-    transient let _t : Nat = Timer.setTimer<system>(#seconds 0, check);
+  transient let _t : Nat = Timer.setTimer<system>(#seconds 0, check);
 
 };
 

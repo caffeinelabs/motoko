@@ -4,7 +4,7 @@ type
   () -> Nat
 is or contains non-shared type
   () -> Nat
-issue103.mo:10.29-10.46: type error [M0031], shared function has non-shared parameter type
+issue103.mo:10.29-10.48: type error [M0031], shared function has non-shared parameter type
   {foo : () -> Nat}
 type
   {foo : () -> Nat}
@@ -16,7 +16,7 @@ type
   () -> Nat
 is or contains non-shared type
   () -> Nat
-issue103.mo:24.29-24.48: type error [M0033], async has non-shared content type
+issue103.mo:24.29-24.50: type error [M0033], async has non-shared content type
   {foo : () -> Nat}
 type
   {foo : () -> Nat}

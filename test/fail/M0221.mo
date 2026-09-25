@@ -5,7 +5,6 @@ func _unableToDetermineType() {
   let { type K } = module { type K = Nat };
 };
 
-
 func _requiresAnnotation() {
   class HashMap() {
     public type Hash = Nat64;

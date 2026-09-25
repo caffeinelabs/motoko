@@ -5,5 +5,3 @@ actor {
 
 //CALL ingress go2 "DIDL\x00\x00"
 //CALL query go2 "DIDL\x00\x00"
-
-

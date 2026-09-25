@@ -3,7 +3,7 @@
 import List "mo:core/List";
 
 actor {
-    let _l : List.List<Int> = List.empty();
+  let _l : List.List<Int> = List.empty();
 
 };
 

@@ -169,7 +169,7 @@ do {
   ignore Nat.toText((pos * 6364136223846793005 + 1442695040888963407) % 4294967296); // no-warn
 
   // IfE receiver — likewise.
-  ignore Nat.toText(if (pos == 0) 1 else 2); // no-warn
+  ignore Nat.toText(if pos == 0 { 1 } else { 2 }); // no-warn
 };
 
 // Suggest context dot conflicts with field resolution

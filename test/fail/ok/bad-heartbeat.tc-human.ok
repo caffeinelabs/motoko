@@ -4,7 +4,8 @@ instead of expected type
   () -> async ()
     ┌─ bad-heartbeat.mo:2:3
   1 │    actor {
-  2 │ ╭    system func heartbeat() : () { // reject, should be async ()
-  3 │ │    };
+  2 │ ╭    system func heartbeat() : () {
+  3 │ │      // reject, should be async ()
+  4 │ │    };
     │ ╰────^ 
-  4 │    };
+  5 │    };

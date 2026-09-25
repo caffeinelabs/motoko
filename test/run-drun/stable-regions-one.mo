@@ -16,11 +16,11 @@ actor {
     assert Region.size(r1) == Region.size(aliases[1]);
     P.debugPrint("pre");
     size := Region.size(r1);
-    P.debugPrint(debug_show (#pre{size}));
+    P.debugPrint(debug_show (#pre{ size }));
   };
 
   system func postupgrade() {
-    P.debugPrint(debug_show (#post{id;size;reg_size=Region.size(r1)}));
+    P.debugPrint(debug_show (#post{ id; size; reg_size=Region.size(r1) }));
     assert Region.size(r1) == size;
     ignore Region.grow(r1, 8);
     assert Region.size(r1) == 16;
@@ -28,8 +28,7 @@ actor {
     assert Region.size(r1) == Region.size(aliases[1]);
   };
 
-  public func sanityTest() : () {
-  };
+  public func sanityTest() : () {};
 }
 
 //SKIP run

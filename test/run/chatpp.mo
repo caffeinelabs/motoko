@@ -1,9 +1,9 @@
 import Prim "mo:⛔";
 
-type List<T> = ?{head : T; var tail : List<T>};
+type List<T> = ?{ head : T; var tail : List<T> };
 
 type Subscription = {
-  post : shared Text -> ();  // revokable by Server
+  post : shared Text -> (); // revokable by Server
   cancel : shared () -> ();
 };
 
@@ -17,7 +17,7 @@ actor class Server() = {
   flexible var nextId : Nat = 0;
   flexible var clients : List<ClientData> = null;
 
-/*
+  /*
   // casualty of scope-awaits - can't abstract out a sequential broadcast function
   // instead, inline it below ...
   func broadcast(id : Nat, message : Text) {
@@ -35,24 +35,25 @@ actor class Server() = {
 */
 
   public func subscribe(aclient : Client) : async Subscription {
-    let c = {id = nextId; client = aclient; var revoked = false};
+    let c = { id = nextId; client = aclient; var revoked = false };
     nextId += 1;
-    let cs = {head = c; var tail = clients};
+    let cs = { head = c; var tail = clients };
     clients := ?cs;
     return object {
       public shared func post(message : Text) : () {
-	if (not c.revoked) { // inlined call to broadcast(c.id,message)
-	  let id = c.id;
-	  var next = clients;
-	  loop {
-	    switch next {
-	      case null { break };
-	      case (?n) {
-		if (n.head.id != id) n.head.client.send(message);
-		next := n.tail;
-	      };
-	    };
-	  };
+        if not c.revoked {
+          // inlined call to broadcast(c.id,message)
+          let id = c.id;
+          var next = clients;
+          loop {
+            switch next {
+              case null { break }
+              case ?n {
+                if n.head.id != id { n.head.client.send(message) };
+                next := n.tail;
+              }
+            };
+          };
         }
       };
       public shared func cancel() : () { unsubscribe(c.id) };
@@ -64,20 +65,20 @@ actor class Server() = {
     var next = clients;
     loop {
       switch next {
-        case null return;
-        case (?n) {
-          if (n.head.id == id) {
+        case null { return }
+        case ?n {
+          if n.head.id == id {
             switch prev {
-              case null { clients := n.tail };
-              case (?p) { p.tail := n.tail };
+              case null { clients := n.tail }
+              case ?p { p.tail := n.tail }
             };
             Prim.debugPrint "unsubscribe ";
-	    Prim.debugPrintInt id;
+            Prim.debugPrintInt id;
             return;
           };
           prev := next;
           next := n.tail;
-        };
+        }
       };
     };
   };
@@ -114,4 +115,3 @@ charlie.go("charlie", server);
 
 // no support for toplevel-await, first-class shared functions anywhere yet
 //SKIP comp
-

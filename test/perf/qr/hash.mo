@@ -20,11 +20,13 @@ module {
   public let hashOfInt : Int -> Hash = func(i) {
     let j = Prim.int32ToNat32(Prim.intToInt32(i));
     hashNat8s(
-      [j & (255 << 0),
-       j & (255 << 8),
-       j & (255 << 16),
-       j & (255 << 24)
-      ]);
+      [
+        j & (255 << 0),
+        j & (255 << 8),
+        j & (255 << 16),
+        j & (255 << 24)
+      ]
+    );
   };
 
   /**
@@ -33,12 +35,14 @@ module {
   public let hashOfIntAcc : (Hash, Int) -> Hash = func(h1, i) {
     let j = Prim.int32ToNat32(Prim.intToInt32(i));
     hashNat8s(
-      [h1,
-       j & (255 << 0),
-       j & (255 << 8),
-       j & (255 << 16),
-       j & (255 << 24)
-      ]);
+      [
+        h1,
+        j & (255 << 0),
+        j & (255 << 8),
+        j & (255 << 16),
+        j & (255 << 24)
+      ]
+    );
   };
 
   /**
@@ -46,7 +50,7 @@ module {
   */
   public let hashOfText : Text -> Hash = func(t) {
     var x = 0 : Nat32;
-    for (c in t.chars()) {
+    for c in t.chars() {
       x := x ^ Prim.charToNat32(c);
     };
     return x
@@ -68,8 +72,8 @@ module {
   };
 
   public let bitsPrintRev : Hash -> () = func(bits) {
-    for (j in Iter.range(0, length - 1)) {
-      if (getHashBit(bits, j)) {
+    for j in Iter.range(0, length - 1) {
+      if getHashBit(bits, j) {
         Prim.debugPrint "1"
       } else {
         Prim.debugPrint "0"
@@ -78,8 +82,8 @@ module {
   };
 
   public let hashPrintRev : Hash -> () = func(bits) {
-    for (j in Iter.range(length - 1, 0)) {
-      if (getHashBit(bits, j)) {
+    for j in Iter.range(length - 1, 0) {
+      if getHashBit(bits, j) {
         Prim.debugPrint "1"
       } else {
         Prim.debugPrint "0"
@@ -97,7 +101,7 @@ module {
   */
   public let hashNat8s : [Hash] -> Hash = func(key) {
     var hash = Prim.natToNat32(0);
-    for (natOfKey in key.values()) {
+    for natOfKey in key.values() {
       hash := hash +% natOfKey;
       hash := hash +% hash << 10;
       hash := hash ^ (hash >> 6);

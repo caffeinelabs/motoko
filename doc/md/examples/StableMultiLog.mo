@@ -7,7 +7,8 @@ actor StableLog {
   public type Index = Nat64;
 
   // Internal representation uses two regions, working together.
-  var state = { // implicitly `stable`
+  var state = {
+    // implicitly `stable`
     bytes = Region.new();
     var bytes_count : Nat64 = 0;
     elems = Region.new ();
@@ -17,7 +18,7 @@ actor StableLog {
   // Grow a region to hold a certain number of total bytes.
   func regionEnsureSizeBytes(r : Region, new_byte_count : Nat64) {
     let pages = Region.size(r);
-    if (new_byte_count > pages << 16) {
+    if new_byte_count > pages << 16 {
       let new_pages = ((new_byte_count + ((1 << 16) - 1)) / (1 << 16)) - pages;
       assert Region.grow(r, new_pages) == pages
     }
@@ -33,7 +34,7 @@ actor StableLog {
 
   // Count of elements (Blobs) that have been logged.
   public func size() : async Nat64 {
-      state.elems_count
+    state.elems_count
   };
 
   // Constant-time random access to previously-logged Blob.
@@ -41,7 +42,7 @@ actor StableLog {
     assert index < state.elems_count;
     let pos = Region.loadNat64(state.elems, index * elem_size);
     let size = Region.loadNat64(state.elems, index * elem_size + 8);
-    let elem = { pos ; size };
+    let elem = { pos; size };
     Region.loadBlob(state.bytes, elem.pos, Nat64.toNat(elem.size))
   };
 

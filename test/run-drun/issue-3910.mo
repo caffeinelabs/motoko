@@ -36,7 +36,6 @@ actor a {
     Prim.debugPrint ("g2");
   };
 
-
   public func go() : async () {
 
     await f0({ trap = false });
@@ -46,12 +45,12 @@ actor a {
     await f2({ trap = false });
 
     try await async {
-       ignore f2({ trap = true }); // should trap, not produce async
-       Prim.debugPrint ("f2() failed to trap");
-       assert false;
+      ignore f2({ trap = true }); // should trap, not produce async
+      Prim.debugPrint ("f2() failed to trap");
+      assert false;
     }
     catch e {
-       Prim.debugPrint ("f2() trapped successfully");
+      Prim.debugPrint ("f2() trapped successfully");
     };
 
     await g0({ trap = false });
@@ -61,15 +60,15 @@ actor a {
     await g2({ trap = false });
 
     try await async {
-       ignore g2({ trap = true }); // should trap, not produce async
-       Prim.debugPrint ("g2() failed to trap");
-       assert false;
+      ignore g2({ trap = true }); // should trap, not produce async
+      Prim.debugPrint ("g2() failed to trap");
+      assert false;
     }
     catch e {
-       Prim.debugPrint ("g2() trapped successfully");
+      Prim.debugPrint ("g2() trapped successfully");
     };
   }
 
 };
 
-await a.go()//OR-CALL ingress go "DIDL\x00\x00"
+await a.go() //OR-CALL ingress go "DIDL\x00\x00"

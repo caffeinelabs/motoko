@@ -47,15 +47,15 @@ module {
     key : K,
     equal : (K, K) -> Bool
   ) : ?V {
-    switch (map) {
-      case (?((hd_k, hd_v), tl)) {
-        if (equal(key, hd_k)) {
+    switch map {
+      case ?((hd_k, hd_v), tl) {
+        if equal(key, hd_k) {
           ?hd_v
         } else {
           find(tl, key, equal)
         }
-      };
-      case (null) { null }
+      }
+      case null { null }
     }
   };
 
@@ -82,26 +82,26 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in O(1) time and space.
   public func replace<K, V>(
-      map : AssocList<K, V>,
-      key : K,
-      equal : (K, K) -> Bool,
-      value : ?V
-    ) : (AssocList<K, V>, ?V) {
+    map : AssocList<K, V>,
+    key : K,
+    equal : (K, K) -> Bool,
+    value : ?V
+  ) : (AssocList<K, V>, ?V) {
     var prev : ?V = null;
     func del(al : AssocList<K, V>) : AssocList<K, V> {
-      switch (al) {
-        case (?(kv, tl)) {
-          if (equal(key, kv.0)) {
+      switch al {
+        case ?(kv, tl) {
+          if equal(key, kv.0) {
             prev := ?kv.1;
             tl
           } else {
             let tl1 = del(tl);
-            switch (prev) {
-              case null { al };
-              case (?_) { ?(kv, tl1) }
+            switch prev {
+              case null { al }
+              case ?_ { ?(kv, tl1) }
             }
           }
-        };
+        }
         case null {
           null
         }
@@ -109,12 +109,12 @@ module {
     };
     let map1 = del(map);
     switch value {
-      case (?value) {
+      case ?value {
         (?((key, value), map1), prev)
-      };
+      }
       case null {
         (map1, prev)
-      };
+      }
     };
   };
 
@@ -151,11 +151,11 @@ module {
   ) : AssocList<K, V> {
     func rec(al1 : AssocList<K, V>) : AssocList<K, V> {
       switch al1 {
-        case (null) { null };
-        case (?((k, v1), tl)) {
-          switch (find<K, W>(map2, k, equal)) {
-            case (null) { ?((k, v1), rec(tl)) };
-            case (?v2) { rec(tl) }
+        case null { null }
+        case ?((k, v1), tl) {
+          switch find<K, W>(map2, k, equal) {
+            case null { ?((k, v1), rec(tl)) }
+            case ?v2 { rec(tl) }
           }
         }
       }
@@ -171,8 +171,8 @@ module {
   ) : AssocList<K, X> {
     func rec(al1 : AssocList<K, V>, al2 : AssocList<K, W>) : AssocList<K, X> {
       switch (al1, al2) {
-        case (null, null) { null };
-        case (?((k, v), al1_), _) { ?((k, f(?v, null)), rec(al1_, al2)) };
+        case (null, null) { null }
+        case (?((k, v), al1_), _) { ?((k, f(?v, null)), rec(al1_, al2)) }
         case (null, ?((k, v), al2_)) { ?((k, f(null, ?v)), rec(null, al2_)) }
       }
     };
@@ -293,24 +293,24 @@ module {
   ) : AssocList<K, X> {
     func rec1(al1Rec : AssocList<K, V>) : AssocList<K, X> {
       switch al1Rec {
-        case (null) {
+        case null {
           func rec2(al2 : AssocList<K, W>) : AssocList<K, X> {
             switch al2 {
-              case (null) { null };
-              case (?((k, v2), tl)) {
-                switch (find<K, V>(map1, k, equal)) {
-                  case (null) { ?((k, combine(null, ?v2)), rec2(tl)) };
-                  case (?v1) { ?((k, combine(?v1, ?v2)), rec2(tl)) }
+              case null { null }
+              case ?((k, v2), tl) {
+                switch find<K, V>(map1, k, equal) {
+                  case null { ?((k, combine(null, ?v2)), rec2(tl)) }
+                  case ?v1 { ?((k, combine(?v1, ?v2)), rec2(tl)) }
                 }
               }
             }
           };
           rec2(map2)
-        };
-        case (?((k, v1), tl)) {
-          switch (find<K, W>(map2, k, equal)) {
-            case (null) { ?((k, combine(?v1, null)), rec1(tl)) };
-            case (?v2) { /* handled above */ rec1(tl) }
+        }
+        case ?((k, v1), tl) {
+          switch find<K, W>(map2, k, equal) {
+            case null { ?((k, combine(?v1, null)), rec1(tl)) }
+            case ?v2 { /* handled above */ rec1(tl) }
           }
         }
       }
@@ -353,11 +353,11 @@ module {
   ) : AssocList<K, X> {
     func rec(al1 : AssocList<K, V>) : AssocList<K, X> {
       switch al1 {
-        case (null) { null };
-        case (?((k, v1), tl)) {
-          switch (find<K, W>(map2, k, equal)) {
-            case (null) { rec(tl) };
-            case (?v2) { ?((k, combine(v1, v2)), rec(tl)) }
+        case null { null }
+        case ?((k, v1), tl) {
+          switch find<K, W>(map2, k, equal) {
+            case null { rec(tl) }
+            case ?v2 { ?((k, combine(v1, v2)), rec(tl)) }
           }
         }
       }
@@ -393,8 +393,8 @@ module {
   ) : X {
     func rec(al : AssocList<K, V>) : X {
       switch al {
-        case null { base };
-        case (?((k, v), t)) { combine(k, v, rec(t)) }
+        case null { base }
+        case ?((k, v), t) { combine(k, v, rec(t)) }
       }
     };
     rec(map)

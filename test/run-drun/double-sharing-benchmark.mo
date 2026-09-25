@@ -1,34 +1,33 @@
 import Prim "mo:prim";
 
 actor {
-    type Node<T> = {
-        value : T;
-        left : ?Node<T>;
-        right : ?Node<T>;
+  type Node<T> = {
+    value : T;
+    left : ?Node<T>;
+    right : ?Node<T>;
+  };
+
+  var root : ?Node<Nat> = null;
+
+  func double(value : Nat) {
+    root := ?{
+      value;
+      left = root;
+      right = root;
     };
+  };
 
-    var root : ?Node<Nat> = null;
-
-    func double(value : Nat) {
-        root := ?{
-            value;
-            left = root;
-            right = root;
-        };
+  public func run() : async () {
+    var size = 0;
+    while size < 25 {
+      double(size);
+      size += 1;
     };
+  };
 
-
-    public func run() : async () {
-        var size = 0;
-        while (size < 25) {
-            double(size);
-            size += 1;
-        };
-    };
-
-    system func postupgrade() {
-        Prim.debugPrint("Upgraded!");
-    };
+  system func postupgrade() {
+    Prim.debugPrint("Upgraded!");
+  };
 };
 
 //CALL ingress run "DIDL\x00\x00"

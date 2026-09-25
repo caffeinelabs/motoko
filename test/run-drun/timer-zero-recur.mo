@@ -10,18 +10,18 @@ actor {
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
   public shared func go() : async () {
-     var attempts = 0;
+    var attempts = 0;
 
-     // when duration is 0 all "future" recurrent expirations happen at once
-     ignore setTimer<system>(0, true, func () : async () { count += 1; debugPrint "YEP!" });
+    // when duration is 0 all "future" recurrent expirations happen at once
+    ignore setTimer<system>(0, true, func () : async () { count += 1; debugPrint "YEP!" });
 
-     while (count < max) {
-       ignore await raw_rand(); // yield to scheduler
-       attempts += 1;
-       if (attempts >= 200 and count == 1)
-         count += 1;
-     };
-     debugPrint(debug_show {count});
+    while count < max {
+      ignore await raw_rand(); // yield to scheduler
+      attempts += 1;
+      if attempts >= 200 and count == 1
+        { count += 1 };
+    };
+    debugPrint(debug_show { count });
   };
 };
 

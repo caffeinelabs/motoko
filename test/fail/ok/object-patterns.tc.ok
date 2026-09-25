@@ -1,8 +1,8 @@
-object-patterns.mo:6.13-6.21: type error [M0117], pattern of type
+object-patterns.mo:6.14-6.22: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-object-patterns.mo:17.9-17.16: type error [M0117], pattern of type
+object-patterns.mo:16.9-16.16: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int

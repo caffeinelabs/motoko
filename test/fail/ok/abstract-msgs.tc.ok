@@ -1,12 +1,12 @@
-abstract-msgs.mo:2.6-2.50: type error [M0180], shared function has unexpected type parameters
+abstract-msgs.mo:2.6-2.48: type error [M0180], shared function has unexpected type parameters
 abstract-msgs.mo:3.36-3.38: type error [M0035], shared function must have syntactic return type '()' or 'async <typ>'
-abstract-msgs.mo:5.23-5.32: type error [M0031], shared function has non-shared parameter type
+abstract-msgs.mo:5.23-5.30: type error [M0031], shared function has non-shared parameter type
   (x : A)
 abstract-msgs.mo:6.28-6.36: type error [M0032], shared function has non-shared return type
   ?A
-abstract-msgs.mo:10.37-10.38: type error [M0031], shared function has non-shared parameter type
+abstract-msgs.mo:10.36-10.37: type error [M0031], shared function has non-shared parameter type
   A
-abstract-msgs.mo:11.30-11.50: type error [M0032], shared function has non-shared return type
+abstract-msgs.mo:11.29-11.49: type error [M0032], shared function has non-shared return type
   A
 abstract-msgs.mo:14.16-14.40: type error [M0180], shared function has unexpected type parameters
 abstract-msgs.mo:15.16-15.46: type error [M0180], shared function has unexpected type parameters

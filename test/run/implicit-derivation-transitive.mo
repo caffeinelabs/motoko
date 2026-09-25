@@ -6,7 +6,7 @@ var arrayCompareCalls = 0;
 module Nat {
   public func compare(a : Nat, b : Nat) : Order {
     natCompareCalls += 1;
-    if (a < b) #less else if (a == b) #equal else #greater;
+    if a < b { #less } else if a == b { #equal } else { #greater };
   };
 };
 
@@ -14,16 +14,16 @@ module Array {
   public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order {
     arrayCompareCalls += 1;
     let len = a.size();
-    if (len != b.size()) {
-      if (len < b.size()) #less else #greater;
+    if len != b.size() {
+      if len < b.size() { #less } else { #greater };
     } else {
       var i = 0;
       var result : Order = #equal;
-      label l while (i < len) {
+      label l while i < len {
         let c = compare(a[i], b[i]);
-        switch (c) {
-          case (#equal) {};
-          case _ { result := c; break l };
+        switch c {
+          case #equal {}
+          case _ { result := c; break l }
         };
         i += 1;
       };

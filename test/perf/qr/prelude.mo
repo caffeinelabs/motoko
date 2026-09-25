@@ -6,7 +6,7 @@
 import Prim "mo:⛔";
 
 module {
-/*
+  /*
 
 Stdlib prelude
 ===============
@@ -17,7 +17,7 @@ some further experience and discussion.  Until then, they live here.
 
 */
 
-/*
+  /*
 
   `printLn`
   ---------
@@ -25,11 +25,11 @@ some further experience and discussion.  Until then, they live here.
   Print text followed by a newline.
 
 */
-public func printLn(x : Text) {
-  Prim.debugPrint(x # "\n");
-};
+  public func printLn(x : Text) {
+    Prim.debugPrint(x # "\n");
+  };
 
-/*
+  /*
 
  `nyi`: Not yet implemented
  -----------------------------
@@ -41,11 +41,11 @@ trap in all execution contexts.
 
 */
 
-public func nyi() : None { assert false ; loop { } };
+  public func nyi() : None { assert false; loop {} };
 
-public func xxx() : None { assert false ; loop { } };
+  public func xxx() : None { assert false; loop {} };
 
-/*
+  /*
 
  `unreachable`
  --------------------
@@ -56,5 +56,5 @@ public func xxx() : None { assert false ; loop { } };
  trap in all execution contexts.
 
 */
-public func unreachable() : None { assert false ; loop { } };
+  public func unreachable() : None { assert false; loop {} };
 }

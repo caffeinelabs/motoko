@@ -1,7 +1,7 @@
 bad-async-sort.mo:3.12-3.15: type error [M0088], expected async* type, but expression has type
   async<$> Nat
 Use keyword 'await' or 'await?' (not 'await*') to consume this type.
-bad-async-sort.mo:7.10-7.13: type error [M0088], expected async type, but expression has type
+bad-async-sort.mo:7.11-7.14: type error [M0088], expected async type, but expression has type
   async*<$> Nat
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.
 bad-async-sort.mo:11.11-11.20: type error [M0088], expected async type, but expression has type

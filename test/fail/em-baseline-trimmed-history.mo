@@ -6,6 +6,6 @@
 // m1 and m2 still match their recorded types, so the history check is silent
 // and so is the rest of the baseline check.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

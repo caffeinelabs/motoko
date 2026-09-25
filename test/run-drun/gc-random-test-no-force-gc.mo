@@ -5,11 +5,11 @@
 import GCRandomTest "gc-random-test/gc-random-test";
 
 actor {
-    transient let test = GCRandomTest.GCRandomTest();
+  transient let test = GCRandomTest.GCRandomTest();
 
-    public shared func run() : async () {
-        await test.run(120);
-    };
+  public shared func run() : async () {
+    await test.run(120);
+  };
 };
 
 //SKIP run

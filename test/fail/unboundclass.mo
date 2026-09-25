@@ -1,5 +1,4 @@
-
-class Foo(f1:Int -> Int, f2:Int -> Int) { };
+class Foo(f1:Int -> Int, f2:Int -> Int) {};
 
 class Bar () {
 

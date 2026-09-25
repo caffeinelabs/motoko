@@ -4,7 +4,7 @@ fo()
 fo();
 fo();
 
-func f(){ 
+func f(){
   fo();
   fo()
   fo()

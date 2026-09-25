@@ -6,17 +6,17 @@ import Prim "mo:⛔";
 
 actor  {
 
-    public func test() : async () {
-        let balance = Prim.cyclesBalance();
+  public func test() : async () {
+    let balance = Prim.cyclesBalance();
 
-        var j : Nat = 0;
-        while (j < 3) {
-            j += 1;
-            await async();
-        };
+    var j : Nat = 0;
+    while j < 3 {
+      j += 1;
+      await async();
+    };
 
-        if (balance > Prim.cyclesBalance()) {
-            Prim.debugPrint("Application subnet");
-        };
-    }
+    if balance > Prim.cyclesBalance() {
+      Prim.debugPrint("Application subnet");
+    };
+  }
 };

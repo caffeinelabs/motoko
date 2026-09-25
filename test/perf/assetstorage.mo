@@ -15,7 +15,7 @@ shared ({ caller = creator }) actor class () {
   flexible let db : Tree.RBTree<Path, Contents> = Tree.RBTree(Text.compare);
 
   public shared ({ caller }) func store(path : Path, contents : Contents) : async () {
-    if (caller != initializer) {
+    if caller != initializer {
       throw Error.reject("not authorized");
     } else {
       db.put(path, contents);
@@ -23,9 +23,9 @@ shared ({ caller = creator }) actor class () {
   };
 
   public query func retrieve(path : Path) : async Contents {
-    switch (db.get(path)) {
-      case null throw Error.reject("not found");
-      case (?contents) contents;
+    switch db.get(path) {
+      case null { throw Error.reject("not found") }
+      case ?contents { contents }
     };
   };
 

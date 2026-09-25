@@ -2,8 +2,8 @@
 //MOC-FLAG -A=M0194
 
 actor {
-    let a : Float;
-    let b : Bool;
-    var c : Nat;
-    let x : {#X}; // never involved in migrations, inherited from initial
+  let a : Float;
+  let b : Bool;
+  var c : Nat;
+  let x : { #X }; // never involved in migrations, inherited from initial
 };

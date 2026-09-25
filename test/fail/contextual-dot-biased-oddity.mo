@@ -7,7 +7,7 @@ module Box {
 };
 
 let b1 = Box.Box<Nat>(1);
-let n1 = b1.value;   // accept, field ref
+let n1 = b1.value; // accept, field ref
 let n2 = b1.value(); // accept, method ref
 
 let b2 = Box.Box<Nat->Nat>(func x = x);

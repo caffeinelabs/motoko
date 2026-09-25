@@ -26,26 +26,27 @@ shared(msg) actor class Wallet() {
 
   public shared(msg) func debit(
     amount : Nat,
-    credit : shared () -> async ())
+    credit : shared () -> async ()
+  )
     : async () {
-    if (msg.caller != owner) assert false;
-    Cycles.add<system>(amount);
-    await credit();
-  };
+      if msg.caller != owner { assert false };
+      Cycles.add<system>(amount);
+      await credit();
+    };
 
   public shared func refund(
-    amount : Nat)
+    amount : Nat
+  )
     : async () {
-    ignore Cycles.accept<system>(Cycles.available() - amount);
-    print("refunding: " #  debug_show(amount));
-  };
+      ignore Cycles.accept<system>(Cycles.available() - amount);
+      print("refunding: " #  debug_show(amount));
+    };
 
   public shared func available()
     : async Nat {
-    let available = Cycles.available();
-    print("available: " #  debug_show(available));
-    return available;
-  };
-
+      let available = Cycles.available();
+      print("available: " #  debug_show(available));
+      return available;
+    };
 
 }

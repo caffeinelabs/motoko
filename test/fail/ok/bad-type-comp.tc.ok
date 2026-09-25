@@ -4,7 +4,7 @@ cannot produce expected type
   module {type T = Null}
 because expected type field `T` is missing from type 
   module {}
-bad-type-comp.mo:6.10-6.39: type error [M0096], expression of type
+bad-type-comp.mo:6.10-6.40: type error [M0096], expression of type
   module {type T = Int}
 cannot produce expected type
   module {type T = Null}
@@ -13,13 +13,13 @@ because the type
  is not compatible with type 
   type T = Null
  in `T`
-bad-type-comp.mo:7.73-7.74: type error [M0018], duplicate type field name T in object type
+bad-type-comp.mo:7.74-7.75: type error [M0018], duplicate type field name T in object type
 bad-type-comp.mo:11.15-11.16: type error [M0029], unbound type T
 help: did you mean type Text?
 bad-type-comp.mo:17.15-17.16: type error [M0029], unbound type U
 bad-type-comp.mo:18.15-18.16: type error [M0029], unbound type T
 help: did you mean type Text?
-bad-type-comp.mo:24.17-24.27: type error [M0137], type T = A references type parameter A from an outer scope
-bad-type-comp.mo:29.23-29.33: type error [M0137], type T = A references type parameter A from an outer scope
-bad-type-comp.mo:35.25-35.26: type error [M0029], unbound type T
+bad-type-comp.mo:23.17-23.27: type error [M0137], type T = A references type parameter A from an outer scope
+bad-type-comp.mo:27.23-27.33: type error [M0137], type T = A references type parameter A from an outer scope
+bad-type-comp.mo:32.25-32.26: type error [M0029], unbound type T
 help: did you mean type Text?

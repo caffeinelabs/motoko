@@ -9,4 +9,4 @@ In read:
 6
 6
 The following fails in the interpreter, for lack of query semantics
-query2.mo:37.4-37.18: execution error, assertion failure
+query2.mo:37.5-37.19: execution error, assertion failure

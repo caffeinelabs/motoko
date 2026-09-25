@@ -16,7 +16,7 @@ let a = actor {
     await a.printCounter();
 
     var i : Int = 10;
-    while (i  > 0) {
+    while i > 0 {
       await a.inc();
       i -= 1;
     };

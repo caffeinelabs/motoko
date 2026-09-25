@@ -1,6 +1,6 @@
 error[M0051]: duplicate definition for increment in block
     ┌─ mixin-overlap.mo:5:15
-  5 │    public func increment() : () { };
+  5 │    public func increment() : () {};
     │                ^^^^^^^^^ 
 error[M0051]: duplicate definition for increment in block
     ┌─ mixin-overlap.mo:10:11

@@ -1,3 +1,3 @@
 actor class TestActorClass() {
-    public func test() : async () {};
+  public func test() : async () {};
 };

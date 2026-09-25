@@ -13,5 +13,5 @@ actor {
   // It should not be `V2 := Non`
   func x1() { let _ = peopleMap.map("text") };
   func x2() { let _ = peopleMap.map(peopleMap) };
-  func x3() { let _ = peopleMap.map(func(k, _) { 123 })};
+  func x3() { let _ = peopleMap.map(func(k, _) { 123 }) };
 };

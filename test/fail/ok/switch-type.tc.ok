@@ -1,4 +1,4 @@
-switch-type.mo:1.29-1.36: type error [M0117], pattern of type
+switch-type.mo:1.27-1.34: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int

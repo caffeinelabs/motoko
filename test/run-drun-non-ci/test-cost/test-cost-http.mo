@@ -84,12 +84,12 @@ actor client {
   };
 
   func test(request : http_request, isPrecise : Bool) : async () {
-    let transformToPrint = switch (request.transform) {
-      case (?{ function; context }) ?{
+    let transformToPrint = switch request.transform {
+      case ?{ function; context } { ?{
         function = to_candid (function);
         context;
-      };
-      case null null;
+      } }
+      case null { null }
     };
     print("test request:\n" # debug_show ({ url = request.url; method = request.method; headers = request.headers; body = request.body; max_response_bytes = request.max_response_bytes; transform = transformToPrint }));
 
@@ -105,7 +105,7 @@ actor client {
     printCycles();
 
     // Try the same request with less cycles, it should fail
-    if (isPrecise) {
+    if isPrecise {
       try {
         let _ = await (with cycles = cost - 1) ic00.http_request(request);
         assert false; // Should not happen
@@ -125,27 +125,27 @@ actor client {
     size += Prim.natToNat64(request.url.size());
 
     // Add headers byte length (sum of all names and values)
-    for (header in request.headers.values()) {
+    for header in request.headers.values() {
       size += Prim.natToNat64(header.name.size());
       size += Prim.natToNat64(header.value.size());
     };
 
     // Add body length if present
-    switch (request.body) {
-      case (?body) { size += Prim.natToNat64(body.size()) };
-      case null {};
+    switch request.body {
+      case ?body { size += Prim.natToNat64(body.size()) }
+      case null {}
     };
 
     // Add transform context length if present
-    switch (request.transform) {
-      case (?transform) {
+    switch request.transform {
+      case ?transform {
         size += Prim.natToNat64(transform.context.size());
         // How to get the method name length otherwise?
         // This gets us both the method name and the actor
         let blob = to_candid (transform.function);
         size += Prim.natToNat64(blob.size());
-      };
-      case null {};
+      }
+      case null {}
     };
 
     size;

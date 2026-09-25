@@ -1,3 +1,3 @@
 actor {
-   let test: [Nat8] = [ 0, 1, 2, 3 ];
+  let test: [Nat8] = [0, 1, 2, 3];
 };

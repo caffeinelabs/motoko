@@ -35,7 +35,7 @@ assert float32ToFloat (b - a) == 1.0;
 assert float32ToFloat (a * b) == 6.0;
 assert float32ToFloat (b / a) == 1.5;
 assert float32ToFloat (b % a) == 1.0;
-assert float32ToFloat (-a)   == -2.0;
+assert float32ToFloat (-a) == -2.0;
 
 // pow: exact case (2^10 = 1024)
 let ten : Float32 = floatToFloat32 10.0;
@@ -52,9 +52,9 @@ assert diff * diff < 1e-10;
 assert a == a;
 assert not (a == b);
 assert a != b;
-assert a <  b;
+assert a < b;
 assert a <= a;
-assert b >  a;
+assert b > a;
 assert b >= b;
 
 // Arithmetic operations — literal style (no Float conversions)
@@ -66,7 +66,7 @@ assert b2 - a2 == 1.0;
 assert a2 * b2 == 6.0;
 assert b2 / a2 == 1.5;
 assert b2 % a2 == 1.0;
-assert -a2     == -2.0;
+assert -a2 == -2.0;
 
 // pow: exact case (2^10 = 1024)
 assert a2 ** 10.0 == 1024.0;
@@ -80,9 +80,9 @@ assert diffL * diffL < 1e-10;
 assert a2 == a2;
 assert not (a2 == b2);
 assert a2 != b2;
-assert a2 <  b2;
+assert a2 < b2;
 assert a2 <= a2;
-assert b2 >  a2;
+assert b2 > a2;
 assert b2 >= b2;
 
 // PromoteF32;DemoteF64 round-trip is identity (peephole target)

@@ -1,9 +1,7 @@
 // immediate deadlock
-do { 
+do {
   let t : async () = async { await t; };
 };
-
-
 
 // circular deadlock
 
@@ -14,7 +12,6 @@ do {
     ();
   };
 };
-
 
 // Imperative deadlock
 
@@ -29,20 +26,18 @@ do {
 
 // Recursive deadlock
 
-
 func Rec(n : Int, a : async ()) : async () {
-   if (n == 0) {
+  if n == 0 {
     await a // <- illegal await since async<@>() </: async<X>()
-   }
-   else {
-    await Rec(n-1, a)
-   }
+  }
+  else {
+    await Rec(n - 1, a)
+  }
 };
-
 
 do {
   ignore async {
-    let t : async () = Rec(10,t);
+    let t : async () = Rec(10, t);
     await t;
   }
 };

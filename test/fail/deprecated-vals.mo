@@ -8,23 +8,23 @@ import Prim "mo:⛔";
 
 do {
   let a = [1, 2, 3];
-  let it = a.vals();            // value position, immutable array
+  let it = a.vals(); // value position, immutable array
   ignore (it.next());
-  for (x in a.vals()) {}        // call position
+  for x in a.vals() {} // call position
 };
 
 do {
   let m : [var Nat] = [var 1, 2, 3];
-  let it = m.vals();            // mutable array
+  let it = m.vals(); // mutable array
   ignore (it.next());
-  for (x in m.vals()) {}
+  for x in m.vals() {}
 };
 
 do {
   let b : Blob = "hi";
-  let it = b.vals();            // Blob
+  let it = b.vals(); // Blob
   ignore (it.next());
-  for (x in b.vals()) {}
+  for x in b.vals() {}
 };
 
 // .values() must NOT warn
@@ -32,14 +32,14 @@ do {
   let a = [1, 2, 3];
   let it = a.values();
   ignore (it.next());
-  for (x in a.values()) {}
+  for x in a.values() {}
 };
 
 do {
   let b : Blob = "hi";
   let it = b.values();
   ignore (it.next());
-  for (x in b.values()) {}
+  for x in b.values() {}
 };
 
 Prim.debugPrint "ok";

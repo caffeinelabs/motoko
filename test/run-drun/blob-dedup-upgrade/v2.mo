@@ -24,7 +24,7 @@ actor {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       len += hashArray[i].index;
       i += 1;
     };
@@ -43,11 +43,11 @@ actor {
 
     let hash = Prim.__getDedupTable();
     switch hash {
-      case (?hashArray) {
+      case ?hashArray {
         Prim.debugPrint(debug_show (getHashArrayLen(hashArray)));
         assert (getHashArrayLen(hashArray) == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
 
     let blob0 : Blob = "a";
@@ -55,7 +55,7 @@ actor {
     let blob2 : Blob = "!caf!chocolaterules";
     let blob3 : Blob = "!caf!coffeerules";
     var counter = 20;
-    while (counter > 0) {
+    while counter > 0 {
       await test(blob0);
       await test(blob1);
       await test(blob2);
@@ -65,11 +65,11 @@ actor {
 
     let newHash = Prim.__getDedupTable();
     switch newHash {
-      case (?hashArray) {
+      case ?hashArray {
         Prim.debugPrint(debug_show (getHashArrayLen(hashArray)));
         assert (getHashArrayLen(hashArray) == 6);
-      };
-      case null {};
+      }
+      case null {}
     };
   };
 

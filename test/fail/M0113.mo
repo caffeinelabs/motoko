@@ -1,1 +1,1 @@
-let {foo} = true
+let { foo } = true

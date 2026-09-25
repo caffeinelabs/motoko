@@ -42,8 +42,8 @@ module {
     //
     func step(chunk : List<Char>, accum : ?List<Bool>) : ?List<Bool> {
       switch (parse(chunk), accum) {
-        case (?a, ?b) { ?List.append<Bool>(a, b) };
-        case _ null
+        case (?a, ?b) { ?List.append<Bool>(a, b) }
+        case _ { null }
       }
     };
 
@@ -58,16 +58,16 @@ module {
   func parse(chunk : List<Char>) : ?List<Bool> {
 
     //
-    let p = switch (List.len<Char>(chunk)) {
-      case 3 ?10;
-      case 2 ?07;
-      case 1 ?04;
-      case _ null
+    let p = switch List.len<Char>(chunk) {
+      case 3 { ?10 }
+      case 2 { ?07 }
+      case 1 { ?04 }
+      case _ { null }
     };
 
     //
     let n = List.foldLeft<Char, ?Nat>(chunk, ?0, func (char, accum) {
-      if (Char.isDigit(char)) {
+      if Char.isDigit(char) {
         Option.map<Nat, Nat>(func (a) {
           let b = Prim.nat32ToNat(
             Prim.charToNat32(char) -% Prim.charToNat32('0')
@@ -81,8 +81,8 @@ module {
 
     //
     switch (p, n) {
-      case (?a, ?b) { ?Util.padLeftTo(a, Nat.natToBits(b)) };
-      case _ null
+      case (?a, ?b) { ?Util.padLeftTo(a, Nat.natToBits(b)) }
+      case _ { null }
     }
 
   };

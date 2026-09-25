@@ -1,14 +1,14 @@
-implicit-suggest.mo:41.13-41.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:41.32-41.43: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-implicit-suggest.mo:42.13-42.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:44.27-44.38: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-implicit-suggest.mo:52.13-52.43: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:52.32-52.39: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-implicit-suggest.mo:53.13-53.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:54.13-54.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:56.27-56.34: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-implicit-suggest.mo:57.13-57.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-implicit-suggest.mo:73.12-73.47: warning [M0236], You can use the dot notation `ambMap.get(...)` here
-implicit-suggest.mo:74.12-74.33: type error [M0231], ambiguous implicit argument named `compare` of type 
+implicit-suggest.mo:45.12-45.46: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:45.31-45.42: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:46.12-46.33: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:48.26-48.37: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:56.12-56.42: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:56.31-56.38: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:57.12-57.46: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:58.12-58.33: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:60.26-60.33: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:61.12-61.46: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:77.12-77.47: warning [M0236], You can use the dot notation `ambMap.get(...)` here
+implicit-suggest.mo:78.12-78.33: type error [M0231], ambiguous implicit argument named `compare` of type 
   (Amb1.T, Amb1.T) -> Order.
 note: The ambiguous implicit candidates are: `Amb1.compare`, `_Amb2.compare`.

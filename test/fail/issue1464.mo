@@ -8,4 +8,3 @@ class Bar() = Self {
 };
 
 Bar().foo.doFoo();
-

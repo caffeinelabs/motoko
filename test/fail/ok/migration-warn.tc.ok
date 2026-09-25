@@ -1,8 +1,8 @@
-migration-warn.mo:4.7-8.5: warning [M0206], migration expression consumes field `data` of type
+migration-warn.mo:4.7-8.4: warning [M0206], migration expression consumes field `data` of type
   Nat
 but does not produce it, yet the field is declared in the actor.
 The declaration in the actor will be reinitialized, discarding its consumed value.
 If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function.
-migration-warn.mo:11.8-11.12: warning [M0244], variable data is never reassigned, consider using `let`
-migration-warn.mo:24.8-24.12: warning [M0244], variable data is never reassigned, consider using `let`
-migration-warn.mo:37.8-37.12: warning [M0244], variable data is never reassigned, consider using `let`
+migration-warn.mo:11.7-11.11: warning [M0244], variable data is never reassigned, consider using `let`
+migration-warn.mo:24.7-24.11: warning [M0244], variable data is never reassigned, consider using `let`
+migration-warn.mo:37.7-37.11: warning [M0244], variable data is never reassigned, consider using `let`

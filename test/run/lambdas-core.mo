@@ -284,12 +284,12 @@ module PureMap {
 type Result<T, E> = { #ok : T; #err : E };
 module Result {
   public func mapOk<T, R, E>(result : Result<T, E>, f : T -> R) : Result<R, E> = switch result {
-    case (#err(e)) { #err(e) };
-    case (#ok(r)) { #ok(f(r)) };
+    case #err(e) { #err(e) }
+    case #ok(r) { #ok(f(r)) }
   };
   public func mapErr<T, E, F>(result : Result<T, E>, f : E -> F) : Result<T, F> = switch result {
-    case (#ok(r)) { #ok(r) };
-    case (#err(e)) { #err(f(e)) };
+    case #ok(r) { #ok(r) }
+    case #err(e) { #err(f(e)) }
   };
   public func forOk<T, E>(_result : Result<T, E>, _f : T -> ()) {};
   public func forErr<T, E>(_result : Result<T, E>, _f : E -> ()) {};
@@ -379,7 +379,7 @@ let _ = VarArray.any(varAr, func x = x > 3);
 Iter.forEach(iter, func _ {});
 let _ = Iter.map(iter, func x = x * 2);
 let _ = Iter.filter(iter, func x = x % 2 == 0);
-let _ = Iter.filterMap(iter, func x = if (x % 2 == 0) ?x else null);
+let _ = Iter.filterMap(iter, func x = if x % 2 == 0 { ?x } else { null });
 let _ = Iter.flatMap(iter, func x = iter);
 let _ = Iter.takeWhile(iter, func x = x < 4);
 let _ = Iter.dropWhile(iter, func x = x < 4);
@@ -391,15 +391,15 @@ let _ = Iter.find(iter, func x = x % 2 == 0);
 let _ = Iter.findIndex(iterChar, func x = x == 'C');
 let _ = Iter.foldLeft(iterText, "S", func(acc, x) = "(" # acc # x # ")");
 let _ = Iter.foldRight(iterText, "S", func(x, acc) = "(" # x # acc # ")");
-let _ = Iter.unfold(1, func x = if (x <= 3) ?(x, x + 1) else null);
+let _ = Iter.unfold(1, func x = if x <= 3 { ?(x, x + 1) } else { null });
 
 // List module explicit type instantiation tests
 let _ = List.filter(list, func x = x % 2 == 0);
 let l1 = List.map<Nat, Int>(list, func x = x * 2);
 let l2 : List<Int> = List.map(list, func x = x * 2);
 let _ = check(l1, l2);
-let l3 = List.filterMap<Nat, Int>(list, func x = if (x % 2 == 0) ?(x * 2) else null);
-let l4 : List<Int> = List.filterMap(list, func x = if (x % 2 == 0) ?(x * 2) else null);
+let l3 = List.filterMap<Nat, Int>(list, func x = if x % 2 == 0 { ?(x * 2) } else { null });
+let l4 : List<Int> = List.filterMap(list, func x = if x % 2 == 0 { ?(x * 2) } else { null });
 let _ = check(l3, l4);
 let _ = List.find(list, func x = x > 8);
 let _ = List.findIndex(list, func i = i % 2 == 0);
@@ -432,7 +432,7 @@ let _ = PureQueue.any(pureQueue, func n = n > 1);
 PureQueue.forEach(pureQueue, func _ {});
 let _ = PureQueue.filter(pureQueue, func n = n != 1);
 let _ = PureQueue.map(pureQueue, func n = n * 2);
-let _ = PureQueue.filterMap(pureQueue, func n = if (n % 2 == 0) ?n else null);
+let _ = PureQueue.filterMap(pureQueue, func n = if n % 2 == 0 { ?n } else { null });
 
 // Stack module explicit type instantiation tests
 let st1 = Stack.tabulate<Int>(3, func i = 2 * i);
@@ -445,8 +445,8 @@ let st3 = Stack.map<Nat, Int>(stack, func n = 2 * n);
 let st4 : Stack<Int> = Stack.map(stack, func n = 2 * n);
 let _ = check(st3, st4);
 let _ = Stack.filter(stack, func n = n % 2 == 0);
-let st5 = Stack.filterMap<Nat, Int>(stack, func n = if (n % 2 == 0) ?n else null);
-let st6 : Stack<Int> = Stack.filterMap(stack, func n = if (n % 2 == 0) ?n else null);
+let st5 = Stack.filterMap<Nat, Int>(stack, func n = if n % 2 == 0 { ?n } else { null });
+let st6 : Stack<Int> = Stack.filterMap(stack, func n = if n % 2 == 0 { ?n } else { null });
 let _ = check(st5, st6);
 
 // Set module explicit type instantiation tests
@@ -460,17 +460,17 @@ let _ = check3(s1, s1i, s2);
 let s3 = Set.filterMap<Nat, Text>(
   set,
   textCompare,
-  func n = if (n % 2 == 0) ?natToText(n) else null,
+  func n = if n % 2 == 0 { ?natToText(n) } else { null },
 );
 let s3i = Set.filterMap(
   set,
   textCompare,
-  func n = if (n % 2 == 0) ?natToText(n) else null,
+  func n = if n % 2 == 0 { ?natToText(n) } else { null },
 );
 let s4 : Set<Text> = Set.filterMap(
   set,
   textCompare,
-  func n = if (n % 2 == 0) ?natToText(n) else null,
+  func n = if n % 2 == 0 { ?natToText(n) } else { null },
 );
 let _ = check3(s3, s3i, s4);
 let _ = Set.all(set, func n = n < 10);
@@ -485,12 +485,12 @@ let _ = check(ps1, ps2);
 let ps3 = PureSet.filterMap<Nat, Text>(
   pureSet,
   textCompare,
-  func n = if (n % 2 == 0) ?natToText(n) else null,
+  func n = if n % 2 == 0 { ?natToText(n) } else { null },
 );
 let ps4 = PureSet.filterMap(
   pureSet,
   textCompare,
-  func n = if (n % 2 == 0) ?natToText(n) else null,
+  func n = if n % 2 == 0 { ?natToText(n) } else { null },
 );
 let _ = check(ps3, ps4);
 let _ = PureSet.all(pureSet, func n = n < 10);
@@ -550,14 +550,14 @@ module Issue5418 {
 module Return {
   public func test1() {
     let ar = Array.tabulate<Bool>(3, func i {
-      if (i == 0) return false;
+      if i == 0 { return false };
       true;
     });
     assert ar == [];
   };
   public func test2() {
     let ar = Array.tabulate(3, func i {
-      if (i == 0) return false;
+      if i == 0 { return false };
       true;
     });
     assert ar == [];

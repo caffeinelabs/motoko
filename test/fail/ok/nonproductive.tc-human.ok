@@ -1,107 +1,112 @@
 error[M0157]: block contains non-productive definition C
     ┌─ nonproductive.mo:1:1
-  1 │ ╭  do { // reject
-  2 │ │    type C<T> = C<T>;
-  3 │ │  };
+  1 │ ╭  do {
+  2 │ │    // reject
+  3 │ │    type C<T> = C<T>;
+  4 │ │  };
     │ ╰──^ 
-  4 │    
+  5 │    
 error[M0157]: block contains non-productive definition C
-    ┌─ nonproductive.mo:5:1
-  4 │    
-  5 │ ╭  do { // reject
-  6 │ │    type C = C;
-  7 │ │  };
+    ┌─ nonproductive.mo:6:1
+  5 │    
+  6 │ ╭  do {
+  7 │ │    // reject
+  8 │ │    type C = C;
+  9 │ │  };
     │ ╰──^ 
-  8 │    
+ 10 │    
 error[M0157]: block contains non-productive definitions C, D
-    ┌─ nonproductive.mo:9:1
-  8 │    
-  9 │ ╭  do { // reject
- 10 │ │    type C<T> = D<T>;
- 11 │ │    type D<T> = C<T>;
- 12 │ │  };
+    ┌─ nonproductive.mo:11:1
+ 10 │    
+ 11 │ ╭  do {
+ 12 │ │    // reject
+ 13 │ │    type C<T> = D<T>;
+ 14 │ │    type D<T> = C<T>;
+ 15 │ │  };
     │ ╰──^ 
- 13 │    
+ 16 │    
 error[M0157]: block contains non-productive definition D
-    ┌─ nonproductive.mo:14:1
- 13 │    
- 14 │ ╭  do { // reject
- 15 │ │    type C<T> = T;
- 16 │ │    type D<T> = C<D<T>>;
- 17 │ │  };
+    ┌─ nonproductive.mo:17:1
+ 16 │    
+ 17 │ ╭  do {
+ 18 │ │    // reject
+ 19 │ │    type C<T> = T;
+ 20 │ │    type D<T> = C<D<T>>;
+ 21 │ │  };
     │ ╰──^ 
- 18 │    
+ 22 │    
 error[M0157]: block contains non-productive definitions C, D, E
-    ┌─ nonproductive.mo:25:1
- 24 │    
- 25 │ ╭  do { //reject
- 26 │ │    type C<T> = E<T>;
+    ┌─ nonproductive.mo:30:1
+ 29 │    
+ 30 │ ╭  do {
+ 31 │ │    //reject
     · │  
- 29 │ │    type T = Nat
- 30 │ │  };
+ 35 │ │    type T = Nat
+ 36 │ │  };
     │ ╰──^ 
- 31 │    
+ 37 │    
 error[M0157]: block contains non-productive definition D
-    ┌─ nonproductive.mo:32:1
- 31 │    
- 32 │ ╭  do { // reject
- 33 │ │    type C<T,U> = T;
- 34 │ │    type D<T> = C<D<T>,T>;
- 35 │ │  };
+    ┌─ nonproductive.mo:38:1
+ 37 │    
+ 38 │ ╭  do {
+ 39 │ │    // reject
+ 40 │ │    type C<T, U> = T;
+ 41 │ │    type D<T> = C<D<T>,T>;
+ 42 │ │  };
     │ ╰──^ 
- 36 │    
+ 43 │    
 error[M0045]: wrong number of type arguments: expected 2 but got 3
-    ┌─ nonproductive.mo:44:15
- 44 │    type D<T> = C<T,D<T>,T>;
+    ┌─ nonproductive.mo:53:15
+ 53 │    type D<T> = C<T,D<T>,T>;
     │                ^^^^^^^^^^^ 
 error[M0157]: block contains non-productive definition D
-    ┌─ nonproductive.mo:50:3
- 49 │      type C<T,U> = T;
- 50 │ ╭    do {
- 51 │ │      type D<T> = C<D<T>,T>;
- 52 │ │    };
+    ┌─ nonproductive.mo:60:3
+ 59 │      type C<T, U> = T;
+ 60 │ ╭    do {
+ 61 │ │      type D<T> = C<D<T>,T>;
+ 62 │ │    };
     │ ╰────^ 
- 53 │    };
+ 63 │    };
 error[M0045]: wrong number of type arguments: expected 2 but got 3
-    ┌─ nonproductive.mo:65:17
- 65 │      type D<T> = C<T,D<T>,T>;
+    ┌─ nonproductive.mo:77:17
+ 77 │      type D<T> = C<T,D<T>,T>;
     │                  ^^^^^^^^^^^ 
 error[M0157]: block contains non-productive definitions C, D, E, F, G
-    ┌─ nonproductive.mo:96:1
- 95 │    
- 96 │ ╭  do { // reject
- 97 │ │    type Fst<T, U> = T;
-    · │  
-106 │ │    type G<T> = Fst<G<T>, Any>;
-107 │ │  };
-    │ ╰──^ 
+    ┌─ nonproductive.mo:109:1
 108 │    
+109 │ ╭  do {
+110 │ │    // reject
+    · │  
+120 │ │    type G<T> = Fst<G<T>, Any>;
+121 │ │  };
+    │ ╰──^ 
+122 │    
 error[M0137]: type D = A references type parameter A from an outer scope
-    ┌─ nonproductive.mo:110:18
-110 │    class C<A>() { type D = A;};
+    ┌─ nonproductive.mo:124:18
+124 │    class C<A>() { type D = A; };
     │                   ^^^^^^^^^^ 
 error[M0157]: block contains non-productive definition A
-    ┌─ nonproductive.mo:113:1
-112 │    
-113 │ ╭  do {
-114 │ │    type A = A and A;
-115 │ │  };
+    ┌─ nonproductive.mo:127:1
+126 │    
+127 │ ╭  do {
+128 │ │    type A = A and A;
+129 │ │  };
     │ ╰──^ 
-116 │    
+130 │    
 error[M0157]: block contains non-productive definition A
-    ┌─ nonproductive.mo:117:1
-116 │    
-117 │ ╭  do {
-118 │ │    type A = A or A;
-119 │ │  };
+    ┌─ nonproductive.mo:131:1
+130 │    
+131 │ ╭  do {
+132 │ │    type A = A or A;
+133 │ │  };
     │ ╰──^ 
-120 │    
+134 │    
 error[M0157]: block contains non-productive definitions A, B
-    ┌─ nonproductive.mo:121:1
-120 │    
-121 │ ╭  do {
-122 │ │    type A = B and B;
-123 │ │    type B = A or A;
-124 │ │  };
+    ┌─ nonproductive.mo:135:1
+134 │    
+135 │ ╭  do {
+136 │ │    type A = B and B;
+137 │ │    type B = A or A;
+138 │ │  };
     │ ╰──^ 
-125 │    
+139 │    

@@ -1,10 +1,10 @@
 actor {
-    flexible func init() {
-      assert false;
-    };
-    public func reset() : () {
-        init()
-    };
+  flexible func init() {
+    assert false;
+  };
+  public func reset() : () {
+    init()
+  };
 };
 
 // annoying administrative regexes introduced by our passes

@@ -10,6 +10,6 @@ Previous type
  in `n`.
 Write an explicit migration function to convert it.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-x-bad-n.mo:11:9
- 11 │      var n : Nat;
-    │          ^ 
+    ┌─ em-baseline-with-x-bad-n.mo:11:7
+ 11 │    var n : Nat;
+    │        ^ 

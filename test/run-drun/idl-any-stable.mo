@@ -3,7 +3,7 @@ import Prim "mo:⛔";
 // zooms past the any argument and finds the beginning of the string
 actor {
   public query func any(_ : Any, x : Text) : async () {
-     Prim.debugPrint ("ok: " # x);
+    Prim.debugPrint ("ok: " # x);
   };
 }
 

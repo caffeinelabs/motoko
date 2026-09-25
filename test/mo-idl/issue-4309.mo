@@ -15,14 +15,14 @@ actor {
   };
 
   module Innerer {
-      public type Credit<T> = Inner.Credit<T>;
-      public type List<T> = Inner.List<T>;
+    public type Credit<T> = Inner.Credit<T>;
+    public type List<T> = Inner.List<T>;
   };
 
   public type Credit = Innerer.Credit<Nat>;
   public type Foo = Inner.Foo;
   public func get() : async (Credit, Inner.Credit<Nat>, Innerer.Credit<Nat>) {
-      (0, 0, 0)
+    (0, 0, 0)
   };
   public func silly(_ : Foo, _ : Inner.Foo, _ : Types.Foo, _ : Types2.Foo) : async Inner.Result<(), ()> { #ok };
   public func erroring() : async Inner.Result<(), Text> { #err "feel good" };

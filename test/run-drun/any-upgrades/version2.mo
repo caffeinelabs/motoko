@@ -1,3 +1,3 @@
 actor {
-   var value = "TEST";
+  var value = "TEST";
 };

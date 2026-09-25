@@ -1,1 +1,1 @@
-let x = switch (-5) { case (x : Nat) x };
+let x = switch -5 { case (x : Nat) { x } };

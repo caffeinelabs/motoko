@@ -1,4 +1,4 @@
 error[M0051]: duplicate definition for x in block
-    ┌─ ast81-clash.mo:8:11
-  8 │        let x = 123;
-    │            ^ 
+    ┌─ ast81-clash.mo:10:13
+ 10 │          let x = 123;
+    │              ^ 

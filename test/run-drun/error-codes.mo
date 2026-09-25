@@ -22,7 +22,8 @@ actor a {
       switch (P.errorCode(e), P.errorMessage(e)) {
         case (#canister_reject, m) {
           assert (m == "ball");
-          P.debugPrint("canister_reject:"#m);};
+          P.debugPrint("canister_reject:"#m);
+        }
         case _ { assert false; }
       }
     };
@@ -32,7 +33,7 @@ actor a {
     }
     catch e {
       switch (P.errorCode(e), P.errorMessage(e)) {
-        case (#canister_error, m) { P.debugPrint("canister_error:" # m)};
+        case (#canister_error, m) { P.debugPrint("canister_error:" # m) }
         case _ { assert false; }
       }
     };
@@ -40,15 +41,15 @@ actor a {
     try ()
       // nuthin
     catch e {
-      switch (P.errorCode(e)) {
-        case (#system_fatal) { assert false };
-        case (#system_transient) { assert false };
-        case (#system_unknown) { assert false };
-        case (#destination_invalid) { assert false };
-        case (#canister_error) { assert false };
-        case (#canister_reject) { assert false };
-        case (#future (n : Nat32)) { assert false };
-        case (#call_error {err_code : Nat32}) { assert false };
+      switch P.errorCode(e) {
+        case #system_fatal { assert false }
+        case #system_transient { assert false }
+        case #system_unknown { assert false }
+        case #destination_invalid { assert false }
+        case #canister_error { assert false }
+        case #canister_reject { assert false }
+        case #future(n : Nat32) { assert false }
+        case #call_error({ err_code : Nat32 }) { assert false }
       };
     };
 
@@ -57,7 +58,7 @@ actor a {
     }
     catch e {
       switch (P.errorCode(e), P.errorMessage(e)) {
-        case (#destination_invalid, m) { P.debugPrint("destination_invalid:" # m)};
+        case (#destination_invalid, m) { P.debugPrint("destination_invalid:" # m) }
         case _ { assert false; }
       }
     }

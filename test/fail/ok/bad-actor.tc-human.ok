@@ -4,8 +4,8 @@ error[M0140]: actor classes with type parameters are not supported yet
     │  ^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0140]: actor classes with type parameters are not supported yet
     ┌─ bad-actor.mo:4:1
-  4 │  actor class A2<T,U>() {}; // reject generic actor class
-    │  ^^^^^^^^^^^^^^^^^^^^^^^^ 
+  4 │  actor class A2<T, U>() {}; // reject generic actor class
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0034]: shared constructor has non-shared parameter type
   (c : [var Int])
 type

@@ -1,2 +1,2 @@
-modexp1.mo:8.15-8.16: type error [M0072], field g does not exist in type:
+modexp1.mo:7.15-7.16: type error [M0072], field g does not exist in type:
   module {f : () -> ()}

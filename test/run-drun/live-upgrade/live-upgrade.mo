@@ -16,7 +16,7 @@ actor this {
   var done = true;
 
   public func yield() : async () {
-    if (not done and n < 40) {
+    if not done and n < 40 {
       n += 1;
       await yield();
       n -= 1;
@@ -30,7 +30,7 @@ actor this {
 
   public func wait() : async () {
     done := true;
-    while (n > 0) await async {};
+    while n > 0 { await async {} };
   };
 
 }

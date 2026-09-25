@@ -1,3 +1,3 @@
 actor {
-   var value : Any = 123;
+  var value : Any = 123;
 };

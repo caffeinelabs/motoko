@@ -12,8 +12,8 @@ Prim.debugPrint (debug_show (Prim.blobToArrayMut "\FF"));
 Prim.debugPrint (debug_show (Prim.blobToArrayMut "\u{FF}"));
 Prim.debugPrint (debug_show (Prim.blobToArrayMut "☃"));
 
-Prim.debugPrint (debug_show (Prim.arrayToBlob([ ])));
-Prim.debugPrint (debug_show (Prim.arrayToBlob([0,1,2])));
+Prim.debugPrint (debug_show (Prim.arrayToBlob([])));
+Prim.debugPrint (debug_show (Prim.arrayToBlob([0, 1, 2])));
 
 Prim.debugPrint (debug_show (Prim.arrayMutToBlob([var])));
-Prim.debugPrint (debug_show (Prim.arrayMutToBlob([var 0,1,2])));
+Prim.debugPrint (debug_show (Prim.arrayMutToBlob([var 0, 1, 2])));

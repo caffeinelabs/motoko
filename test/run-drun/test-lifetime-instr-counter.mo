@@ -9,7 +9,7 @@ actor {
   };
   public func runInstructions() : async () {
     var n = 2000;
-    while (n > 0) {
+    while n > 0 {
       n := n - 1;
     };
     counter += 1;

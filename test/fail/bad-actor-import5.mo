@@ -5,4 +5,3 @@ import imported1 "canister:foo";
 //SKIP run-ir
 //SKIP run-low
 //SKIP comp
-

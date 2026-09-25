@@ -2,139 +2,139 @@ error[M0156]: block contains expansive type definitions:
   type C<T> = {#cons : (T, C<{#tag : T}>); #nil}
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:44:1
- 43 │    
- 44 │ ╭  do {
- 45 │ │    type C<T> = {#nil; #cons: (T,C<{#tag: T}>)};  // reject
- 46 │ │  };
+    ┌─ expansive.mo:45:1
+ 44 │    
+ 45 │ ╭  do {
+ 46 │ │    type C<T> = { #nil; #cons: (T, C<{ #tag: T }>) }; // reject
+ 47 │ │  };
     │ ╰──^ 
- 47 │    
+ 48 │    
 error[M0156]: block contains expansive type definitions:
   type C<T> = {head : T; next : () -> C<{field : T}>}
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:48:1
- 47 │    
- 48 │ ╭  do {
- 49 │ │    type C<T> = {head:T; next: () -> C<{field: T}>};  // reject
- 50 │ │  };
+    ┌─ expansive.mo:49:1
+ 48 │    
+ 49 │ ╭  do {
+ 50 │ │    type C<T> = { head:T; next: () -> C<{ field: T }> }; // reject
+ 51 │ │  };
     │ ╰──^ 
- 51 │    
+ 52 │    
 error[M0156]: block contains expansive type definitions:
   type C<T, U> = ?C<(T, T), U>
 is expansive, because T occurs as an indirect argument of recursive type C<-T-,_>.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:52:1
- 51 │    
- 52 │ ╭  do {
- 53 │ │    type C<T,U> = ?C<(T,T),U>;  // reject
- 54 │ │  };
+    ┌─ expansive.mo:53:1
+ 52 │    
+ 53 │ ╭  do {
+ 54 │ │    type C<T, U> = ?C<(T, T),U>; // reject
+ 55 │ │  };
     │ ╰──^ 
- 55 │    
+ 56 │    
 error[M0156]: block contains expansive type definitions:
   type C<T> = ?C<?T>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:56:1
- 55 │    
- 56 │ ╭  do {
- 57 │ │    type C<T> = ?C<?T>; // reject
- 58 │ │  };
+    ┌─ expansive.mo:57:1
+ 56 │    
+ 57 │ ╭  do {
+ 58 │ │    type C<T> = ?C<?T>; // reject
+ 59 │ │  };
     │ ╰──^ 
- 59 │    
+ 60 │    
 error[M0156]: block contains expansive type definitions:
   type C<T> = ?C<<A>T -> T>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:60:1
- 59 │    
- 60 │ ╭  do {
- 61 │ │    type C<T> = ?C< <A>T->T >; // reject
- 62 │ │  };
+    ┌─ expansive.mo:61:1
+ 60 │    
+ 61 │ ╭  do {
+ 62 │ │    type C<T> = ?C< <A>T->T >; // reject
+ 63 │ │  };
     │ ╰──^ 
- 63 │    
+ 64 │    
 error[M0156]: block contains expansive type definitions:
   type C<T, U> = ?D<T, ?U>
 is expansive, because U occurs as an indirect argument of recursive type D<_,-U->.
 (U would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:64:1
- 63 │    
- 64 │ ╭  do {
- 65 │ │    type C<T,U> = ?D<T,?U>;  // reject
- 66 │ │    type D<T,U> = ?C<T,U>;
- 67 │ │  };
+    ┌─ expansive.mo:65:1
+ 64 │    
+ 65 │ ╭  do {
+ 66 │ │    type C<T, U> = ?D<T,?U>; // reject
+ 67 │ │    type D<T, U> = ?C<T,U>;
+ 68 │ │  };
     │ ╰──^ 
- 68 │    
+ 69 │    
 error[M0156]: block contains expansive type definitions:
   type C<T> = ?P<C<C<T>>>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:71:4
- 71 │     do { type C<T> = ?P<C<C<T>>>; } // reject, but would accept after unfolding P (too conservative?)
-    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ expansive.mo:72:3
+ 72 │    do { type C<T> = ?P<C<C<T>>>; } // reject, but would accept after unfolding P (too conservative?)
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0156]: block contains expansive type definitions:
   type C<T> = ?C<P<T>>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:76:4
- 76 │     do { type C<T> = ?C<P<T>>; } // reject, but would accept after unfolding P (too conservative?)
-    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ expansive.mo:77:3
+ 77 │    do { type C<T> = ?C<P<T>>; } // reject, but would accept after unfolding P (too conservative?)
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0156]: block contains expansive type definitions:
   type C<T> = ?P<C<C<T>>>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:79:1
- 78 │    
- 79 │ ╭  do {
- 80 │ │     type P<T> = Nat;
- 81 │ │     type C<T> = ?P<C<C<T>>>;   // reject, but would accept after unfolding P (too conservative?)
- 82 │ │  };
+    ┌─ expansive.mo:80:1
+ 79 │    
+ 80 │ ╭  do {
+ 81 │ │    type P<T> = Nat;
+ 82 │ │    type C<T> = ?P<C<C<T>>>; // reject, but would accept after unfolding P (too conservative?)
+ 83 │ │  };
     │ ╰──^ 
- 83 │    
+ 84 │    
 error[M0156]: block contains expansive type definitions:
   type C<T, U> = ?D<T, ?U>
 is expansive, because U occurs as an indirect argument of recursive type D<_,-U->.
 (U would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:84:8
- 83 │    
- 84 │    ignore module {
+    ┌─ expansive.mo:85:8
+ 84 │    
+ 85 │    ignore module {
     │ ╭─────────^
- 85 │ │    public type C<T,U> = ?N.D<T,?U>;  // reject
- 86 │ │    public module N = { public type D<T,U> = ?C<T,U>; }
- 87 │ │  };
+ 86 │ │    public type C<T, U> = ?N.D<T,?U>; // reject
+ 87 │ │    public module N = { public type D<T, U> = ?C<T,U>; }
+ 88 │ │  };
     │ ╰──^ 
- 88 │    
+ 89 │    
 error[M0156]: block contains expansive type definitions:
   type C<T> = <A <: C<?T>>C<T> -> C<T>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:93:1
- 92 │    
- 93 │ ╭  do {
- 94 │ │    type C<T> = <A <: C<?T> >C<T>->C<T>; // reject, bad cycle in arrow bounds
- 95 │ │  };
+    ┌─ expansive.mo:94:1
+ 93 │    
+ 94 │ ╭  do {
+ 95 │ │    type C<T> = <A <: C<?T>>C<T>->C<T>; // reject, bad cycle in arrow bounds
+ 96 │ │  };
     │ ╰──^ 
- 96 │    
+ 97 │    
 error[M0156]: block contains expansive type definitions:
   type C<T <: C<?T>> = ?C<T>
 is expansive, because T occurs as an indirect argument of recursive type C<-T->.
 (T would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:101:1
-100 │    
-101 │ ╭  do {
-102 │ │    type C<T <: C<?T>> = ?C<T>; // reject, too conservative? Cycle is only in parameter bounds...
-103 │ │  };
+    ┌─ expansive.mo:102:1
+101 │    
+102 │ ╭  do {
+103 │ │    type C<T <: C<?T>> = ?C<T>; // reject, too conservative? Cycle is only in parameter bounds...
+104 │ │  };
     │ ╰──^ 
-104 │    
+105 │    
 error[M0156]: block contains expansive type definitions:
   type C<T, U> = ?D<T, ?U, Bool, Nat>
 is expansive, because U occurs as an indirect argument of recursive type D<_,-U-,_,_>.
 (U would be allowed as an immediate argument, but cannot be part of a larger type expression.)
-    ┌─ expansive.mo:110:1
-109 │    
-110 │ ╭  do {
-111 │ │    type C<T,U> = ?D<T,?U,Bool,Nat>;  // reject
-112 │ │    type D<T,U,V,X> = ?C<T,U>;
-113 │ │  };
+    ┌─ expansive.mo:111:1
+110 │    
+111 │ ╭  do {
+112 │ │    type C<T, U> = ?D<T,?U,Bool,Nat>; // reject
+113 │ │    type D<T, U, V, X> = ?C<T,U>;
+114 │ │  };
     │ ╰──^ 
-114 │    
+115 │    

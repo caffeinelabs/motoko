@@ -1,7 +1,7 @@
 //MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration multi-migration-bad-chain/bad-init
 
 actor {
-    var _field1 : Nat;
+  var _field1 : Nat;
 };
 
 //SKIP run-ir

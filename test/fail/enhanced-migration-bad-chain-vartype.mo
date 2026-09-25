@@ -2,8 +2,8 @@
 //MOC-FLAG -A=M0194
 
 actor {
-    // a expected Text, but migrations make it Float.
-    let a : Text;
-    let b : Bool;
-    var c : Nat;
+  // a expected Text, but migrations make it Float.
+  let a : Text;
+  let b : Bool;
+  var c : Nat;
 };

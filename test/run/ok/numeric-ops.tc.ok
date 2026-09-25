@@ -1,2 +1,2 @@
-numeric-ops.mo:23.15-23.20: warning [M0155], operator may trap for inferred type
+numeric-ops.mo:24.15-24.20: warning [M0155], operator may trap for inferred type
   Nat

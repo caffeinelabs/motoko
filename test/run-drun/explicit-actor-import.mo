@@ -19,7 +19,6 @@ actor a {
 //CALL ingress go2 "DIDL\x00\x00"
 //CALL ingress go3 "DIDL\x00\x00"
 
-
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
@@ -27,4 +26,3 @@ actor a {
 // Skip running on drun for now; hard to pass a `--actor-alias` that works for
 // both drun and ic-ref-run
 //SKIP comp
-

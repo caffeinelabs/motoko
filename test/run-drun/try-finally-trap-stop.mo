@@ -14,15 +14,14 @@ actor {
   public func go() : async () {
     let pre = Prim.cyclesBalance();
     // instantiate Burner actor
-    Prim.cyclesAdd<system>(pre/2);
+    Prim.cyclesAdd<system>(pre / 2);
     var a = await Lib.C();
     let p = Prim.principalOfActor(a);
     a := await (system Lib.C) (#upgrade a) ();
     await a.show();
     try {
       await a.leak(); // leaks a callback in a's callback table
-    } catch _ {
-    };
+    } catch _ {};
     await a.show();
     Prim.debugPrint("canister running");
     try {
@@ -33,7 +32,7 @@ actor {
       Prim.debugPrint(Prim.errorMessage (e));
     };
     try {
-      await ic00.stop_canister({canister_id = p});
+      await ic00.stop_canister({ canister_id = p });
     }
     catch e {
       Prim.debugPrint(Prim.errorMessage (e));
@@ -49,7 +48,7 @@ actor {
     };
 
     try {
-      await ic00.start_canister({canister_id = p});
+      await ic00.start_canister({ canister_id = p });
     }
     catch e {
       Prim.debugPrint(Prim.errorMessage (e));

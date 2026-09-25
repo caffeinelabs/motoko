@@ -11,7 +11,7 @@ actor a {
       throw (Prim.error("Error"));
       Prim.debugPrint "unreachable";
     }
-    catch e { Prim.debugPrint "2"};
+    catch e { Prim.debugPrint "2" };
     pending -= 1;
   };
 
@@ -25,11 +25,10 @@ actor a {
           throw (Prim.error("Error"));
           Prim.debugPrint "unreachable";
         }
-        catch e { Prim.debugPrint "4"};
+        catch e { Prim.debugPrint "4" };
         pending -= 1;
       }) : async ()
     );
-
 
   // test that throws from oneways are silently discarded (because replies are eager)
   public func discard() : () {
@@ -44,7 +43,7 @@ actor a {
   public func discardAlt() : () =
     ignore (
       (async {
-        Prim.debugPrint "6"; 
+        Prim.debugPrint "6";
         pending -= 1;
         throw (Prim.error("ignored"));
         Prim.debugPrint "unreachable";
@@ -63,12 +62,10 @@ actor a {
     Prim.debugPrint("D");
     discardAlt();
     Prim.debugPrint("E");
-    while (pending > 0)
-      await async ();
+    while pending > 0
+      { await async () };
   };
 
 };
 
 ignore (a.go()); //OR-CALL ingress go 0x4449444C0000
-
-

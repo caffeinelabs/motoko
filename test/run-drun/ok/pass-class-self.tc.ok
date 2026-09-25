@@ -1,1 +1,1 @@
-pass-class-self.mo:11.5-11.58: warning [M0089], redundant ignore, operand already has type ()
+pass-class-self.mo:11.3-11.56: warning [M0089], redundant ignore, operand already has type ()

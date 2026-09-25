@@ -6,7 +6,7 @@ actor a {
   flexible var x : Bool = false;
 
   public func test(b : Bool) : () {
-    if (b) { assert (x == false); x := true; assert (x == true); }
+    if b { assert (x == false); x := true; assert (x == true); }
     else   { assert (x == false); test(false); assert (x == false); is_true(); }
   };
 

@@ -10,8 +10,8 @@ bad-unops.mo:4.15-4.17: type error [M0050], literal of type
   Int
 does not have expected type
   Nat
-bad-unops.mo:6.20-6.22: type error [M0111], operator pattern cannot consume expected type
+bad-unops.mo:6.17-6.19: type error [M0111], operator pattern cannot consume expected type
   Nat
-bad-unops.mo:8.20-8.22: warning [M0146], this pattern is never matched
-bad-unops.mo:10.21-10.23: type error [M0111], operator pattern cannot consume expected type
+bad-unops.mo:8.17-8.19: warning [M0146], this pattern is never matched
+bad-unops.mo:10.18-10.20: type error [M0111], operator pattern cannot consume expected type
   Int

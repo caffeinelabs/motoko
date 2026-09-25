@@ -7,43 +7,43 @@ actor {
 
   class range(x : Nat, y : Nat) {
     var i = x;
-    public func next() : ?Nat { if (i > y) null else { let j = i; i += 1; ?j } };
+    public func next() : ?Nat { if i > y { null } else { let j = i; i += 1; ?j } };
   };
 
   flexible func unreachable() : None { assert false; loop {} };
 
   flexible func toText(x : Int) : Text {
-    if (x == 0) {
+    if x == 0 {
       return "0";
     };
 
     let isNegative = x < 0;
-    var int = if isNegative (-x) else x;
+    var int = if isNegative { (-x) } else { x };
 
     var text = "";
     let base = 10;
 
-    while (int > 0) {
+    while int > 0 {
       let rem = int % base;
       text := (
-        switch (rem) {
-          case 0 "0";
-          case 1 "1";
-          case 2 "2";
-          case 3 "3";
-          case 4 "4";
-          case 5 "5";
-          case 6 "6";
-          case 7 "7";
-          case 8 "8";
-          case 9 "9";
-          case _ unreachable();
+        switch rem {
+          case 0 { "0" }
+          case 1 { "1" }
+          case 2 { "2" }
+          case 3 { "3" }
+          case 4 { "4" }
+          case 5 { "5" }
+          case 6 { "6" }
+          case 7 { "7" }
+          case 8 { "8" }
+          case 9 { "9" }
+          case _ { unreachable() }
         }
       ) # text;
       int := int / base;
     };
 
-    return if isNegative ("-" # text) else text;
+    return if isNegative { ("-" # text) } else { text };
   };
 
   // Color related type and constants
@@ -65,7 +65,7 @@ actor {
   // Reset the board to initial state
   flexible func init() {
     // Reset to empty board
-    for (i in range(0, N * N - 1)) {
+    for i in range(0, N * N - 1) {
       Board[i] := empty;
     };
 
@@ -92,11 +92,11 @@ actor {
   // Render the board into a string
   flexible func render(board : Board) : Text {
     var str = "";
-    for (i in range(0, N - 1)) {
-      for (j in range(0, N - 1)) {
-        if (board[i * N + j] == white) {
+    for i in range(0, N - 1) {
+      for j in range(0, N - 1) {
+        if board[i * N + j] == white {
           str := str # "O";
-        } else if (board[i * N + j] == black) {
+        } else if board[i * N + j] == black {
           str := str # "*";
         } else {
           str := str # ".";
@@ -123,7 +123,7 @@ actor {
   flexible func exists(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
     let s = i + p;
     let t = j + q;
-    if (s < 0 or s >= N or t < 0 or t >= N) {
+    if s < 0 or s >= N or t < 0 or t >= N {
       return false;
     };
     return (board[Prim.abs(s * N + t)] == color);
@@ -134,7 +134,7 @@ actor {
   // in between. Return false if the given color is not found before reaching
   // empty cell or board boundary.
   flexible func eventually(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
-    if (exists(board, opponent(color), i, j, p, q)) {
+    if exists(board, opponent(color), i, j, p, q) {
       // the abs below is save because its precondition is already checked
       return eventually(board, color, Prim.abs(i + p), Prim.abs(j + q), p, q);
     } else {
@@ -145,7 +145,7 @@ actor {
   // Flip pieces of opponent color into the given color starting from
   // coordinate (i, j) and along direction (p, q).
   flexible func flip(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) {
-    if (exists(board, opponent(color), i, j, p, q)) {
+    if exists(board, opponent(color), i, j, p, q) {
       // the abs below is save because its precondition is already checked
       let s = Prim.abs(i + p);
       let t = Prim.abs(j + q);
@@ -158,12 +158,12 @@ actor {
   // a board that has the cells colored.
   flexible func valid_moves(board : Board, color : Color) : Board {
     let next : Board = Prim.Array_init<Nat>(N * N, empty);
-    for (i in range(0, N - 1)) {
-      for (j in range(0, N - 1)) {
-        if (board[i * N + j] == empty) {
-          for (p in [-1, 0, 1].values()) {
-            for (q in [-1, 0, 1].values()) {
-              if (not (p == 0 and q == 0)) {
+    for i in range(0, N - 1) {
+      for j in range(0, N - 1) {
+        if board[i * N + j] == empty {
+          for p in [-1, 0, 1].values() {
+            for q in [-1, 0, 1].values() {
+              if not (p == 0 and q == 0) {
                 if (
                   exists(board, opponent(color), i, j, p, q) and
                   eventually(board, color, i, j, p, q)
@@ -184,9 +184,9 @@ actor {
   // given position is a valid move before this call.
   flexible func set_and_flip(board : Board, color : Color, i : Nat, j : Nat) {
     board[i * N + j] := color;
-    for (p in [-1, 0, 1].values()) {
-      for (q in [-1, 0, 1].values()) {
-        if (not (p == 0 and q == 0)) {
+    for p in [-1, 0, 1].values() {
+      for q in [-1, 0, 1].values() {
+        if not (p == 0 and q == 0) {
           if (
             exists(board, opponent(color), i, j, p, q) and
             eventually(board, color, i, j, p, q)
@@ -200,8 +200,8 @@ actor {
 
   // Check if the given board is empty.
   flexible func is_empty(board : Board) : Bool {
-    for (c in board.values()) {
-      if (c != empty) {
+    for c in board.values() {
+      if c != empty {
         return false;
       };
     };
@@ -212,10 +212,10 @@ actor {
   flexible func score(board : Board) : (Nat, Nat) {
     var wc = 0;
     var bc = 0;
-    for (c in board.values()) {
-      if (c == white) {
+    for c in board.values() {
+      if c == white {
         wc += 1;
-      } else if (c == black) {
+      } else if c == black {
         bc += 1;
       };
     };
@@ -231,21 +231,21 @@ actor {
     let col : Nat = Prim.abs(col_);
 
     // Check input validity
-    if (row >= N or col >= N) {
+    if row >= N or col >= N {
       return "Invalid coordinate";
     };
-    if (not (color == 1 or color == 2)) {
+    if not (color == 1 or color == 2) {
       return "Invalid piece color, must be either 1 or 2";
     };
 
     var possible = valid_moves(Board, next_color);
 
     // If no move is possible, either pass or end game.
-    if (is_empty(possible)) {
+    if is_empty(possible) {
       next_color := opponent(next_color);
       possible := valid_moves(Board, next_color);
       // If no possible move again, end game
-      if (is_empty(possible)) {
+      if is_empty(possible) {
         let (wc, bc) = score(Board);
         return ("End Game! Whites = " # toText(wc) # ", Blacks = " # toText(bc));
       } else {
@@ -253,11 +253,11 @@ actor {
       };
     };
 
-    if (next_color != color) {
+    if next_color != color {
       return "Wrong color for this move";
     };
 
-    if (possible[row * N + col] != empty) {
+    if possible[row * N + col] != empty {
       set_and_flip(Board, color, row, col);
       next_color := opponent(color);
       return "OK";

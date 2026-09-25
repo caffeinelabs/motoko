@@ -4,7 +4,7 @@ actor {
   };
 
   func g() : async Nat {
-   await f(); // reject
+    await f(); // reject
   };
 
   func anon1() : async () {

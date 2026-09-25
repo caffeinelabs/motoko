@@ -1,13 +1,13 @@
 import Prim "mo:⛔";
 // a single function that can be evaluated recursively or tail-recursively
 func f (tailCall:Bool, n:Int, acc:Int) : Int {
-    if (n<=0)
-	return acc;
+  if n <= 0
+  { return acc };
 
-    if (tailCall)
-	f(tailCall, n-1, acc+1)
-    else
-	1 + f(tailCall, n-1, acc);
+  if tailCall
+  { f(tailCall, n - 1, acc + 1) }
+  else
+  { 1 + f(tailCall, n - 1, acc) };
 };
 
 // check we get same results for small n

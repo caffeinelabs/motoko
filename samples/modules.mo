@@ -13,4 +13,3 @@ type Stack = List.List<Int>;
 
 let empty : Stack = List.nil<Int>();
 func push(x : Int, s : Stack) : Stack = List.cons<Int>(x, s);
-

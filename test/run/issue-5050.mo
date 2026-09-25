@@ -7,7 +7,7 @@ func blob_keys(b : Blob) : () -> {} = class() {};
 type Iter = { next : () -> ?Nat };
 func vals(xs : [Nat]) : () -> Iter = class() : Iter {
   var i = 0;
-  public func next() : ?Nat { if (i >= xs.size()) null else { let j = i; i += 1; ?xs[j] } };
+  public func next() : ?Nat { if i >= xs.size() { null } else { let j = i; i += 1; ?xs[j] } };
 };
 let it = vals([7, 8])();
 Prim.debugPrint(debug_show (it.next(), it.next(), it.next()));

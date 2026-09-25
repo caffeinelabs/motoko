@@ -4,4 +4,3 @@ module {
     public let x : T = 1;
   }
 };
-

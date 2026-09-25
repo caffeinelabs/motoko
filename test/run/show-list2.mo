@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 
-type List<A> = {#nil; #cons : (A, List<A>)};
+type List<A> = { #nil; #cons : (A, List<A>) };
 
 func show_NatList(x : List<Nat>) : Text = debug_show x;
 
