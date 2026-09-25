@@ -419,7 +419,7 @@ module E = struct
     (* Global fields *)
     (* Static *)
     mode : Flags.compile_mode;
-    rts : Wasm_exts.CustomModule.extended_module option; (* The rts. Re-used when compiling actors *)
+    rts : Wasm_exts.CustomModule.extended_module; (* The rts. Re-used when compiling actors *)
     trap_with : t -> string -> G.t;
       (* Trap with message; in the env for dependency injection *)
 
@@ -9902,9 +9902,6 @@ module FuncDec = struct
       (* save error code, cleanup on error *)
       E.if0
       begin (* send failed *)
-        if !Flags.trap_on_call_error then
-          E.trap_with env message
-        else
         (* Recall (don't leak) continuations *)
         get_cb_index ^^
         ContinuationTable.recall env ^^
@@ -9967,17 +9964,9 @@ module FuncDec = struct
       IC.system_call env "call_perform" ^^
       G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
       (* This is a one-shot function: just remember error code *)
-      (if !Flags.trap_on_call_error then
-         (* legacy: discard status, proceed as if all well *)
-         G.i Drop ^^
-         compile_unboxed_zero ^^
-         IC.set_call_perform_status env ^^
-         Blob.lit env Tagged.T "" ^^
-         IC.set_call_perform_message env
-       else
-         IC.set_call_perform_status env ^^
-         Blob.lit env Tagged.T "could not perform oneway" ^^
-         IC.set_call_perform_message env)
+      IC.set_call_perform_status env ^^
+      Blob.lit env Tagged.T "could not perform oneway" ^^
+      IC.set_call_perform_message env
 
     | _ -> assert false
 
@@ -11945,10 +11934,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.unit,
     GC.collect_garbage env
 
-  | ICStableSize t, [e] ->
-    SR.UnboxedWord64 Type.Nat64,
-    E.trap_with env "Deprecated with enhanced orthogonal persistence"
-
   (* Other prims, unary *)
 
   | OtherPrim "array_len", [e] ->
@@ -12632,11 +12617,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OtherPrim ("arrayToBlob" | "arrayMutToBlob"), e ->
     const_sr SR.Vanilla (Arr.toBlob env)
-
-  | OtherPrim "stableVarQuery", [] ->
-    SR.Vanilla,
-    IC.get_self_reference env ^^
-    IC.actor_public_field env Type.(motoko_stable_var_info_fld.lab)
 
   | OtherPrim "canister_subnet", [] ->
     SR.Vanilla, IC.get_subnet_reference env
@@ -13895,9 +13875,7 @@ and conclude_module env set_serialization_globals start_fi_o =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
-  match E.get_rts env with
-  | None -> emodule
-  | Some rts -> Linking.LinkModule.link emodule "rts" rts
+  Linking.LinkModule.link emodule "rts" (E.get_rts env)
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)

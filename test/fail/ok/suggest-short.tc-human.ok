@@ -1,4 +1,4 @@
 error[M0072]: field s does not exist in module.
     ┌─ suggest-short.mo:3:6
   3 │  Prim.s;
-    │       ^ help: did you mean field sin, setTimer, shiftLeft, shiftRight, stableVarQuery, setCandidLimits, setCertifiedData, safeFloatToFloat32 or setCandidTypeLimits?
+    │       ^ help: did you mean field sin, setTimer, shiftLeft, shiftRight, setCandidLimits, setCertifiedData, safeFloatToFloat32 or setCandidTypeLimits?

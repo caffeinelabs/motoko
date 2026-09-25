@@ -111,7 +111,6 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     costVetkdDeriveKey :
       (keyName : Text, curveEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
-    createActor : (wasm : Blob, argument : Blob) -> async Principal;
     ctzInt16 : (w : Int16) -> Int16;
     ctzInt32 : (w : Int32) -> Int32;
     ctzInt64 : (w : Int64) -> Int64;
@@ -284,7 +283,6 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     shiftLeft : (x : Nat, shift : Nat32) -> Nat;
     shiftRight : (x : Nat, shift : Nat32) -> Nat;
     sin : (f : Float) -> Float;
-    stableVarQuery : () -> shared query () -> async {size : Nat64};
     tan : (f : Float) -> Float;
     textCompare : (t1 : Text, t2 : Text) -> Int8;
     textLowercase : (t : Text) -> Text;

@@ -8,16 +8,13 @@ open Source
 
 type mode = {
   privileged : bool;
-  verification : bool;
 }
 
 let mode : mode = {
   privileged = Option.is_some (Sys.getenv_opt "MOC_UNLOCK_PRIM");
-  verification = Option.is_some (Sys.getenv_opt "MOC_UNLOCK_VERIFICATION");
 }
 
 let mode_priv : mode = { mode with privileged = true }
-let mode_verification : mode = { mode with verification = true }
 
 
 exception Error of region * string

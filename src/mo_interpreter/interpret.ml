@@ -442,7 +442,6 @@ let rec interpret_exp env exp (k : V.value V.cont) =
 and interpret_exp_mut env exp (k : V.value V.cont) =
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
   | PrimE s ->
@@ -743,7 +742,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     )
   | LabelE (id, _typ, exp1) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
-    Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
   | BreakE (kind, id_opt, exp1) ->
     interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)

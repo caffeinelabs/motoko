@@ -4,6 +4,24 @@
 
 * motoko (`moc`)
 
+  * feat!: remove dead flags and primitives (#PRNUM):
+
+    * Canisters no longer export the `__motoko_stable_var_info` query, which
+      always trapped under enhanced orthogonal persistence, and
+      `Prim.stableVarQuery` is gone. `motoko-base` re-exports it as
+      `ExperimentalStableMemory.stableVarQuery`, so `base` no longer
+      typechecks with this `moc`; `core` is unaffected.
+
+    * `Prim.createActor` is removed. Use actor classes, or the management
+      canister's `create_canister` and `install_code`.
+
+    * The `--trap-on-call-error` flag, which emulated moc < 0.8.0, is removed:
+      a failed call now always throws an `Error`.
+
+    * The unused `--print-source-on-error`, `-no-link`, `--profile`,
+      `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
+      are removed.
+
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
     call now gives the same diagnostics as one call per file, with duplicates
