@@ -4,6 +4,18 @@
 
 * motoko (`moc`)
 
+  * feat!: `Prim.callerInfoSigner` and `Prim.callerInfoData` no longer require
+    the `system` capability, so they can be called from `query` and `composite
+    query` methods. The replica already serves caller info in those contexts —
+    `sender_info` in `rs/embedders/src/wasmtime_embedder/system_api.rs` admits
+    `Update`, `ReplicatedQuery`, `NonReplicatedQuery`, `CompositeQuery`, the
+    callbacks, `InspectMessage` and the cleanups, and errors only in `Start`,
+    `Init`, `PreUpgrade` and `SystemTask`. The capability was gating the
+    contexts that work and permitting the ones that trap, since `system` is
+    available in initializers. Breaking change: an explicit `<system>`
+    instantiation on these two primitives is now rejected with M0196
+    (#6396).
+
   * feat: `do { ... }` and `do ? { ... }` work as operator operands:
     `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
     A postfix form needs parentheses around the block, `(do { ... }).field` (#6395).
