@@ -25,7 +25,7 @@ let usage_err s =
 
 let argspec =
 [
-  "-b", Arg.Set_string base_file, "<file> base file (e.g. output of moc --no-link)";
+  "-b", Arg.Set_string base_file, "<file> base file";
   "-l", Arg.Set_string lib_file, "<file> library file";
   "-o", Arg.Set_string out_file, "<file> output file";
   "-n", Arg.Set_string lib_name, "<name> library name (defaults to \"rts\")";

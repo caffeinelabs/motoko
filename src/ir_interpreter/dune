@@ -1,5 +1,5 @@
 (library
   (name ir_interpreter)
-  (libraries lib mo_types mo_values ir_def profiler ic)
+  (libraries lib mo_types mo_values ir_def ic)
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

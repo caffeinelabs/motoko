@@ -38,7 +38,7 @@ val run_file_and_stdin  : string option -> unit option
 type compile_result =
   (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
 
-val compile_file : Flags.compile_mode -> bool -> string -> compile_result
+val compile_file : Flags.compile_mode -> string -> compile_result
 
 val resolve_flags : is_main:bool -> base:string -> (* package_opt *) string option -> ResolveImport.flags
 val resolved_import_name : Syntax.resolved_import Source.phrase -> string

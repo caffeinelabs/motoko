@@ -136,8 +136,6 @@ let parse_file' ?(recovery=false) mode at filename : (Syntax.prog * rel_path) Di
 let parse_file = parse_file' Lexer.mode
 let parse_file_with_recovery = parse_file' ~recovery:true Lexer.mode
 
-let parse_verification_file = parse_file' Lexer.mode_verification
-
 (* Import file name resolution *)
 
 type resolve_result = (Syntax.prog * ResolveImport.resolved_imports) Diag.result
@@ -265,7 +263,7 @@ let internals, initial_stat_env =
 
 let parse_stab_sig s name  =
   let open Diag.Syntax in
-  let mode = Lexer.{privileged = false; verification = false} in
+  let mode = Lexer.{privileged = false} in
   let lexer = Lexing.from_string s in
   let parse = Parser.Incremental.parse_stab_sig in
   let* sig_ = generic_parse_with mode lexer parse name in
@@ -275,7 +273,7 @@ let parse_stab_sig_from_file filename : Syntax.stab_sig Diag.result =
   let ic = Stdlib.open_in filename in
   Diag.finally (fun () -> close_in ic) (
     let open Diag.Syntax in
-    let mode = Lexer.{privileged = false; verification = false} in
+    let mode = Lexer.{privileged = false} in
     let lexer = Lexing.from_channel ic in
     let parse = Parser.Incremental.parse_stab_sig in
     let* sig_ = generic_parse_with mode lexer parse filename in
@@ -612,9 +610,7 @@ let interpret_prog denv prog : (Value.value * Interpret.scope) option =
   phase "Interpreting" filename;
   Cons.session ~scope:filename (fun () ->
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
-    let result = Interpret.interpret_prog flags denv prog in
-    Profiler.process_prog_result result;
-    result)
+    Interpret.interpret_prog flags denv prog)
 
 let rec interpret_libs denv libs : Interpret.scope =
   let open Interpret in
@@ -851,32 +847,31 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
       go (imports @ new_imports) libs
   in go [] libs
 
-and compile_unit mode (enhanced_migration:string option) do_link imports u : Wasm_exts.CustomModule.extended_module Diag.result =
+and compile_unit mode (enhanced_migration:string option) imports u : Wasm_exts.CustomModule.extended_module Diag.result =
   let open Diag.Syntax in
   let name = u.note.Syntax.filename in
   Cons.session ~scope:name (fun () ->
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
     phase "Compiling" name;
-    let rts = if do_link then Some (load_as_rts ()) else None in
-    Diag.return (Codegen.Compile.compile mode ~enhanced_migration rts prog_ir))
+    Diag.return (Codegen.Compile.compile mode ~enhanced_migration (load_as_rts ()) prog_ir))
 
 and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Syntax.comp_unit) : string Diag.result =
   let open Diag.Syntax in
-  let* wasm_mod = compile_unit mode enhanced_migration true imports u in
+  let* wasm_mod = compile_unit mode enhanced_migration imports u in
   let (_source_map, wasm) = Wasm_exts.CustomModuleEncode.encode wasm_mod in
   Diag.return wasm
 
-and compile_prog mode do_link libs prog : Wasm_exts.CustomModule.extended_module Diag.result =
+and compile_prog mode libs prog : Wasm_exts.CustomModule.extended_module Diag.result =
   let imports = compile_libs mode libs in
   let u = CompUnit.comp_unit_of_prog false prog in
-  compile_unit mode (!Flags.enhanced_migration) do_link imports u
+  compile_unit mode (!Flags.enhanced_migration) imports u
 
-let compile_file mode do_link file : compile_result =
+let compile_file mode file : compile_result =
   let open Diag.Syntax in
   let* libs, prog, senv = load_prog ~check_actors:true parse_file file initial_stat_env in
   let idl = Mo_idl.Mo_to_idl.prog (prog, senv) in
-  let* ext_module = compile_prog mode do_link libs prog in
+  let* ext_module = compile_prog mode libs prog in
   (* validate any stable type signature, as a sanity check *)
   let* () =
     match Wasm_exts.CustomModule.(ext_module.motoko.stable_types_text) with

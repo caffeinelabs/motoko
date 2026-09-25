@@ -1,6 +1,6 @@
 --- blob-bounds.run
 +++ blob-bounds.run-low
-@@ -1,80 +1 @@
+@@ -1,79 +1 @@
 -blob-bounds.mo:1.17-1.18: internal error, Invalid_argument("index out of bounds")
 -
 -Last environment:
@@ -15,7 +15,6 @@
 -@call_succeeded = <func>
 -@cancelTimer = <func>
 -@cleanup = <func>
--@create_actor_helper = <func>
 -@cycles = 0
 -@dedup = <func>
 -@digits_dec = <func>
