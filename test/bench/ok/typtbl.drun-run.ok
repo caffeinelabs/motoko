@@ -1,9 +1,9 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 debug.print: {bias = 1_024; scalar = 16}
-debug.print: {cycles = 178_054}
-debug.print: {cycles = 178_322}
-debug.print: {cycles = 359_314}
-debug.print: {cycles = 540_306}
-debug.print: {cycles = 721_298}
-debug.print: {cycles = 265_074}
+debug.print: {cycles = 175_473}
+debug.print: {cycles = 175_739}
+debug.print: {cycles = 354_171}
+debug.print: {cycles = 532_603}
+debug.print: {cycles = 711_035}
+debug.print: {cycles = 262_473}
 ingress Completed: Reply: 0x4449444c0000
