@@ -124,8 +124,8 @@ let argspec =
     Arg.Unit (fun () -> Flags.(compile_mode := WASIMode)),
       " use the WASI system API (wasmtime)";
   "-ref-system-api",
-  Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
-      " use the reference implementation of the Internet Computer system API (ic-ref-run)";
+    Arg.Unit (fun () -> Flags.(compile_mode := ICMode)),
+      " (deprecated) same as the default Internet Computer system API";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";

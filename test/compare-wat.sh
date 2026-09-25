@@ -73,14 +73,14 @@ do
 
   rm -rf compare-out/$base.old
   mkdir compare-out/$base.old
-  old-moc/bin/moc $mangled --omit-metadata motoko:compiler -ref-system-api -g -o compare-out/$base.old/$base.wasm 2> compare-out/$base.old/$base.stderr
+  old-moc/bin/moc $mangled --omit-metadata motoko:compiler -g -o compare-out/$base.old/$base.wasm 2> compare-out/$base.old/$base.stderr
   test ! -e compare-out/$base.old/$base.wasm ||
   $WASM2WAT compare-out/$base.old/$base.wasm >& compare-out/$base.old/$base.wat
   #wasm-objdump -s -h -d compare-out/$base.old/$base.wasm > compare-out/$base.old/$base.dump
 
   rm -rf compare-out/$base.new
   mkdir compare-out/$base.new
-  new-moc/bin/moc $mangled --omit-metadata motoko:compiler -ref-system-api -g -o compare-out/$base.new/$base.wasm 2> compare-out/$base.new/$base.stderr
+  new-moc/bin/moc $mangled --omit-metadata motoko:compiler -g -o compare-out/$base.new/$base.wasm 2> compare-out/$base.new/$base.stderr
   test ! -e compare-out/$base.new/$base.wasm ||
   $WASM2WAT compare-out/$base.new/$base.wasm >& compare-out/$base.new/$base.wat
   #wasm-objdump -s -h -d compare-out/$base.new/$base.wasm > compare-out/$base.new/$base.dump
