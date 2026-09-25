@@ -1,3 +1,19 @@
 syntax6.mo:1.8-1.9: syntax error [M0001], unexpected token '}', expected one of token or <phrase> sequence:
   <eof>
+  .<nat>
+  !
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <binop> <exp(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_arg>

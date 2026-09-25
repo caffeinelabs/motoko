@@ -739,8 +739,14 @@ exp_post(B, R) :
     { e }
 
 (* The postfix forms that grow an expression past a single atom: calls, indexing, projection, `!`.
-   Shared with exp_head_post, which is exactly these forms without the bare atom. *)
+   Shared with exp_head_post, which is exactly these forms without the bare atom.
+   `do { }` sits here too: it is the block-as-expression (#6352, rule 4), so it is an operand like any other,
+   but not an atom — an `if do { } ...` head is extended and takes braced branches. *)
 %inline exp_post_ext(B, R) :
+  | DO e=block
+    { e.it @? at $sloc }
+  | DO QUEST e=block
+    { DoOptE(e) @? at $sloc }
   | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob), COMMA) RBRACKET
     { ArrayE(m, es) @? at $sloc }
   | e1=exp_post(B, R) c=exp_cont(R)
@@ -971,10 +977,6 @@ exp_un(B, R) :
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
   | IGNORE e=legacy_operand(R)
     { IgnoreE(e) @? at $sloc }
-  | DO e=block
-    { e.it @? at $sloc }
-  | DO QUEST e=block
-    { DoOptE(e) @? at $sloc }
 
 exp_nonvar(B, R) :
   | e=exp_nondec(B, R)
@@ -1092,10 +1094,6 @@ exp_head :
     { AwaitE(Type.AwaitFut true, e) @? at $sloc }
   | AWAITSTAR e=legacy_operand(bl)
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
-  | DO e=block
-    { e.it @? at $sloc }
-  | DO QUEST e=block
-    { DoOptE(e) @? at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt
