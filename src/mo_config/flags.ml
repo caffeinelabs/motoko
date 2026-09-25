@@ -3,7 +3,7 @@
 module M = Map.Make(String)
 module S = Set.Make(String)
 
-type compile_mode = WasmMode | ICMode | RefMode | WASIMode
+type compile_mode = WasmMode | ICMode | WASIMode
 
 type instruction_limits = {
   upgrade: Int64.t;
