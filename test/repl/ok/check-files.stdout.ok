@@ -1,0 +1,26 @@
+Lib.mo:2.33-2.39: warning [M0194], unused identifier: `unused`
+help: if this is intentional, prefix it with an underscore: `_unused`
+b.mo:2.9-2.10: type error [M0057], unbound variable x
+c.mo:2.16-2.25: type error [M0096], expression of type
+  Nat
+cannot produce expected type
+  Text
+because the type 
+  Nat
+ is not compatible with type 
+  Text
+exit 1
+-- Checking Lib.mo:
+-- Checking a.mo:
+-- Checking b.mo:
+-- Checking c.mo:
+-- Checking Lib.mo:
+Lib.mo:2.33-2.39: warning [M0194], unused identifier: `unused`
+help: if this is intentional, prefix it with an underscore: `_unused`
+exit 0
+moc: compilation expects exactly one source file
+exit 1
+moc: -r expects exactly one source file
+exit 1
+moc: --enhanced-migration and --stable-baseline expect a single file to check
+exit 1

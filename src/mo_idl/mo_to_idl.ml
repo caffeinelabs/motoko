@@ -252,8 +252,7 @@ module MakeState() = struct
        )
 end
 
-let prog (progs, senv) : I.prog =
-  let prog = CompUnit.combine_progs progs in
+let prog (prog, senv) : I.prog =
   let open MakeState() in
   let actor = actor prog in
   let trivia = Trivia.merge_triv_tables (prog.note.E.trivia :: !mixin_trivia) in

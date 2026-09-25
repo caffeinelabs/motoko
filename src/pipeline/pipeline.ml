@@ -168,9 +168,6 @@ let resolve_prog (prog, base) : resolve_result =
        (resolve_flags ~is_main:true ~base None)
        prog base)
 
-let resolve_progs =
-  Diag.traverse resolve_prog
-
 
 (* Printing dependency information *)
 
@@ -224,27 +221,6 @@ let infer_prog
     let* t_sscope = r in
     let* () = Definedness.check_prog prog in
     Diag.return t_sscope)
-
-let check_progs
-    ?(enable_type_recovery=false)
-    ~stable_baseline_sig
-    senv
-    progs : (Scope.t list * Scope.t) Diag.result =
-  let rec go senv sscopes = function
-    | [] -> Diag.return (List.rev sscopes, senv)
-    | prog::progs ->
-      let open Diag.Syntax in
-      let filename = prog.note.Syntax.filename in
-      let async_cap = async_cap_of_prog prog in
-      let* _t, sscope =
-        Cons.session ~scope:filename (fun () ->
-          infer_prog ~enable_type_recovery ~stable_baseline_sig senv None async_cap prog)
-      in
-      let senv' = Scope.adjoin senv sscope in
-      let sscopes' = sscope :: sscopes in
-      go senv' sscopes' progs
-  in
-  go senv [] progs
 
 let check_lib ~stable_baseline_sig senv pkg_opt lib : Scope.scope Diag.result =
   let filename = lib.note.Syntax.filename in
@@ -402,20 +378,19 @@ type scope_cache = Scope.t Type.Env.t
 
 type load_result_cached =
     ( Syntax.lib list
-    * (Syntax.prog * string list * Scope.t) list
-    * Scope.t
+    * (Syntax.prog * string list * Scope.t * Scope.t) list
     * scope_cache ) Diag.result
 
 type load_result =
-  (Syntax.lib list * Syntax.prog list * Scope.scope) Diag.result
+  (Syntax.lib list * Syntax.prog * Scope.scope) Diag.result
 
 type load_decl_result =
   (Syntax.lib list * Syntax.prog * Scope.scope * Type.typ * Scope.scope) Diag.result
 
 let resolved_import_name ri = Syntax.lib_key_of_resolved_import ri.it
 
-let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
-    : (Syntax.lib list * Scope.scope * scope_cache) Diag.result
+let chase_imports_shared ~stable_baseline_sig parsefn senv0 imports cache failed
+    : (Syntax.lib list * Scope.scope) Diag.result
   =
   (*
   This function loads and type-checks the files given in `imports`,
@@ -428,7 +403,9 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
   * To avoid duplicates, i.e. load each file at most once, we check the
     senv.
   * We accumulate the resulting libraries in reverse order, for O(1) appending.
-  * There is a cache that can be queried to avoid recomputing unchanged dependencies.
+  * `cache` holds the scopes of already checked libraries and `failed` the
+    libraries that did not check. Both outlive the call, so several entry
+    points check each library at most once and report its errors once.
   *)
 
   let open Diag.Syntax in
@@ -437,7 +414,6 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
   let pending = ref empty in
   let senv = ref senv0 in
   let libs = ref [] in
-  let cache = ref scopes_map in
 
   let rec go_cached pkg_opt ri =
     let ri_name = resolved_import_name ri in
@@ -464,6 +440,9 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
     | Syntax.(LibPath {path = f; package = lib_pkg_opt}) ->
       if Type.Env.mem f !senv.Scope.lib_env then
         Diag.return ()
+      else if mem it !failed then
+        (* already reported *)
+        Stdlib.Error []
       else if mem it !pending then
         Diag.error
           ri.at
@@ -472,18 +451,22 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
           (Printf.sprintf "file %s must not depend on itself" f)
       else begin
         pending := add it !pending;
-        let* prog, base = parsefn ri.at f in
-        let* () = Static.prog prog in
-        let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
-        let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
-        let* () = go_set cur_pkg_opt more_imports in
-        let lib = lib_of_prog f prog in
-        let* sscope = check_lib ~stable_baseline_sig !senv cur_pkg_opt lib in
-        libs := lib :: !libs; (* NB: Conceptually an append *)
-        senv := Scope.adjoin !senv sscope;
-        cache := Type.Env.add ri_name sscope !cache;
+        let r =
+          let* prog, base = parsefn ri.at f in
+          let* () = Static.prog prog in
+          let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
+          let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
+          let* () = go_set cur_pkg_opt more_imports in
+          let lib = lib_of_prog f prog in
+          let* sscope = check_lib ~stable_baseline_sig !senv cur_pkg_opt lib in
+          libs := lib :: !libs; (* NB: Conceptually an append *)
+          senv := Scope.adjoin !senv sscope;
+          cache := Type.Env.add ri_name sscope !cache;
+          Diag.return ()
+        in
         pending := remove it !pending;
-        Diag.return ()
+        if Result.is_error r then failed := add it !failed;
+        r
       end
     | Syntax.ImportedValuePath full_path ->
       let sscope = Scope.lib ~package:None full_path Type.blob in
@@ -539,14 +522,36 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
           Diag.return ()
   and go_set pkg_opt todo = Diag.traverse_ (go_cached pkg_opt) todo
   in
-  Diag.map (fun () -> List.rev !libs, !senv, !cache) (go_set None imports)
+  Diag.map (fun () -> List.rev !libs, !senv) (go_set None imports)
 
 let chase_imports ~stable_baseline_sig parsefn senv0 imports : (Syntax.lib list * Scope.scope) Diag.result =
-  let open Diag.Syntax in
-  let cache = Type.Env.empty in
-  let* libs, senv, _cache = chase_imports_cached ~stable_baseline_sig parsefn senv0 imports cache in
-  Diag.return (libs, senv)
+  chase_imports_shared ~stable_baseline_sig parsefn senv0 imports
+    (ref Type.Env.empty) (ref ResolveImport.S.empty)
 
+(* Loads one entry point: parses it, loads its imports, and checks it in a
+   scope holding only the libraries it imports. *)
+let load_entry ?check_actors ~enable_type_recovery ~stable_baseline_sig
+    parsefn senv0 cache failed file =
+  let open Diag.Syntax in
+  let* parsed = parsefn no_region file in
+  let* prog, rims = resolve_prog parsed in
+  let* libs, senv =
+    chase_imports_shared ~stable_baseline_sig parsefn senv0 rims cache failed
+  in
+  let* () = Typing.check_actors ?check_actors senv prog in
+  (* [infer_prog] seems to annotate the AST with types by mutating some of its
+     nodes, therefore, we always run the type checker for programs. *)
+  let async_cap = async_cap_of_prog prog in
+  let* _t, sscope =
+    infer_prog ~enable_type_recovery ~stable_baseline_sig senv None async_cap prog
+  in
+  let imports = List.map resolved_import_name rims in
+  Diag.return (libs, (prog, imports, sscope, Scope.adjoin senv sscope))
+
+(* Loads several independent entry points, e.g. for checking all files of a
+   project. A failing entry does not stop the others. A file that is both an
+   entry and imported is checked twice, so an entry drops the messages an
+   earlier entry already reported. *)
 let load_progs_cached
     ?check_actors
     ?(enable_type_recovery=false)
@@ -555,36 +560,38 @@ let load_progs_cached
     senv
     scope_cache : load_result_cached =
   let open Diag.Syntax in
-  let* parsed = Diag.traverse (parsefn no_region) files in
-  let* rs = resolve_progs parsed in
-  let progs = List.map fst rs in
-  let libs = List.concat_map snd rs in
   let* stable_baseline_sig = load_stable_baseline () in
-  let* libs, senv, scope_cache =
-    chase_imports_cached ~stable_baseline_sig parsefn senv libs scope_cache
+  let cache = ref scope_cache in
+  let failed = ref ResolveImport.S.empty in
+  let reported = Hashtbl.create 16 in
+  let fresh msgs =
+    let msgs = List.filter (fun m -> not (Hashtbl.mem reported m)) msgs in
+    List.iter (fun m -> Hashtbl.replace reported m ()) msgs;
+    msgs
   in
-  let* () = Typing.check_actors ?check_actors senv progs in
-  (* [infer_prog] seems to annotate the AST with types by mutating some of its
-     nodes, therefore, we always run the type checker for programs. *)
-  let* sscopes, senv = check_progs ~enable_type_recovery ~stable_baseline_sig senv progs in
-  let prog_result =
-    List.map2
-      (fun (prog, rims) sscope ->
-        let rims' = List.map resolved_import_name rims in
-        prog, rims', sscope)
-      rs
-      sscopes
+  let ok, libs, entries, msgs =
+    List.fold_left (fun (ok, libs, entries, msgs) file ->
+      match
+        load_entry ?check_actors ~enable_type_recovery ~stable_baseline_sig
+          parsefn senv cache failed file
+      with
+      | Ok ((libs', entry), msgs') -> ok, libs' :: libs, entry :: entries, fresh msgs' :: msgs
+      | Error msgs' -> false, libs, entries, fresh msgs' :: msgs)
+      (true, [], [], []) files
   in
-  Diag.return (libs, prog_result, senv, scope_cache)
+  let msgs = List.concat (List.rev msgs) in
+  if ok
+  then Ok ((List.concat (List.rev libs), List.rev entries, !cache), msgs)
+  else Error msgs
 
-let load_progs ?check_actors parsefn files senv : load_result =
+let load_prog ?check_actors parsefn file senv : load_result =
   let open Diag.Syntax in
-  let scope_cache = Type.Env.empty in
-  let* libs, rs, senv, _scope_cache =
-    load_progs_cached ?check_actors parsefn files senv scope_cache
+  let* libs, entries, _cache =
+    load_progs_cached ?check_actors parsefn [file] senv Type.Env.empty
   in
-  let progs = List.map (fun (prog, _immediate_imports, _sscope) -> prog) rs in
-  Diag.return (libs, progs, senv)
+  match entries with
+  | [prog, _imports, _sscope, senv] -> Diag.return (libs, prog, senv)
+  | _ -> assert false
 
 let load_decl parse_one senv : load_decl_result =
   let open Diag.Syntax in
@@ -623,25 +630,12 @@ let rec interpret_libs denv libs : Interpret.scope =
     let denv' = adjoin_scope denv dscope in
     interpret_libs denv' libs'
 
-let rec interpret_progs denv progs : Interpret.scope option =
-  match progs with
-  | [] -> Some denv
-  | p::ps ->
-    match interpret_prog denv p with
-    | Some (_v, dscope) ->
-      let denv' = Interpret.adjoin_scope denv dscope in
-      interpret_progs denv' ps
-    | None -> None
-
-let interpret_files (senv0, denv0) files : (Scope.scope * Interpret.scope) option =
-  Option.bind
-    (Diag.flush_messages (load_progs parse_file files senv0))
-    (fun (libs, progs, senv1) ->
-      let denv1 = interpret_libs denv0 libs in
-      match interpret_progs denv1 progs with
-      | None -> None
-      | Some denv2 -> Some (senv1, denv2)
-    )
+let interpret_file (senv0, denv0) file : (Scope.scope * Interpret.scope) option =
+  let open Lib.Option.Syntax in
+  let* libs, prog, senv1 = Diag.flush_messages (load_prog parse_file file senv0) in
+  let denv1 = interpret_libs denv0 libs in
+  let* _v, dscope = interpret_prog denv1 prog in
+  Some (senv1, Interpret.adjoin_scope denv1 dscope)
 
 let run_builtin prog denv : dyn_env =
   match interpret_prog denv prog with
@@ -658,27 +652,25 @@ let initial_env = (initial_stat_env, initial_dyn_env)
 
 type check_result = unit Diag.result
 
-let check_files' parsefn files : check_result =
-  Diag.map ignore (load_progs parsefn files initial_stat_env)
-
+(* Each file is checked in its own scope, sharing the checked imports *)
 let check_files ?(enable_recovery=false) files : check_result =
   let parsefn = if enable_recovery
     then parse_file_with_recovery
     else parse_file
   in
-  check_files' parsefn files
+  Diag.map ignore (load_progs_cached parsefn files initial_stat_env Type.Env.empty)
 
 (* Generate IDL *)
 
-let generate_idl files : Idllib.Syntax.prog Diag.result =
+let generate_idl file : Idllib.Syntax.prog Diag.result =
   let open Diag.Syntax in
-  let* libs, progs, senv = load_progs ~check_actors:true parse_file files initial_stat_env in
-  Diag.return (Mo_idl.Mo_to_idl.prog (progs, senv))
+  let* _libs, prog, senv = load_prog ~check_actors:true parse_file file initial_stat_env in
+  Diag.return (Mo_idl.Mo_to_idl.prog (prog, senv))
 
 (* Running *)
 
-let run_files files : unit option =
-  Option.map ignore (interpret_files initial_env files)
+let run_file file : unit option =
+  Option.map ignore (interpret_file initial_env file)
 
 (* Interactively *)
 
@@ -737,9 +729,9 @@ let run_stdin lexer (senv, denv) : env option =
       if !Flags.verbose then printf "\n";
       Some env'
 
-let run_stdin_from_file files file : Value.value option =
+let run_stdin_from_file file : Value.value option =
   let open Lib.Option.Syntax in
-  let* (senv, denv) = interpret_files initial_env files in
+  let (senv, denv) = initial_env in
   let* (libs, prog, senv', t, sscope) =
     Diag.flush_messages (load_decl (parse_file no_region file) senv) in
   let denv' = interpret_libs denv libs in
@@ -747,10 +739,13 @@ let run_stdin_from_file files file : Value.value option =
   print_val senv t v;
   Some v
 
-let run_files_and_stdin files =
+let run_file_and_stdin file_opt =
   let open Lib.Option.Syntax in
   let lexer = Lexing.from_function lexer_stdin in
-  let* env = interpret_files initial_env files in
+  let* env = match file_opt with
+    | None -> Some initial_env
+    | Some file -> interpret_file initial_env file
+  in
   let rec loop env = loop (Lib.Option.get (run_stdin lexer env) env) in
   try loop env with End_of_file ->
     printf "\n%!";
@@ -872,17 +867,16 @@ and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Sy
   let (_source_map, wasm) = Wasm_exts.CustomModuleEncode.encode wasm_mod in
   Diag.return wasm
 
-and compile_progs mode do_link libs progs : Wasm_exts.CustomModule.extended_module Diag.result =
+and compile_prog mode do_link libs prog : Wasm_exts.CustomModule.extended_module Diag.result =
   let imports = compile_libs mode libs in
-  let prog = CompUnit.combine_progs progs in
   let u = CompUnit.comp_unit_of_prog false prog in
   compile_unit mode (!Flags.enhanced_migration) do_link imports u
 
-let compile_files mode do_link files : compile_result =
+let compile_file mode do_link file : compile_result =
   let open Diag.Syntax in
-  let* libs, progs, senv = load_progs ~check_actors:true parse_file files initial_stat_env in
-  let idl = Mo_idl.Mo_to_idl.prog (progs, senv) in
-  let* ext_module = compile_progs mode do_link libs progs in
+  let* libs, prog, senv = load_prog ~check_actors:true parse_file file initial_stat_env in
+  let idl = Mo_idl.Mo_to_idl.prog (prog, senv) in
+  let* ext_module = compile_prog mode do_link libs prog in
   (* validate any stable type signature, as a sanity check *)
   let* () =
     match Wasm_exts.CustomModule.(ext_module.motoko.stable_types_text) with
@@ -907,9 +901,8 @@ let compile_files mode do_link files : compile_result =
 let import_libs libs : Lowering.Desugar.import_declaration =
   List.concat_map Lowering.Desugar.import_unit libs
 
-let interpret_ir_progs libs progs =
+let interpret_ir_prog libs prog =
   let open Diag.Syntax in
-  let prog = CompUnit.combine_progs progs in
   let name = prog.note.Syntax.filename in
   let imports = import_libs libs in
   let u = CompUnit.comp_unit_of_prog false prog in
@@ -920,7 +913,7 @@ let interpret_ir_progs libs progs =
   let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
   Diag.return (interpret_prog flags prog_ir)
 
-let interpret_ir_files files =
+let interpret_ir_file file =
   Diag.flush_messages (Diag.bind
-    (load_progs parse_file files initial_stat_env)
-    (fun (libs, progs, _) -> interpret_ir_progs libs progs))
+    (load_prog parse_file file initial_stat_env)
+    (fun (libs, prog, _) -> interpret_ir_prog libs prog))

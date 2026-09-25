@@ -20,7 +20,7 @@ val check_files  : ?enable_recovery:bool -> string list -> unit Diag.result
 
 val stable_compatible : string -> string -> unit Diag.result
 
-val generate_idl : string list -> Idllib.Syntax.prog Diag.result
+val generate_idl : string -> Idllib.Syntax.prog Diag.result
 
 val initial_stat_env : Scope.scope
 val chase_imports
@@ -30,15 +30,15 @@ val chase_imports
   -> Resolve_import.resolved_imports
   -> (Syntax.lib list * Scope.scope) Diag.result
 
-val run_files           : string list -> unit option
-val run_stdin_from_file : string list -> string -> Mo_values.Value.value option
-val interpret_ir_files  : string list -> unit option
-val run_files_and_stdin : string list -> unit option
+val run_file            : string -> unit option
+val run_stdin_from_file : string -> Mo_values.Value.value option
+val interpret_ir_file   : string -> unit option
+val run_file_and_stdin  : string option -> unit option
 
 type compile_result =
   (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
 
-val compile_files : Flags.compile_mode -> bool -> string list -> compile_result
+val compile_file : Flags.compile_mode -> bool -> string -> compile_result
 
 val resolve_flags : is_main:bool -> base:string -> (* package_opt *) string option -> ResolveImport.flags
 val resolved_import_name : Syntax.resolved_import Source.phrase -> string
@@ -47,10 +47,11 @@ val resolved_import_name : Syntax.resolved_import Source.phrase -> string
 
 type scope_cache = Scope.t Type.Env.t
 
+(* Per entry point: the program, its immediate imports, its own scope, and the
+   scope it was checked in extended by its own scope *)
 type load_result_cached =
     ( Syntax.lib list
-    * (Syntax.prog * string list * Scope.t) list
-    * Scope.t
+    * (Syntax.prog * string list * Scope.t * Scope.t) list
     * scope_cache )
   Diag.result
 
@@ -66,6 +67,6 @@ val load_progs_cached
   -> load_result_cached
 
 type load_result =
-  (Syntax.lib list * Syntax.prog list * Scope.scope) Diag.result
+  (Syntax.lib list * Syntax.prog * Scope.scope) Diag.result
 
-val load_progs : ?check_actors:bool -> parse_fn -> string list -> Scope.scope -> load_result
+val load_prog : ?check_actors:bool -> parse_fn -> string -> Scope.scope -> load_result

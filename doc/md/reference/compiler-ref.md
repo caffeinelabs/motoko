@@ -16,8 +16,11 @@ Use the Motoko compiler (`moc`) to compile Motoko programs into executable WebAs
 ### Basic usage
 
 ``` bash
-moc [option] [file ...]
+moc [option] [file]
+moc [option] --check [file ...]
 ```
+
+Imports are the way to combine several files into one program, so `moc` takes a single main file. Only `--check` takes several files, checking each one on its own.
 
 ### Options
 
@@ -31,7 +34,7 @@ You can use the following options with the `moc` command.
 | `--args <file>`                           | Read additional newline separated command line arguments from `<file>`.                                                                               |
 | `--args0 <file>`                          | Read additional `NUL` separated command line arguments from `<file>`.                                                                                 |
 | `-c`                                      | Compile to WebAssembly.                                                                                                                               |
-| `--check`                                 | Performs type checking only.                                                                                                                          |
+| `--check`                                 | Performs type checking only. Each given file is checked on its own; libraries they import are checked once.                                           |
 | `--debug`                                 | Respects debug expressions in the source (the default).                                                                                               |
 | `--enhanced-orthogonal-persistence`       | Use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory.                                      |
 | `--enhanced-migration <dir>`              | Enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence. The `motoko:stable-types` custom section is omitted from the wasm (the runtime system enforces stable-type compatibility at upgrade time); the `.most` file is still emitted under `--stable-types`. |

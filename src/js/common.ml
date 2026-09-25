@@ -85,8 +85,9 @@ let js_set_run_step_limit limit =
 
 let js_run list source =
   Mo_types.Cons.session (fun _ ->
-    let list = Js.to_array list |> Array.to_list |> List.map Js.to_string in
-    match Pipeline.run_stdin_from_file list (Js.to_string source) with
+    if Array.length (Js.to_array list) <> 0 then
+      raise (Invalid_argument "Motoko.run: preloading files is no longer supported, pass []");
+    match Pipeline.run_stdin_from_file (Js.to_string source) with
     | Some v ->
       object%js
         (* TODO: val value = js_value v *)
@@ -101,7 +102,7 @@ let js_run list source =
 
 let js_candid source =
   Mo_types.Cons.session (fun _ ->
-    js_result (Pipeline.generate_idl [Js.to_string source])
+    js_result (Pipeline.generate_idl (Js.to_string source))
       (fun prog ->
         let open Idllib in
         let module WithComments = Arrange_idl.Make(struct let trivia = Some prog.note.Syntax.trivia end) in
@@ -119,7 +120,7 @@ let js_compile_wasm mode source =
     | "ic" -> Flags.ICMode
     | _ -> raise (Invalid_argument "js_compile_with: Unexpected mode")
   in
-  Mo_types.Cons.session (fun _ -> js_result (Pipeline.compile_files mode true [source])
+  Mo_types.Cons.session (fun _ -> js_result (Pipeline.compile_file mode true source)
     (fun (idl_prog, m) ->
       let open CustomModule in
       let sig_ = match m.motoko.stable_types_text with
@@ -275,10 +276,10 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
       parse_fn paths scope_cache
   in
   match load_result with
-  (* senv: accumulated scope from prelude and all transitive imports *)
-  | Ok ((_libs, progs, senv, scope_cache), msgs) ->
+  (* senv: scope from prelude, the program's imports and the program itself *)
+  | Ok ((_libs, progs, scope_cache), msgs) ->
     let progs =
-      progs |> List.map (fun ((prog : Mo_def.Syntax.prog), immediate_imports, sscope) ->
+      progs |> List.map (fun ((prog : Mo_def.Syntax.prog), immediate_imports, sscope, senv) ->
         let open Mo_def in
         let module Arrange = Astjs.Make (struct
           let include_sources = true
@@ -338,7 +339,7 @@ let js_check_with_scope_cache source scope_cache =
       (scope_cache_from_js scope_cache)
   in
   let msgs, scope_cache_js = match load_result with
-    | Ok ((_libs, _progs, _senv, scope_cache), msgs) ->
+    | Ok ((_libs, _progs, scope_cache), msgs) ->
       msgs, Js.some (scope_cache_to_js scope_cache)
     | Error msgs ->
       msgs, Js.null

@@ -5712,12 +5712,12 @@ let is_actor_dec d =
     obj_sort.it = T.Actor
   | _ -> false
 
-let check_actors ?(check_actors=false) scope progs : unit Diag.result =
+let check_actors ?(check_actors=false) scope prog : unit Diag.result =
   if not check_actors then Diag.return () else
   Diag.with_message_store
     (fun msgs ->
-      recover_opt (fun progs ->
-        let prog = (CompUnit.combine_progs progs).it in
+      recover_opt (fun prog ->
+        let prog = prog.it in
         let env = env_of_scope msgs scope in
         let report ds =
           match ds with
@@ -5739,7 +5739,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
           | (d::ds') -> go (d::ds) ds'
         in
         go [] decs
-        ) progs
+        ) prog
     )
 
 let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =

@@ -6,7 +6,7 @@ open Printf
 
 let name = "moc"
 let banner = "Motoko compiler " ^ Source_id.banner
-let usage = "Usage: " ^ name ^ " [option] [file ...]"
+let usage = "Usage: " ^ name ^ " [option] [file]\n       " ^ name ^ " [option] --check [file ...]"
 
 (* Argument handling *)
 
@@ -42,7 +42,7 @@ let argspec =
   "-g", Arg.Set Flags.debug_info, " generate source-level debug information";
   "-r", Arg.Unit (set_mode Run), " interpret programs";
   "-i", Arg.Unit (set_mode Interact), " run interactive REPL (implies -r)";
-  "--check", Arg.Unit (set_mode Check), " type-check only";
+  "--check", Arg.Unit (set_mode Check), " type-check only; each given file is checked on its own";
   "--stable-compatible",
     Arg.Tuple [
       Arg.String (fun fp -> Flags.pre_ref := Some fp);
@@ -207,12 +207,9 @@ let argspec =
 
   @ Args.inclusion_args
 
-let set_out_file files ext =
-  if !out_file = "" then begin
-    match files with
-    | [n] -> out_file := Filename.remove_extension (Filename.basename n) ^ ext
-    | ns -> fail "moc: no output file specified"
-  end
+let set_out_file file ext =
+  if !out_file = "" then
+    out_file := Filename.remove_extension (Filename.basename file) ^ ext
 
 (* Main *)
 
@@ -220,18 +217,30 @@ let exit_on_none = function
   | None -> exit 1
   | Some x -> x
 
+let single_file what files =
+  match files with
+  | [file] -> file
+  | _ -> fail "moc: %s expects exactly one source file\n" what
+
 let process_files files : unit =
   match !mode with
   | Default ->
     assert false
   | Run ->
+    let file = single_file "-r" files in
     if !interpret_ir
-    then exit_on_none (Pipeline.interpret_ir_files files)
-    else exit_on_none (Pipeline.run_files files)
+    then exit_on_none (Pipeline.interpret_ir_file file)
+    else exit_on_none (Pipeline.run_file file)
   | Interact ->
+    let file_opt = match files with
+      | [] -> None
+      | files -> Some (single_file "-i" files)
+    in
     printf "%s\n%!" banner;
-    exit_on_none (Pipeline.run_files_and_stdin files)
+    exit_on_none (Pipeline.run_file_and_stdin file_opt)
   | Check ->
+    if List.length files > 1 && (Option.is_some !Flags.enhanced_migration || Option.is_some !Flags.stable_baseline) then
+      fail "moc: --enhanced-migration and --stable-baseline expect a single file to check\n";
     Diag.run (Pipeline.check_files files)
   | StableCompatible ->
     begin
@@ -242,9 +251,10 @@ let process_files files : unit =
       | _ -> assert false
     end
   | Compile ->
-    set_out_file files ".wasm";
+    let file = single_file "compilation" files in
+    set_out_file file ".wasm";
     let source_map_file = !out_file ^ ".map" in
-    let (idl_prog, module_) = Diag.run Pipeline.(compile_files !Flags.compile_mode !link files) in
+    let (idl_prog, module_) = Diag.run Pipeline.(compile_file !Flags.compile_mode !link file) in
     let module_ = CustomModule.{ module_ with
       source_mapping_url =
         if !gen_source_map

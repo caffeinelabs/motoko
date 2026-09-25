@@ -4,6 +4,16 @@
 
 * motoko (`moc`)
 
+  * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
+    holding only its own imports, and checks every imported library once. One
+    call now gives the same diagnostics as one call per file, with duplicates
+    reported once, and an error in one file does not stop the others.
+    Breaking change: `moc` no longer concatenates several files into one
+    program. Compiling (`-c`, `--idl`) and running (`-r`) take exactly one
+    main file, and the REPL (`-i`) preloads at most one. Use imports to split
+    a program across files. moc.js `Motoko.run` no longer preloads files: its
+    first argument must be `[]` (#NNNN).
+
   * feat: `do { ... }` and `do ? { ... }` work as operator operands:
     `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
     A postfix form needs parentheses around the block, `(do { ... }).field` (#6395).

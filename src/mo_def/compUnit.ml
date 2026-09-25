@@ -127,18 +127,3 @@ let decs_of_lib (cu : comp_unit) =
   | ProgU _
   | ActorU _ ->
     assert false
-
-(* a hack to support compiling multiple files *)
-let combine_progs (progs : prog list) : prog =
-  let open Source in
-  if progs = []
-  then
-    { it = [];
-      at = no_region;
-      note = { filename = "empty"; trivia = Trivia.empty_triv_table }
-    }
-  else
-    { it = List.concat_map (fun p -> p.it) progs;
-      at = (Lib.List.last progs).at;
-      note = (Lib.List.last progs).note
-    }
