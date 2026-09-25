@@ -305,7 +305,7 @@
     <case> ';' <cases>
 
 <catch> ::= 
-    'catch' <pat_nullary> <exp_nest>
+    'catch' <case_pat> <exp_nest>
 
 <if_exp> ::= 
     'if' <exp_nullary> <exp_nest>
@@ -392,10 +392,16 @@
     '(' <list(<pat_bin>, ',')> ')'
 
 <case_pat> ::= 
+    <case_pat_un>
+    <case_pat> 'or' <case_pat>
+    <case_pat> 'and' <case_pat>
+    <case_pat> ':' <typ>
+
+<case_pat_un> ::= 
     <pat_nullary>
     '#' <id>
     '#' <id> <pat_paren>
-    '?' <case_pat>
+    '?' <case_pat_un>
     <unop> <lit>
 
 <pat_field> ::= 

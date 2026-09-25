@@ -239,6 +239,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_else_branch) -> "<else_branch>", "{}"
   | X (N N_if_braced) -> "<if_braced>", "if c {}"
   | X (N N_case_pat) -> "<case_pat>", eg_pat
+  | X (N N_case_pat_un) -> "<case_pat_un>", eg_pat
   | X (N N_pat_paren) -> "(<pat>)", "(" ^ eg_pat ^ ")"
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
   | X (N N_seplist_dec_semicolon_) -> seplist ("<dec>", eg_dec) semi

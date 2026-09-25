@@ -328,7 +328,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.case list> cases
 %type<Mo_def.Syntax.typ option> annot_opt
 %type<Mo_def.Syntax.path> path
-%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat pat_paren
+%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat case_pat_un pat_paren
 %type<Mo_def.Syntax.pat_field> pat_field
 %type<Mo_def.Syntax.typ list option> option(typ_args)
 %type<unit option> option(EQ)
@@ -1026,7 +1026,7 @@ cases :
   | c=case semicolon cs=cases { c::cs }
 
 catch(R) :
-  | CATCH p=pat_nullary e=legacy_body(R)
+  | CATCH p=case_pat e=legacy_body(R)
     { {pat = p; exp = e} @@ at $sloc }
 
 (* `if` has two coupled shapes.
@@ -1181,16 +1181,27 @@ pat_paren :
   | lpar ps=seplist(pat_bin, COMMA) RPAR
     { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
 
-(* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`.
-   Anything else still needs parentheses around the whole pattern. *)
+(* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`,
+   and `or`/`and`/`: T` over those, as in `case #less or #equal { ... }` — no expression starts with `or`, `and`, or `:`.
+   A variant payload always takes parentheses, `#tag(p)`, like a call. *)
 case_pat :
+  | p=case_pat_un
+    { p }
+  | p1=case_pat OR p2=case_pat
+    { AltP(p1, p2) @! at $sloc }
+  | p1=case_pat AND p2=case_pat
+    { AndP(p1, p2) @! at $sloc }
+  | p=case_pat COLON t=typ
+    { AnnotP(p, t) @! at $sloc }
+
+case_pat_un :
   | p=pat_nullary
     { p }
   | hash x=id %prec EXP_NO_JUXTA
     { TagP(x, TupP [] @! at $sloc) @! at $sloc }
   | hash x=id p=pat_paren
     { TagP(x, p) @! at $sloc }
-  | QUEST p=case_pat
+  | QUEST p=case_pat_un
     { OptP(p) @! at $sloc }
   | op=unop l=lit
     { match op, l with
