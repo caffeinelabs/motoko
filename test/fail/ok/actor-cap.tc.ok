@@ -1,4 +1,4 @@
 actor-cap.mo:4.3-4.14: type error [M0085], misplaced return
 actor-cap.mo:5.3-5.30: type error [M0039], misplaced throw
-actor-cap.mo:9.4-9.15: type error [M0085], misplaced return
-actor-cap.mo:10.4-10.31: type error [M0039], misplaced throw
+actor-cap.mo:9.3-9.14: type error [M0085], misplaced return
+actor-cap.mo:10.3-10.30: type error [M0039], misplaced throw

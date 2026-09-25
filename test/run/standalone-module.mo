@@ -1,4 +1,3 @@
 module StandaloneModule {
-    public func test() {}
+  public func test() {}
 };
-

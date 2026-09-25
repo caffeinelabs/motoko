@@ -9,15 +9,15 @@ import Prim "mo:⛔";
 // eventhough Int != Tup[Int]
 
 do {
-let t = "u_u";
-shared func fu_u(a:Int,) : async (Int,) {
-   return (2*a,);
-};
+  let t = "u_u";
+  shared func fu_u(a:Int,) : async (Int,) {
+    return (2 * a,);
+  };
 
-let _ : async (Int,)  = async {
-  let (x,) = await fu_u(1); // *
-  assert(x==2);
-  Prim.debugPrint t;
-  return (x,);
-};
+  let _ : async (Int,)  = async {
+    let (x,) = await fu_u(1); // *
+    assert(x == 2);
+    Prim.debugPrint t;
+    return (x,);
+  };
 };

@@ -8,7 +8,7 @@ import M3 "class-import/trap";
 actor a {
   public func go() : async () {
     // To get lots of cycles in drun
-    if (Cycles.balance() == 0) await Cycles.provisional_top_up_actor(a, 100_000_000_000_000);
+    if Cycles.balance() == 0 { await Cycles.provisional_top_up_actor(a, 100_000_000_000_000) };
 
     // test no arg class
     Cycles.add<system>(2_000_000_000_000);

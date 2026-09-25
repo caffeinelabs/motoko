@@ -7,7 +7,7 @@ actor a {
     Prim.debugPrint("drill! " # debug_show rabbit_hole # " " # debug_show Prim.rts_callback_table_count());
     try {
       await async {
-        if (rabbit_hole == 0) {
+        if rabbit_hole == 0 {
           assert false
         } else {
           await drill(rabbit_hole - 1);
@@ -33,16 +33,16 @@ actor a {
     Prim.debugPrint("go 0: " # debug_show Prim.rts_callback_table_count());
     oneway_ping();
     await async {
-       Prim.debugPrint("go 1: " # debug_show Prim.rts_callback_table_count())
+      Prim.debugPrint("go 1: " # debug_show Prim.rts_callback_table_count())
     };
     await ping();
     try {
-        ignore await async {
-           Prim.debugPrint("go 2: " # debug_show Prim.rts_callback_table_count()); 
-           assert false; 
-           42
-        }
-    } catch _ { if trigger_cleanup { ignore 42/0 } }
+      ignore await async {
+        Prim.debugPrint("go 2: " # debug_show Prim.rts_callback_table_count());
+        assert false;
+        42
+      }
+    } catch _ { if trigger_cleanup { ignore 42 / 0 } }
   };
 };
 

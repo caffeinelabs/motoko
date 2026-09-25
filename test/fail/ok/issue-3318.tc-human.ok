@@ -7,9 +7,9 @@ because the type
  is not compatible with type 
   (Int, Int)
  in results
-    ┌─ issue-3318.mo:6:24
-  6 │  h<(Nat,Nat),(Int,Int)>(f); // reject
-    │                         ^ 
+    ┌─ issue-3318.mo:5:27
+  5 │  h<(Nat, Nat), (Int, Int)>(f); // reject
+    │                            ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
 cannot produce expected type
@@ -19,8 +19,8 @@ because the type
  is not compatible with type 
   (Nat, Nat)
  in results
-    ┌─ issue-3318.mo:15:41
- 15 │           : (Nat, Nat) -> ((Nat, Nat)) = f; // reject
+    ┌─ issue-3318.mo:13:41
+ 13 │           : (Nat, Nat) -> ((Nat, Nat)) = f; // reject
     │                                          ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
@@ -31,8 +31,8 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:18:41
- 18 │           : ((Nat, Nat)) -> (Nat, Nat) = f; // reject
+    ┌─ issue-3318.mo:16:41
+ 16 │           : ((Nat, Nat)) -> (Nat, Nat) = f; // reject
     │                                          ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
@@ -43,8 +43,8 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:21:43
- 21 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
+    ┌─ issue-3318.mo:19:43
+ 19 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
     │                                            ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> ((Nat, Nat))
@@ -55,8 +55,8 @@ because the type
  is not compatible with type 
   Nat
  in results
-    ┌─ issue-3318.mo:24:39
- 24 │           : (Nat, Nat) -> (Nat, Nat) = f; // reject
+    ┌─ issue-3318.mo:22:39
+ 22 │           : (Nat, Nat) -> (Nat, Nat) = f; // reject
     │                                        ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> ((Nat, Nat))
@@ -67,6 +67,6 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:33:43
- 33 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
+    ┌─ issue-3318.mo:31:43
+ 31 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
     │                                            ^ 

@@ -20,7 +20,7 @@ actor {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       len += hashArray[i].index;
       i += 1;
     };
@@ -40,7 +40,7 @@ actor {
     await test(blob2);
     await test(blob3);
     var counter = 20;
-    while (counter > 0) {
+    while counter > 0 {
       await test(blob1);
       await test(blob2);
       await test(blob3);
@@ -51,7 +51,7 @@ actor {
 
     var n = 30;
     // try to trigger GC.
-    while (n > 0) {
+    while n > 0 {
       // Allocate large array.
       let _arr = Prim.Array_init<Nat>(1_000 * 1_000, 1);
       await async {};
@@ -60,19 +60,19 @@ actor {
 
     let hash = Prim.__getDedupTable();
     switch hash {
-      case (?hashArray) {
+      case ?hashArray {
         // The dedup table should still have 3 elements.
         assert (getHashArrayLen(hashArray) == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
 
     let x = Prim.getDeadBlobs();
     switch x {
-      case (?deadBlobs) {
+      case ?deadBlobs {
         assert (deadBlobs.size() == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
 
     assert (Prim.isStorageBlobLive(blob1) == false);

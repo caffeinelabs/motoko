@@ -33,4 +33,3 @@ Prim.debugPrint(Prim.floatToFormattedText(pi, 17, 2));
 Prim.debugPrint(Prim.floatToFormattedText(pi, 20, 2));
 
 // Hex Float is no longer supported
-

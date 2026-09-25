@@ -3,17 +3,16 @@ import P "mo:prim";
 actor a {
 
   public query func int() : async Int {
-     666
+    666
   };
 
   public query func text() : async Text {
-     "hello"
+    "hello"
   };
 
   private func doInt() : async* Int = async* {
     return await int();
   };
-
 
   private func doText() : async* Int = async* {
     let t = await text(); // await at different type
@@ -24,7 +23,6 @@ actor a {
     return 666;
   };
 
-
   private func doExit() : async* Int = async* {
     666;
   };
@@ -32,7 +30,6 @@ actor a {
   private func doThrow() : async* Int = async* {
     throw P.error("oops");
   };
-
 
   public func go() : async () {
     let i = await* doInt();
@@ -46,7 +43,7 @@ actor a {
     try {
       let _ = await* doThrow();
       assert(false);
-    } catch (e) { assert P.errorMessage(e) == "oops";};
+    } catch (e) { assert P.errorMessage(e) == "oops"; };
     ignore async* {};
   }
 };

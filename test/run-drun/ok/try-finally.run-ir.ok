@@ -57,4 +57,4 @@ IN9
 OUT9
 From the other side
 IN
-try-finally.mo:11.43-11.55: execution error, assertion failure
+try-finally.mo:9.39-9.51: execution error, assertion failure

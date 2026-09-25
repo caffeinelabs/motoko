@@ -2,12 +2,11 @@ import Prim "mo:⛔";
 
 actor a {
 
-  public shared func oneway() : () { };
+  public shared func oneway() : () {};
 
-  public shared func request() : async () { await okquery()};
+  public shared func request() : async () { await okquery() };
 
-  public shared query func okquery() : async () {
-  };
+  public shared query func okquery() : async () {};
 
   public shared query func badquery() : async () {
     await (loop {}); // can't await
@@ -23,7 +22,7 @@ actor a {
   };
 
   public shared query func badquery3() : async () {
-    async { }; // can't enter an async expression
+    async {}; // can't enter an async expression
   };
 
   public shared query func badquery4() : async () {
@@ -35,4 +34,3 @@ actor a {
   };
 
 };
-

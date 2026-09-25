@@ -21,10 +21,10 @@ true produces
 false produces
   Nat
     ┌─ contextual-dot-suggest-unsound.mo:36:53
- 36 │  func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if (i == 0) b[i] else 61].toBlob();
-    │                                                      ^^^^^^^^^^^^^^^^^^^^^^^^ 
+ 36 │  func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if i == 0 { b[i] } else { 61 }].toBlob();
+    │                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0072]: field toBlob does not exist in type:
   [Any]
-    ┌─ contextual-dot-suggest-unsound.mo:36:79
- 36 │  func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if (i == 0) b[i] else 61].toBlob();
-    │                                                                                ^^^^^^ 
+    ┌─ contextual-dot-suggest-unsound.mo:36:85
+ 36 │  func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if i == 0 { b[i] } else { 61 }].toBlob();
+    │                                                                                      ^^^^^^ 

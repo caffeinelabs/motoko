@@ -12,19 +12,17 @@ actor self {
 
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
-  public func request() : async () {
-  };
-
+  public func request() : async () {};
 
   public func test1() : async () {
     var n = 0;
-    while (n < DOUBLE_CAPACITY) {
+    while n < DOUBLE_CAPACITY {
       // NB: calling
       // ignore Prim.call_raw(Prim.principalOfActor(self),"request", to_candid ());
       // is not enough to trigger message send failure, because the Prim.call_raw is an
       // eta-expansion of prim "call_raw", and introduces an additional await, draining the queue.
       // Instead, we need to call the raw primitive:
-      ignore (prim "call_raw" : (Principal, Text, Blob) -> async Blob) (Prim.principalOfActor(self),"request", to_candid ());
+      ignore (prim "call_raw" : (Principal, Text, Blob) -> async Blob) (Prim.principalOfActor(self), "request", to_candid ());
       //ignore request();
       n += 1;
     }
@@ -34,22 +32,21 @@ actor self {
   public func test2() : async () {
     try {
       var n = 0;
-      while (n < DOUBLE_CAPACITY) {
-      // NB: calling
-      // ignore Prim.call_raw(Prim.principalOfActor(self),"request", to_candid ());
-      // is not enough to trigger message send failure, because the Prim.call_raw is an
-      // eta-expansion of prim "call_raw", and introduces an additional await, draining the queue.
-      // Instead, we need to call the raw primitive:
-      ignore (prim "call_raw" : (Principal, Text, Blob) -> async Blob) (Prim.principalOfActor(self),"request", to_candid ());
+      while n < DOUBLE_CAPACITY {
+        // NB: calling
+        // ignore Prim.call_raw(Prim.principalOfActor(self),"request", to_candid ());
+        // is not enough to trigger message send failure, because the Prim.call_raw is an
+        // eta-expansion of prim "call_raw", and introduces an additional await, draining the queue.
+        // Instead, we need to call the raw primitive:
+        ignore (prim "call_raw" : (Principal, Text, Blob) -> async Blob) (Prim.principalOfActor(self), "request", to_candid ());
         n += 1;
       }
     } catch e {
-      assert (Prim.errorCode(e) == #call_error {err_code = 2});
+      assert (Prim.errorCode(e) == #call_error { err_code = 2 });
       Prim.debugPrint("caught " # showError(e));
       throw e;
     }
   };
-
 
   public func go() : async () {
 

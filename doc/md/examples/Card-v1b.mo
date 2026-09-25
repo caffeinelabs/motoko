@@ -6,4 +6,3 @@ actor {
 
   var newMap : [(Nat32, Card)] = [];
 };
-

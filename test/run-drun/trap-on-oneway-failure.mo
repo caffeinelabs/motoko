@@ -11,13 +11,11 @@ actor {
 
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
-  public func oneway() : () {
-  };
-
+  public func oneway() : () {};
 
   public func test1() : async () {
     var n = 0;
-    while (n < DOUBLE_CAPACITY) {
+    while n < DOUBLE_CAPACITY {
       oneway(); // never trap
       n += 1;
     }
@@ -27,7 +25,7 @@ actor {
   public func test2() : async () {
     try {
       var n = 0;
-      while (n < DOUBLE_CAPACITY) {
+      while n < DOUBLE_CAPACITY {
         oneway(); // never trap
         n += 1;
       }
@@ -48,7 +46,7 @@ actor {
     catch e {
       assert false;
       Prim.debugPrint("test1: " # showError(e));
-   };
+    };
 
     let _ = await raw_rand(); // drain queues, can't use await async() as full!
 

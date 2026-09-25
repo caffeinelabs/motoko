@@ -1,39 +1,39 @@
 warning[M0215]: public type `T` is provided but not expected in object of type
   {a : o.T}
-    ┌─ class.mo:38:15
- 38 │    public type T = Bool;
+    ┌─ class.mo:36:15
+ 36 │    public type T = Bool;
     │                ^ 
 error[M0134]: class body of type
   {}
 does not match expected type
   {x : Int}
-    ┌─ class.mo:43:1
- 43 │  class D1() : {x : Int} {};
-    │  ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ class.mo:40:1
+ 40 │  class D1() : { x : Int } {};
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0134]: class body of type
   {x : Int}
 does not match expected type
   {x : Nat}
-    ┌─ class.mo:44:1
- 43 │    class D1() : {x : Int} {};
- 44 │ ╭  class D2() : {x : Nat} {
- 45 │ │    public let x = -3;
- 46 │ │  };
+    ┌─ class.mo:41:1
+ 40 │    class D1() : { x : Int } {};
+ 41 │ ╭  class D2() : { x : Nat } {
+ 42 │ │    public let x = -3;
+ 43 │ │  };
     │ ╰──^ 
- 47 │    
+ 44 │    
 error[M0134]: class body of type
   {}
 does not match expected type
   actor {}
-    ┌─ class.mo:48:1
- 48 │  class D3() : actor {} = {};
+    ┌─ class.mo:45:1
+ 45 │  class D3() : actor {} = {};
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 warning[M0135]: actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
-    ┌─ class.mo:49:1
- 49 │  actor class D4() : actor {} = {};
+    ┌─ class.mo:46:1
+ 46 │  actor class D4() : actor {} = {};
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0030]: type field T does not exist in type:
   {}
-    ┌─ class.mo:52:27
- 52 │  class D5(x : {}) : {a : x.T} = {
-    │                            ^ 
+    ┌─ class.mo:49:28
+ 49 │  class D5(x : {}) : { a : x.T } = {
+    │                             ^ 

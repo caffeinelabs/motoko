@@ -1,10 +1,9 @@
 import Prim = "mo:⛔";
 
 (with migration =
-   func({
-     }) :
-   { } =
-   { }
+   func({}) :
+   {} =
+   {}
 )
 actor {
   var g : Nat = 0; // ok, exact type

@@ -14,7 +14,7 @@ func fieldOf(__record : [(Text, () -> Text)]) : Fields = __record.map(func((k, f
 // Per-type instances: each returns Text (the elem_typ)
 module TextField { public func fieldOf(self : Text) : Text = self };
 module BoolField {
-  public func fieldOf(self : Bool) : Text = if self "true" else "false";
+  public func fieldOf(self : Bool) : Text = if self { "true" } else { "false" };
 };
 module NatField { public func fieldOf(self : Nat) : Text = debug_show self };
 

@@ -9,4 +9,3 @@ module X {
 };
 
 type Ok = X.T;
-

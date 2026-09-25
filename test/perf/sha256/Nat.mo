@@ -9,7 +9,6 @@ import Prim "mo:⛔";
 
 module {
 
-
   /// Infinite precision natural numbers.
   public type Nat = Prim.Types.Nat;
 
@@ -18,12 +17,12 @@ module {
 
   /// Returns the minimum of `x` and `y`.
   public func min(x : Nat, y : Nat) : Nat {
-    if (x < y) { x } else { y }
+    if x < y { x } else { y }
   };
 
   /// Returns the maximum of `x` and `y`.
-  public func max( x : Nat, y : Nat) : Nat {
-    if (x < y) { y } else { x }
+  public func max(x : Nat, y : Nat) : Nat {
+    if x < y { y } else { x }
   };
 
   /// Returns `x == y`.
@@ -46,8 +45,8 @@ module {
 
   /// Returns the order of `x` and `y`.
   public func compare(x : Nat, y : Nat) : { #less; #equal; #greater } {
-    if (x < y) { #less }
-    else if (x == y) { #equal }
+    if x < y { #less }
+    else if x == y { #equal }
     else { #greater }
   };
 

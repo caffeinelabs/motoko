@@ -7,9 +7,9 @@ Use keyword 'await' or 'await?' (not 'await*') to consume this type.
 error[M0088]: expected async type, but expression has type
   async*<$> Nat
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.
-    ┌─ bad-async-sort.mo:7:10
-  7 │     await f(); // reject
-    │           ^^^ 
+    ┌─ bad-async-sort.mo:7:11
+  7 │      await f(); // reject
+    │            ^^^ 
 error[M0088]: expected async type, but expression has type
   async*<$> ()
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.

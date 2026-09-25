@@ -1,4 +1,3 @@
-
 // bad leading decs
 type T1 = {};
 type T2 = {};

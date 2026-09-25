@@ -4,4 +4,3 @@ func f<A <: A>(a : A)
 {
   let _ : () = a;
 };
-

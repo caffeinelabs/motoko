@@ -3,7 +3,7 @@ import Prim "mo:⛔";
 actor {
   Prim.debugPrint ("init'ed");
 
-/*
+  /*
   stable let always10 = 10;
   stable let () = ();
   stable let (fst,snd) = ("hello","world");
@@ -13,7 +13,7 @@ actor {
   public func inc() : () { c += 1; };
   public query func check(n : Int) : async () {
     assert (c == n);
-//    assert (always10 == 10);
+    //    assert (always10 == 10);
   };
 }
 //CALL query check "DIDL\x00\x01\x7d\x01"

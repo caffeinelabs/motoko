@@ -3,10 +3,9 @@ actor a {
 
   var s = 0;
 
-  public func ping(): async () {
-  };
+  public func ping(): async () {};
 
- // this observes how far the trap rolls back
+  // this observes how far the trap rolls back
   public func bar(): async () {
     s := 1;
     let f = ping();
@@ -14,7 +13,7 @@ actor a {
     await f;
     s := 3; // this will not be rolled back!
     await f;
-    ignore(0/0);
+    ignore(0 / 0);
   };
 
   public func go() : async () {
@@ -27,4 +26,3 @@ actor a {
   }
 };
 a.go(); //OR-CALL ingress go "DIDL\x00\x00"
-

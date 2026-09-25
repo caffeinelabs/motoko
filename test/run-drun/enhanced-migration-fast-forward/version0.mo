@@ -13,9 +13,9 @@ actor Self {
 
     // Check migration version information.
     let information = await Info.introspect(Self).__motoko_runtime_information();
-    switch (information.version) {
-      case (null) assert false; // Should not happen, there have been 5 migrations.
-      case (?list) assert list.0 == "5"; // Last migration version is 5.
+    switch information.version {
+      case null { assert false } // Should not happen, there have been 5 migrations.
+      case ?list { assert list.0 == "5" } // Last migration version is 5.
     };
   };
 };

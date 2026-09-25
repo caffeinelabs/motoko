@@ -1,21 +1,21 @@
-composite-query-fail.mo:27.13-27.17: type error [M0188], send capability required, but not available
+composite-query-fail.mo:22.12-22.16: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)
-composite-query-fail.mo:31.13-31.16: type error [M0187], send capability required, but not available
+composite-query-fail.mo:26.12-26.15: type error [M0187], send capability required, but not available
   (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
-composite-query-fail.mo:35.6-35.9: type error [M0187], send capability required, but not available
+composite-query-fail.mo:30.5-30.8: type error [M0187], send capability required, but not available
   (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
-composite-query-fail.mo:39.13-39.16: type error [M0187], send capability required, but not available
+composite-query-fail.mo:34.12-34.15: type error [M0187], send capability required, but not available
   (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
-composite-query-fail.mo:43.13-43.16: type error [M0187], send capability required, but not available
+composite-query-fail.mo:38.12-38.15: type error [M0187], send capability required, but not available
   (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
-composite-query-fail.mo:47.13-47.21: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
-composite-query-fail.mo:52.13-52.22: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
-composite-query-fail.mo:52.6-52.22: warning [M0222], ignored argument of `async*` type has no effect
-composite-query-fail.mo:57.14-57.18: type error [M0186], composite send capability required, but not available
+composite-query-fail.mo:42.12-42.20: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
+composite-query-fail.mo:47.12-47.21: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
+composite-query-fail.mo:47.5-47.21: warning [M0222], ignored argument of `async*` type has no effect
+composite-query-fail.mo:52.12-52.16: type error [M0186], composite send capability required, but not available
   (cannot call a `composite query` function from a non-`composite query` function)
-composite-query-fail.mo:62.14-62.18: type error [M0186], composite send capability required, but not available
+composite-query-fail.mo:57.12-57.16: type error [M0186], composite send capability required, but not available
   (cannot call a `composite query` function from a non-`composite query` function)
-composite-query-fail.mo:63.22-63.26: type error [M0186], composite send capability required, but not available
+composite-query-fail.mo:58.20-58.24: type error [M0186], composite send capability required, but not available
   (cannot call a `composite query` function from a non-`composite query` function)
-composite-query-fail.mo:68.14-68.18: type error [M0188], send capability required, but not available
+composite-query-fail.mo:63.12-63.16: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)

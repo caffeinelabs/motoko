@@ -1,8 +1,8 @@
 scope-example.mo:12.13-12.27: type error [M0096], expression of type
   async<$> Int
 cannot produce expected type
-  async<$@anon-async-6.60> Int
+  async<$@anon-async-6.61> Int
 because of incompatible async scopes: 
   $
  does not match 
-  $@anon-async-6.60
+  $@anon-async-6.61

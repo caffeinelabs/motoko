@@ -1,14 +1,13 @@
-
 func foo() : (Int, Int) {
-  return (1,2)
+  return (1, 2)
 };
 
 func bar1(b : Bool) : Int {
-  let x = if (b) { foo() } else { (3,4) };
+  let x = if b { foo() } else { (3, 4) };
   return x.0;
 };
 func bar2(b : Bool) : Int {
-  let x = if (b) { (3,4) } else { foo() };
+  let x = if b { (3, 4) } else { foo() };
   return x.0;
 };
 

@@ -1,3 +1,3 @@
-issue-3426.mo:3.13-3.15: info, field also present in base, here (consider overwriting)
-issue-3426.mo:3.20-3.22: type error [M0177], ambiguous field in base
+issue-3426.mo:3.14-3.16: info, field also present in base, here (consider overwriting)
+issue-3426.mo:3.21-3.23: type error [M0177], ambiguous field in base
   y

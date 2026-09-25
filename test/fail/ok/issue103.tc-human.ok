@@ -14,8 +14,8 @@ type
 is or contains non-shared type
   () -> Nat
     ┌─ issue103.mo:10:29
- 10 │    func invalid2 (f : shared {foo : () -> Nat} -> ()) {
-    │                              ^^^^^^^^^^^^^^^^^ 
+ 10 │    func invalid2 (f : shared { foo : () -> Nat } -> ()) {
+    │                              ^^^^^^^^^^^^^^^^^^^ 
 error[M0033]: async has non-shared content type
   () -> Nat
 type
@@ -32,5 +32,5 @@ type
 is or contains non-shared type
   () -> Nat
     ┌─ issue103.mo:24:29
- 24 │    func invalid4 () : (async ({foo : () -> Nat})) {
-    │                              ^^^^^^^^^^^^^^^^^^^ 
+ 24 │    func invalid4 () : (async ({ foo : () -> Nat })) {
+    │                              ^^^^^^^^^^^^^^^^^^^^^ 

@@ -19,10 +19,10 @@ actor Decoding {
   debugPrint(debug_show getCandidTypeLimits<system>());
 
   func measure<T>(f : () -> ?T) {
-      let p0 = performanceCounter(0);
-      ignore f();
-      let p1 = performanceCounter(0);
-      debugPrint(debug_show { cycles = p1 - p0 });
+    let p0 = performanceCounter(0);
+    ignore f();
+    let p1 = performanceCounter(0);
+    debugPrint(debug_show { cycles = p1 - p0 });
   };
   // irrelevant type table
   measure<()>(func() = from_candid msg256x1);

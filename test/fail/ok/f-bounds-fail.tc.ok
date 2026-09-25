@@ -1,12 +1,12 @@
-f-bounds-fail.mo:13.42-13.43: type error [M0046], type argument
+f-bounds-fail.mo:13.41-13.42: type error [M0046], type argument
   A
 does not match parameter bound
   C
-f-bounds-fail.mo:14.42-14.43: type error [M0046], type argument
+f-bounds-fail.mo:14.41-14.42: type error [M0046], type argument
   A
 does not match parameter bound
   C
-f-bounds-fail.mo:15.42-15.43: type error [M0046], type argument
+f-bounds-fail.mo:15.41-15.42: type error [M0046], type argument
   A
 does not match parameter bound
   C
@@ -14,7 +14,7 @@ f-bounds-fail.mo:3.38-3.41: type error [M0046], type argument
   Int
 does not match parameter bound
   Nat
-f-bounds-fail.mo:9.53-9.54: type error [M0096], expression of type
+f-bounds-fail.mo:9.49-9.50: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -30,7 +30,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:10.52-10.53: type error [M0096], expression of type
+f-bounds-fail.mo:10.49-10.50: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -46,7 +46,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:11.52-11.53: type error [M0096], expression of type
+f-bounds-fail.mo:11.49-11.50: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -62,103 +62,103 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:45.23-45.25: type error [M0096], expression of type
+f-bounds-fail.mo:45.24-45.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> A
-f-bounds-fail.mo:46.23-46.25: type error [M0096], expression of type
+f-bounds-fail.mo:46.24-46.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:47.23-47.25: type error [M0096], expression of type
+f-bounds-fail.mo:47.24-47.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:48.23-48.25: type error [M0096], expression of type
+f-bounds-fail.mo:48.24-48.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> B
-f-bounds-fail.mo:49.23-49.25: type error [M0096], expression of type
+f-bounds-fail.mo:49.24-49.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:50.14-50.15: type error [M0046], type argument
+f-bounds-fail.mo:50.15-50.16: type error [M0046], type argument
   B
 does not match parameter bound
   C
-f-bounds-fail.mo:50.23-50.25: type error [M0096], expression of type
+f-bounds-fail.mo:50.24-50.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:51.23-51.25: type error [M0096], expression of type
+f-bounds-fail.mo:51.24-51.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   C -> C
-f-bounds-fail.mo:53.23-53.25: type error [M0096], expression of type
+f-bounds-fail.mo:53.24-53.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> A
-f-bounds-fail.mo:54.23-54.25: type error [M0096], expression of type
+f-bounds-fail.mo:54.24-54.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:55.23-55.25: type error [M0096], expression of type
+f-bounds-fail.mo:55.24-55.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:56.23-56.25: type error [M0096], expression of type
+f-bounds-fail.mo:56.24-56.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> B
-f-bounds-fail.mo:57.23-57.25: type error [M0096], expression of type
+f-bounds-fail.mo:57.24-57.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:58.16-58.17: type error [M0046], type argument
+f-bounds-fail.mo:58.17-58.18: type error [M0046], type argument
   B
 does not match parameter bound
   C
-f-bounds-fail.mo:58.23-58.25: type error [M0096], expression of type
+f-bounds-fail.mo:58.24-58.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:59.23-59.25: type error [M0096], expression of type
+f-bounds-fail.mo:59.24-59.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   C -> C
-f-bounds-fail.mo:61.23-61.25: type error [M0096], expression of type
+f-bounds-fail.mo:61.24-61.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> A
-f-bounds-fail.mo:62.23-62.25: type error [M0096], expression of type
+f-bounds-fail.mo:62.24-62.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:63.23-63.25: type error [M0096], expression of type
+f-bounds-fail.mo:63.24-63.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   A -> B
-f-bounds-fail.mo:64.23-64.25: type error [M0096], expression of type
+f-bounds-fail.mo:64.24-64.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> B
-f-bounds-fail.mo:65.23-65.25: type error [M0096], expression of type
+f-bounds-fail.mo:65.24-65.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:66.18-66.19: type error [M0046], type argument
+f-bounds-fail.mo:66.19-66.20: type error [M0046], type argument
   B
 does not match parameter bound
   C
-f-bounds-fail.mo:66.23-66.25: type error [M0096], expression of type
+f-bounds-fail.mo:66.24-66.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   B -> C
-f-bounds-fail.mo:67.23-67.25: type error [M0096], expression of type
+f-bounds-fail.mo:67.24-67.26: type error [M0096], expression of type
   ()
 cannot produce expected type
   C -> C
-f-bounds-fail.mo:70.27-70.28: type error [M0096], expression of type
+f-bounds-fail.mo:70.31-70.32: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -174,7 +174,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:71.27-71.28: type error [M0096], expression of type
+f-bounds-fail.mo:71.31-71.32: type error [M0096], expression of type
   B
 cannot produce expected type
   C
@@ -186,7 +186,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:74.27-74.28: type error [M0096], expression of type
+f-bounds-fail.mo:74.31-74.32: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -202,7 +202,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:75.27-75.28: type error [M0096], expression of type
+f-bounds-fail.mo:75.31-75.32: type error [M0096], expression of type
   B
 cannot produce expected type
   C
@@ -214,27 +214,11 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:77.27-77.28: type error [M0096], expression of type
+f-bounds-fail.mo:77.31-77.32: type error [M0096], expression of type
   B
 cannot produce expected type
   C
 because type variable 
-  B
- was promoted to its bound 
-  Any
- and the type 
-  Any
- is not compatible with type 
-  C
-f-bounds-fail.mo:80.23-80.24: type error [M0096], expression of type
-  A
-cannot produce expected type
-  C
-because type variable 
-  A
- was promoted to its bound 
-  B
- and type variable 
   B
  was promoted to its bound 
   Any
@@ -258,7 +242,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:80.27-80.28: type error [M0096], expression of type
+f-bounds-fail.mo:80.28-80.29: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -274,7 +258,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:81.23-81.24: type error [M0096], expression of type
+f-bounds-fail.mo:80.31-80.32: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -306,19 +290,7 @@ because type variable
   Any
  is not compatible with type 
   C
-f-bounds-fail.mo:81.27-81.28: type error [M0096], expression of type
-  B
-cannot produce expected type
-  C
-because type variable 
-  B
- was promoted to its bound 
-  Any
- and the type 
-  Any
- is not compatible with type 
-  C
-f-bounds-fail.mo:82.24-82.25: type error [M0096], expression of type
+f-bounds-fail.mo:81.28-81.29: type error [M0096], expression of type
   A
 cannot produce expected type
   C
@@ -334,7 +306,35 @@ because type variable
   Any
  is not compatible with type 
   C
+f-bounds-fail.mo:81.31-81.32: type error [M0096], expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
 f-bounds-fail.mo:82.26-82.27: type error [M0096], expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+f-bounds-fail.mo:82.29-82.30: type error [M0096], expression of type
   B
 cannot produce expected type
   C

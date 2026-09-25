@@ -1,2 +1,2 @@
-migration-more.mo:1.7-1.40: type error [M0202], expected object type, but migration expression produces non-object type
+migration-more.mo:1.7-1.42: type error [M0202], expected object type, but migration expression produces non-object type
   Int

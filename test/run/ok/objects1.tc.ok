@@ -1,5 +1,5 @@
-objects1.mo:27.8-27.24: warning [M0146], this pattern is never matched
-objects1.mo:28.8-28.11: warning [M0146], this pattern is never matched
+objects1.mo:27.8-27.26: warning [M0146], this pattern is never matched
+objects1.mo:28.8-28.13: warning [M0146], this pattern is never matched
 objects1.mo:37.23-40.2: warning [M0145], this switch of type
   {a : Int; b : Nat}
 does not cover value

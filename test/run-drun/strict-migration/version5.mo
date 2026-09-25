@@ -1,8 +1,7 @@
 (with migration =
-   func({
-     }) :
-   { } =
-   { }
+   func({}) :
+   {} =
+   {}
 )
 actor {
   var g : Any = 0; // reject, a lossy supertype

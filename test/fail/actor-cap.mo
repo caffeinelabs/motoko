@@ -6,6 +6,6 @@ actor class C () = self {
 };
 
 actor self {
-   return self;
-   throw (Prim.error("wrong"));
+  return self;
+  throw (Prim.error("wrong"));
 }

@@ -25,14 +25,13 @@ actor {
   var i : Nat64 = 0;
   var size : Nat64 = 0;
   let max = n * 65536;
-  while (i + size < max) {
+  while i + size < max {
     let v = valOfNat64(size);
     Region.storeBlob(r, i, v);
     assert (Region.loadBlob(r, i, P.nat64ToNat(size)) == v);
     i += size;
     size += 1;
   };
-
 
   system func preupgrade() {
     P.debugPrint("upgrading..." # debug_show n);
@@ -42,7 +41,7 @@ actor {
 
     n += 1;
 
-    P.debugPrint(debug_show {old = m; new = n; size = Region.size(r)});
+    P.debugPrint(debug_show { old = m; new = n; size = Region.size(r) });
 
     assert (n == Region.size(r));
 
@@ -50,7 +49,7 @@ actor {
     var i : Nat64 = m * 65536;
     var size : Nat64 = 0;
     let max = i + 65536;
-    while (i + size < max) {
+    while i + size < max {
       assert (Region.loadBlob(r, i, P.nat64ToNat(size)) == zeroOfNat64(size));
       Region.storeBlob(r, i, valOfNat64(size));
       i += size;
@@ -59,13 +58,13 @@ actor {
   };
 
   public func testBounds() : async () {
-    if (n == 0) return;
+    if n == 0 { return };
     assert (n == Region.size(r));
-    P.debugPrint (debug_show {testBounds=n});
+    P.debugPrint (debug_show { testBounds=n });
     // test bounds check
     var i : Nat64 = n * 65536 - 7;
     let max = i + 16;
-    while (i < max) {
+    while i < max {
       try {
         await async {
           ignore Region.loadBlob(r, i, 8);

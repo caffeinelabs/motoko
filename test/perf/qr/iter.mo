@@ -7,11 +7,11 @@ import Array "array";
 import List "list";
 
 module {
-  public type Iter<T> = {next : () -> ?T};
+  public type Iter<T> = { next : () -> ?T };
 
   public class range(x : Nat, y : Nat) {
     var i = x;
-    public func next() : ?Nat { if (i > y) null else {let j = i; i += 1; ?j} };
+    public func next() : ?Nat { if i > y { null } else { let j = i; i += 1; ?j } };
   };
 
   public func forIn<A>(
@@ -20,13 +20,13 @@ module {
   ) {
     var i = 0;
     label l loop {
-      switch (xs.next()) {
-        case (?next) {
+      switch xs.next() {
+        case ?next {
           f(next, i);
-        };
-        case (null) {
+        }
+        case null {
           break l;
-        };
+        }
       };
       i += 1;
       continue l;
@@ -43,13 +43,13 @@ module {
     var i = 0;
     public func next() : ?B {
       label l loop {
-        switch (xs.next()) {
-          case (?next) {
+        switch xs.next() {
+          case ?next {
             return ?f(next);
-          };
-          case (null) {
+          }
+          case null {
             break l;
-          };
+          }
         };
         i += 1;
         continue l;

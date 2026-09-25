@@ -1,4 +1,4 @@
-type Order = {#less;#greater;#equal};
+type Order = { #less; #greater; #equal };
 
 func explicit1(n : Nat, m : Nat) : Order { #less };
 func cM(n : Nat, m : Nat) : Order { #less };

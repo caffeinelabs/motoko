@@ -1,8 +1,8 @@
-composite-query.mo:31.11-31.13: warning [M0145], this pattern of type
+composite-query.mo:30.9-30.11: warning [M0145], this pattern of type
   ?Class.Class
 does not cover value
   null
-composite-query.mo:36.11-36.13: warning [M0145], this pattern of type
+composite-query.mo:35.9-35.11: warning [M0145], this pattern of type
   ?Class.Class
 does not cover value
   null

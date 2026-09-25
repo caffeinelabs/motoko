@@ -3,10 +3,10 @@ import Prim "mo:⛔";
 actor {
   public shared func testBytes() : async () {
     let blob = "\00\01\02\03" : Blob;
-    for (b in blob.vals()) {
+    for b in blob.vals() {
       await async {};
     };
-    for (b in blob.values()) {
+    for b in blob.values() {
       await async {};
       Prim.debugPrint(debug_show b);
     };
@@ -14,30 +14,29 @@ actor {
 
   public shared func testChars() : async () {
     let text = "abcd" # "efgh" # "hijklmnopqrstuvwxyz";
-    for (c in text.chars()) {
+    for c in text.chars() {
       await async {};
       Prim.debugPrint(debug_show c);
     };
   };
 
   public shared func testArray() : async () {
-    let is = ["0","1","2"];
-    for (i in is.vals()) {
+    let is = ["0", "1", "2"];
+    for i in is.vals() {
       await async {};
     };
-    for (i in is.values()) {
+    for i in is.values() {
       await async {};
       Prim.debugPrint(debug_show i);
     };
   };
 
-
   public shared func testArrayMut() : async () {
-    let is = [var "0","1","2"];
-    for (i in is.vals()) {
+    let is = [var "0", "1", "2"];
+    for i in is.vals() {
       await async {};
     };
-    for (i in is.values()) {
+    for i in is.values() {
       await async {};
       Prim.debugPrint(debug_show i);
     };

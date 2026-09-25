@@ -2,6 +2,6 @@ error[M0050]: literal of type
   Nat
 does not have expected type
   (Nat, Bool)
-    ┌─ one-tuple-ambiguity.mo:16:3
- 16 │  l 42 false; // rejected, 42 is not of type (Nat, Bool)
+    ┌─ one-tuple-ambiguity.mo:15:3
+ 15 │  l 42 false; // rejected, 42 is not of type (Nat, Bool)
     │    ^^ 

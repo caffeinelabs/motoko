@@ -1,12 +1,12 @@
 import { float32ToFloat } = "mo:⛔";
 
 actor {
-    // Echo Float32 back (tests input/output Candid serialization)
-    public query func echo(x : Float32) : async Float32 { x };
-    // Return a Float32 literal (tests literal ascription coercion)
-    public query func lit() : async Float32 { 3.14 };
-    // Convert Float32 → Float (tests deserialization + NumConvTrapPrim)
-    public query func to_f64(x : Float32) : async Float { float32ToFloat x };
+  // Echo Float32 back (tests input/output Candid serialization)
+  public query func echo(x : Float32) : async Float32 { x };
+  // Return a Float32 literal (tests literal ascription coercion)
+  public query func lit() : async Float32 { 3.14 };
+  // Convert Float32 → Float (tests deserialization + NumConvTrapPrim)
+  public query func to_f64(x : Float32) : async Float { float32ToFloat x };
 }
 
 // echo(1.5) — 1.5 is exactly representable in f32

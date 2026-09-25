@@ -37,10 +37,10 @@ module {
     var ys = natToBytes(b);
     let xsLen = List.len<Nat8>(xs);
     let ysLen = List.len<Nat8>(ys);
-    if (xsLen < ysLen) {
+    if xsLen < ysLen {
       xs := List.append<Nat8>(List.replicate<Nat8>(ysLen - xsLen, 0), xs);
     };
-    if (xsLen > ysLen) {
+    if xsLen > ysLen {
       ys := List.append<Nat8>(List.replicate<Nat8>(xsLen - ysLen, 0), xs);
     };
     let zs = List.zipWith<Nat8, Nat8, Nat8>(xs, ys, f);

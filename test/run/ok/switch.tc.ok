@@ -1,4 +1,4 @@
-switch.mo:20.11-20.14: warning [M0155], operator may trap for inferred type
+switch.mo:20.13-20.18: warning [M0155], operator may trap for inferred type
   Nat
 switch.mo:76.11-78.2: warning [M0145], this switch of type
   ?Int

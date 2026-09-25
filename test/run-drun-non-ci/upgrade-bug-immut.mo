@@ -4,8 +4,8 @@ actor {
   var a : [Nat] = [];
 
   system func preupgrade() {
-     a := P.Array_tabulate<Nat>(268435456 / 4, func _ { 0x0F } ); // 0.25 GB array (I think)
-     P.debugPrint("pre");
+    a := P.Array_tabulate<Nat>(268435456 / 4, func _ { 0x0F }); // 0.25 GB array (I think)
+    P.debugPrint("pre");
   };
 
   system func postupgrade() {

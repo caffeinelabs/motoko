@@ -11,14 +11,13 @@ actor {
 
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
-  public func request() : async () {
-  };
+  public func request() : async () {};
 
   public func test1() : async () {
     var n = 0;
     let a = async ();
     await a;
-    while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
+    while n < PRED_MAX_SELF_QUEUE_CAPACITY {
       ignore request();
       n += 1;
     };
@@ -31,7 +30,7 @@ actor {
       var n = 0;
       let a = async ();
       await a;
-      while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
+      while n < PRED_MAX_SELF_QUEUE_CAPACITY {
         ignore request();
         n += 1;
       };
@@ -41,7 +40,6 @@ actor {
       throw e;
     }
   };
-
 
   public func go() : async () {
 

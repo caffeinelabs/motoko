@@ -1,1 +1,1 @@
-let o : {x : Nat} = object { public var x = 0 };
+let o : { x : Nat } = object { public var x = 0 };

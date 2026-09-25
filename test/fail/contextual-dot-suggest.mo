@@ -3,11 +3,13 @@
 // test suggestion of contextual dot notation,
 // excluding binary equals and compare(XXX)
 type Order = {
-  #less; #equal; #greater;
+  #less;
+  #equal;
+  #greater;
 };
 
 module Any {
-//  public func compare(n : Any, m : Any) : Order { #equal };
+  //  public func compare(n : Any, m : Any) : Order { #equal };
 };
 
 module Nat {
@@ -22,30 +24,30 @@ module Text {
 };
 
 module Odd {
-  public type Self = {#odd};
+  public type Self = { #odd };
   public func compare(self : Self, _m : Self, _o : Self) : Order { #equal };
   public func equal(self : Self) : Bool { true };
 };
 
 module Amb1 {
-  public type Self = {#amb};
+  public type Self = { #amb };
   public func method(_self : Self) {};
 };
 
 module Amb2 {
-  public type Self = {#amb};
+  public type Self = { #amb };
   public func method(_self : Self) {}; // ambiguous with Amb1.method();
 };
 
-
 module Map {
-  public type Map<K,V> = {map : [(K, [var V])]};
-  public func empty<K, V>() : Map<K,V> = { map= []};
+  public type Map<K, V> = { map : [(K, [var V])] };
+  public func empty<K, V>() : Map<K,V> = { map= [] };
 
   public func get<K, V>(
     self : Map<K, V>,
     _compare: (implicit : (compare : (K, K) -> Order)),
-    _n : K)
+    _n : K
+  )
   : ?V {
     null
   };
@@ -54,7 +56,8 @@ module Map {
     self : Map<K, V>,
     _compare: (implicit : (compare : (K, K) -> Order)),
     _n : K,
-    _v : V)
+    _v : V
+  )
   : Map<K, V> {
     self
   };
@@ -92,7 +95,7 @@ actor {
   ignore peopleMap.get(Nat.compare, 1); // ok
   ignore peopleMap.get(1); // ok
 
-  ignore Map.singleton(1,"hello"); // ok - don't warn (no appropriate receiver)
+  ignore Map.singleton(1, "hello"); // ok - don't warn (no appropriate receiver)
 
   Amb1.method(#amb); // don't suggest, ambiguous
 
@@ -107,8 +110,8 @@ actor {
   // All literal receivers are skipped — `LitE` is too fragile for the rewrite.
   ignore Float.isNaN(-1.1); // no-warn — `-1.1.isNaN()` parses as `-(1.1.isNaN())`
   ignore Float.isNaN(+1.1); // no-warn
-  ignore Float.abs(-1.1);   // no-warn
-  ignore Int.abs(-1);       // no-warn
-  ignore Int.abs(0xff);     // no-warn — `0xff.abs` lexes as a hex float
-  ignore Float.isNaN(1.1);  // no-warn — even safe-looking literals skipped
+  ignore Float.abs(-1.1); // no-warn
+  ignore Int.abs(-1); // no-warn
+  ignore Int.abs(0xff); // no-warn — `0xff.abs` lexes as a hex float
+  ignore Float.isNaN(1.1); // no-warn — even safe-looking literals skipped
 }

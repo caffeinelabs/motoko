@@ -1,102 +1,102 @@
-inference.mo:61.14-61.45: type error [M0096], expression of type
+inference.mo:58.14-58.46: type error [M0096], expression of type
   (x : None) -> Any
 cannot produce expected type
   None -> None
-inference.mo:62.13-62.44: type error [M0096], expression of type
+inference.mo:59.13-59.45: type error [M0096], expression of type
   (x : None) -> Any
 cannot produce expected type
   Any -> Any
-inference.mo:67.1-67.40: type error [M0098], cannot apply function of type
+inference.mo:64.1-64.41: type error [M0098], cannot apply function of type
   <T>(f : T -> T) -> ()
 to argument of type
   (x : None) -> Any
 because there is no way to satisfy subtyping
   (x : None) -> Any  <:  T -> T  (for argument `f`) 
-inference.mo:87.20-87.27: warning [M0146], this pattern is never matched
-inference.mo:94.8-94.20: type error [M0098], cannot apply function of type
+inference.mo:82.20-82.27: warning [M0146], this pattern is never matched
+inference.mo:88.8-88.20: type error [M0098], cannot apply function of type
   <T <: U, U>(x : T, y : T) -> (U, U)
 to argument of type
   (Nat, Nat)
 because type parameter `T` has a bound 
   U
 involving another type parameter. Please provide an explicit instantiation.
-inference.mo:95.8-95.26: type error [M0098], cannot apply function of type
+inference.mo:89.8-89.26: type error [M0098], cannot apply function of type
   <T <: U, U>(x : T, y : T) -> (U, U)
 to argument of type
   (Nat, Int)
 because type parameter `T` has a bound 
   U
 involving another type parameter. Please provide an explicit instantiation.
-inference.mo:96.8-96.23: type error [M0098], cannot apply function of type
+inference.mo:90.8-90.23: type error [M0098], cannot apply function of type
   <T <: U, U>(x : T, y : T) -> (U, U)
 to argument of type
   (Nat, Bool)
 because type parameter `T` has a bound 
   U
 involving another type parameter. Please provide an explicit instantiation.
-inference.mo:111.8-111.17: type error [M0098], cannot apply function of type
+inference.mo:104.8-104.17: type error [M0098], cannot apply function of type
   <T <: Int>(x : T) -> T
 to argument of type
   Bool
 because there is no way to satisfy subtyping
   Bool  <:  T  (for argument `x`) 
-inference.mo:112.1-112.10: type error [M0098], cannot apply function of type
+inference.mo:105.1-105.10: type error [M0098], cannot apply function of type
   <T <: Int>(x : T) -> T
 to argument of type
   Bool
 because there is no way to satisfy subtyping
   Bool  <:  T  (for argument `x`) 
-inference.mo:116.1-116.27: type error [M0098], cannot apply function of type
+inference.mo:109.1-109.29: type error [M0098], cannot apply function of type
   <T>(f : <U>T -> U) -> ()
 to argument of type
   <V>(x : V) -> V
 because there is no way to satisfy subtyping
   <V>(x : V) -> V  <:  <U>T -> U  (for argument `f`) 
-inference.mo:118.1-118.31: type error [M0098], cannot apply function of type
+inference.mo:111.1-111.33: type error [M0098], cannot apply function of type
   <T>(f : <U>U -> T) -> ()
 to argument of type
   <V>(x : V) -> V
 because there is no way to satisfy subtyping
   <V>(x : V) -> V  <:  <U>U -> T  (for argument `f`) 
-inference.mo:127.8-127.20: type error [M0098], cannot apply function of type
+inference.mo:119.8-119.20: type error [M0098], cannot apply function of type
   <T>(x : [T]) -> T
 to argument of type
   [var Nat]
 because there is no way to satisfy subtyping
   [var Nat]  <:  [T]  (for argument `x`) 
-inference.mo:130.1-130.13: type error [M0098], cannot apply function of type
+inference.mo:122.1-122.13: type error [M0098], cannot apply function of type
   <T>(x : [var T]) -> T
 to argument of type
   [Nat]
 because there is no way to satisfy subtyping
   [Nat]  <:  [var T]  (for argument `x`) 
-inference.mo:132.1-132.17: type error [M0098], cannot apply function of type
+inference.mo:124.1-124.17: type error [M0098], cannot apply function of type
   <T>(x : [var T]) -> T
 to argument of type
   [var Nat]
 because there is no way to satisfy subtyping
   [var Nat]  <:  [var T]  (for argument `x`) 
-inference.mo:137.4-137.8: type error [M0098], cannot apply function of type
+inference.mo:129.3-129.7: type error [M0098], cannot apply function of type
   <U <: {}>(y : U) -> ()
 to argument of type
   T
 because there is no way to satisfy subtyping
   T  <:  U  (for argument `y`) 
-inference.mo:152.11-152.15: type error [M0098], cannot apply function of type
+inference.mo:144.10-144.14: type error [M0098], cannot apply function of type
   <U <: T>(y : U) -> U
 to argument of type
   T
 because there is no way to satisfy subtyping
   T  <:  U  (for argument `y`) 
-inference.mo:172.40-172.53: type error [M0096], expression of type
+inference.mo:163.40-163.53: type error [M0096], expression of type
   [var Int]
 cannot produce expected type
   [var Nat]
-inference.mo:177.8-177.44: type error [M0098], cannot apply function of type
+inference.mo:168.8-168.46: type error [M0098], cannot apply function of type
   <T>(o : {x : T}) -> T
 to argument of type
   {type x = Nat}
 because there is no way to satisfy subtyping
   {type x = Nat}  <:  {x : T}  (for argument `o`) 
-inference.mo:183.8-183.21: type error [M0045], wrong number of type arguments: expected 2 but got 0
-inference.mo:186.8-186.15: type error [M0045], wrong number of type arguments: expected 1 but got 0
+inference.mo:174.8-174.21: type error [M0045], wrong number of type arguments: expected 2 but got 0
+inference.mo:177.8-177.15: type error [M0045], wrong number of type arguments: expected 1 but got 0

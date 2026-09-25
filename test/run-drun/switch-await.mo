@@ -2,33 +2,33 @@
 actor a {
   public shared func go_ta() : async Text {
     switch 1 {
-      case 1 (await async "One");
-      case 2 "Two";
-      case _ "Other";
+      case 1 { (await async "One") }
+      case 2 { "Two" }
+      case _ { "Other" }
     }
   };
 
   public shared func go_tt() : async Text {
     switch 1 {
-      case 1 "One";
-      case 2 "Two";
-      case _ "Other";
+      case 1 { "One" }
+      case 2 { "Two" }
+      case _ { "Other" }
     }
   };
 
   public shared func go_at() : async Text {
     switch (await async 1) {
-      case 1 "One";
-      case 2 "Two";
-      case _ "Other";
+      case 1 { "One" }
+      case 2 { "Two" }
+      case _ { "Other" }
     }
   };
 
   public shared func go_aa() : async Text {
     switch (await async 1) {
-      case 1 (await async "One");
-      case 2 "Two";
-      case _ "Other";
+      case 1 { (await async "One") }
+      case 2 { "Two" }
+      case _ { "Other" }
     }
   };
 };

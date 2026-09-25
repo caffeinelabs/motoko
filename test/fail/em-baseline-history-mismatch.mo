@@ -8,5 +8,5 @@
 // Each reports M0268. m4 is pending and free to differ; the chain walk and
 // the baseline boundary themselves are consistent and stay silent.
 actor {
-    let a : Nat;
+  let a : Nat;
 };

@@ -10,4 +10,3 @@ actor class Counter(init : Nat) {
     count;
   };
 };
-

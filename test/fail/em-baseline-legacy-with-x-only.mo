@@ -7,6 +7,6 @@
 // the actor's (a new migration can produce it, so the hint applies), and the
 // deployed `x` is used by nothing.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

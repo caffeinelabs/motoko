@@ -24,16 +24,18 @@ module {
   public func hash(i : Nat) : Hash {
     let j = Prim.natToNat32(i);
     hashNat8(
-      [j & (255 << 0),
-       j & (255 << 8),
-       j & (255 << 16),
-       j & (255 << 24)
-      ]);
+      [
+        j & (255 << 0),
+        j & (255 << 8),
+        j & (255 << 16),
+        j & (255 << 24)
+      ]
+    );
   };
 
   public func debugPrintBits(bits : Hash) {
-    for (j in Iter.range(0, length - 1)) {
-      if (bit(bits, j)) {
+    for j in Iter.range(0, length - 1) {
+      if bit(bits, j) {
         Prim.debugPrint("1")
       } else {
         Prim.debugPrint("0")
@@ -42,8 +44,8 @@ module {
   };
 
   public func debugPrintBitsRev(bits : Hash) {
-    for (j in Iter.revRange(length - 1, 0)) {
-      if (bit(bits, Prim.abs(j))) {
+    for j in Iter.revRange(length - 1, 0) {
+      if bit(bits, Prim.abs(j)) {
         Prim.debugPrint("1")
       } else {
         Prim.debugPrint("0")
@@ -61,7 +63,7 @@ module {
   // should this really be public?
   public func hashNat8(key : [Hash]) : Hash {
     var hash = Prim.natToNat32(0);
-    for (natOfKey in key.values()) {
+    for natOfKey in key.values() {
       hash := hash +% natOfKey;
       hash := hash +% hash << 10;
       hash := hash ^ (hash >> 6);

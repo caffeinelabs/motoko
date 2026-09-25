@@ -12,30 +12,30 @@ module {
 
   public func toText(self : Json) : Text {
     switch self {
-      case (#null_) "null";
-      case (#bool b) if b "true" else "false";
-      case (#number n) Int.toText(n);
-      case (#string t) "\"" # t # "\"";
-      case (#array items) {
+      case #null_ { "null" }
+      case #bool(b) { if b { "true" } else { "false" } }
+      case #number(n) { Int.toText(n) }
+      case #string(t) { "\"" # t # "\"" }
+      case #array(items) {
         var s = "[";
         var first = true;
-        for (item in items.values()) {
-          if (not first) { s #= "," };
+        for item in items.values() {
+          if not first { s #= "," };
           s #= toText(item);
           first := false;
         };
         s # "]";
-      };
-      case (#obj pairs) {
+      }
+      case #obj(pairs) {
         var s = "{";
         var first = true;
-        for ((k, v) in pairs.values()) {
-          if (not first) { s #= "," };
+        for (k, v) in pairs.values() {
+          if not first { s #= "," };
           s #= "\"" # k # "\":" # toText(v);
           first := false;
         };
         s # "}";
-      };
+      }
     };
   };
 

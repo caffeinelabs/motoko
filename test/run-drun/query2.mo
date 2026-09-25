@@ -22,23 +22,22 @@ actor counter = {
   };
 
   public func go() : async () {
-   await counter.inc();
-   await counter.inc();
-   await counter.inc();
-   await counter.printCounter();
-   let c1 = await counter.get();
-   assert c1 == 4;
-   let c2 = await counter.read();
-   await counter.printCounter();
-   assert c2 == 4;
-   let c3 = await counter.read();
-   await counter.printCounter();
-   Prim.debugPrint("The following fails in the interpreter, for lack of query semantics");
-   assert c3 == 4;
+    await counter.inc();
+    await counter.inc();
+    await counter.inc();
+    await counter.printCounter();
+    let c1 = await counter.get();
+    assert c1 == 4;
+    let c2 = await counter.read();
+    await counter.printCounter();
+    assert c2 == 4;
+    let c3 = await counter.read();
+    await counter.printCounter();
+    Prim.debugPrint("The following fails in the interpreter, for lack of query semantics");
+    assert c3 == 4;
   };
 };
 counter.go(); //OR-CALL ingress go "DIDL\x00\x00"
-
 
 /* Disabled, while we don’t have first-class shared functions
 
@@ -68,4 +67,3 @@ counter.go(); //OR-CALL ingress go "DIDL\x00\x00"
 
   };
 */
-

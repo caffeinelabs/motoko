@@ -44,12 +44,12 @@ shared ({ caller = creator }) actor class DAO() = Self {
 
   /// Transfer tokens from the caller's account to another account
   public shared ({ caller }) func transfer(transfer : Types.TransferArgs) : async Types.Result<(), Text> {
-    switch (account_get caller) {
-      case null { #err "Caller needs an account to transfer funds" };
-      case (?from_tokens) {
+    switch account_get(caller) {
+      case null { #err "Caller needs an account to transfer funds" }
+      case ?from_tokens {
         let fee = system_params.transfer_fee.amount_e8s;
         let amount = transfer.amount.amount_e8s;
-        if (from_tokens.amount_e8s < amount + fee) {
+        if from_tokens.amount_e8s < amount + fee {
           #err("Caller's account has insufficient funds to transfer " # debug_show (amount));
         } else {
           let from_amount : Nat = from_tokens.amount_e8s - amount - fee;
@@ -58,7 +58,7 @@ shared ({ caller = creator }) actor class DAO() = Self {
           account_put(transfer.to, { amount_e8s = to_amount });
           #ok;
         };
-      };
+      }
     };
   };
 
@@ -120,33 +120,33 @@ shared ({ caller = creator }) actor class DAO() = Self {
 
   // Vote on an open proposal
   public shared ({ caller }) func vote(args : Types.VoteArgs) : async Types.Result<Types.ProposalState, Text> {
-    switch (proposal_get(args.proposal_id)) {
+    switch proposal_get(args.proposal_id) {
       case null {
         #err("No proposal with ID " # debug_show (args.proposal_id) # " exists");
-      };
-      case (?proposal) {
+      }
+      case ?proposal {
         var state = proposal.state;
-        if (state != #open) {
+        if state != #open {
           return #err("Proposal " # debug_show (args.proposal_id) # " is not open for voting");
         };
-        switch (account_get(caller)) {
+        switch account_get(caller) {
           case null {
             return #err("Caller does not have any tokens to vote with");
-          };
-          case (?{ amount_e8s = voting_tokens }) {
-            if (List.some(proposal.voters, func(e : Principal) : Bool = e == caller)) {
+          }
+          case ?{ amount_e8s = voting_tokens } {
+            if List.some(proposal.voters, func(e : Principal) : Bool = e == caller) {
               return #err("Already voted");
             };
 
             var votes_yes = proposal.votes_yes.amount_e8s;
             var votes_no = proposal.votes_no.amount_e8s;
-            switch (args.vote) {
-              case (#yes) { votes_yes += voting_tokens };
-              case (#no) { votes_no += voting_tokens };
+            switch args.vote {
+              case #yes { votes_yes += voting_tokens }
+              case #no { votes_no += voting_tokens }
             };
             let voters = List.push(caller, proposal.voters);
 
-            if (votes_yes >= system_params.proposal_vote_threshold.amount_e8s) {
+            if votes_yes >= system_params.proposal_vote_threshold.amount_e8s {
               // Refund the proposal deposit when the proposal is accepted
               ignore do ? {
                 let account = account_get(proposal.proposer)!;
@@ -156,7 +156,7 @@ shared ({ caller = creator }) actor class DAO() = Self {
               state := #accepted;
             };
 
-            if (votes_no >= system_params.proposal_vote_threshold.amount_e8s) {
+            if votes_no >= system_params.proposal_vote_threshold.amount_e8s {
               state := #rejected;
             };
 
@@ -171,10 +171,10 @@ shared ({ caller = creator }) actor class DAO() = Self {
               payload = proposal.payload;
             };
             proposal_put(args.proposal_id, updated_proposal);
-          };
+          }
         };
         #ok(state);
-      };
+      }
     };
   };
 
@@ -187,7 +187,7 @@ shared ({ caller = creator }) actor class DAO() = Self {
   ///
   /// Only callable via proposal execution
   public shared ({ caller }) func update_system_params(payload : Types.UpdateSystemParamsPayload) : async () {
-    if (caller != Principal.fromActor(Self)) {
+    if caller != Principal.fromActor(Self) {
       return;
     };
     system_params := {
@@ -199,18 +199,18 @@ shared ({ caller = creator }) actor class DAO() = Self {
 
   /// Deduct the proposal submission deposit from the caller's account
   func deduct_proposal_submission_deposit(caller : Principal) : Types.Result<(), Text> {
-    switch (account_get(caller)) {
-      case null { #err "Caller needs an account to submit a proposal" };
-      case (?from_tokens) {
+    switch account_get(caller) {
+      case null { #err "Caller needs an account to submit a proposal" }
+      case ?from_tokens {
         let threshold = system_params.proposal_submission_deposit.amount_e8s;
-        if (from_tokens.amount_e8s < threshold) {
+        if from_tokens.amount_e8s < threshold {
           #err("Caller's account must have at least " # debug_show (threshold) # " to submit a proposal");
         } else {
           let from_amount : Nat = from_tokens.amount_e8s - threshold;
           account_put(caller, { amount_e8s = from_amount });
           #ok;
         };
-      };
+      }
     };
   };
 
@@ -218,14 +218,14 @@ shared ({ caller = creator }) actor class DAO() = Self {
   public func execute_accepted_proposals() : async () {
     let accepted_proposals = Trie.filter(proposals, func(_ : Nat, proposal : Types.Proposal) : Bool = proposal.state == #accepted);
     // Update proposal state, so that it won't be picked up by the next heartbeat
-    for ((id, proposal) in Trie.iter(accepted_proposals)) {
+    for (id, proposal) in Trie.iter(accepted_proposals) {
       update_proposal_state(proposal, #executing);
     };
 
-    for ((id, proposal) in Trie.iter(accepted_proposals)) {
+    for (id, proposal) in Trie.iter(accepted_proposals) {
       switch (await execute_proposal(proposal)) {
-        case (#ok) { update_proposal_state(proposal, #succeeded) };
-        case (#err(err)) { update_proposal_state(proposal, #failed(err)) };
+        case #ok { update_proposal_state(proposal, #succeeded) }
+        case #err(err) { update_proposal_state(proposal, #failed(err)) }
       };
     };
   };

@@ -4,7 +4,6 @@ actor {
   public query func fun3(_: shared () -> async ()) : async () {};
 }
 
-
 // 29 bytes
 //CALL query fun1 0x4449444C000168011D0011223344556677889900112233445566778899001122334455667788
 // 30 bytes

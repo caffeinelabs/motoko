@@ -25,17 +25,25 @@ module {
     version : Version,
     data : List<Bool>
   ) : [var [var Bool]] {
-    applyAlignments(version,
-    applyHardcode(version,
-    applyTimings(version,
-    applyFinders(version,
-    applyData(version, data,init(version))))))
+    applyAlignments(
+      version,
+      applyHardcode(
+        version,
+        applyTimings(
+          version,
+          applyFinders(
+            version,
+            applyData(version, data, init(version))
+          )
+        )
+      )
+    )
   };
 
   func init(version : Version) : [var [var Bool]] {
     let w = Common.width(version);
     let matrix = Array.init<[var Bool]>(w, [var]);
-    for (i in Iter.range(0, w - 1)) {
+    for i in Iter.range(0, w - 1) {
       matrix[i] := Array.init<Bool>(w, false)
     };
     matrix
@@ -93,8 +101,8 @@ module {
     let w = Common.width(version);
     let v : Nat = w - 8;
     var coords = List.nil<Coordinate>();
-    for (i in Iter.range(v, w - 1)) {
-      for (j in Iter.range(v, w - 1)) {
+    for i in Iter.range(v, w - 1) {
+      for j in Iter.range(v, w - 1) {
         coords := List.push<Coordinate>((i, j), coords)
       }
     };
@@ -111,8 +119,8 @@ module {
     let w = Common.width(version);
     let r : Nat = w - 8;
     var coords = List.nil<Coordinate>();
-    for (i in Iter.range(r, w - 1)) {
-      for (j in Iter.range(0, 7)) {
+    for i in Iter.range(r, w - 1) {
+      for j in Iter.range(0, 7) {
         coords := List.push<Coordinate>((i, j), coords)
       }
     };
@@ -129,8 +137,8 @@ module {
     let w = Common.width(version);
     let c : Nat = w - 8;
     var coords = List.nil<Coordinate>();
-    for (i in Iter.range(0, 7)) {
-      for (j in Iter.range(c, w - 1)) {
+    for i in Iter.range(0, 7) {
+      for j in Iter.range(c, w - 1) {
         coords := List.push<Coordinate>((i, j), coords)
       }
     };
@@ -163,7 +171,7 @@ module {
     let w = Common.width(version);
     let r : Nat = w - 7;
     var coords = List.nil<Coordinate>();
-    for (j in Iter.range(8, w - 9)) {
+    for j in Iter.range(8, w - 9) {
       coords := List.push<Coordinate>((r, j), coords)
     };
     coords
@@ -229,13 +237,13 @@ module {
     let r : Nat = w - 9;
     let c : Nat = w - 8;
     var coords = List.nil<Coordinate>();
-    for (j in Iter.range(0, 7)) {
+    for j in Iter.range(0, 7) {
       coords := List.push<Coordinate>((r, j), coords)
     };
-    for (j in Iter.range(c, c)) {
+    for j in Iter.range(c, c) {
       coords := List.push<Coordinate>((r, j), coords)
     };
-    for (j in Iter.range(c + 2, w - 1)) {
+    for j in Iter.range(c + 2, w - 1) {
       coords := List.push<Coordinate>((r, j), coords)
     };
     coords
@@ -245,13 +253,13 @@ module {
     let w = Common.width(version);
     let c : Nat = w - 9;
     var coords = List.nil<Coordinate>();
-    for (i in Iter.range(0, 6)) {
+    for i in Iter.range(0, 6) {
       coords := List.push<Coordinate>((i, c), coords)
     };
-    for (i in Iter.range(w - 9, w - 8)) {
+    for i in Iter.range(w - 9, w - 8) {
       coords := List.push<Coordinate>((i, c), coords)
     };
-    for (i in Iter.range(w - 6, w - 1)) {
+    for i in Iter.range(w - 6, w - 1) {
       coords := List.push<Coordinate>((i, c), coords)
     };
     List.rev<Coordinate>(coords)
@@ -276,7 +284,7 @@ module {
   };
 
   func versionTRCoords(version : Version) : List<Coordinate> {
-    if (Version.unbox(version) < 7) {
+    if Version.unbox(version) < 7 {
       List.nil<Coordinate>()
     } else {
       func go(n : Nat, a : Nat, b : Nat) : List<Nat> {
@@ -302,7 +310,7 @@ module {
 
   func alignment(version : Version) : List<(Coordinate, Bool)> {
     let n = Common.alignments(version).size() ** 2;
-    let m : Nat = if (n < 4) 0 else n - 3;
+    let m : Nat = if n < 4 { 0 } else { n - 3 };
     let coords = alignmentCoords(version);
     let pattern = Nat.natToBits(33084991);
     let cycles = List.concat<Bool>(List.replicate<List<Bool>>(m, pattern));
@@ -312,7 +320,7 @@ module {
   func alignmentCoords(version : Version) : List<Coordinate> {
 
     let alignments = Common.alignments(version);
-    if (alignments.size() == 0) {
+    if alignments.size() == 0 {
       List.nil<Coordinate>()
     } else {
 
@@ -326,11 +334,11 @@ module {
       };
 
       var coords = List.nil<Coordinate>();
-      for (r in Iter.fromArray<Nat>(alignments)) {
-        for (c in Iter.fromArray<Nat>(alignments)) {
-          if (not isReserved(r, c)) {
-            for (i in Iter.range(r - 2, r + 2)) {
-              for (j in Iter.range(c - 2, c + 2)) {
+      for r in Iter.fromArray<Nat>(alignments) {
+        for c in Iter.fromArray<Nat>(alignments) {
+          if not isReserved(r, c) {
+            for i in Iter.range(r - 2, r + 2) {
+              for j in Iter.range(c - 2, c + 2) {
                 coords := List.push<Coordinate>((i, j), coords)
               }
             }

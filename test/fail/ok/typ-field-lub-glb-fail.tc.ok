@@ -1,16 +1,16 @@
-typ-field-lub-glb-fail.mo:14.31-14.35: type error [M0096], expression of type
+typ-field-lub-glb-fail.mo:14.30-14.34: type error [M0096], expression of type
   Cx = {x : Nat}
 cannot produce expected type
   {type T = Int; x : Nat}
 because expected type field `T` is missing from type 
   {x : Nat}
-typ-field-lub-glb-fail.mo:15.31-15.35: type error [M0096], expression of type
+typ-field-lub-glb-fail.mo:15.30-15.34: type error [M0096], expression of type
   Ct = {type T = Int}
 cannot produce expected type
   {type T = Int; x : Nat}
 because expected field `x` is missing from type 
   {type T = Int}
-typ-field-lub-glb-fail.mo:21.29-21.30: type error [M0030], type field T does not exist in type:
+typ-field-lub-glb-fail.mo:23.29-23.30: type error [M0030], type field T does not exist in type:
   {x : Nat}
-typ-field-lub-glb-fail.mo:27.29-27.30: type error [M0030], type field T does not exist in type:
+typ-field-lub-glb-fail.mo:31.29-31.30: type error [M0030], type field T does not exist in type:
   {x : Nat}

@@ -1,4 +1,4 @@
 //MOC-FLAG --enhanced-orthogonal-persistence
 actor {
-   var value : Nat = 666;
+  var value : Nat = 666;
 };

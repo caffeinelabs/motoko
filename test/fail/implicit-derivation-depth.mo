@@ -4,7 +4,7 @@ type Order = { #less; #greater; #equal };
 
 module Nat {
   public func compare(a : Nat, b : Nat) : Order {
-    if (a < b) #less else if (a == b) #equal else #greater;
+    if a < b { #less } else if a == b { #equal } else { #greater };
   };
 };
 

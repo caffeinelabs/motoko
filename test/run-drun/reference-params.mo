@@ -3,7 +3,7 @@ actor Test {
   public func go () : () {
     let a = actor {
       public func hello() : () {
-	Prim.debugPrint("Hello World!");
+        Prim.debugPrint("Hello World!");
       };
     };
 
@@ -11,8 +11,8 @@ actor Test {
 
     // test passing an actor to an actor
     let b = actor this {
-      public func say_hi(a : actor { hello : () -> () } ) : () {
-	a.hello();
+      public func say_hi(a : actor { hello : () -> () }) : () {
+        a.hello();
       };
     };
     b.say_hi(a);
@@ -20,7 +20,7 @@ actor Test {
     // test passing a funcref to an actor
     let c = actor {
       public func say_hi(f : shared () -> ()) : () {
-	f();
+        f();
       };
     };
     c.say_hi(a.hello);
@@ -28,13 +28,13 @@ actor Test {
     // test passing a own funcref to an actor
     let d = actor {
       public func say_hi(f : shared () -> ()) : () {
-	f();
+        f();
       };
       public func hello() : () {
-	Prim.debugPrint("Hello Universe!");
+        Prim.debugPrint("Hello Universe!");
       };
       public func go() : () {
-	say_hi(hello);
+        say_hi(hello);
       }
     };
     d.go();
@@ -42,10 +42,10 @@ actor Test {
     // test passing a self to an actor
     let e = actor this {
       public func hello() : () {
-	Prim.debugPrint("Hello Galaxy!");
+        Prim.debugPrint("Hello Galaxy!");
       };
       public func send_to(f : shared (actor { hello : () -> () }) -> ()) : () {
-	f(this);
+        f(this);
       }
     };
     e.send_to(b.say_hi);

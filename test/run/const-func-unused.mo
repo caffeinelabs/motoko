@@ -1,7 +1,7 @@
 //MOC-FLAG -A=M0194
 func bar() {
-func foo() = ();
-()
+  func foo() = ();
+  ()
 };
 ()
 

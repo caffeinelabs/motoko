@@ -13,7 +13,7 @@ actor {
     blob := Prim.Array_init<Nat64>(3, 2);
 
     var n = 10;
-    while (n > 0) {
+    while n > 0 {
       n -= 1;
       // Trigger a GC by allocating memory and then by yielding.
       let new_array = Prim.Array_init<Nat64>(1024 * 1024 * 10, 3);

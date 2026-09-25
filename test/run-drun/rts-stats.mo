@@ -10,8 +10,8 @@ let a1 = Prim.rts_total_allocation();
 // Prim.debugPrint("Size and allocation after:  " # debug_show (s1, a1));
 
 // Differences between classical persistence (incremental and non-incremental GC) and enhanced orthogonal persistence:
-assert (+s1-s0 == 10008 or +s1-s0 == 10012 or +s1-s0 == 20024);
-assert (+a1-a0 == 10008 or +a1-a0 == 10012 or +a1-a0 == 20024);
+assert (+s1 - s0 == 10008 or +s1 - s0 == 10012 or +s1 - s0 == 20024);
+assert (+a1 - a0 == 10008 or +a1 - a0 == 10012 or +a1 - a0 == 20024);
 
 assert(Prim.rts_memory_size() > Prim.rts_heap_size());
 

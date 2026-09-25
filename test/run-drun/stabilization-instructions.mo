@@ -5,7 +5,7 @@ actor {
   var length = 0;
   var stableArray : [Nat] = [];
 
-  if (length > 0) {
+  if length > 0 {
     assert (Prim.rts_upgrade_instructions() >= lastInstructions);
     lastInstructions := Prim.rts_upgrade_instructions();
     assert(lastInstructions > 0);
@@ -13,7 +13,7 @@ actor {
   Prim.debugPrint("Ignore Diff: Upgrade instructions: " # debug_show (Prim.rts_upgrade_instructions()));
 
   public func increase() : async () {
-    if (length == 0) {
+    if length == 0 {
       length := 1_000;
     } else {
       length *= 10;

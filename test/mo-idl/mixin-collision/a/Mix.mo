@@ -1,4 +1,4 @@
 mixin() {
   /// own doc A.
-  public func foo() : async () { };
+  public func foo() : async () {};
 };

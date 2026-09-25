@@ -6,5 +6,3 @@ let n8 : Nat8 = 0;
 let n16 : Nat16 = 0;
 f(n8);
 f(n16);
-
-

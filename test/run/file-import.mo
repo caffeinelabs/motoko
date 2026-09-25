@@ -6,6 +6,6 @@ import d = "blob:file:./file-import.mo";
 
 assert b == c;
 //assert b == encodeUtf8 t;
-debugPrint (switch (decodeUtf8 b) { case (?t) t; case _ "" });
+debugPrint (switch decodeUtf8(b) { case ?t { t } case _ { "" } });
 //debugPrint t
 assert c == d;

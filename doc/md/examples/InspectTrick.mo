@@ -7,7 +7,7 @@ actor {
   public query func read() : async Nat { c };
   public func reset() : () { c := 0 }; // oneway
 
-/*
+  /*
   system func inspect() : Bool {
      false
   }

@@ -3,15 +3,15 @@ actor a {
   func runGC(): async() {
     var count = 0;
     // run multiple GC increments for the incremental GC
-    while (count < 3) {
+    while count < 3 {
       await async();
       count += 1;
     }
   };
 
-  let length = 8 * 1024 * 1024; 
+  let length = 8 * 1024 * 1024;
   public func foo(): async() {
-    ignore(Prim.Array_init<()>(length, ())); 
+    ignore(Prim.Array_init<()>(length, ()));
     await runGC();
   };
   public func check_A() : () {

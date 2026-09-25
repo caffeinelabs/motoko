@@ -14,8 +14,8 @@ let nn4 : ??Nat = ??1;
 let nn5 : ??Nat = ??1;
 assert (nn5 == ??1);
 switch (??9 : ??Nat) {
-  case (??p) assert (p == 9);
-  case _ Prim.trap("");
+  case ??p { assert (p == 9) }
+  case _ { Prim.trap("") }
 };
 
 let t1 = n1 ?? 42;
@@ -52,17 +52,19 @@ module WithDo {
 assert (WithDo.app(1) == 5);
 
 // Blocks
-let b1 = (do { // block is not allowed on LHS
+let b1 = (do {
+  // block is not allowed on LHS
   let x = 1;
-  ?{x};
-}) ?? {x=0}; // the RHS is expression position, so a record literal just works
-assert (b1 == {x=1});
-let br = ?{x=1};
-let b2 = br ?? do { // a block on the RHS needs `do`
+  ?{ x };
+}) ?? { x=0 }; // the RHS is expression position, so a record literal just works
+assert (b1 == { x=1 });
+let br = ?{ x=1 };
+let b2 = br ?? do {
+  // a block on the RHS needs `do`
   let x = 2;
-  {x}
+  { x }
 };
-assert (b2 == {x=1});
+assert (b2 == { x=1 });
 
 // Short-circuit: RHS must not be evaluated when LHS is Some
 do {
@@ -81,7 +83,7 @@ do {
 // Function calls returning options.
 // Parentheses are required around `?? default` because `??` binds looser than `==`.
 do {
-  func lookup(key : Text) : ?Nat { if (key == "a") ?1 else null };
+  func lookup(key : Text) : ?Nat { if key == "a" { ?1 } else { null } };
   assert ((lookup("a") ?? 0) == 1);
   assert ((lookup("b") ?? 0) == 0);
 };
@@ -116,7 +118,7 @@ assert (tn2 == ??0);
 
 // Whitespace disambiguation: `a?? b` is binary `??`, since the lexer only requires
 // whitespace AFTER the second `?` to emit NULLCOALESCE.
-let ws1 = nat?? 0;
+let ws1 = nat ?? 0;
 assert (ws1 == 5);
-let ws2 = n2?? 0;
+let ws2 = n2 ?? 0;
 assert (ws2 == 0);

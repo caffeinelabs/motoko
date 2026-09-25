@@ -1,5 +1,5 @@
-let p1 = object {public var x = 3; let y = 2; public func get_y() : Int = y};
-let p2 = object {public var x = 3; let y = 2; public func get_y() : Int = y};
+let p1 = object { public var x = 3; let y = 2; public func get_y() : Int = y };
+let p2 = object { public var x = 3; let y = 2; public func get_y() : Int = y };
 
 assert(p1.x == 3);
 assert(p1.get_y() == 2);

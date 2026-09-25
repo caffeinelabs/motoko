@@ -4,4 +4,3 @@
 //MOC-ENV MOC_UNLOCK_PRIM=yesplease
 import Prim "mo:⛔";
 assert(Prim.rts_version() == ((prim "rts_version" : () -> Text) ()));
-

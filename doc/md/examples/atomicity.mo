@@ -11,7 +11,7 @@ actor Atomicity {
   public func atomic() : async () {
     s := 1;
     ignore ping();
-    ignore 0/0; // trap!
+    ignore 0 / 0; // trap!
   };
 
   // a non-atomic method
@@ -22,7 +22,7 @@ actor Atomicity {
     await f;
     s := 3; // this will not be rolled back!
     await f;
-    ignore 0/0; // trap!
+    ignore 0 / 0; // trap!
   };
 
 };

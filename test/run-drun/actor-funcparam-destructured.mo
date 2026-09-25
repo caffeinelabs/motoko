@@ -1,8 +1,8 @@
 //MOC-FLAG --actor-id-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai actor-funcparam-destructured/rwlgt-iiaaa-aaaaa-aaaaa-cai.did
 
 actor a {
-  public func ping() : async () { };
-  public func pong() : async () { };
+  public func ping() : async () {};
+  public func pong() : async () {};
 
   type Self = actor { ping : () -> async (); pong : () -> async () };
 
@@ -73,7 +73,7 @@ actor a {
   //   element type) can be actor.  The loop pattern matches against
   //   T, so ObjP-against-actor is legitimately reachable here.
   func f8_for_loop(it : { next : () -> ?Self }) : async () {
-    for ({ ping } in it) {
+    for { ping } in it {
       await ping()
     }
   };
@@ -103,7 +103,7 @@ actor a {
   //   The desugar pre-massage can't reach into a refutable match arm, so this
   //   probes whether the bomb is intercepted at the match itself.
   func f11_refutable(self : ?Self) : async () {
-    switch self { case (?{ ping }) { await ping() }; case null {} }
+    switch self { case ?{ ping } { await ping() } case null {} }
   };
 
   public func test() : async () {
@@ -124,7 +124,7 @@ actor a {
     let yielded = { var done_ = false };
     let single_iter : { next : () -> ?Self } = {
       next = func() : ?Self {
-        if (yielded.done_) null else { yielded.done_ := true; ?a }
+        if yielded.done_ { null } else { yielded.done_ := true; ?a }
       }
     };
     await f8_for_loop(single_iter);

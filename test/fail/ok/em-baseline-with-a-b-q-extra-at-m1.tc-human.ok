@@ -3,8 +3,8 @@ See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhan
     ┌─ em-baseline-with-a-b-q-extra-at-m1.mo:9:1
   8 │    // point.
   9 │ ╭  actor {
- 10 │ │      let b : Nat;
- 11 │ │      let q : { x : Nat };
+ 10 │ │    let b : Nat;
+ 11 │ │    let q : { x : Nat };
  12 │ │  };
     │ ╰──^ 
  13 │    
@@ -18,6 +18,6 @@ Previous type
  of `q`.
 The data can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-a-b-q-extra-at-m1.mo:11:9
- 11 │      let q : { x : Nat };
-    │          ^ 
+    ┌─ em-baseline-with-a-b-q-extra-at-m1.mo:11:7
+ 11 │    let q : { x : Nat };
+    │        ^ 

@@ -32,16 +32,16 @@ module {
   /// `get(null, d) = d`.
   public func get<T>(x : ?T, default : T) : T =
     switch x {
-      case null { default };
-      case (?x_) { x_ };
+      case null { default }
+      case ?x_ { x_ }
     };
 
   /// Unwraps an optional value using a function, or returns the default, i.e.
   /// `option(?x, f, d) = f x` and `option(null, f, d) = d`.
   public func getMapped<A, B>(x : ?A, f : A -> B, default : B) : B =
     switch x {
-      case null { default };
-      case (?x_) { f(x_) };
+      case null { default }
+      case ?x_ { f(x_) }
     };
 
   /// Applies a function to the wrapped value. `null`'s are left untouched.
@@ -52,8 +52,8 @@ module {
   /// ```
   public func map<A, B>(x : ?A, f : A -> B) : ?B =
     switch x {
-      case null { null };
-      case (?x_) { ?f(x_) };
+      case null { null }
+      case ?x_ { ?f(x_) }
     };
 
   /// Applies a function to the wrapped value, but discards the result. Use
@@ -69,8 +69,8 @@ module {
   /// ```
   public func iterate<A>(x : ?A, f : A -> ()) =
     switch x {
-      case null {};
-      case (?x_) { f(x_) };
+      case null {}
+      case ?x_ { f(x_) }
     };
 
   /// Applies an optional function to an optional value. Returns `null` if at
@@ -79,23 +79,23 @@ module {
     switch (f, x) {
       case (?f_, ?x_) {
         ?f_(x_);
-      };
+      }
       case (_, _) {
         null;
-      };
+      }
     };
   };
 
   /// Applies a function to an optional value. Returns `null` if the argument is
   /// `null`, or the function returns `null`.
   public func chain<A, B>(x : ?A, f : A -> ?B) : ?B {
-    switch(x) {
-      case (?x_) {
+    switch x {
+      case ?x_ {
         f(x_);
-      };
-      case (null) {
+      }
+      case null {
         null;
-      };
+      }
     };
   };
 
@@ -122,31 +122,31 @@ module {
   /// Returns true if the argument is not `null`, otherwise returns false.
   public func isSome(x : ?Any) : Bool =
     switch x {
-      case null { false };
-      case _ { true };
+      case null { false }
+      case _ { true }
     };
 
   /// Returns true if the argument is `null`, otherwise returns false.
   public func isNull(x : ?Any) : Bool =
     switch x {
-      case null { true };
-      case _ { false };
+      case null { true }
+      case _ { false }
     };
 
   /// Asserts that the value is not `null`; fails otherwise.
   /// @deprecated Option.assertSome will be removed soon; use an assert expression instead
   public func assertSome(x : ?Any) =
     switch x {
-      case null { P.unreachable() };
-      case _ {};
+      case null { P.unreachable() }
+      case _ {}
     };
 
   /// Asserts that the value _is_ `null`; fails otherwise.
   /// @deprecated Option.assertNull will be removed soon; use an assert expression instead
   public func assertNull(x : ?Any) =
     switch x {
-      case null { };
-      case _ { P.unreachable() };
+      case null {}
+      case _ { P.unreachable() }
     };
 
   /// Unwraps an optional value, i.e. `unwrap(?x) = x`.
@@ -154,7 +154,7 @@ module {
   /// @deprecated Option.unwrap is unsafe and fails if the argument is null; it will be removed soon; use a `switch` or `do?` expression instead
   public func unwrap<T>(x : ?T) : T =
     switch x {
-      case null { P.unreachable() };
-      case (?x_) { x_ };
+      case null { P.unreachable() }
+      case ?x_ { x_ }
     };
 }

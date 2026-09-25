@@ -1,9 +1,11 @@
 type Order = {
-  #less; #equal; #greater;
+  #less;
+  #equal;
+  #greater;
 };
 
 module Any {
-//  public func compare(n : Any, m : Any) : Order { #equal };
+  //  public func compare(n : Any, m : Any) : Order { #equal };
 };
 
 module Nat {
@@ -15,13 +17,14 @@ module Text {
 };
 
 module Map {
-  public type Map<K,V> = {map : [(K, [var V])]};
-  public func empty<K, V>() : Map<K,V> = { map= []};
+  public type Map<K, V> = { map : [(K, [var V])] };
+  public func empty<K, V>() : Map<K,V> = { map= [] };
 
   public func get<K, V>(
     self : Map<K, V>,
     compare: (implicit : (K, K) -> Order),
-    n : K)
+    n : K
+  )
   : ?V {
     null
   };
@@ -30,7 +33,8 @@ module Map {
     self : Map<K, V>,
     compare: (implicit : (K, K) -> Order),
     n : K,
-    v : V)
+    v : V
+  )
   : Map<K, V> {
     self
   };
@@ -40,14 +44,14 @@ actor {
   let peopleMap = Map.empty<Nat, Text>();
 
   func test1() {
-     ignore peopleMap.get("text") : Text; // bad
-     ignore peopleMap.get(Nat.compare, "text") : Text; // bad
+    ignore peopleMap.get("text") : Text; // bad
+    ignore peopleMap.get(Nat.compare, "text") : Text; // bad
 
-     ignore peopleMap.get(peopleMap, "text") : Text; // bad
-     ignore peopleMap.get(peopleMap, Nat.compare, "text") : Text; // bad
-     ignore peopleMap.get(peopleMap, "text") : Text; // bad
+    ignore peopleMap.get(peopleMap, "text") : Text; // bad
+    ignore peopleMap.get(peopleMap, Nat.compare, "text") : Text; // bad
+    ignore peopleMap.get(peopleMap, "text") : Text; // bad
 
-     ignore peopleMap.get(1) : Bool; // bad
+    ignore peopleMap.get(1) : Bool; // bad
   };
   func test2() {
     func c0() { let _ = peopleMap.get("text") };

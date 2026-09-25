@@ -18,49 +18,48 @@ actor control {
   };
 
   public func testWhile() : () {
-    label l while (condition()) {
-      if true break l
-      else continue l;
+    label l while condition() {
+      if true { break l }
+      else { continue l };
     };
   };
 
   public func testLoop() : () {
     label l loop {
-      if true break l
-      else continue l;
+      if true { break l }
+      else { continue l };
     };
   };
 
   public func testLoopWhile() : () {
     label l loop {
-      if true break l
-      else continue l;
+      if true { break l }
+      else { continue l };
     } while (condition());
   };
 
   public func testLoopWhile2() : () {
-    loop { } while (false);
+    loop {} while (false);
   };
 
   public func testLoopWhile3() : () {
     label l {
-      loop { }
+      loop {}
       while (false and true)
     };
   };
 
   public func testLoopWhile4() : () {
-    label l loop {
-    } while (true and false);
+    label l loop {} while (true and false);
   };
 
   public func testNestedWhile() : () {
-    label l while (condition()) {
-      if true break l
-      else continue l;
-      label m while (condition()) {
-        if true continue l
-        else break m;
+    label l while condition() {
+      if true { break l }
+      else { continue l };
+      label m while condition() {
+        if true { continue l }
+        else { break m };
       };
     };
   };

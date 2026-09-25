@@ -3,8 +3,8 @@ actor class Counter(i : Int) {
   flexible var j = i;
 
   public func dec() : () {
-   showCounter(j);
-   j -= 1;
+    showCounter(j);
+    j -= 1;
   };
 
   public func read() : async Int { j };
@@ -17,7 +17,7 @@ let c = await Counter(10);
 actor Test {
   public func go() : () {
     var i : Int = 10;
-    while (i  > 0) {
+    while i > 0 {
       c.dec();
       i -= 1;
     }

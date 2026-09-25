@@ -1,5 +1,3 @@
-
-
 actor a {
 
   // returns caller id
@@ -13,7 +11,6 @@ actor a {
   };
 
 };
-
 
 actor class C () {
 
@@ -45,7 +42,6 @@ ignore async {
   assert (id_alias == id_a);
 };
 
-
 // test caller alternation is correct
 
 actor Ping {
@@ -61,7 +57,7 @@ actor Ping {
   };
 
   public shared(c) func call (n:Nat) : async () {
-    if (n > 0) {
+    if n > 0 {
       assert (c.caller == (await Pong.getSelf()));
       await Pong.call(n - 1);
     };
@@ -80,16 +76,16 @@ actor Pong {
     await getCaller();
   };
 
- public shared(c) func call (n:Nat) : async () {
-    if (n > 0) {
+  public shared(c) func call (n:Nat) : async () {
+    if n > 0 {
       assert c.caller == (await Ping.getSelf());
       await Ping.call(n - 1);
     };
- };
+  };
 
- public func test(n:Nat) : () {
+  public func test(n:Nat) : () {
     ignore async await Ping.call(n);
- };
+  };
 
 };
 

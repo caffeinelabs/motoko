@@ -11,11 +11,64 @@ actor {
   transient let random = Random.crypto();
 
   // Define a stable variable that contains each card as a unicode character:
-  var deck : ?[var Char] = ?[var
-    '🂡','🂢','🂣','🂤','🂥','🂦','🂧','🂨','🂩','🂪','🂫','🂬','🂭','🂮',
-    '🂱','🂲','🂳','🂴','🂵','🂶','🂷','🂸','🂹','🂺','🂻','🂼','🂽','🂾',
-    '🃁','🃂','🃃','🃄','🃅','🃆','🃇','🃈','🃉','🃊','🃋','🃌','🃍','🃎',
-    '🃑','🃒','🃓','🃔','🃕','🃖','🃗','🃘','🃙','🃚','🃛','🃜','🃝','🃞',
+  var deck : ?[var Char] = ?[
+    var
+    '🂡',
+    '🂢',
+    '🂣',
+    '🂤',
+    '🂥',
+    '🂦',
+    '🂧',
+    '🂨',
+    '🂩',
+    '🂪',
+    '🂫',
+    '🂬',
+    '🂭',
+    '🂮',
+    '🂱',
+    '🂲',
+    '🂳',
+    '🂴',
+    '🂵',
+    '🂶',
+    '🂷',
+    '🂸',
+    '🂹',
+    '🂺',
+    '🂻',
+    '🂼',
+    '🂽',
+    '🂾',
+    '🃁',
+    '🃂',
+    '🃃',
+    '🃄',
+    '🃅',
+    '🃆',
+    '🃇',
+    '🃈',
+    '🃉',
+    '🃊',
+    '🃋',
+    '🃌',
+    '🃍',
+    '🃎',
+    '🃑',
+    '🃒',
+    '🃓',
+    '🃔',
+    '🃕',
+    '🃖',
+    '🃗',
+    '🃘',
+    '🃙',
+    '🃚',
+    '🃛',
+    '🃜',
+    '🃝',
+    '🃞',
     '🃏'
   ];
 
@@ -24,7 +77,7 @@ actor {
     let ?cards = deck else throw Error.reject("shuffle in progress");
     deck := null;
     var i : Nat = cards.size() - 1;
-    while (i > 0) {
+    while i > 0 {
       let j = await* random.natRange(0, i + 1);
       let temp = cards[i];
       cards[i] := cards[j];
@@ -38,8 +91,8 @@ actor {
   public query func show() : async Text {
     let ?cards = deck else throw Error.reject("shuffle in progress");
     var t = "";
-    for (card in cards.values()) {
-       t #= Char.toText(card);
+    for card in cards.values() {
+      t #= Char.toText(card);
     };
     t;
   }

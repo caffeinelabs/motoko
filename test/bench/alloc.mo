@@ -15,7 +15,7 @@ actor _alloc {
     var i = 0;
     type List = ?((), List);
     var l : List = null;
-    while (i < 1024 * 1024 * 16) {
+    while i < 1024 * 1024 * 16 {
       l := ?((), l);
       i += 1;
     };

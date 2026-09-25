@@ -1,2 +1,1 @@
-actor a {
-}
+actor a {}

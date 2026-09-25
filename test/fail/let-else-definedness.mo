@@ -1,1 +1,1 @@
-let x = 4 else { ignore x; loop () }
+let x = 4 else { ignore x; loop { () } }

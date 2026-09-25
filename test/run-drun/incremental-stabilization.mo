@@ -3,56 +3,56 @@
 import Prim "mo:prim";
 
 actor {
-    transient let flexibleNat = do {
-        Prim.debugPrint("Initialize flexible Nat");
-        1
-    };
-    let stableNat = do {
-        Prim.debugPrint("Initialize stable Nat");
-        12345678901234567890123456789012345678901234567890123456789012345678901234567890;
-    };
-    let stableInt = do {
-        Prim.debugPrint("Initialize stable Int");
-        -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
-    };
-    let stableText = do {
-        Prim.debugPrint("Initialize stable text");
-        "Motoko incremental graph-copy-based upgrade test";
-    };
-    let stableArray = do {
-        Prim.debugPrint("Initialize stable array");
-        Prim.Array_tabulate<Nat>(100, func (index) { index });
-    };
-    let stableObject = do {
-        Prim.debugPrint("Initialize stable object");
-        { stableNat; stableInt; stableText; stableArray; }
-    };
-    transient let flexibleText = do {
-        Prim.debugPrint("Initialize flexible text");
-        "Flexible text"
-    };
-    // To trigger incremental serialization/deserialization
-    var _largeStableArray = do {
-         Prim.Array_tabulate<Nat>(100_000, func (index) { index });
-    };
+  transient let flexibleNat = do {
+    Prim.debugPrint("Initialize flexible Nat");
+    1
+  };
+  let stableNat = do {
+    Prim.debugPrint("Initialize stable Nat");
+    12345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  };
+  let stableInt = do {
+    Prim.debugPrint("Initialize stable Int");
+    -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  };
+  let stableText = do {
+    Prim.debugPrint("Initialize stable text");
+    "Motoko incremental graph-copy-based upgrade test";
+  };
+  let stableArray = do {
+    Prim.debugPrint("Initialize stable array");
+    Prim.Array_tabulate<Nat>(100, func (index) { index });
+  };
+  let stableObject = do {
+    Prim.debugPrint("Initialize stable object");
+    { stableNat; stableInt; stableText; stableArray; }
+  };
+  transient let flexibleText = do {
+    Prim.debugPrint("Initialize flexible text");
+    "Flexible text"
+  };
+  // To trigger incremental serialization/deserialization
+  var _largeStableArray = do {
+    Prim.Array_tabulate<Nat>(100_000, func (index) { index });
+  };
 
-    public func print() : async () {
-        Prim.debugPrint(debug_show (flexibleNat));
-        Prim.debugPrint(debug_show (flexibleText));
-        Prim.debugPrint(debug_show (stableNat));
-        Prim.debugPrint(debug_show (stableInt));
-        Prim.debugPrint(debug_show (stableText));
-        Prim.debugPrint(debug_show (stableArray));
-        Prim.debugPrint(debug_show (stableObject));
-    };
+  public func print() : async () {
+    Prim.debugPrint(debug_show (flexibleNat));
+    Prim.debugPrint(debug_show (flexibleText));
+    Prim.debugPrint(debug_show (stableNat));
+    Prim.debugPrint(debug_show (stableInt));
+    Prim.debugPrint(debug_show (stableText));
+    Prim.debugPrint(debug_show (stableArray));
+    Prim.debugPrint(debug_show (stableObject));
+  };
 
-    system func preupgrade() {
-        Prim.debugPrint("PRE-UPGRADE HOOK!");
-    };
+  system func preupgrade() {
+    Prim.debugPrint("PRE-UPGRADE HOOK!");
+  };
 
-    system func postupgrade() {
-        Prim.debugPrint("POST-UPGRADE HOOK!");
-    };
+  system func postupgrade() {
+    Prim.debugPrint("POST-UPGRADE HOOK!");
+  };
 };
 
 //CALL ingress print "DIDL\x00\x00"

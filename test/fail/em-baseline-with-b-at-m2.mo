@@ -5,6 +5,6 @@
 // Baseline applied the whole chain but has no c: nothing pending produces
 // it → M0267 at the resume point.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };
