@@ -39,10 +39,10 @@ let activeUser : Status = #Active;
 let bannedUser : Status = #Banned("Violation of rules");
 
 func getStatusMessage(status : Status) : Text {
-  switch (status) {
-    case (#Active) "User is active";
-    case (#Inactive) "User is inactive";
-    case (#Banned(reason)) "User is banned: " # reason;
+  switch status {
+    case #Active { "User is active" }
+    case #Inactive { "User is inactive" }
+    case #Banned(reason) { "User is banned: " # reason }
     };
 };
 
@@ -78,10 +78,10 @@ A function can define how the traffic light cycles from one [state](../actors/st
 
 ```motoko no-repl
 func nextState(light : TrafficLight) : TrafficLight {
-    switch (light) {
-        case (#red)    #green;
-        case (#green)  #yellow;
-        case (#yellow) #red;
+    switch light {
+        case #red { #green }
+        case #green { #yellow }
+        case #yellow { #red }
     }
 };
 nextState(#red);
@@ -94,16 +94,16 @@ import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
 
 func nextState(light : TrafficLight) : TrafficLight {
-  switch (light) {
-    case (#red) #green;
-    case (#green) #yellow;
-    case (#yellow) #red
+  switch light {
+    case #red { #green }
+    case #green { #yellow }
+    case #yellow { #red }
   }
 };
 
 var light : TrafficLight = #red; // Initial state
 
-for (_ in Iter.range(0, 5)) {
+for _ in Iter.range(0, 5) {
   // Cycle through states
   light := nextState(light);
   Debug.print(debug_show (light))
@@ -170,9 +170,9 @@ let tree : Tree = #node {
 };
 
 func traverseInOrder(t : Tree) {
-  switch (t) {
-    case (#leaf) {};
-    case (#node {value; left; right}) {
+  switch t {
+    case #leaf {}
+    case #node({value; left; right}) {
       traverseInOrder(left);
       Debug.print(debug_show (value));
       traverseInOrder(right)

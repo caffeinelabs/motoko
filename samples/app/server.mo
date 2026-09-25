@@ -21,16 +21,16 @@ module {
      clients := ?cs;
      return object {
        public shared func post(message : Text) {
-	 if (not c.revoked) {
+	 if not c.revoked {
 	   let id = c.id;
 	   var next = clients;
 	   label sends loop {
 	     switch next {
-	       case null { break sends };
+	       case null { break sends }
 	       case (?n) {
-		 if (n.head.id != id) n.head.client(message);
+		 if n.head.id != id { n.head.client(message) };
 		 next := n.tail;
-	       };
+	       }
 	     };
 	   };
 	 }
@@ -44,19 +44,19 @@ module {
      var next = clients;
      loop {
        switch next {
-	 case null return;
+	 case null { return }
 	 case (?n) {
-	   if (n.head.id == id) {
+	   if n.head.id == id {
 	     switch prev {
-	       case null { clients := n.tail };
-	       case (?p) { p.tail := n.tail };
+	       case null { clients := n.tail }
+	       case (?p) { p.tail := n.tail }
 	     };
 	     Prim.debugPrint "(unsubscribe "; Prim.debugPrintInt id; Prim.debugPrint ")\n";
 	     return;
 	   };
 	   prev := next;
 	   next := n.tail;
-	 };
+	 }
        };
      };
    };

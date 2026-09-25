@@ -17,15 +17,15 @@ var @timeout : ?Nat32 = null;
 func @add_cycles<system>() {
   let cycles = @cycles;
   @reset_cycles();
-  if (cycles != 0) {
+  if cycles != 0 {
     (prim "cyclesAdd" : Nat -> ()) cycles;
   };
   switch @timeout {
-    case (?timeout) {
+    case ?timeout {
       @timeout := null;
       (prim "timeoutSet" : Nat32 -> ()) timeout;
-    };
-    case null ();
+    }
+    case null { () }
   };
 };
 
@@ -50,39 +50,39 @@ func @mut_array_put<A>(xs : [var A]) : (Nat, A) -> () = func(n : Nat, x : A) = (
 func @immut_array_keys<A>(xs : [A]) : () -> @Iter<Nat> = func() : @Iter<Nat> = object {
   var i = 0;
   let l = xs.size();
-  public func next() : ?Nat { if (i >= l) null else { let j = i; i += 1; ?j } };
+  public func next() : ?Nat { if i >= l { null } else { let j = i; i += 1; ?j } };
 };
 func @mut_array_keys<A>(xs : [var A]) : () -> @Iter<Nat> = func() : @Iter<Nat> = object {
   var i = 0;
   let l = xs.size();
-  public func next() : ?Nat { if (i >= l) null else { let j = i; i += 1; ?j } };
+  public func next() : ?Nat { if i >= l { null } else { let j = i; i += 1; ?j } };
 };
 func @immut_array_vals<A>(xs : [A]) : () -> @Iter<A> = func() : @Iter<A> = object {
   var i = 0;
   let l = xs.size();
   public func next() : ?A {
-    if (i >= l) null else { let j = i; i += 1; ?xs[j] };
+    if i >= l { null } else { let j = i; i += 1; ?xs[j] };
   };
 };
 func @mut_array_vals<A>(xs : [var A]) : () -> @Iter<A> = func() : @Iter<A> = object {
   var i = 0;
   let l = xs.size();
   public func next() : ?A {
-    if (i >= l) null else { let j = i; i += 1; ?xs[j] };
+    if i >= l { null } else { let j = i; i += 1; ?xs[j] };
   };
 };
 func @blob_size(b : Blob) : () -> Nat = func() : Nat = (prim "blob_size" : Blob -> Nat) b;
 func @blob_keys(b : Blob) : () -> @Iter<Nat> = func() : @Iter<Nat> = object {
   var i = 0;
   let l = (prim "blob_size" : Blob -> Nat) b;
-  public func next() : ?Nat { if (i >= l) null else { let j = i; i += 1; ?j } };
+  public func next() : ?Nat { if i >= l { null } else { let j = i; i += 1; ?j } };
 };
 func @blob_get(b : Blob) : Nat -> Nat8 = func(n : Nat) : Nat8 = b[n];
 func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = func() : @Iter<Nat8> = object {
   type BlobIter = Any; // not exposed
   let i = (prim "blob_vals_iter" : Blob -> BlobIter) xs;
   public func next() : ?Nat8 {
-    if ((prim "blob_iter_done" : BlobIter -> Bool) i) null else ?((prim "blob_iter_next" : BlobIter -> Nat8) i);
+    if ((prim "blob_iter_done" : BlobIter -> Bool) i) { null } else { ?((prim "blob_iter_next" : BlobIter -> Nat8) i) };
   };
 };
 func @text_size(xs : Text) : () -> Nat = func() : Nat = (prim "text_len" : Text -> Nat) xs;
@@ -90,7 +90,7 @@ func @text_chars(xs : Text) : () -> @Iter<Char> = func() : @Iter<Char> = object 
   type TextIter = Any; // not exposed
   let i = (prim "text_iter" : Text -> TextIter) xs;
   public func next() : ?Char {
-    if ((prim "text_iter_done" : TextIter -> Bool) i) null else ?((prim "text_iter_next" : TextIter -> Char) i);
+    if ((prim "text_iter_done" : TextIter -> Bool) i) { null } else { ?((prim "text_iter_next" : TextIter -> Char) i) };
   };
 };
 
@@ -103,12 +103,12 @@ func @text_of_num(x : Nat, base : Nat, sep : Nat, digits : Nat -> Text) : Text {
   var text = "";
   var n = x;
 
-  if (n == 0) return "0";
+  if n == 0 { return "0" };
 
   var i = 0;
-  while (n > 0) {
+  while n > 0 {
     let rem = n % base;
-    if (sep > 0 and i == sep) { text := "_" # text; i := 0 };
+    if sep > 0 and i == sep { text := "_" # text; i := 0 };
     text := digits rem # text;
     n := n / base;
     i += 1;
@@ -117,10 +117,10 @@ func @text_of_num(x : Nat, base : Nat, sep : Nat, digits : Nat -> Text) : Text {
 };
 
 func @left_pad(pad : Nat, char : Text, t : Text) : Text {
-  if (pad > t.size()) {
+  if pad > t.size() {
     var i : Nat = pad - t.size();
     var text = t;
-    while (i > 0) {
+    while i > 0 {
       text := char # text;
       i -= 1;
     };
@@ -137,11 +137,12 @@ func @text_of_Nat(x : Nat) : Text {
 };
 
 func @text_of_Int(x : Int) : Text {
-  if (x == 0) "0" else (if (x < 0) "-" else "+") #
-  @text_of_Nat((prim "abs" : Int -> Nat) x);
+  if x == 0 { "0" } else {
+    (if x < 0 { "-" } else { "+" }) # @text_of_Nat((prim "abs" : Int -> Nat) x)
+  };
 };
 
-func @digits_hex(x : Nat) : Text = (prim "conv_Char_Text" : Char -> Text)((prim "num_conv_Nat32_Char" : Nat32 -> Char)((prim "num_wrap_Int_Nat32" : Int -> Nat32)(x + (if (x < 10) 0x30 else 55))));
+func @digits_hex(x : Nat) : Text = (prim "conv_Char_Text" : Char -> Text)((prim "num_conv_Nat32_Char" : Nat32 -> Char)((prim "num_wrap_Int_Nat32" : Int -> Nat32)(x + (if x < 10 { 0x30 } else { 55 }))));
 
 // There is some duplication with the prim_module, but we need these here
 // before we can load the prim module
@@ -166,7 +167,7 @@ func @text_of_Float(x : Float) : Text = (prim "Float->Text" : Float -> Text) x;
 func @text_of_Float32(x : Float32) : Text = (prim "Float32->Text" : Float32 -> Text) x;
 
 func @text_of_Bool(b : Bool) : Text {
-  if (b) "true" else "false";
+  if b { "true" } else { "false" };
 };
 
 func @text_of_Text(t : Text) : Text {
@@ -181,7 +182,7 @@ func @text_of_Char(c : Char) : Text {
 
 func @text_of_Blob(blob : Blob) : Text {
   var t = "\"";
-  for (b in blob.values()) {
+  for b in blob.values() {
     // Could do more clever escaping, e.g. leave ascii and utf8 in place
     t #= "\\" # @left_pad(2, "0", @text_of_num(@nat8ToNat b, 16, 0, @digits_hex));
   };
@@ -190,38 +191,40 @@ func @text_of_Blob(blob : Blob) : Text {
 };
 
 func @text_has_parens(t : Text) : Bool {
-  switch (t.chars().next()) {
-    case (?'(') true;
-    case _ false;
+  switch t.chars().next() {
+    case ?'(' { true }
+    case _ { false }
   };
 };
 
 func @text_needs_parens(t : Text) : Bool {
-  switch (t.chars().next()) {
-    case (?('+' or '-' or '?' or '#')) true;
-    case _ false;
+  switch t.chars().next() {
+    case (?('+' or '-' or '?' or '#')) { true }
+    case _ { false }
   };
 };
 
 func @text_of_option<T>(f : T -> Text, x : ?T) : Text {
-  switch (x) {
-    case (?y) {
+  switch x {
+    case ?y {
       let fy = f y;
-      if (@text_needs_parens(fy)) "?(" # fy # ")" else "?" # fy;
-    };
-    case null { "null" };
+      if @text_needs_parens(fy) { "?(" # fy # ")" } else { "?" # fy };
+    }
+    case null { "null" }
   };
 };
 
 func @text_of_variant<T>(l : Text, f : T -> Text, x : T) : Text {
   let fx = f x;
-  if (fx == "()") "#" # l else if (@text_has_parens(fx)) "#" # l # fx else "#" # l # "(" # fx # ")";
+  if fx == "()" { "#" # l }
+  else if @text_has_parens(fx) { "#" # l # fx }
+  else { "#" # l # "(" # fx # ")" };
 };
 
 func @text_of_array<T>(f : T -> Text, xs : [T]) : Text {
   var text = "[";
   var first = true;
-  for (x in xs.values()) {
+  for x in xs.values() {
     if first {
       first := false;
     } else {
@@ -235,7 +238,7 @@ func @text_of_array<T>(f : T -> Text, xs : [T]) : Text {
 func @text_of_array_mut<T>(f : T -> Text, xs : [var T]) : Text {
   var text = "[var";
   var first = true;
-  for (x in xs.values()) {
+  for x in xs.values() {
     if first {
       first := false;
       text #= " ";
@@ -248,13 +251,13 @@ func @text_of_array_mut<T>(f : T -> Text, xs : [var T]) : Text {
 };
 
 func @equal_array<T>(eq : (T, T) -> Bool, a : [T], b : [T]) : Bool {
-  if (a.size() != b.size()) {
+  if a.size() != b.size() {
     return false;
   };
   var i = 0;
   let s = a.size();
-  while (i < s) {
-    if (not eq(a[i], b[i])) {
+  while i < s {
+    if not eq(a[i], b[i]) {
       return false;
     };
     i += 1;
@@ -301,14 +304,14 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
   func fulfill(t : T) {
     switch result {
       case null {
-        let refund = if getRefund @getSystemRefund() else 0;
+        let refund = if getRefund { @getSystemRefund() } else { 0 };
         result := ?(#ok(refund, t));
         let ws_ = ws;
         ws := w_null;
         rs := r_null;
         ws_(refund, t);
-      };
-      case (?_) { assert false };
+      }
+      case ?_ { assert false }
     };
   };
 
@@ -320,8 +323,8 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         ws := w_null;
         rs := r_null;
         rs_(e);
-      };
-      case (?_) { assert false };
+      }
+      case ?_ { assert false }
     };
   };
 
@@ -349,13 +352,13 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
           r(e);
         };
         #suspend;
-      };
-      case (?#ok(r, t)) {
+      }
+      case ?#ok(r, t) {
         #schedule(func() { @refund := r; k(t) });
-      };
+      }
       case (?#error e) {
         #schedule(func _ = r(e));
-      };
+      }
     };
   };
 
@@ -415,7 +418,7 @@ func @install_actor_helper(
   arg : Blob,
 ) : async* Principal = async* {
   let (mode, canister_id) = switch install_arg {
-    case (#new settings) {
+    case #new(settings) {
       let available = (prim "cyclesAvailable" : () -> Nat)();
       let accepted = (prim "cyclesAccept" : Nat -> Nat) available;
       let sender_canister_version = ?(prim "canister_version" : () -> Nat64)();
@@ -424,23 +427,23 @@ func @install_actor_helper(
         settings with sender_canister_version;
       };
       (#install, canister_id);
-    };
-    case (#install principal1) { (#install, principal1) };
-    case (#reinstall actor1) {
+    }
+    case #install(principal1) { (#install, principal1) }
+    case #reinstall(actor1) {
       (#reinstall, (prim "principalOfActor" : (actor {}) -> Principal) actor1);
-    };
-    case (#upgrade actor2) {
+    }
+    case #upgrade(actor2) {
       let upgradeOptions = {
         wasm_memory_persistence = ?(#keep);
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) actor2);
-    };
-    case (#upgrade_with_persistence { wasm_memory_persistence; canister }) {
+    }
+    case #upgrade_with_persistence({ wasm_memory_persistence; canister }) {
       let upgradeOptions = {
         wasm_memory_persistence = ?wasm_memory_persistence;
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) canister);
-    };
+    }
   };
   await @ic00.install_code {
     mode;
@@ -478,7 +481,7 @@ func @create_actor_helper(wasm_module : Blob, arg : Blob) : async Principal = as
 // raw calls
 func @call_raw(p : Principal, m : Text, a : Blob) : async Blob {
   let available = (prim "cyclesAvailable" : () -> Nat)();
-  if (available != 0) {
+  if available != 0 {
     @cycles := (prim "cyclesAccept" : Nat -> Nat) available;
   };
   await (prim "call_raw" : (Principal, Text, Blob) -> async Blob)(p, m, a);
@@ -518,24 +521,24 @@ type @Node = {
 var @timers : ?@Node = null;
 
 func @prune(n : ?@Node) : ?@Node = switch n {
-  case null null;
-  case (?n) {
-    if (n.expire[0] == 0) {
+  case null { null }
+  case ?n {
+    if n.expire[0] == 0 {
       @prune(n.post) // by corollary
     } else {
       ?{ n with pre = @prune(n.pre) };
     };
-  };
+  }
 };
 
 func @nextExpiration(n : ?@Node) : Nat64 = switch n {
-  case null 0;
-  case (?n) {
+  case null { 0 }
+  case ?n {
     let pivot = n.expire[0];
-    if (pivot == 0) return @nextExpiration(n.post);
+    if pivot == 0 { return @nextExpiration(n.post) };
     let exp = @nextExpiration(n.pre);
-    if (exp == 0) pivot else exp;
-  };
+    if exp == 0 { pivot } else { exp };
+  }
 };
 
 // Function called by backend to run eligible timed actions.
@@ -551,85 +554,86 @@ func @timer_helper() : async () {
   let thunks = Array_init<?(() -> async ())>(10, null); // we want max 10
 
   func gatherExpired(n : ?@Node) = switch n {
-    case null ();
-    case (?n) {
+    case null { () }
+    case ?n {
       let pivot = n.expire[0];
-      if (pivot > 0) gatherExpired(n.pre); // by corollary
-      if (pivot <= now and gathered < thunks.size()) {
-        if (pivot > 0) {
+      if pivot > 0 { gatherExpired(n.pre) }; // by corollary
+      if pivot <= now and gathered < thunks.size() {
+        if pivot > 0 {
           // not expunged yet
           thunks[gathered] := ?(n.job);
-          switch (n.delay) {
-            case (null or ?0) n.expire[0] := 0;
-            case (?delay) {
+          switch n.delay {
+            case (null or ?0) { n.expire[0] := 0 }
+            case ?delay {
               // re-add the node, skipping past expirations
               let expire = pivot + delay * (1 + (now - pivot) / delay);
               n.expire[0] := 0;
               // N.B. reinsert only works on pruned nodes
               func reinsert(m : ?@Node) : @Node = switch m {
-                case null ({
+                case null { ({
                   n with expire = [var expire];
                   pre = null;
                   post = null;
-                });
-                case (?m) {
+                }) }
+                case ?m {
                   assert m.expire[0] != 0;
-                  if (expire < m.expire[0]) ({ m with pre = ?reinsert(m.pre) }) else ({
-                    m with post = ?reinsert(m.post)
-                  });
-                };
+                  if expire < m.expire[0] { { m with pre = ?reinsert(m.pre) } } else {
+                    { m with post = ?reinsert(m.post) }
+                  };
+                }
               };
               @timers := ?reinsert(@prune(@timers));
-            };
+            }
           };
           gathered += 1;
         };
         gatherExpired(n.post);
       };
-    };
+    }
   };
 
   gatherExpired(@timers);
 
   let exp = @nextExpiration @timers;
   ignore (prim "global_timer_set" : Nat64 -> Nat64) exp;
-  if (exp == 0) @timers := null;
+  if exp == 0 { @timers := null };
 
   var failed : Nat64 = 0;
   func reinsert(job : () -> async ()) {
-    if (failed == 0) {
+    if failed == 0 {
       @timers := @prune @timers;
       ignore (prim "global_timer_set" : Nat64 -> Nat64) 1;
     };
     failed += 1;
     @timers := ?(
       switch @timers {
-        case (?{ id = 0; pre; post; job = j; expire; delay })
-        // push top node's contents into pre
-        ({
-          expire = [var failed];
-          id = 0;
-          delay;
-          job;
-          post;
-          pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
-        });
-        case _ ({
+        case ?{ id = 0; pre; post; job = j; expire; delay } {
+          // push top node's contents into pre
+          ({
+            expire = [var failed];
+            id = 0;
+            delay;
+            job;
+            post;
+            pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
+          })
+        }
+        case _ { ({
           expire = [var failed];
           id = 0;
           delay = null;
           job;
           pre = null;
           post = @timers;
-        });
+        }) }
       }
     );
   };
 
-  for (o in thunks.values()) {
+  for o in thunks.values() {
     switch o {
-      case (?thunk) try ignore thunk() catch _ reinsert thunk;
-      case _ return;
+      case ?thunk { try ignore thunk() catch _ reinsert thunk }
+      case _ { return }
     };
   };
 };
@@ -641,28 +645,28 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
   let id = @lastTimerId;
   let now = (prim "time" : () -> Nat64)();
   let expire = now + delayNanos;
-  let delay = if recurring ?delayNanos else null;
+  let delay = if recurring { ?delayNanos } else { null };
   // only works on pruned nodes
   func insert(n : ?@Node) : @Node = switch n {
-    case null ({
+    case null { ({
       expire = [var expire];
       id;
       delay;
       job;
       pre = null;
       post = null;
-    });
-    case (?n) {
+    }) }
+    case ?n {
       assert n.expire[0] != 0;
-      if (expire < n.expire[0]) ({ n with pre = ?insert(n.pre) }) else ({
-        n with post = ?insert(n.post)
-      });
-    };
+      if expire < n.expire[0] { { n with pre = ?insert(n.pre) } } else {
+        { n with post = ?insert(n.post) }
+      };
+    }
   };
   @timers := ?insert(@prune(@timers));
 
   let exp = @nextExpiration @timers;
-  if (exp == 0) @timers := null;
+  if exp == 0 { @timers := null };
   ignore (prim "global_timer_set" : Nat64 -> Nat64) exp;
 
   id;
@@ -670,24 +674,26 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
 
 func @cancelTimer(id : Nat) {
   func graft(onto : ?@Node, branch : ?@Node) : ?@Node = switch (onto, branch) {
-    case (null, null) null;
-    case (null, _) branch;
-    case (_, null) onto;
-    case (?onto, _) { ?{ onto with post = graft(onto.post, branch) } };
+    case (null, null) { null }
+    case (null, _) { branch }
+    case (_, null) { onto }
+    case (?onto, _) { ?{ onto with post = graft(onto.post, branch) } }
   };
 
   func hunt(n : ?@Node) : ?@Node = switch n {
-    case null n;
-    case (?{ id = node; pre; post }) {
-      if (node == id) {
+    case null { n }
+    case ?{ id = node; pre; post } {
+      if node == id {
         graft(pre, post);
-      } else do ? { { n! with pre = hunt pre; post = hunt post } };
-    };
+      } else {
+        do ? { { n! with pre = hunt pre; post = hunt post } }
+      };
+    }
   };
 
   @timers := hunt @timers;
 
-  if (@nextExpiration @timers == 0) {
+  if @nextExpiration(@timers) == 0 {
     // no more expirations ahead
     ignore (prim "global_timer_set" : Nat64 -> Nat64) 0;
     @timers := null;
@@ -759,13 +765,13 @@ func @dedup(b : Blob) : Blob {
   func getFromList(list : List, originalBlob : Blob) : ?WeakRef {
     var copy = list;
     loop {
-      if (blobCompare(copy.originalBlob, originalBlob) == 0) {
+      if blobCompare(copy.originalBlob, originalBlob) == 0 {
         return copy.value;
       } else {
         let next = copy.next;
         switch next {
-          case null { return null };
-          case (?next) { copy := next };
+          case null { return null }
+          case ?next { copy := next }
         };
       };
     };
@@ -778,7 +784,7 @@ func @dedup(b : Blob) : Blob {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < HASH_ARRAY_SIZE) {
+    while i < HASH_ARRAY_SIZE {
       len += getListLen(hashArray[i]);
       i += 1;
     };
@@ -807,10 +813,10 @@ func @dedup(b : Blob) : Blob {
   // Check if the blob has magic bytes.
   // We only deduplicate blobs which have the first 5 bytes (!caf!).
   // Otherwise, we return the original blob so that the system works as usual.
-  if (b.size() < 5) {
+  if b.size() < 5 {
     return b;
   };
-  if (b[0] != 0x21 or b[1] != 0x63 or b[2] != 0x61 or b[3] != 0x66 or b[4] != 0x21) {
+  if b[0] != 0x21 or b[1] != 0x63 or b[2] != 0x61 or b[3] != 0x66 or b[4] != 0x21 {
     //debugPrint("The blob doesn't have magic bytes so we return the original.");
     return b;
   };
@@ -818,40 +824,40 @@ func @dedup(b : Blob) : Blob {
   // Get the dedup table from the RTS.
   let ptr = getDedupTable();
   let hashArray = switch ptr {
-    case (?dedupTable) {
+    case ?dedupTable {
       dedupTable;
-    };
+    }
     case null {
       // This means that the dedup table was not yet created.
       let arr = Array_tabulateVar<List>(HASH_ARRAY_SIZE, func(i : Nat) : List = { var next = null; value = null; originalBlob = ""; index = 0 });
       // We need to set it via the RTS so that it is persisted.
       setDedupTable(arr);
       arr;
-    };
+    }
   };
 
   // Get the WeakRef from the hash table.
   let dedupedBlobWeakRef = getFromHashArray(hashArray, b);
   let result = switch dedupedBlobWeakRef {
-    case (?weakRef) {
+    case ?weakRef {
       // It was in the hash so we dereference the WeakRef.
       let derefed = weakGet(weakRef.ref);
       switch derefed {
-        case (?derefed) { derefed };
+        case ?derefed { derefed }
         case null {
           // This will only happen if the blob was deallocated by the GC.
           // We put it back in the hash table so that it can be deduplicated again.
           addToHashArray(hashArray, b);
           b;
-        };
+        }
       };
-    };
+    }
     // It wasn't in the hash so we put it in
     // and return the original.
     case null {
       addToHashArray(hashArray, b);
       b;
-    };
+    }
   };
 
   result;
@@ -860,6 +866,6 @@ func @dedup(b : Blob) : Blob {
 // envvar-indirection for principals
 func @envvar_principal(envvar : Text) : Blob =
   switch ((prim "env_var" : Text -> ?Text) envvar) {
-    case (?envvar) (prim "decode_principal" : Text -> Blob) envvar;
-    case _ (prim "trap" : Text -> None)("envvar `" # envvar # "` not set")
+    case ?envvar { (prim "decode_principal" : Text -> Blob) envvar }
+    case _ { (prim "trap" : Text -> None)("envvar `" # envvar # "` not set") }
   };

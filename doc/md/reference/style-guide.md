@@ -85,15 +85,15 @@ To increase readability and uniformity of Motoko source code, the style guide pr
 -   Put a space between statement keywords and their operands.
 
     ``` motoko no-repl
-    if (f()) A else B;
-    for (x in xs.values()) { ... };
-    switch (compare(x, y)) {
-      case (#less) { A };
-      case (_) { B };
+    if f() { A } else { B };
+    for x in xs.values() { ... };
+    switch compare(x, y) {
+      case #less { A }
+      case _ { B }
     }
 
     assert (x < 100);
-    await (async (0));
+    await async { 0 };
     ```
 
 -   Do not put a space between a function or variant tag and its argument tuple or around a generic type parameter list.
@@ -367,7 +367,13 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func add(x : Nat, y : Nat) : Nat { return x + y };
 
-    // End last case with ;
+    // No ; between the arms of a switch: `case` already ends the previous arm
+    func greet(opt : ?Text) : Text {
+      switch opt {
+        case ?name { "Hello " # name }
+        case null { "" }
+      }
+    };
 
     type Address = {
       first : Text;
@@ -385,10 +391,10 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
 
     func eval(e : Expr) : Float {
-      switch (e) {
-        case (#const(x)) { x };
-        case (#add(e1, e2)) { eval(e1) + eval(e2) };
-        case (#mul(e1, e2)) { eval(e1) * eval(e2) };
+      switch e {
+        case #const(x) { x }
+        case #add(e1, e2) { eval(e1) + eval(e2) }
+        case #mul(e1, e2) { eval(e1) * eval(e2) }
       };
     }
     ```
@@ -397,15 +403,70 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
 ### Braces
 
--   Put braces around function bodies, `if` or `case` branches, and loop bodies, unless they appear nested as an expression and only contain a single expression.
+-   Write the head of an `if`, `while`, `for` or `switch` without enclosing parentheses.
+
+    ``` motoko no-repl
+    if f() { A } else { B };
+    while more() { ... };
+    for x in xs.values() { ... };
+    switch compare(x, y) {
+      case #less { A }
+      case _ { B }
+    }
+    ```
+
+    Parentheses are still needed where dropping them would change the parse: around a
+    head that is a tuple or a record literal, and around a bare function application,
+    whose argument would otherwise swallow the `{` that opens the body.
+
+    ``` motoko no-repl
+    switch (r, c) { ... };              // tuple head
+    switch ({ x = 1 }) { ... };         // record literal head
+    if (f x) == 0 { ... };              // or write the call tight: `if f(x) == 0 { ... }`
+    ```
+
+-   In a `case` pattern, parenthesize the payload rather than the whole pattern, matching
+    how the variant is written on the expression side. Patterns that already end
+    unambiguously take no parentheses at all.
+
+    ``` motoko no-repl
+    case null { ... }
+    case ?n { ... }
+    case -1 { ... }
+    case #leaf { ... }
+    case #node(n) { ... }
+    case (n, #male) { ... }             // parentheses delimit a tuple pattern
+    case ({ x; y }) { ... }             // ...and anything else not in the list above
+    ```
+
+-   Put braces around every control body: both `if` branches, `while`, `for` and `loop`
+    bodies, `case` and `catch` arms, `try` and `finally` bodies, `async` bodies, and
+    function bodies. The one exception is an `else if` chain, which does not brace the
+    inner `if`.
 
     ``` motoko no-repl
     func f(x) { f1(x); f2(x) };
+    func succ(x : Nat) : Nat { x + 1 };
 
-    let abs = if (v >= 0) v else -v;
-    let val = switch (f()) { case (#ok(x)) x; case (_) 0 };
-    func succ(x : Nat) : Nat = x + 1;
+    let abs = if v >= 0 { v } else { -v };
+
+    if isEmpty(xs) { init() } else if xs.size() > cap { grow() } else { push(xs) };
+
+    func sign(n : Int) : Text {
+      switch n {
+        case -1 { "neg" }
+        case 0 { "zero" }
+        case _ { "other" }
+      }
+    };
     ```
+
+    `moc` still accepts a bare branch after a single-atom head (`if (v >= 0) v else -v`),
+    a bare `case` body (`case null 0`), and an expression function body
+    (`func succ(x : Nat) : Nat = x + 1`). All three are legacy forms on their way out;
+    do not write them in new code. The one place `= e` is still needed is a local
+    function that forwards an already-computed `async` value, which a block body would
+    re-wrap.
 
 -   Use "C-style" layout for braced sub-expressions stretching multiple lines.
 
@@ -414,17 +475,17 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       return;
     };
 
-    if (cond) {
+    if cond {
       foo();
     } else {
       bar();
     };
 
-    switch (opt) {
-      case (?x) {
+    switch opt {
+      case ?x {
         f(x);
-      };
-      case (null) {};
+      }
+      case null {}
     };
     ```
 
@@ -441,8 +502,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     let choice = if flag { f1() } else { f2() };
 
     switch opt {
-      case null { tryAgain() };
-      case _ { proceed() };
+      case null { tryAgain() }
+      case _ { proceed() }
     };
     ```
 
@@ -620,10 +681,10 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func eval(e : Expr) : Nat {
       let n =
-        switch (e) {
-          case (#neg(e1)) { - eval(e1) };
-          case (#add(e1, e2)) { eval(e1) + eval(e2) };
-          case (#mul(e1, e2)) { eval(e1) * eval(e2) };
+        switch e {
+          case #neg(e1) { - eval(e1) }
+          case #add(e1, e2) { eval(e1) + eval(e2) }
+          case #mul(e1, e2) { eval(e1) * eval(e2) }
         };
       Debug.print(n);
       return n;
@@ -638,7 +699,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     ``` motoko no-repl
     func foreach<X>(xs : [X], f : X -> ()) {
-      for (x in xs.values()) { f(x) }
+      for x in xs.values() { f(x) }
     }
     ```
 
@@ -668,7 +729,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Similarly, put inline type annotations on arithmetic expressions with types other than [`Nat`](https://mops.one/core/docs/Nat) or [`Int`](https://mops.one/core/docs/Int).
 
     ``` motoko no-repl
-    if (x & mask == (1 : Nat32)) { ... };
+    if x & mask == (1 : Nat32) { ... };
     ```
 
     :::note
@@ -805,8 +866,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Use `for` loops instead of `while` loops for iterating over a numeric range or a container.
 
     ``` motoko no-repl
-    for (i in Iter.range(1, 10)) { ... };
-    for (x in array.values()) { ... };
+    for i in Iter.range(1, 10) { ... };
+    for x in array.values() { ... };
     ```
 
     Rationale: For loops are less error-prone and easier to read.
@@ -814,9 +875,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Use `if` or `switch` as expressions where appropriate.
 
     ``` motoko no-repl
-    func abs(i : Int) : Int { if (i < 0) -i else i };
+    func abs(i : Int) : Int { if i < 0 { -i } else { i } };
 
-    let delta = switch mode { case (#up) +1; case (#dn) -1 };
+    func delta(mode : {#up; #dn}) : Int {
+      switch mode { case #up { +1 } case #dn { -1 } }
+    };
     ```
 
 -   Motoko requires that all expressions in a block have type `()`, in order to prevent accidentally dropped results.
@@ -842,13 +905,13 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
 
     func gcd(i : Nat, j : Nat) : Nat {
-      if (j == 0) i else gcd(j, i % j);
+      if j == 0 { i } else { gcd(j, i % j) };
     };
 
     func gcd2(i : Nat, j : Nat) : Nat {
       var a = i;
       var b = j;
-      while (b > 0) {
+      while b > 0 {
         let c = a;
         a := b;
         b := c % b;
