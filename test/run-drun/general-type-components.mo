@@ -16,12 +16,12 @@ type XYU = X.Y.U;
 
 actor A = {
   public func f() : () { g();};
-  flexible shared func g() : () { f();};
-  flexible object Y = {
+  transient shared func g() : () { f();};
+  transient object Y = {
     public type U = Int;
   };
   public type T = Y.U; // ok type field since Y.U private but avoidable
-  flexible func h():T { h() }; // ditto
+  transient func h():T { h() }; // ditto
 };
 
 type AT = A.T;

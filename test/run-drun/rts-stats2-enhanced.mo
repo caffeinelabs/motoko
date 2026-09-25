@@ -24,7 +24,7 @@ actor a {
     Prim.debugPrint("Ignore Diff: Live size: " # debug_show Prim.rts_max_live_size());
     assert (Prim.rts_max_live_size() < 500_000);
   };
-  flexible var v : [var ()] = [var];
+  transient var v : [var ()] = [var];
   public func bar(): async() {
     v := Prim.Array_init<()>(length, ()); // larger amount to trigger incremental GC
     await runGC();

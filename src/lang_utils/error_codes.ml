@@ -130,12 +130,14 @@ let error_codes : (string * string option) list =
     "M0132", None; (* Misplaced stability declaration *)
     "M0133", None; (* Misplaced stability modifier *)
     "M0134", None; (* Class body type mismatch *)
+    "M0135", None; (* Actor class has non-async return type. Retired: such classes are now rejected with M0193 *)
     "M0136", None; (* Empty block type mismatch *)
     "M0137", Some([%blob "lang_utils/error_codes/M0137.md"]); (* Type definition references type parameter from outer scope *)
     "M0138", None; (* Actor classes are not supported *)
     "M0139", None; (* Inner actor classes are not supported *)
     "M0140", None; (* Actor classes with type parameters are not supported *)
     "M0141", Some([%blob "lang_utils/error_codes/M0141.md"]); (* An actor or actor class must be the only non-imported declaration in a program *)
+    "M0142", None; (* An imported library should be a module or named actor class *)
     "M0143", None; (* Imported actor class cannot be anonymous *)
     "M0144", None; (* Expected a module or actor class *)
     (* "M0147" DEFUNCT Object syntax is deprecated in this position *)
@@ -178,7 +180,7 @@ let error_codes : (string * string option) list =
     "M0188", None; (* Send capability required (calling shared from query) *)
     "M0189", None; (* Different set of bindings in pattern alternatives *)
     "M0192", None; (* Object/Actor/Module body type mismatch *)
-    "M0193", None; (* Can't declare actor class to have `async*` result *)
+    "M0193", None; (* Actor class result type is not `async` *)
     "M0196", None; (* `system` capability supplied but not required *)
     "M0197", Some([%blob "lang_utils/error_codes/M0197.md"]); (* `system` capability required *)
     "M0199", None; (* Deprecated experimental stable memory *)
@@ -238,8 +240,6 @@ let warning_codes = [
   "M0089", None, "Redundant ignore";
   "M0101", None, "Switch with inconsistent branch types";
   "M0128", None, "Function with system function name but wrong visibility";
-  "M0135", None, "Actor class has non-async return type";
-  "M0142", None, "An imported library should be a module or named actor class";
   "M0145", None, "Pattern does not cover value"; (* Warn or Error *)
   "M0146", None, "Pattern is never matched";
   "M0154", Some([%blob "lang_utils/error_codes/M0154.md"]), "Deprecation annotation";

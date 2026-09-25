@@ -136,7 +136,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_GEOP) -> relop ">="
   | X (T T_FUNC) -> simple_token "func"
   | X (T T_FOR) -> simple_token "for"
-  | X (T T_FLEXIBLE) -> simple_token "flexible"
   | X (T T_FLOAT) -> simple_token "<float>"
   | X (T T_EQOP) -> relop "=="
   | X (T T_EQ) -> simple_token "="

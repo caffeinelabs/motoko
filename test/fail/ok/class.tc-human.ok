@@ -28,7 +28,7 @@ does not match expected type
     ┌─ class.mo:48:1
  48 │  class D3() : actor {} = {};
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0135]: actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
+error[M0193]: actor class has non-async return type
     ┌─ class.mo:49:1
  49 │  actor class D4() : actor {} = {};
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,5 +1,5 @@
 actor {
-    flexible func init() {
+    transient func init() {
       assert false;
     };
     public func reset() : () {

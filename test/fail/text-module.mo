@@ -1,1 +1,3 @@
-"depri"
+module {
+  public let text = "depri";
+};

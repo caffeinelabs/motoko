@@ -24,7 +24,6 @@ type token =
   | DEBUG
   | DO
   | FINALLY
-  | FLEXIBLE
   | IF
   | IGNORE
   | IN
@@ -159,7 +158,6 @@ let to_parser_token :
   | LABEL -> Ok Parser.LABEL
   | DO -> Ok Parser.DO
   | DEBUG -> Ok Parser.DEBUG
-  | FLEXIBLE -> Ok Parser.FLEXIBLE
   | IF -> Ok Parser.IF
   | IGNORE -> Ok Parser.IGNORE
   | IN -> Ok Parser.IN
@@ -302,7 +300,6 @@ let string_of_parser_token = function
   | Parser.LABEL -> "LABEL"
   | Parser.DEBUG -> "DEBUG"
   | Parser.DO -> "DO"
-  | Parser.FLEXIBLE -> "FLEXIBLE"
   | Parser.IF -> "IF"
   | Parser.IGNORE -> "IGNORE"
   | Parser.IN -> "IN"

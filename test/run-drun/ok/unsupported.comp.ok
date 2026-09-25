@@ -12,5 +12,5 @@ unsupported.mo:73.44-73.47: type error [M0077], a shared function is only allowe
   (This is a limitation of the current version.)
 unsupported.mo:74.44-74.47: type error [M0077], a shared function is only allowed as a public field of an actor
   (This is a limitation of the current version.)
-unsupported.mo:5.14-5.55: type error [M0126], a shared function cannot be private
+unsupported.mo:5.15-5.56: type error [M0126], a shared function cannot be private
   (This is a limitation of the current version.)

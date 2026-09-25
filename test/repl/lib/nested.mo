@@ -1,4 +1,6 @@
 import A "nested/a";
 import _ = "nested/b";
 
-let i = A.i;
+module {
+  public let i = A.i;
+};

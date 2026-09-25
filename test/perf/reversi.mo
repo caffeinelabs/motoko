@@ -10,9 +10,9 @@ actor {
     public func next() : ?Nat { if (i > y) null else { let j = i; i += 1; ?j } };
   };
 
-  flexible func unreachable() : None { assert false; loop {} };
+  transient func unreachable() : None { assert false; loop {} };
 
-  flexible func toText(x : Int) : Text {
+  transient func toText(x : Int) : Text {
     if (x == 0) {
       return "0";
     };
@@ -48,22 +48,22 @@ actor {
 
   // Color related type and constants
   type Color = Nat;
-  flexible let empty : Color = 0;
-  flexible let white : Color = 1;
-  flexible let black : Color = 2;
+  transient let empty : Color = 0;
+  transient let white : Color = 1;
+  transient let black : Color = 2;
 
   // Dimension of the board
-  flexible let N : Nat = 8;
+  transient let N : Nat = 8;
 
   // Board is NxN array
   type Board = [var Color];
-  flexible let Board : Board = Prim.Array_init<Nat>(N * N, empty);
+  transient let Board : Board = Prim.Array_init<Nat>(N * N, empty);
 
   // Which color should move next
-  flexible var next_color : Color = white;
+  transient var next_color : Color = white;
 
   // Reset the board to initial state
-  flexible func init() {
+  transient func init() {
     // Reset to empty board
     for (i in range(0, N * N - 1)) {
       Board[i] := empty;
@@ -90,7 +90,7 @@ actor {
   };
 
   // Render the board into a string
-  flexible func render(board : Board) : Text {
+  transient func render(board : Board) : Text {
     var str = "";
     for (i in range(0, N - 1)) {
       for (j in range(0, N - 1)) {
@@ -114,13 +114,13 @@ actor {
   };
 
   // Given a color, return its opponent color
-  flexible func opponent(color : Color) : Color {
+  transient func opponent(color : Color) : Color {
     return (3 - color);
   };
 
   // Check if a piece of the given color exists on the board using
   // coordinate (i, j) and offset (p, q).
-  flexible func exists(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
+  transient func exists(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
     let s = i + p;
     let t = j + q;
     if (s < 0 or s >= N or t < 0 or t >= N) {
@@ -133,7 +133,7 @@ actor {
   // using coordinate (i, j) and direction (p, q), ignoring opponent colors
   // in between. Return false if the given color is not found before reaching
   // empty cell or board boundary.
-  flexible func eventually(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
+  transient func eventually(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) : Bool {
     if (exists(board, opponent(color), i, j, p, q)) {
       // the abs below is save because its precondition is already checked
       return eventually(board, color, Prim.abs(i + p), Prim.abs(j + q), p, q);
@@ -144,7 +144,7 @@ actor {
 
   // Flip pieces of opponent color into the given color starting from
   // coordinate (i, j) and along direction (p, q).
-  flexible func flip(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) {
+  transient func flip(board : Board, color : Color, i : Nat, j : Nat, p : Int, q : Int) {
     if (exists(board, opponent(color), i, j, p, q)) {
       // the abs below is save because its precondition is already checked
       let s = Prim.abs(i + p);
@@ -156,7 +156,7 @@ actor {
 
   // Calculate all validate positions for a given color by returning
   // a board that has the cells colored.
-  flexible func valid_moves(board : Board, color : Color) : Board {
+  transient func valid_moves(board : Board, color : Color) : Board {
     let next : Board = Prim.Array_init<Nat>(N * N, empty);
     for (i in range(0, N - 1)) {
       for (j in range(0, N - 1)) {
@@ -182,7 +182,7 @@ actor {
   // Set a piece on the board at a given position, and flip all
   // affected opponent pieces accordingly. It requires that the
   // given position is a valid move before this call.
-  flexible func set_and_flip(board : Board, color : Color, i : Nat, j : Nat) {
+  transient func set_and_flip(board : Board, color : Color, i : Nat, j : Nat) {
     board[i * N + j] := color;
     for (p in [-1, 0, 1].values()) {
       for (q in [-1, 0, 1].values()) {
@@ -199,7 +199,7 @@ actor {
   };
 
   // Check if the given board is empty.
-  flexible func is_empty(board : Board) : Bool {
+  transient func is_empty(board : Board) : Bool {
     for (c in board.values()) {
       if (c != empty) {
         return false;
@@ -209,7 +209,7 @@ actor {
   };
 
   // Return the white and black counts.
-  flexible func score(board : Board) : (Nat, Nat) {
+  transient func score(board : Board) : (Nat, Nat) {
     var wc = 0;
     var bc = 0;
     for (c in board.values()) {
