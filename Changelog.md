@@ -4,7 +4,7 @@
 
 * motoko (`moc`)
 
-  * feat!: remove dead flags and primitives (#PRNUM):
+  * feat!: remove dead flags and primitives (#6403):
 
     * Canisters no longer export the `__motoko_stable_var_info` query, which
       always trapped under enhanced orthogonal persistence, and
