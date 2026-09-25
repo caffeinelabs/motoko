@@ -121,11 +121,11 @@ func envVar<system>(name : Text) : ?Text {
   (prim "env_var" : Text -> ?Text)(name);
 };
 
-func callerInfoSigner<system>() : Blob {
+func callerInfoSigner() : Blob {
   (prim "caller_info_signer" : () -> Blob)();
 };
 
-func callerInfoData<system>() : Blob {
+func callerInfoData() : Blob {
   (prim "caller_info_data" : () -> Blob)();
 };
 
