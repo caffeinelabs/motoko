@@ -61,7 +61,7 @@ You can use the following options with the `moc` command.
 | `--public-metadata <name>`                | Emit ICP custom section `<name>` (`candid:args` or `candid:service` or `motoko:stable-types` or `motoko:compiler`) as `public` (default is `private`).|
 | `--omit-metadata <name>`                  | Omit ICP custom section `<name>` (`candid:args` or `candid:service` or `motoko:stable-types` or `motoko:compiler`).                                   |
 | `--print-deps`                            | Prints the dependencies for a given source file.                                                                                                      |
-| `-r`                                      | Interprets programs.                                                                                                                                  |
+| `-r`                                      | Interprets a program.                                                                                                                                 |
 | `--release`                               | Ignores debug expressions in the source.                                                                                                              |
 | `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory.                                                                   |
 | `--stable-types`                          | Compile binary and emit signature of stable types to `.most` file.                                                                                    |

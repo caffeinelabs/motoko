@@ -47,8 +47,11 @@ val resolved_import_name : Syntax.resolved_import Source.phrase -> string
 
 type scope_cache = Scope.t Type.Env.t
 
-(* Per entry point: the program, its immediate imports, its own scope, and the
-   scope it was checked in extended by its own scope *)
+(* The libraries checked by this call, each once, in dependency order; an
+   entry's dependencies may be missing when an earlier entry or the incoming
+   cache already checked them. Per entry point: the program, its immediate
+   imports, its own scope, and the scope it was checked in extended by its own
+   scope *)
 type load_result_cached =
     ( Syntax.lib list
     * (Syntax.prog * string list * Scope.t * Scope.t) list

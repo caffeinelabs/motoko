@@ -8,6 +8,10 @@ echo "exit $?"
 moc -v --check a.mo b.mo c.mo Lib.mo 2>&1 | grep "^-- Checking"
 moc --check a.mo Lib.mo 2>&1
 echo "exit $?"
+# a library that fails is reported once, not again for each importer
+moc --check d.mo e.mo f.mo g.mo 2>&1
+echo "exit $?"
+moc -v --check d.mo e.mo 2>&1 | grep "^-- Parsing Bad.mo"
 # everything else takes a single main file
 moc -c a.mo Lib.mo 2>&1
 echo "exit $?"

@@ -38,9 +38,9 @@ let valid_metadata_names =
 let argspec =
   Args.ai_args
   @ [
-  "-c", Arg.Unit (set_mode Compile), " compile programs to WebAssembly";
+  "-c", Arg.Unit (set_mode Compile), " compile a program to WebAssembly";
   "-g", Arg.Set Flags.debug_info, " generate source-level debug information";
-  "-r", Arg.Unit (set_mode Run), " interpret programs";
+  "-r", Arg.Unit (set_mode Run), " interpret a program";
   "-i", Arg.Unit (set_mode Interact), " run interactive REPL (implies -r)";
   "--check", Arg.Unit (set_mode Check), " type-check only; each given file is checked on its own";
   "--stable-compatible",
@@ -220,7 +220,7 @@ let exit_on_none = function
 let single_file what files =
   match files with
   | [file] -> file
-  | _ -> fail "moc: %s expects exactly one source file\n" what
+  | _ -> fail "moc: %s expects exactly one source file" what
 
 let process_files files : unit =
   match !mode with
@@ -240,7 +240,7 @@ let process_files files : unit =
     exit_on_none (Pipeline.run_file_and_stdin file_opt)
   | Check ->
     if List.length files > 1 && (Option.is_some !Flags.enhanced_migration || Option.is_some !Flags.stable_baseline) then
-      fail "moc: --enhanced-migration and --stable-baseline expect a single file to check\n";
+      fail "moc: --enhanced-migration and --stable-baseline expect a single file to check";
     Diag.run (Pipeline.check_files files)
   | StableCompatible ->
     begin
