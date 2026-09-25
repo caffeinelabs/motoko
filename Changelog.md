@@ -4,8 +4,9 @@
 
 * motoko (`moc`)
 
-  * feat: `do { ... }` and `do ? { ... }` work as operands: `1 + do { 2 }`,
-    `debug_show do { ... }`, `do { ... }.field`, `-do { ... }` (#6395).
+  * feat: `do { ... }` and `do ? { ... }` work as operator operands:
+    `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
+    A postfix form needs parentheses around the block, `(do { ... }).field` (#6395).
 
   * feat: unparenthesized `case` patterns combine with `or`, `and` and `: T`:
     `case #less or #equal { ... }`, `case x : Nat { ... }`. `catch` accepts

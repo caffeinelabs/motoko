@@ -739,13 +739,8 @@ exp_post(B, R) :
     { e }
 
 (* The postfix forms that grow an expression past a single atom: calls, indexing, projection, `!`.
-   Shared with exp_head_post, which is exactly these forms without the bare atom.
-   `do { }` is here rather than among the atoms, so it is an operand, yet an `if do { } ...` head takes braced branches. *)
+   Shared with exp_head_post, which is exactly these forms without the bare atom. *)
 %inline exp_post_ext(B, R) :
-  | DO e=block
-    { e.it @? at $sloc }
-  | DO QUEST e=block
-    { DoOptE(e) @? at $sloc }
   | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob), COMMA) RBRACKET
     { ArrayE(m, es) @? at $sloc }
   | e1=exp_post(B, R) c=exp_cont(R)
@@ -821,8 +816,13 @@ exp_un(B, R) :
   | e=exp_un_ext(B, R)
     { e }
 
-(* The prefix forms (variant, `?`, unary and `not`, parenthetical notes, Candid conversions), shared with exp_head_un *)
+(* The prefix forms (variant, `?`, unary and `not`, parenthetical notes, Candid conversions, `do`), shared with exp_head_un.
+   `do { }` is an operand at this level, so no postfix form follows it: `do { r }.a` reads as if `.a` were inside the block. *)
 %inline exp_un_ext(B, R) :
+  | DO e=block
+    { e.it @? at $sloc }
+  | DO QUEST e=block
+    { DoOptE(e) @? at $sloc }
   | par=parenthetical e=exp_post(B, R)
      { match e.it with
        | CallE (None, e1, inst, args) ->

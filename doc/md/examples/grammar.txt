@@ -196,8 +196,6 @@
     <exp_post_ext>
 
 <exp_post_ext> ::= 
-    'do' <block>
-    'do' '?' <block>
     '[' 'var'? <list(<exp_nonvar>, ',')> ']'
     <exp_post> <exp_cont>
     <exp_post> '.'<nat>
@@ -224,6 +222,8 @@
     <exp_un_ext>
 
 <exp_un_ext> ::= 
+    'do' <block>
+    'do' '?' <block>
     <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
