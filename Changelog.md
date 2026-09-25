@@ -15,6 +15,7 @@
     available in initializers. Breaking change: an explicit `<system>`
     instantiation on these two primitives is now rejected with M0196
     (#6396).
+
   * feat: `do { ... }` and `do ? { ... }` work as operator operands:
     `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
     A postfix form needs parentheses around the block, `(do { ... }).field` (#6395).
