@@ -12,7 +12,7 @@
     program. Compiling (`-c`, `--idl`) and running (`-r`) take exactly one
     main file, and the REPL (`-i`) preloads at most one. Use imports to split
     a program across files. moc.js `Motoko.run` no longer preloads files: its
-    first argument must be `[]` (#NNNN).
+    first argument must be `[]` (#6397).
 
   * feat: `do { ... }` and `do ? { ... }` work as operator operands:
     `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
