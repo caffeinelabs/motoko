@@ -7,6 +7,11 @@
   * feat: `do { ... }` and `do ? { ... }` work as operands: `1 + do { 2 }`,
     `debug_show do { ... }`, `do { ... }.field`, `-do { ... }` (#6395).
 
+  * feat: unparenthesized `case` patterns combine with `or`, `and` and `: T`:
+    `case #less or #equal { ... }`, `case x : Nat { ... }`. `catch` accepts
+    the same patterns, e.g. `catch e : Error { ... }`. A variant payload always
+    takes its own parentheses, `case #tag(p)` (#6394).
+
   * feat!: Search nested modules for implicit candidates. When module `M` is in
     scope, implicit resolution will now consider candidates like `M.N.compare`,
     up to a nesting depth of 8. Breaking change: code whose implicits previously

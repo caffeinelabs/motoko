@@ -47,3 +47,31 @@ assert (r2.x == 5);
 // a block on the RHS of `??` uses `do { ... }`
 let d = (null : ?Nat) ?? do { let k = 2; k + 1 };
 assert (d == 3);
+
+// `or`, `and` and `: T` over unparenthesized case patterns
+type Ord = { #less; #equal; #greater };
+func le(o : Ord) : Bool = switch o {
+  case #less or #equal { true }
+  case #greater { false }
+};
+assert le(#less) and le(#equal) and not le(#greater);
+
+func small(o : ?Nat) : Bool = switch o {
+  case null or ?0 or ?1 true;
+  case ?_ false
+};
+assert small(null) and small(?1) and not small(?2);
+
+type V = { #a : Nat; #b : Nat; #c };
+func payload(v : V) : Nat = switch v {
+  case #a(n) or #b(n) n;
+  case #c 0
+};
+assert (payload(#b(4)) == 4);
+
+func both(r : { x : Nat; y : Nat }) : Nat = switch r {
+  case { x = 0 } and { y } { y }
+  case { x } : { x : Nat } x
+};
+assert (both({ x = 0; y = 9 }) == 9);
+assert (both({ x = 3; y = 9 }) == 3);
