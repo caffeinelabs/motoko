@@ -14,63 +14,7 @@ The code is otherwise as untouched as possible, so that we can relatively
 easily apply diffs from the original code (possibly manually).
  *)
 
-(* Note [funneling DIEs through Wasm.Ast]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The DWARF debugging information entry (DIE) is a simple data carrier meant
-to be transmitted in a sequential fashion. Here, DIEs are attached to
-specially crafted instructions (Meta) in the instruction stream
-that is derived from the Wasm.Ast. Since these instructions are inserted artificially
-and are not intended for execution, they will not be emitted as instructions, but
-aggregated, correlated and finally output into DWARF sections of the binary.
-DIEs are defined in Dwarf5.Meta and can be recognised via the `is_dwarf_like` predicate.
-When extracted from the instruction stream using the predicate, we can check whether
-they are a tag (pre-filled) with attributes/subtags or free-standing attributes that will
-end up in the last tag. Similarly later tags nest into open tags. The larger-scale hierarchical
-structure is finally restored when all instructions are emitted. The mechanism is described in
-the blog post http://eli.thegreenplace.net/2011/09/29/an-interesting-tree-serialization-algorithm-from-dwarf
-
- *)
-
-
-(* Note [bubbling up types in the tag hierarchy]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Certain DIEs (precisely `DW_TAG_*`s) can be referenced from attributes
-by means of position in the `.debug_info` section. E.g. types are referenced
-from a variety of DIEs. But since we generate DIEs for types on the fly,
-they end up at the same hierarchy level as the referencing DIE. Such references
-are allocated serially by extending a mapping to promises. The promise gets
-fulfilled when the prerequisite DIE is externalised into the section.
-To have every referencable tag a fulfilled section position, on the tag closing
-trigger we move every referencable DIE out of it and into the parent, effectively
-bubbling all up to toplevel. Then, immediately before externalising the DIE tree,
-we perform a stable sort by serial number, with non-referencable DIEs trailing.
-
- *)
-
-(* Note [placeholder promises for typedefs]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-When forming the DIE for a Motoko type synonym (`type List = ...`)
-we need to do something special. Since such typedefs are cycle-breakers
-in the type system, we will need to adopt the same property in the
-`.debug_info` section too. So, we'll output `DW_TAG_typedef` before
-even knowing which type it refers to. Instead we use a DW_FORM_ref4
-for its `DW_AT_type` attribute, which is backpatchable. The value of this
-attribute is an integer, pointing to a fulfilled promise created when the
-DIE was formed. It got fulfilled when the typedef's type became known,
-another DIE, formed shortly after the typedef's. Resolving this fulfilled
-promise in turn gives us the index (actual type ref) of an unfulfilled
-promise (the forward reference). This forward reference will be fulfilled
-to be a byte offset in the section as soon as the corresponding DIE is emitted.
-
-We keep a function that performs the patching of the section (before it is
-written to disk) by overwriting the preliminary bytes in `DW_TAG_typedef`'s
-`DW_AT_type` with the now fulfilled offset obtained from the forward reference.
-
- *)
-
 module Promise = Lib.Promise
-
-open Dwarf5.Meta
 
 open CustomModule
 
@@ -131,18 +75,6 @@ let to_string s =
   List.iter (fun (pos, b) -> Bytes.set bs pos b) !(s.patches);
   Bytes.to_string bs
 
-module References = Map.Make (struct type t = int let compare = compare end)
-
-let dw_references = ref References.empty
-let num_dw_references = ref 1 (* 0 would mean: "this tag doesn't fulfill a reference" *)
-let promise_reference_slot p =
-  let have = !num_dw_references in
-  dw_references := References.add have p !dw_references;
-  num_dw_references := 1 + have;
-  have
-let allocate_reference_slot () =
-  promise_reference_slot (Promise.make ())
-
 (* Encoding *)
 
 let encode (em : extended_module) =
@@ -195,107 +127,11 @@ let encode (em : extended_module) =
       let strs' = (str, v) :: strs in strings := strs'; v
   in
 
-  let dwarf_strings = ref [] in
-
-  let add_dwarf_string =
-    add_string (function | [] -> 0 | (h, p) :: _ -> String.length h + 1 + p) dwarf_strings in
-
   let module Instrs = Set.Make (struct type t = int * Source.pos let compare = compare end) in
-  let statement_positions = ref Instrs.empty in
-
   let module DW_Sequence = Set.Make (struct type t = int * Instrs.t * int let compare = compare end) in
   let sequence_bounds = ref DW_Sequence.empty in
 
-  let dwarf_tags = ref [Tag (None, 0, [])] in
-
-  let is_closed tag =
-    let tag_of (t', _, _) = tag = t' in
-    let (_, has_children, _) = List.find tag_of Abbreviation.abbreviations in
-    not (has_children <> 0)
-  in
-
   let code_section_start = ref 0 in
-
-  let add_dwarf_tag refi tag =
-    let position_attr =
-      if tag = Dwarf5.dw_TAG_lexical_block then
-        [IntAttribute (Dwarf5.dw_AT_low_pc, pos s - !code_section_start)]
-      else [] in
-
-    (* invariant: at most one closed tag waiting for attributes *)
-
-    dwarf_tags :=
-      match !dwarf_tags with
-      | [Tag (refi, t, viscera)] when tag = Dwarf5.dw_TAG_compile_unit && t = 0 ->
-        [Tag (refi, tag, viscera)]
-      | Tag (_, t', _) as closed :: Tag (r, t, arts) :: tail when is_closed t' ->
-        Tag (refi, tag, position_attr) :: Tag (r, t, closed :: arts) :: tail
-      | tail ->
-        Tag (refi, tag, position_attr) :: tail in
-
-  let no_tags = List.for_all (function Tag _ -> false | _ -> true) in
-  let hoistables = List.partition (function Tag (Some r, _, _) -> true | _ -> false) in
-
-  let rec close_dwarf genuine =
-    (* hoist out referencable tags,
-       see Note [bubbling up types in the tag hierarchy] *)
-    begin match !dwarf_tags with
-    | Tag (refi, t, viscera) :: Tag (refi', t', viscera') :: tail
-        when genuine && Dwarf5.(dw_TAG_subprogram = t land 0xFF || dw_TAG_lexical_block = t land 0xFF) ->
-      let hoist, stay = hoistables viscera in
-      dwarf_tags := Tag (refi, t, stay) :: Tag (refi', t', hoist @ viscera') :: tail
-    | _ -> ()
-    end;
-
-    match !dwarf_tags with
-    | Tag (_, t, viscera) :: tail when Dwarf5.dw_TAG_lexical_block = t && no_tags viscera ->
-      dwarf_tags := tail
-    | Tag (refi, t, viscera) :: tail when genuine && Dwarf5.dw_TAG_lexical_block = t ->
-      dwarf_tags := Tag (refi, t, IntAttribute (Dwarf5.dw_AT_high_pc, pos s - !code_section_start) :: viscera) :: tail;
-      close_dwarf false
-    | [] -> failwith "no open DW_TAG"
-    | [Tag (None, t, viscera)] when Dwarf5.dw_TAG_compile_unit = t ->
-      dwarf_tags := Tag (None, t, viscera) :: []
-    | [Tag _] -> failwith "TOPLEVEL: NOT NESTING"
-    | Tag (_, t', _) as closed :: Tag (r, t, arts) :: tail when is_closed t' ->
-      dwarf_tags := Tag (r, t, closed :: arts) :: tail; close_dwarf genuine
-    | Tag (_, t', _) as nested :: Tag (r, tag, arts) :: t ->
-      dwarf_tags := Tag (r, tag, nested :: arts) :: t
-    | _ -> failwith "cannot close DW_AT" in
-  let add_dwarf_attribute attr =
-    dwarf_tags := match !dwarf_tags with
-                  | Tag (r, tag, arts) :: t -> Tag (r, tag, attr :: arts) :: t
-                  | _ -> assert false
-  in
-
-  (* keeping count of the DWARF code sequence we are in *)
-  let sequence_number = ref 0 in
-  (* array of the sizes of the emitted subprograms *)
-  let subprogram_sizes = Promise.make () in
-  (* offset of the range lists section *)
-  let rangelists = Promise.make () in
-
-  let extract_dwarf refi tag =
-    let open Dwarf5 in
-    let extract = function
-      | OffsetAttribute at when at = dw_AT_low_pc && tag = dw_TAG_compile_unit ->
-        add_dwarf_attribute (IntAttribute (at, 0))
-      | OffsetAttribute at when at = dw_AT_low_pc && tag land 0xFF = dw_TAG_subprogram ->
-        add_dwarf_attribute (IntAttribute (at, !sequence_number))
-      | OffsetAttribute at when at = dw_AT_high_pc && tag land 0xFF = dw_TAG_subprogram ->
-        let s = !sequence_number in
-        let resolve () = IntAttribute (at, Array.get (Promise.value subprogram_sizes) s) in
-        add_dwarf_attribute (FutureAttribute resolve)
-      | OffsetAttribute at when at = dw_AT_ranges ->
-        let resolve () = IntAttribute (at, Promise.value rangelists) in
-        add_dwarf_attribute (FutureAttribute resolve) (* see Note [Low_pc, High_pc, Ranges are special] *)
-      | (IntAttribute _ | StringAttribute _) as attr ->
-        add_dwarf_attribute attr
-      | _ -> assert false
-    in
-    add_dwarf_tag refi tag;
-    List.iter extract
-  in
 
   let add_to_map file il ic ol oc =
     let il = il - 1 in
@@ -423,19 +259,6 @@ let encode (em : extended_module) =
       let instr = instr noting in
 
       match e.it with
-      | Meta TagClose -> close_dwarf true
-      | Meta (StatementDelimiter left) ->
-        modif statement_positions (Instrs.add (pos s, left))
-      | Meta (Tag (r, t, attrs_tags)) ->
-        let tags, attrs = List.partition (function Tag _ | Grouped _ -> true | _ -> false) attrs_tags in
-        extract_dwarf r t attrs;
-        List.iter (fun t -> instr { e with it = (Meta t) }) tags
-      | Meta (Grouped []) -> ()
-      | Meta (Grouped (late :: former)) ->
-        instr { e with it = Meta (Grouped former) };
-        instr { e with it = Meta late }
-      | Meta _ -> assert false
-
       | Unreachable -> op 0x00
       | Nop -> op 0x01
 
@@ -830,15 +653,12 @@ let encode (em : extended_module) =
       vec local (compress locals);
       let instr_notes = ref Instrs.empty in
       let note i =
-        if not (is_dwarf_like i.it) then
-          (modif instr_notes (Instrs.add (pos s, i.at.left));
-           ignore (add_source_name i.at.left.file)
-          ) in
+        modif instr_notes (Instrs.add (pos s, i.at.left));
+        ignore (add_source_name i.at.left.file) in
       list (instr note) body;
       modif instr_notes (Instrs.add (pos s, f.at.right));
       ignore (add_source_name f.at.right.file);
       end_ ();
-      incr sequence_number;
       let sequence_end = pos s in
       patch_gap32 g (sequence_end - p);
       modif sequence_bounds (DW_Sequence.add (p, !instr_notes, sequence_end))
@@ -949,13 +769,10 @@ let encode (em : extended_module) =
 
     let uleb128 n = vu64 (Int64.of_int n)
     let sleb128 n = vs64 (Int64.of_int n)
-    let close_section () = u8 0x00
     let write16 = Buffer.add_int16_le s.buf
     let write32 i = Buffer.add_int32_le s.buf (Int32.of_int i)
     let zero_terminated str = put_string s str; u8 0
     let vec_uleb128 el = vec_by uleb128 el
-    let writeBlock1 str = let len = String.length str in assert (len < 256); u8 len; put_string s str
-    let writeBlockLEB str = uleb128 (String.length str); put_string s str
     let dw_gap32 () = let p = pos s in write32 0x0; p
     let dw_patch_gap32 p n =
       let lsb i = Char.chr (i land 0xff) in
@@ -963,221 +780,10 @@ let encode (em : extended_module) =
       patch s (p + 1) (lsb (n lsr 8));
       patch s (p + 2) (lsb (n lsr 16));
       patch s (p + 3) (lsb (n lsr 24))
-    let dw_patches = ref Fun.id
-
-    let debug_abbrev_section () =
-      let tag (t, ch, kvs) =
-        uleb128 (t land 0xFFFF); u8 ch;
-        assert (kvs <> []); (* these run risk of dead-code elimination *)
-        List.iter (fun (k, v) -> uleb128 k; uleb128 v) kvs in
-      let abbrev i abs = uleb128 (i + 1); tag abs; close_section (); close_section () in
-      let section_body abs = List.iteri abbrev abs; close_section () in
-      custom_section ".debug_abbrev" section_body Abbreviation.abbreviations true
-
-    (* dw_FORM writers *)
-    let writeForm : int -> die -> unit =
-      let open Dwarf5 in
-      function
-      | f when dw_FORM_strp = f ->
-        begin function
-          | StringAttribute (attr, str) -> write32 (add_dwarf_string str)
-          | _ -> failwith "dw_FORM_strp"
-        end
-      | f when dw_FORM_data1 = f ->
-        begin function
-          | IntAttribute (attr, i) -> u8 i
-          | _ -> failwith "dw_FORM_data1"
-        end
-      | f when dw_FORM_data2 = f ->
-        begin function
-          | IntAttribute (attr, i) -> write16 i
-          | _ -> failwith "dw_FORM_data2"
-        end
-      | f when dw_FORM_data4 = f ->
-        begin function
-          | IntAttribute (attr, i) -> write32 i
-          | _ -> failwith "dw_FORM_data4"
-        end
-      | f when dw_FORM_addr = f ->
-        begin function
-          | IntAttribute (attr, i) -> write32 i
-          | _ -> failwith "dw_FORM_addr"
-        end
-      | f when dw_FORM_addrx = f ->
-        begin function
-          | IntAttribute (attr, i) -> uleb128 i
-          | _ -> failwith "dw_FORM_addrx"
-        end
-      | f when dw_FORM_ref4 = f ->
-        begin function
-          | IntAttribute (attr, i) ->
-            (* See Note [placeholder promises for typedefs] *)
-            let placeholder_promise = References.find i !dw_references in
-            assert (Promise.is_fulfilled placeholder_promise);
-            let forward_ref = Promise.value placeholder_promise in
-            let offset_promise = References.find forward_ref !dw_references in
-            if Promise.is_fulfilled offset_promise
-            then write32 (Promise.value offset_promise)
-            else dw_patches :=
-                   (fun gap ps () ->
-                     ps ();
-                     dw_patch_gap32 gap (Promise.value offset_promise)
-                   ) (dw_gap32 ()) !dw_patches
-          | _ -> failwith "dw_FORM_ref_ref4"
-        end
-      | f when dw_FORM_ref_udata = f ->
-        begin function
-          | IntAttribute (attr, i) ->
-            uleb128 (Promise.value (References.find i !dw_references))
-          | _ -> failwith "dw_FORM_ref_udata"
-        end
-      | f when dw_FORM_sec_offset = f ->
-        begin function
-          | IntAttribute (attr, i) -> write32 i
-          | _ -> failwith "dw_FORM_sec_offset"
-        end
-      | f when dw_FORM_block1 = f ->
-        begin function
-          | StringAttribute (attr, str) -> writeBlock1 str
-          | _ -> failwith "dw_FORM_block1"
-        end
-      | f when dw_FORM_exprloc = f ->
-        begin function
-          | StringAttribute (attr, str) -> writeBlockLEB str
-          | _ -> failwith "dw_FORM_exprloc"
-        end
-      | f when dw_FORM_flag = f ->
-        begin function
-          | IntAttribute (attr, b) -> u8 b
-          | _ -> failwith "dw_FORM_flag"
-        end
-      | f when dw_FORM_flag_present = f ->
-        begin function
-          | IntAttribute (attr, 0) -> failwith "dw_FORM_flag_present with false"
-          | IntAttribute (attr, _) -> ()
-          | _ -> failwith "dw_FORM_flag_present"
-        end
-      | _ -> failwith "cannot write form"
-
-    let info_section_start = ref 0
-
-    let rec writeTag at_toplevel = function
-      | Tag (r, t, contentsRevd) ->
-        begin match r with
-        | Some refi ->
-          Promise.fulfill (References.find refi !dw_references) (pos s - !info_section_start)
-        | None -> assert (t <> Dwarf5.dw_TAG_base_type)
-        end;
-
-        (* we have to be careful to only reference tags already written,
-           so maintain creation order *)
-        let ref_priority a b = match a, b with
-          | Tag (Some m, _, _), Tag (Some n, _, _) -> compare n m
-          | _, Tag (Some _, _, _) -> -1
-          | Tag (Some _, _, _), _ -> 1
-          | _ -> 0 in
-
-        let contents = List.rev (if at_toplevel then List.stable_sort ref_priority contentsRevd else contentsRevd) in
-        let wanted_tag (t', _, _) = t = t' in
-        let (_, has_children, forms) = List.find wanted_tag Abbreviation.abbreviations in
-        let rec pairing (attr, form) = function
-          | Tag _ | TagClose | StatementDelimiter _ | Grouped _ -> failwith "Attribute expected"
-          | FutureAttribute f ->
-            pairing (attr, form) (f ())
-          | StringAttribute (a, path0) when a = Dwarf5.dw_AT_decl_file ->
-            let path = if path0 = "" then "prim" else path0 in
-            if attr <> a then Printf.printf "DATA1 attr: 0x%x = a: 0x%x (in TAG 0x%x) PATH: %s  ULT: (%s, %d)\n" attr a t path    (fst (List.hd !source_path_indices)) (snd (List.hd !source_path_indices));
-            assert (attr = a);
-            writeForm form (IntAttribute (a, List.(snd (hd !source_path_indices) - assoc path !source_path_indices)))
-          | IntAttribute (a, _) as art ->
-            if attr <> a then Printf.printf "attr: 0x%x = a: 0x%x (in TAG 0x%x)\n" attr a t;
-            assert (attr = a);
-            writeForm form art
-          | StringAttribute (a, _) as art -> assert (attr = a); writeForm form art
-          | OffsetAttribute _ -> failwith "too late to resolve OffsetAttribute" in
-        let rec indexOf cnt = function
-          | h :: t when wanted_tag h -> cnt
-          | _ :: t -> indexOf (cnt + 1) t
-          | _ -> failwith "not encountered" in
-        uleb128 (indexOf 1 Abbreviation.abbreviations);
-        let nested_tags, attrs = List.partition (function Tag _ -> true | _ -> false) contents in
-
-        List.iter2 pairing forms attrs;
-        List.iter (writeTag false) nested_tags;
-        if has_children <> 0 then close_section ()
-      | _ -> failwith "Tag expected"
-
     let unit f =
       let g = dw_gap32 () in (* unit_length *)
       let p = pos s in
       f g; dw_patch_gap32 g (pos s - p)
-
-    let debug_info_section () =
-      let section_body abs =
-        unit(fun info_start ->
-            write16 0x0005; (* version *)
-            u8 Dwarf5.dw_UT_compile; (* unit_type *)
-            u8 4; (* address_size *)
-            write32 0x0000; (* debug_abbrev_offset *)
-            info_section_start := info_start;
-
-            match !dwarf_tags with
-            | [toplevel] -> writeTag true toplevel
-            | _ -> failwith "expected one toplevel tag"
-        );
-        !dw_patches () in
-      let relevant ts = ts <> [Tag (None, 0, [])] in
-      custom_section ".debug_info" section_body dwarf_tags (relevant !dwarf_tags)
-
-    let debug_strings_section dss =
-      let rec debug_strings_section_body = function
-        | [] -> ()
-        | (h, _) :: t -> debug_strings_section_body t; zero_terminated h
-      in
-      custom_section ".debug_str" debug_strings_section_body dss (dss <> [])
-
-
-    let debug_addr_section seqs =
-      let debug_addr_section_body seqs =
-        unit(fun start ->
-            write16 0x0005; (* version *)
-            u8 4; (* addr_size *)
-            u8 0; (* segment_selector_size *)
-            let write_addr (st, _, _) =
-              let rel addr = addr - !code_section_start in
-              write32 (rel st)
-            in
-            DW_Sequence.iter write_addr seqs;
-        )
-      in
-      custom_section ".debug_addr" debug_addr_section_body seqs (not (DW_Sequence.is_empty seqs))
-
-
-    (* 7.28 Range List Table *)
-    let debug_rnglists_section sequence_bounds =
-      let index = ref 0 in
-      let debug_rnglists_section_body () =
-        unit(fun start ->
-            write16 0x0005; (* version *)
-            u8 4; (* address_size *)
-            u8 0; (* segment_selector_size *)
-            write32 0; (* offset_entry_count *)
-
-            Promise.fulfill rangelists (pos s - start);
-            DW_Sequence.iter (fun (st, _, en) ->
-                u8 Dwarf5.dw_RLE_startx_length;
-                uleb128 !index;
-                incr index;
-                uleb128 (en - st))
-              sequence_bounds;
-            u8 Dwarf5.dw_RLE_end_of_list;
-
-            (* extract the subprogram sizes to an array *)
-            Promise.fulfill subprogram_sizes (Array.of_seq (Seq.map (fun (st, _, en) -> en - st) (DW_Sequence.to_seq sequence_bounds)))
-        );
-
-        in
-      custom_section ".debug_rnglists" debug_rnglists_section_body () true
 
     (* Debug strings for line machine section, used by DWARF5: "6.2.4 The Line Number Program Header" *)
 
@@ -1236,25 +842,15 @@ let encode (em : extended_module) =
                   (map (fun (_, (p, dir_indx)) -> Promise.value p, dir_indx) !source_names);
             );
 
-            (* build the statement loc -> addr map *)
-            let statement_positions = !statement_positions in
-            let module StmtsAt = Map.Make (struct type t = pos let compare = compare end) in
-            let statements_at = StmtsAt.of_seq (Seq.map (fun (k, v) -> v, k) (Instrs.to_seq statement_positions)) in
-            let is_statement_at (addr, loc) =
-              match StmtsAt.find_opt loc statements_at with
-              | Some addr' when addr = addr' -> true
-              | _ -> false in
-
             (* generate the line section *)
             let code_start = !code_section_start in
             let rel addr = addr - code_start in
             let source_indices = !source_path_indices in
 
-            let mapping epi (addr, {file; line; column} as loc) : Dwarf5.Machine.state =
+            let mapping epi (addr, {file; line; column}) : Dwarf5.Machine.state =
               let file' = List.(snd (hd source_indices) - assoc (if file = "" then "prim" else file) source_indices) in
-              let stmt = Instrs.mem loc statement_positions || is_statement_at loc (* FIXME TODO: why ||? *) in
               let addr' = rel addr in
-              Dwarf5.Machine.{ ip = addr'; loc = { file = file'; line; col = column + 1 }; disc = 0; stmt; bb = false; mode = if addr' = epi then Epilogue else Regular }
+              Dwarf5.Machine.{ ip = addr'; loc = { file = file'; line; col = column + 1 }; disc = 0; stmt = false; bb = false; mode = if addr' = epi then Epilogue else Regular }
             in
 
             let joining (prg, state) state' : int list list * Dwarf5.Machine.state =
@@ -1322,13 +918,8 @@ let encode (em : extended_module) =
       source_mapping_url_section em.source_mapping_url;
       if !Mo_config.Flags.debug_info then
         begin
-          debug_abbrev_section ();
-          debug_addr_section !sequence_bounds;
-          debug_rnglists_section !sequence_bounds;
           debug_line_str_section ();
-          debug_line_section m.funcs;
-          debug_info_section ();
-          debug_strings_section !dwarf_strings
+          debug_line_section m.funcs
         end
   end
   in E.module_ em;

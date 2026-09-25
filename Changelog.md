@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * chore!: `-g` emits just the DWARF line table, `.debug_line` and
+    `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
+    `.debug_rnglists` sections are gone: they only served a `.debug_info`
+    section that `moc` never emitted (#NNNN).
+
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
     call now gives the same diagnostics as one call per file, with duplicates
