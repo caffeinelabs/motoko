@@ -740,8 +740,7 @@ exp_post(B, R) :
 
 (* The postfix forms that grow an expression past a single atom: calls, indexing, projection, `!`.
    Shared with exp_head_post, which is exactly these forms without the bare atom.
-   `do { }` sits here too: it is the block-as-expression (#6352, rule 4), so it is an operand like any other,
-   but not an atom — an `if do { } ...` head is extended and takes braced branches. *)
+   `do { }` is here rather than among the atoms, so it is an operand, yet an `if do { } ...` head takes braced branches. *)
 %inline exp_post_ext(B, R) :
   | DO e=block
     { e.it @? at $sloc }
