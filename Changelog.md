@@ -8,15 +8,15 @@
     than `module { ... }` or a named actor class, is now rejected with error
     `M0142` instead of a deprecation warning. Wrap its declarations in
     `module { ... }` and mark the exported ones `public`. `-A`, `-W` and `-E`
-    no longer accept `M0142` (#NNNN).
+    no longer accept `M0142` (#6407).
 
   * feat!: the `flexible` keyword, an alias of `transient`, is removed. Write
-    `transient` instead; `flexible` is now an ordinary identifier (#NNNN).
+    `transient` instead; `flexible` is now an ordinary identifier (#6407).
 
   * feat!: an actor class whose declared return type is not `async T`, as in
     `actor class C() : actor {} { ... }`, is now rejected with error `M0193`
     instead of warning `M0135`. Write `: async actor {}`. `-A`, `-W` and `-E`
-    no longer accept `M0135` (#NNNN).
+    no longer accept `M0135` (#6407).
 
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
