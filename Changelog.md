@@ -6,7 +6,7 @@
 
   * chore: `-ref-system-api` is deprecated and has no effect beyond selecting
     the default Internet Computer system API. It will be removed in the next
-    release; drop it from build scripts (#NNNN).
+    release; drop it from build scripts (#6405).
 
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
