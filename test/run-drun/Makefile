@@ -1,10 +1,13 @@
 RUNFLAGS = -d
 
+JOBS ?= $(if $(filter-out 0,$(NIX_BUILD_CORES)),$(NIX_BUILD_CORES),$(shell getconf _NPROCESSORS_ONLN))
+TEST_RUNNER ?= test-runner
+
 all:
-	run-test $(RUNFLAGS) *.mo *.drun
+	$(TEST_RUNNER) -b -j $(JOBS) $(CURDIR)
 
 accept:
-	run-test $(RUNFLAGS) -a *.mo *.drun
+	$(TEST_RUNNER) -b -j $(JOBS) -a $(CURDIR)
 
 parallel: $(patsubst %.mo,_out/%_done,$(wildcard *.mo)) $(patsubst %.drun,_out/%_done,$(wildcard *.drun))
 
