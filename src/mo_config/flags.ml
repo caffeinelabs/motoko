@@ -90,6 +90,7 @@ let default_warning_levels = M.empty
   |> M.add "M0145" (Error : lint_level) (* non-exhaustive pattern traps at runtime *)
   |> M.add "M0210" (Error : lint_level) (* misplaced parenthetical is dropped *)
   |> M.add "M0212" (Error : lint_level) (* unrecognised parenthetical attribute is dropped *)
+  |> M.add "M0215" (Error : lint_level) (* unexpected record field is dropped, e.g. a typo in `{ r with ... }` *)
   |> M.add "M0222" (Error : lint_level) (* ignored `async*` never runs *)
   |> M.add "M0242" (Error : lint_level) (* implicit oneway hides failures from callers *)
 

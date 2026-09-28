@@ -1,4 +1,4 @@
-warning[M0215]: public type `T` is provided but not expected in object of type
+error[M0215]: public type `T` is provided but not expected in object of type
   {a : o.T}
     ┌─ class.mo:38:15
  38 │    public type T = Bool;

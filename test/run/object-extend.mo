@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0215
 import Prim "mo:⛔";
 
 // synthesis
