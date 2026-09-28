@@ -13,7 +13,7 @@
     oneway `public func`s (M0242), and import paths whose letter case differs
     from the file name (M0005). Use `let ... else`, a `case _` branch, or an
     explicit `: ()` / `: async ()` annotation to fix them, or pass `-W <code>`
-    to downgrade a code to a warning again (#PRNUM).
+    to downgrade a code to a warning again (#6410).
 
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
