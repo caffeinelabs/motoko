@@ -24,7 +24,7 @@ actor {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       len += hashArray[i].index;
       i += 1;
     };
@@ -41,7 +41,7 @@ actor {
 
   public func test2() : async () {
     var counter = 20;
-    while (counter > 0) {
+    while counter > 0 {
       await test(blobArr[0]);
       await test(blobArr[1]);
       await test(blobArr[2]);
@@ -52,11 +52,11 @@ actor {
 
     let hash = Prim.__getDedupTable();
     switch hash {
-      case (?hashArray) {
+      case ?hashArray {
         Prim.debugPrint(debug_show (getHashArrayLen(hashArray)));
         assert (getHashArrayLen(hashArray) == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
   };
 

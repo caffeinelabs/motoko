@@ -1,4 +1,4 @@
-issue2062.mo:2.3-3.11: type error [M0096], expression of type
+issue2062.mo:2.3-3.13: type error [M0096], expression of type
   ()
 cannot produce expected type
   Nat

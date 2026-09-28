@@ -15,9 +15,9 @@ actor class C() {
 
   public func show() : async () {
     debugPrint(debug_show
-      { rts_callback_table_count = rts_callback_table_count()
-    });
+      {
+        rts_callback_table_count = rts_callback_table_count()
+      });
   };
 
 };
-

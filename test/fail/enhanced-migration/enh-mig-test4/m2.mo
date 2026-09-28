@@ -1,4 +1,4 @@
 module {
-    // Drop a.
-    public func migration(_ : { a : Nat }) : {} { {} };
+  // Drop a.
+  public func migration(_ : { a : Nat }) : {} { {} };
 };

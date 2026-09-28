@@ -20,6 +20,6 @@ error[M0096]: expression of type
   {#A}
 cannot produce expected type
   (x1 : A, x2 : B)
-    ┌─ pipe-ill-typed.mo:16:33
- 16 │    let (#A, #B) = #A |> f2<A, B> _; // type error
+    ┌─ pipe-ill-typed.mo:15:33
+ 15 │    let (#A, #B) = #A |> f2<A, B> _; // type error
     │                                  ^ 

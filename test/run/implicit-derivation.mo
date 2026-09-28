@@ -8,14 +8,14 @@ var arrayCompareCalls = 0;
 module Nat {
   public func compare(a : Nat, b : Nat) : Order {
     natCompareCalls += 1;
-    if (a < b) #less else if (a == b) #equal else #greater;
+    if a < b { #less } else if a == b { #equal } else { #greater };
   };
 };
 
 module Int {
   public func compare(a : Int, b : Int) : Order {
     intCompareCalls += 1;
-    if (a < b) #less else if (a == b) #equal else #greater;
+    if a < b { #less } else if a == b { #equal } else { #greater };
   };
 };
 
@@ -30,16 +30,16 @@ module Array {
   public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order {
     arrayCompareCalls += 1;
     let len = a.size();
-    if (len != b.size()) {
-      if (len < b.size()) #less else #greater;
+    if len != b.size() {
+      if len < b.size() { #less } else { #greater };
     } else {
       var i = 0;
       var result : Order = #equal;
-      label l while (i < len) {
+      label l while i < len {
         let c = compare(a[i], b[i]);
-        switch (c) {
-          case (#equal) {};
-          case _ { result := c; break l };
+        switch c {
+          case #equal {}
+          case _ { result := c; break l }
         };
         i += 1;
       };
@@ -101,9 +101,9 @@ do {
 module Pair {
   public func compare(a : (Nat, Nat), b : (Nat, Nat), compare : (implicit : (Nat, Nat) -> Order)) : Order {
     let c1 = compare(a.0, b.0);
-    switch (c1) {
-      case (#equal) { compare(a.1, b.1) };
-      case _ c1;
+    switch c1 {
+      case #equal { compare(a.1, b.1) }
+      case _ { c1 }
     };
   };
 };
@@ -189,9 +189,9 @@ do {
       cmpB : (implicit : (compare : (B, B) -> Order)),
     ) : Order {
       let c1 = cmpA(a.0, b.0);
-      switch (c1) {
-        case (#equal) { cmpB(a.1, b.1) };
-        case _ c1;
+      switch c1 {
+        case #equal { cmpB(a.1, b.1) }
+        case _ { c1 }
       };
     };
   };
@@ -346,22 +346,22 @@ do {
   module Int {
     public func compare(a : Int, b : Int) : Order {
       intCompareCalled := true;
-      if (a < b) #less else if (a == b) #equal else #greater;
+      if a < b { #less } else if a == b { #equal } else { #greater };
     };
   };
 
   module Array {
     public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order {
       let len = a.size();
-      if (len != b.size()) {
-        if (len < b.size()) #less else #greater;
+      if len != b.size() {
+        if len < b.size() { #less } else { #greater };
       } else {
         var i = 0;
         var result : Order = #equal;
-        label l while (i < len) {
-          switch (compare(a[i], b[i])) {
-            case (#equal) {};
-            case other { result := other; break l };
+        label l while i < len {
+          switch compare(a[i], b[i]) {
+            case #equal {}
+            case other { result := other; break l }
           };
           i += 1;
         };

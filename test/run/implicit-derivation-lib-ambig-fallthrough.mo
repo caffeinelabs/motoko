@@ -14,8 +14,8 @@ module Combiner {
   public func show(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
-    for ((k, v) in __record.values()) {
-      if (not first) { s #= "," };
+    for (k, v) in __record.values() {
+      if not first { s #= "," };
       s #= k # ":" # v();
       first := false;
     };

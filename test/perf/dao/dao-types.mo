@@ -24,18 +24,18 @@ module {
     message : Blob;
   };
   public type ProposalState = {
-      // A failure occurred while executing the proposal
-      #failed : Text;
-      // The proposal is open for voting
-      #open;
-      // The proposal is currently being executed
-      #executing;
-      // Enough "no" votes have been cast to reject the proposal, and it will not be executed
-      #rejected;
-      // The proposal has been successfully executed
-      #succeeded;
-      // Enough "yes" votes have been cast to accept the proposal, and it will soon be executed
-      #accepted;
+    // A failure occurred while executing the proposal
+    #failed : Text;
+    // The proposal is open for voting
+    #open;
+    // The proposal is currently being executed
+    #executing;
+    // Enough "no" votes have been cast to reject the proposal, and it will not be executed
+    #rejected;
+    // The proposal has been successfully executed
+    #succeeded;
+    // Enough "yes" votes have been cast to accept the proposal, and it will soon be executed
+    #accepted;
   };
   public type Tokens = { amount_e8s : Nat };
   public type TransferArgs = { to : Principal; amount : Tokens };
@@ -67,20 +67,20 @@ module {
   public func proposal_key(t: Nat) : Trie.Key<Nat> = { key = t; hash = Hash.hash t };
   public func account_key(t: Principal) : Trie.Key<Principal> = { key = t; hash = Principal.hash t };
   public func accounts_fromArray(arr: [Account]) : Trie.Trie<Principal, Tokens> {
-      var s = Trie.empty<Principal, Tokens>();
-      for (account in arr.values()) {
-          s := Trie.put(s, account_key(account.owner), Principal.equal, account.tokens).0;
-      };
-      s
+    var s = Trie.empty<Principal, Tokens>();
+    for account in arr.values() {
+      s := Trie.put(s, account_key(account.owner), Principal.equal, account.tokens).0;
+    };
+    s
   };
   public func proposals_fromArray(arr: [Proposal]) : Trie.Trie<Nat, Proposal> {
-      var s = Trie.empty<Nat, Proposal>();
-      for (proposal in arr.values()) {
-          s := Trie.put(s, proposal_key(proposal.id), Nat.equal, proposal).0;
-      };
-      s
+    var s = Trie.empty<Nat, Proposal>();
+    for proposal in arr.values() {
+      s := Trie.put(s, proposal_key(proposal.id), Nat.equal, proposal).0;
+    };
+    s
   };
-  
+
   public let oneToken = { amount_e8s = 10_000_000 };
-  public let zeroToken = { amount_e8s = 0 };  
+  public let zeroToken = { amount_e8s = 0 };
 }

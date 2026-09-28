@@ -35,17 +35,17 @@ error[M0257]: this declaration has no initializer. Omitting an initializer is on
  28 │        var y : Int; // reject
     │        ^^^^^^^^^^^ 
 error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
-    ┌─ enhanced-migration-misplaced-dec.mo:34:8
- 34 │         let x : Int; // reject
-    │         ^^^^^^^^^^^ 
+    ┌─ enhanced-migration-misplaced-dec.mo:34:7
+ 34 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
 error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
-    ┌─ enhanced-migration-misplaced-dec.mo:35:8
- 35 │         var y : Int; // reject
-    │         ^^^^^^^^^^^ 
+    ┌─ enhanced-migration-misplaced-dec.mo:35:7
+ 35 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
 error[M0014]: non-static expression in library, module or migration expression
-    ┌─ enhanced-migration-misplaced-dec.mo:35:8
- 35 │         var y : Int; // reject
-    │         ^^^^^^^^^^^ 
+    ┌─ enhanced-migration-misplaced-dec.mo:35:7
+ 35 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
 error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
     ┌─ enhanced-migration-misplaced-dec.mo:41:7
  41 │        let x : Int; // reject

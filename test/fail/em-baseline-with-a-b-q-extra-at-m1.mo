@@ -7,6 +7,6 @@
 // demands extra → dropped on upgrade (M0169), both named against the resume
 // point.
 actor {
-    let b : Nat;
-    let q : { x : Nat };
+  let b : Nat;
+  let q : { x : Nat };
 };

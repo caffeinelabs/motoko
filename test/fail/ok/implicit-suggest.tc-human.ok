@@ -1,68 +1,68 @@
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:41:13
- 41 │       ignore Map.get(peopleMap, Nat.compare, 1); // warn
-    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:45:12
+ 45 │      ignore Map.get(peopleMap, Nat.compare, 1); // warn
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ implicit-suggest.mo:41:32
- 41 │       ignore Map.get(peopleMap, Nat.compare, 1); // warn
-    │                                 ^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:45:31
+ 45 │      ignore Map.get(peopleMap, Nat.compare, 1); // warn
+    │                                ^^^^^^^^^^^ 
     = help: remove `Nat.compare,`
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:42:13
- 42 │       ignore Map.get(peopleMap, 1); // ok
-    │              ^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:46:12
+ 46 │      ignore Map.get(peopleMap, 1); // ok
+    │             ^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ implicit-suggest.mo:44:27
- 44 │       ignore peopleMap.get(Nat.compare, 1); // warn
-    │                            ^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:48:26
+ 48 │      ignore peopleMap.get(Nat.compare, 1); // warn
+    │                           ^^^^^^^^^^^ 
     = help: remove `Nat.compare,`
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:52:13
- 52 │       ignore Map.get(peopleMap, compare, 1); // warn
-    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:56:12
+ 56 │      ignore Map.get(peopleMap, compare, 1); // warn
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ implicit-suggest.mo:52:32
- 52 │       ignore Map.get(peopleMap, compare, 1); // warn
-    │                                 ^^^^^^^ 
+    ┌─ implicit-suggest.mo:56:31
+ 56 │      ignore Map.get(peopleMap, compare, 1); // warn
+    │                                ^^^^^^^ 
     = help: remove `compare,`
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:53:13
- 53 │       ignore Map.get(peopleMap, Nat.compare, 1); // ok
-    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:57:12
+ 57 │      ignore Map.get(peopleMap, Nat.compare, 1); // ok
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:54:13
- 54 │       ignore Map.get(peopleMap, 1); // ok
-    │              ^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:58:12
+ 58 │      ignore Map.get(peopleMap, 1); // ok
+    │             ^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ implicit-suggest.mo:56:27
- 56 │       ignore peopleMap.get(compare, 1); // warn
-    │                            ^^^^^^^ 
+    ┌─ implicit-suggest.mo:60:26
+ 60 │      ignore peopleMap.get(compare, 1); // warn
+    │                           ^^^^^^^ 
     = help: remove `compare,`
 warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
-    ┌─ implicit-suggest.mo:57:13
- 57 │       ignore Map.get(peopleMap, Nat.compare, 1); // ok
-    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ implicit-suggest.mo:61:12
+ 61 │      ignore Map.get(peopleMap, Nat.compare, 1); // ok
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `peopleMap`
     = help: remove `peopleMap,`
 warning[M0236]: You can use the dot notation `ambMap.get(...)` here
-    ┌─ implicit-suggest.mo:73:12
- 73 │      ignore Map.get(ambMap, Amb1.compare, #amb); // don't warn (suggestion would be ambiguous)
+    ┌─ implicit-suggest.mo:77:12
+ 77 │      ignore Map.get(ambMap, Amb1.compare, #amb); // don't warn (suggestion would be ambiguous)
     │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `ambMap`
     = help: remove `ambMap,`
 error[M0231]: ambiguous implicit argument named `compare` of type 
   (Amb1.T, Amb1.T) -> Order.
-    ┌─ implicit-suggest.mo:74:12
- 74 │      ignore Map.get(ambMap, #amb); // reject // ambiguous
+    ┌─ implicit-suggest.mo:78:12
+ 78 │      ignore Map.get(ambMap, #amb); // reject // ambiguous
     │             ^^^^^^^^^^^^^^^^^^^^^ 
     = note: The ambiguous implicit candidates are: `Amb1.compare`, `_Amb2.compare`.

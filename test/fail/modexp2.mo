@@ -1,7 +1,6 @@
-
 module X = {
-  public func f() { g();};
-  func g() { f();};
+  public func f() { g(); };
+  func g() { f(); };
   let y : Nat = 2;
   type U = Int;
   public type T = U;
@@ -9,4 +8,3 @@ module X = {
 
 type Ok = X.T;
 type Wrong = X.U;
-

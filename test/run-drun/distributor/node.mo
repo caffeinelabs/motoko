@@ -13,10 +13,9 @@ actor class Node(i : Nat) {
   };
 
   public func insert(k : Key, v : Value) : async () {
-    Prim.debugPrint(debug_show i # ": insert " # debug_show (k,v));
+    Prim.debugPrint(debug_show i # ": insert " # debug_show (k, v));
     let map0 = map;
-    map := func(k1 : Nat) : ?Value { if (k1 == k) ?v else map0(k1); };
+    map := func(k1 : Nat) : ?Value { if k1 == k { ?v } else { map0(k1) }; };
   };
 
 };
-

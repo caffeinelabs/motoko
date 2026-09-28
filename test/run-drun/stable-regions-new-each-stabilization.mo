@@ -7,24 +7,24 @@ import Region "stable-region/Region";
 actor {
   var n = 0;
   let regions : [var ?Region] = [var null, null, null];
-  
+
   system func preupgrade() {
     P.debugPrint("upgrading... calling Region.new(), n=" # debug_show n);
     regions[n] := ?Region.new();
     n += 1;
   };
   func unwrap(i : Nat, ro : ?Region) : Region {
-      P.debugPrint(" unwrapping. i=" # debug_show i);      
-      switch ro {
-      case null { assert false; loop { } };
-      case (?r) r;
-      }
+    P.debugPrint(" unwrapping. i=" # debug_show i);
+    switch ro {
+      case null { assert false; loop {} }
+      case ?r { r }
+    }
   };
   public func sanityTest() : () {
     P.debugPrint("sanity check. n=" # debug_show n);
-    if (n > 0) { P.debugPrint(debug_show Region.id(unwrap(0, regions[0]))) };
-    if (n > 1) { P.debugPrint(debug_show Region.id(unwrap(1, regions[1]))) };
-    if (n > 2) { P.debugPrint(debug_show Region.id(unwrap(2, regions[2]))) };
+    if n > 0 { P.debugPrint(debug_show Region.id(unwrap(0, regions[0]))) };
+    if n > 1 { P.debugPrint(debug_show Region.id(unwrap(1, regions[1]))) };
+    if n > 2 { P.debugPrint(debug_show Region.id(unwrap(2, regions[2]))) };
   };
 }
 

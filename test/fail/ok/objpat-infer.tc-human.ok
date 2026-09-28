@@ -1,8 +1,8 @@
 error[M0119]: object field a is not contained in expected type
   {}
-    ┌─ objpat-infer.mo:5:36
-  5 │  ignore (switch (object {}) { case {a} 42 });
-    │                                     ^ 
+    ┌─ objpat-infer.mo:5:37
+  5 │  ignore (switch (object {}) { case { a } { 42 } });
+    │                                      ^ 
 error[M0096]: expression of type
   actor {}
 cannot produce expected type
@@ -27,8 +27,8 @@ cannot produce expected type
   actor {}
 because of incompatible object sorts:
  object does not match actor
-    ┌─ objpat-infer.mo:29:13
- 29 │  ignore (baz({}));
+    ┌─ objpat-infer.mo:28:13
+ 28 │  ignore (baz({}));
     │              ^^ 
 error[M0096]: expression of type
   {}
@@ -36,8 +36,8 @@ cannot produce expected type
   actor {}
 because of incompatible object sorts:
  object does not match actor
-    ┌─ objpat-infer.mo:30:13
- 30 │  ignore (baz(object {}));
+    ┌─ objpat-infer.mo:29:13
+ 29 │  ignore (baz(object {}));
     │              ^^^^^^^^^ 
 error[M0096]: expression of type
   actor {}
@@ -45,6 +45,6 @@ cannot produce expected type
   {}
 because of incompatible object sorts:
  actor does not match object
-    ┌─ objpat-infer.mo:35:15
- 35 │  ignore (a.bar(actor {}));
+    ┌─ objpat-infer.mo:34:15
+ 34 │  ignore (a.bar(actor {}));
     │                ^^^^^^^^ 

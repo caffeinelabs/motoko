@@ -11,7 +11,6 @@ actor {
     assert (Prim.weakGet(w) == ??v);
   };
 
-
   do {
     let v = null;
     let w = Prim.allocWeakRef(?v);
@@ -20,7 +19,6 @@ actor {
     assert (Prim.weakGet(w) == ??v);
   };
 
-
   do {
     let v = "hello";
     let w = Prim.allocWeakRef(?v);
@@ -28,7 +26,6 @@ actor {
     Prim.debugPrint(debug_show (Prim.weakGet(w)));
     assert (Prim.weakGet(w) == ??v);
   };
-
 
   do {
     let v = ?"hello";
@@ -46,10 +43,8 @@ actor {
     assert (Prim.weakGet(w) == ??v);
   };
 
-
 };
 
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-

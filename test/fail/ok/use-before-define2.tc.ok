@@ -1,1 +1,1 @@
-use-before-define2.mo:5.1-5.46: definedness error [M0016], cannot use x before x has been defined
+use-before-define2.mo:5.1-5.45: definedness error [M0016], cannot use x before x has been defined

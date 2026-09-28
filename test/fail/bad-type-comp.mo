@@ -3,8 +3,8 @@
 // unlike type definitions in blocks
 
 ignore ((module {}) : module { type T = Null });
-ignore ((module { public type T = Int}) : module { type T = Null });
-ignore ((module { public type T = Null}) : module { type T = Null; type T = Null });
+ignore ((module { public type T = Int }) : module { type T = Null });
+ignore ((module { public type T = Null }) : module { type T = Null; type T = Null });
 
 do {
   type O = {
@@ -19,16 +19,13 @@ do {
   };
 };
 
-
 do {
   type F = <A>{ type T = A } -> (); // open type, reject
 };
 
-
 do {
   type F = <A>() -> { type T = A }; // open type, reject
 };
-
 
 do {
   type N = {

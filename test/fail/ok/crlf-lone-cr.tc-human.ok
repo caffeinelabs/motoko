@@ -1,18 +1,23 @@
 warning[M0236]: You can use the dot notation `m.size(...)` here
-    ┌─ crlf-lone-cr.mo:5:75
-  5 │  module M { public func size(self : Nat) : Nat = self };let m = 1;ignore M.size(m);ignore M.size(m);ignore M.size(  m,);
-    │                                                                            ^^^^^^^^^ 
+    ┌─ crlf-lone-cr.mo:7:8
+  7 │  ignore M.size(m);
+    │         ^^^^^^^^^ 
     = help: replace `M` with `m`
     = help: remove `m`
 warning[M0236]: You can use the dot notation `m.size(...)` here
-    ┌─ crlf-lone-cr.mo:5:93
-  5 │  module M { public func size(self : Nat) : Nat = self };let m = 1;ignore M.size(m);ignore M.size(m);ignore M.size(  m,);
-    │                                                                                              ^^^^^^^^^ 
+    ┌─ crlf-lone-cr.mo:8:8
+  8 │  ignore M.size(m);
+    │         ^^^^^^^^^ 
     = help: replace `M` with `m`
     = help: remove `m`
 warning[M0236]: You can use the dot notation `m.size(...)` here
-    ┌─ crlf-lone-cr.mo:5:111
-  5 │  module M { public func size(self : Nat) : Nat = self };let m = 1;ignore M.size(m);ignore M.size(m);ignore M.size(  m,);
-    │                                                                                                                ^^^^^^^^^^^^^^ 
+    ┌─ crlf-lone-cr.mo:9:8
+  8 │    ignore M.size(m);
+  9 │    ignore M.size(
+    │ ╭─────────^
+ 10 │ │    m,
+ 11 │ │  );
+    │ ╰──^ 
+ 12 │    
     = help: replace `M` with `m`
     = help: remove `m,`

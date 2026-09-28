@@ -1,12 +1,12 @@
 func specials(one : { #one : Nat }, two : { #c0; #c1 }) {
   var count = 0;
   switch one {
-    case (#one i) count += i;
+    case #one(i) { count += i }
   };
 
   switch two {
-    case (#c0) count += 1;
-    case (#c1) count += 2;
+    case #c0 { count += 1 }
+    case #c1 { count += 2 }
   };
 
   count += 123;

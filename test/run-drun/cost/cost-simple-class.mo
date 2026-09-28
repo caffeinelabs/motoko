@@ -22,7 +22,7 @@ module {
   };
 
   func testCost((resultCode : Nat32, costOrUndefined : Nat), msg: Text) {
-    if (resultCode == 0) {
+    if resultCode == 0 {
       Prim.debugPrint(debug_show (0, costOrUndefined) # msg);
     } else {
       Prim.debugPrint(debug_show (resultCode, "undefined-cost") # msg);

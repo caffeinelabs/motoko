@@ -8,26 +8,26 @@ actor {
   let max = 10;
 
   public shared func inc() : async () {
-    if (count < max) {
+    if count < max {
       count := count + 1
     }
   };
 
   system func heartbeat() : async () {
-    if (count < max) {
+    if count < max {
       ignore inc();
     }
   };
 
   public shared func go() : async () {
-     var attempts = 0;
-     while (count < max) {
-       ignore await raw_rand(); // yield to scheduler
-       attempts += 1;
-       if (attempts >= 200 and count == 0)
-         throw Prim.error("he's dead Jim");
-     };
-     Prim.debugPrint(debug_show {count});
+    var attempts = 0;
+    while count < max {
+      ignore await raw_rand(); // yield to scheduler
+      attempts += 1;
+      if attempts >= 200 and count == 0
+        { throw Prim.error("he's dead Jim") };
+    };
+    Prim.debugPrint(debug_show { count });
   };
 };
 

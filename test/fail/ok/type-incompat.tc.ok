@@ -2,7 +2,7 @@ type-incompat.mo:3.22-3.30: type error [M0096], expression of type
   Nat
 cannot produce expected type
   Text
-type-incompat.mo:4.64-4.65: type error [M0096], expression of type
+type-incompat.mo:4.66-4.67: type error [M0096], expression of type
   module {x : Nat}
 cannot produce expected type
   {x : Nat}

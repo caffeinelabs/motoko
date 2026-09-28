@@ -3,8 +3,8 @@ import Prim = "mo:⛔";
 (with migration =
    func({
      f : Nat // ok - exact type
-     }) :
-   { f : Int} =
+   }) :
+   { f : Int } =
    { f = f }
 )
 actor {

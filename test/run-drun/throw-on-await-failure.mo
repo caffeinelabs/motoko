@@ -7,17 +7,16 @@ actor {
 
   let MAX_SELF_QUEUE_CAPACITY = 500;
   let PRED_MAX_SELF_QUEUE_CAPACITY = MAX_SELF_QUEUE_CAPACITY - 1 : Nat;
-  
+
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
-  public func request() : async () {
-  };
+  public func request() : async () {};
 
   public func test1() : async () {
     var n = 0;
     let a = async ();
     await a;
-    while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
+    while n < PRED_MAX_SELF_QUEUE_CAPACITY {
       ignore request();
       n += 1;
     };
@@ -30,19 +29,17 @@ actor {
       var n = 0;
       let a = async ();
       await a;
-      while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
+      while n < PRED_MAX_SELF_QUEUE_CAPACITY {
         ignore request();
         n += 1;
       };
       await a;
     } catch e {
-      assert (Prim.errorCode(e) == #call_error {err_code = 2});
+      assert (Prim.errorCode(e) == #call_error { err_code = 2 });
       Prim.debugPrint("caught " # showError(e));
       throw e;
     }
   };
-
-
 
   public func go() : async () {
 

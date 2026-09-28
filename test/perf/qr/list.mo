@@ -25,15 +25,14 @@ module {
   public let nil : <T> () -> List<T> =
     func<T>() : List<T> = null;
 
-
   /**
   Returns true if the list is empty.
   */
   public let isNil : <T> List<T> -> Bool =
     func<T>(l : List<T>) : Bool {
       switch l {
-      case null { true  };
-      case _    { false };
+        case null { true }
+        case _ { false }
       }
     };
 
@@ -49,9 +48,9 @@ module {
   public let last : <T> List<T> -> ?T =
     func<T>(l : List<T>) : ?T {
       switch l {
-      case null        { null };
-      case (?(x,null)) { ?x };
-      case (?(_,t))    { last<T>(t) };
+        case null { null }
+        case ?(x, null) { ?x }
+        case ?(_, t) { last<T>(t) }
       }
     };
 
@@ -61,8 +60,8 @@ module {
   public let pop : <T> List<T> -> (?T, List<T>) =
     func<T>(l : List<T>) : (?T, List<T>) {
       switch l {
-      case null      { (null, null) };
-      case (?(h, t)) { (?h, t) };
+        case null { (null, null) }
+        case ?(h, t) { (?h, t) }
       }
     };
 
@@ -73,11 +72,11 @@ module {
     func<T>(l : List<T>) : Nat {
       func rec(l : List<T>, n : Nat) : Nat {
         switch l {
-          case null     { n };
-          case (?(_,t)) { rec(t,n+1) };
+          case null { n }
+          case ?(_, t) { rec(t, n + 1) }
         }
       };
-      rec(l,0)
+      rec(l, 0)
     };
 
   /**
@@ -86,11 +85,11 @@ module {
   public let lenIsEqLessThan : <T> (List<T>, Nat) -> Bool =
     func<T>(l : List <T>, i : Nat) : Bool {
       switch l {
-        case null true;
-        case (?(_, t)) {
-          if (i == 0) { false }
+        case null { true }
+        case ?(_, t) {
+          if i == 0 { false }
           else { lenIsEqLessThan<T>(t, i - 1) }
-        };
+        }
       };
     };
 
@@ -101,11 +100,11 @@ module {
     func<T>(l : List<T>, max : Nat) : ?Nat {
       func rec(l : List<T>, max : Nat, i : Nat) : ?Nat {
         switch l {
-          case null { ?i };
-          case (?(_, t)) {
-            if ( i > max ) { null }
+          case null { ?i }
+          case ?(_, t) {
+            if i > max { null }
             else { rec(t, max, i + 1) }
-          };
+          }
         }
       };
       rec(l, max, 0)
@@ -120,9 +119,9 @@ module {
   public let nth : <T>(List<T>, Nat) -> ?T =
     func<T>(l : List<T>, n : Nat) : ?T {
       switch (n, l) {
-      case (_, null)     { null };
-      case (0, (?(h,t))) { ?h };
-      case (_, (?(_,t))) { nth<T>(t, n - 1) };
+        case (_, null) { null }
+        case (0, (?(h, t))) { ?h }
+        case (_, (?(_, t))) { nth<T>(t, n - 1) }
       }
     };
 
@@ -133,8 +132,8 @@ module {
     func<T>(l : List<T>) : List<T> {
       func rec(l : List<T>, r : List<T>) : List<T> {
         switch l {
-              case null     { r };
-              case (?(h,t)) { rec(t,?(h,r)) };
+          case null { r }
+          case ?(h, t) { rec(t, ?(h, r)) }
         }
       };
       rec(l, null)
@@ -148,8 +147,8 @@ module {
   public let iter : <T>(List<T>, f : T -> ()) -> () =
     func iter<T>(l : List<T>, f : T -> ()) {
       switch l {
-        case null     { () };
-        case (?(h,t)) { f(h) ; iter<T>(t, f) };
+        case null { () }
+        case ?(h, t) { f(h); iter<T>(t, f) }
       }
     };
 
@@ -157,11 +156,11 @@ module {
   Calls the given function on each list element, collecing the results in a new
   list.
   */
-  public let map : <T,S>(List<T>, f : T -> S) -> List<S> =
-    func<T,S>(l : List<T>, f:T -> S) : List<S> {
+  public let map : <T, S>(List<T>, f : T -> S) -> List<S> =
+    func<T, S>(l : List<T>, f:T -> S) : List<S> {
       switch l {
-            case null     { null };
-            case (?(h,t)) { ?(f(h),map<T,S>(t,f)) };
+        case null { null }
+        case ?(h, t) { ?(f(h), map<T, S>(t, f)) }
       }
     };
 
@@ -172,14 +171,14 @@ module {
   public let filter : <T>(List<T>, p : T -> Bool) -> List<T> =
     func<T>(l : List<T>, f:T -> Bool) : List<T> {
       switch l {
-        case null { null };
-        case (?(h,t)) {
-          if (f(h)) {
-            ?(h,filter<T>(t, f))
+        case null { null }
+        case ?(h, t) {
+          if f(h) {
+            ?(h, filter<T>(t, f))
           } else {
             filter<T>(t, f)
           }
-        };
+        }
       };
     };
 
@@ -192,16 +191,17 @@ module {
   public let split : <T>(List<T>, f : T -> Bool) -> (List<T>, List<T>) =
     func<T>(l : List<T>, f:T -> Bool) : (List<T>, List<T>) {
       switch l {
-        case null { (null, null) };
-        case (?(h,t)) {
-          if (f(h)) { // call f in-order
-            let (l,r) = split<T>(t, f);
-            (?(h,l), r)
+        case null { (null, null) }
+        case ?(h, t) {
+          if f(h) {
+            // call f in-order
+            let (l, r) = split<T>(t, f);
+            (?(h, l), r)
           } else {
-            let (l,r) = split<T>(t, f);
-            (l, ?(h,r))
+            let (l, r) = split<T>(t, f);
+            (l, ?(h, r))
           }
-        };
+        }
       };
     };
 
@@ -209,16 +209,16 @@ module {
   Calls the given function on each list element, collecing the non-null results
   in a new list.
   */
-  public let mapFilter : <T,S>(List<T>, f : T -> ?S) -> List<S> =
-    func<T,S>(l : List<T>, f:T -> ?S) : List<S> {
+  public let mapFilter : <T, S>(List<T>, f : T -> ?S) -> List<S> =
+    func<T, S>(l : List<T>, f:T -> ?S) : List<S> {
       switch l {
-        case null { null };
-        case (?(h,t)) {
-          switch (f(h)) {
-            case null { mapFilter<T,S>(t, f) };
-            case (?h_){ ?(h_,mapFilter<T,S>(t, f)) };
+        case null { null }
+        case ?(h, t) {
+          switch f(h) {
+            case null { mapFilter<T, S>(t, f) }
+            case ?h_ { ?(h_, mapFilter<T, S>(t, f)) }
           }
-        };
+        }
       };
     };
 
@@ -229,8 +229,8 @@ module {
     func <T>(l : List<T>, m : List<T>) : List<T> {
       func rec(l : List<T>) : List<T> {
         switch l {
-        case null     { m };
-        case (?(h,t)) {?(h,rec(t))};
+          case null { m }
+          case ?(h, t) { ?(h, rec(t)) }
         }
       };
       rec(l)
@@ -243,7 +243,7 @@ module {
     // tail recursive, but requires "two passes"
     func<T>(l : List<List<T>>) : List<T> {
       // 1/2: fold from left to right, reverse-appending the sublists...
-      let r = foldLeft<List<T>, List<T>>(l, null, func(a,b) { revAppend<T>(a,b) });
+      let r = foldLeft<List<T>, List<T>>(l, null, func(a, b) { revAppend<T>(a, b) });
       // 2/2: ...re-reverse the elements, to their original order:
       rev<T>(r)
     };
@@ -251,8 +251,8 @@ module {
   // Internal utility-function
   func revAppend<T>(l1 : List<T>, l2 : List<T>) : List<T> {
     switch l1 {
-    case null     { l2 };
-    case (?(h,t)) { revAppend<T>(t, ?(h,l2)) };
+      case null { l2 }
+      case ?(h, t) { revAppend<T>(t, ?(h, l2)) }
     }
   };
 
@@ -264,9 +264,9 @@ module {
   public let take : <T>(List<T>, n:Nat) -> List<T> =
     func<T>(l : List<T>, n:Nat) : List<T> {
       switch (l, n) {
-      case (_, 0) { null };
-      case (null,_) { null };
-      case (?(h, t), m) {?(h, take<T>(t, m - 1))};
+        case (_, 0) { null }
+        case (null, _) { null }
+        case (?(h, t), m) { ?(h, take<T>(t, m - 1)) }
       }
     };
 
@@ -276,31 +276,31 @@ module {
   public let drop : <T>(List<T>, n:Nat) -> List<T> =
     func<T>(l : List<T>, n:Nat) : List<T> {
       switch (l, n) {
-        case (l_,     0) { l_ };
-        case (null,   _) { null };
-        case ((?(h,t)), m) { drop<T>(t, m - 1) };
+        case (l_, 0) { l_ }
+        case (null, _) { null }
+        case ((?(h, t)), m) { drop<T>(t, m - 1) }
       }
     };
 
   /**
   fold list left-to-right using function `f`.
   */
-  public let foldLeft : <T,S>(List<T>, S, f : (T,S) -> S) -> S =
-    func<T,S>(l : List<T>, a:S, f:(T,S) -> S) : S {
+  public let foldLeft : <T, S>(List<T>, S, f : (T, S) -> S) -> S =
+    func<T, S>(l : List<T>, a:S, f:(T, S) -> S) : S {
       switch l {
-        case null     { a };
-        case (?(h,t)) { foldLeft<T,S>(t, f(h,a), f) };
+        case null { a }
+        case ?(h, t) { foldLeft<T, S>(t, f(h, a), f) }
       };
     };
 
   /**
   fold the list right-to-left using function `f`.
   */
-  public let foldRight : <T,S>(List<T>, S, f : (T,S) -> S) -> S =
-    func<T,S>(l : List<T>, a:S, f:(T,S) -> S) : S {
+  public let foldRight : <T, S>(List<T>, S, f : (T, S) -> S) -> S =
+    func<T, S>(l : List<T>, a:S, f:(T, S) -> S) : S {
       switch l {
-        case null     { a };
-        case (?(h,t)) { f(h, foldRight<T,S>(t, a, f)) };
+        case null { a }
+        case ?(h, t) { f(h, foldRight<T, S>(t, a, f)) }
       };
     };
 
@@ -310,8 +310,8 @@ module {
   public let find : <T>(l: List<T>, f : T -> Bool) -> ?T =
     func<T>(l: List<T>, f:T -> Bool) : ?T {
       switch l {
-        case null     { null };
-        case (?(h,t)) { if (f(h)) { ?h } else { find<T>(t, f) } };
+        case null { null }
+        case ?(h, t) { if f(h) { ?h } else { find<T>(t, f) } }
       };
     };
 
@@ -321,8 +321,8 @@ module {
   public let exists : <T>(List<T>, f : T -> Bool) -> Bool =
     func<T>(l: List<T>, f:T -> Bool) : Bool {
       switch l {
-        case null     { false };
-        case (?(h,t)) { f(h) or exists<T>(t, f)};
+        case null { false }
+        case ?(h, t) { f(h) or exists<T>(t, f) }
       };
     };
 
@@ -332,8 +332,8 @@ module {
   public let all : <T>(List<T>, f : T -> Bool) -> Bool =
     func<T>(l: List<T>, f:T -> Bool) : Bool {
       switch l {
-        case null     { true };
-        case (?(h,t)) { f(h) and all<T>(t, f) };
+        case null { true }
+        case ?(h, t) { f(h) and all<T>(t, f) }
       }
     };
 
@@ -341,18 +341,18 @@ module {
   Given two lists that are orderd (with regard to the given relation `lte`),
   merge them into a single ordered list
   */
-  public let merge : <T>(List<T>, List<T>, lte : (T,T) -> Bool) -> List<T> =
-    func<T>(l1: List<T>, l2: List<T>, lte:(T,T) -> Bool) : List<T> {
+  public let merge : <T>(List<T>, List<T>, lte : (T, T) -> Bool) -> List<T> =
+    func<T>(l1: List<T>, l2: List<T>, lte:(T, T) -> Bool) : List<T> {
       switch (l1, l2) {
-        case (null, _) { l2 };
-        case (_, null) { l1 };
-        case (?(h1,t1), ?(h2,t2)) {
-          if (lte(h1,h2)) {
+        case (null, _) { l2 }
+        case (_, null) { l1 }
+        case (?(h1, t1), ?(h2, t2)) {
+          if lte(h1, h2) {
             ?(h1, merge<T>(t1, l2, lte))
           } else {
             ?(h2, merge<T>(l1, t2, lte))
           }
-        };
+        }
       }
     };
 
@@ -362,12 +362,12 @@ module {
   // To do: Eventually, follow `collate` design from SML Basis, with real sum
   // types, use 3-valued `order` type here.
   */
-  public let lessThanEq : <T>(List<T>, List<T>, lte: (T,T) -> Bool) -> Bool =
-    func<T>(l1: List<T>, l2: List<T>, lte:(T,T) -> Bool) : Bool {
+  public let lessThanEq : <T>(List<T>, List<T>, lte: (T, T) -> Bool) -> Bool =
+    func<T>(l1: List<T>, l2: List<T>, lte:(T, T) -> Bool) : Bool {
       switch (l1, l2) {
-        case (null, _) { true };
-        case (_, null) { false };
-        case (?(h1,t1), ?(h2,t2)) { lte(h1,h2) and lessThanEq<T>(t1, t2, lte) };
+        case (null, _) { true }
+        case (_, null) { false }
+        case (?(h1, t1), ?(h2, t2)) { lte(h1, h2) and lessThanEq<T>(t1, t2, lte) }
       };
     };
 
@@ -376,13 +376,13 @@ module {
 
   // `isEq(l1, l2)` is equivalent to `lessThanEq(l1,l2) && lessThanEq(l2,l1)`, but the former is more efficient.
   */
-  public let isEq : <T>(List<T>, List<T>, eq : (T,T) -> Bool) -> Bool =
-    func<T>(l1: List<T>, l2: List<T>, eq:(T,T) -> Bool) : Bool {
+  public let isEq : <T>(List<T>, List<T>, eq : (T, T) -> Bool) -> Bool =
+    func<T>(l1: List<T>, l2: List<T>, eq:(T, T) -> Bool) : Bool {
       switch (l1, l2) {
-        case (null, null) { true };
-        case (null, _)    { false };
-        case (_,    null) { false };
-        case (?(h1,t1), ?(h2,t2)) { eq(h1,h2) and isEq<T>(t1, t2, eq) };
+        case (null, null) { true }
+        case (null, _) { false }
+        case (_, null) { false }
+        case (?(h1, t1), ?(h2, t2)) { eq(h1, h2) and isEq<T>(t1, t2, eq) }
       }
     };
 
@@ -392,7 +392,7 @@ module {
   public let tabulate : <T>(Nat, f : Nat -> T) -> List<T> =
     func<T>(n:Nat, f:Nat -> T) : List<T> {
       func rec(i:Nat, n: Nat, f : Nat -> T) : List<T> {
-        if (i == n) { null } else { ?(f(i), rec(i+1, n, f)) }
+        if i == n { null } else { ?(f(i), rec(i + 1, n, f)) }
       };
       rec(0, n, f)
     };
@@ -433,11 +433,11 @@ module {
   */
   public let zipWith : <X, Y, Z>(List<X>, List<Y>, f : (X, Y) -> Z) -> List<Z> =
     func<X, Y, Z>(xs : List<X>, ys : List<Y>, f : (X, Y) -> Z) : List<Z> {
-      switch (pop<X>(xs)) {
-        case (null, _) null;
+      switch pop<X>(xs) {
+        case (null, _) { null }
         case (?x, xt) {
-          switch (pop<Y>(ys)) {
-            case (null, _) null;
+          switch pop<Y>(ys) {
+            case (null, _) { null }
             case (?y, yt) {
               push<Z>(f(x, y), zipWith<X, Y, Z>(xt, yt, f))
             }
@@ -451,16 +451,16 @@ module {
   */
   public let splitAt : <X>(Nat, List<X>) -> (List<X>, List<X>) =
     func<X>(n : Nat, xs : List<X>) : (List<X>, List<X>) {
-      if (n == 0) {
+      if n == 0 {
         (null, xs)
       } else {
         func rec(n : Nat, xs : List<X>) : (List<X>, List<X>) {
-          switch (pop<X>(xs)) {
+          switch pop<X>(xs) {
             case (null, _) {
               (null, null)
-            };
+            }
             case (?h, t) {
-              if (n == 1) {
+              if n == 1 {
                 (singleton<X>(h), t)
               } else {
                 let (l, r) = rec(n - 1, t);
@@ -480,7 +480,7 @@ module {
   public let chunksOf : <X>(Nat, List<X>) -> List<List<X>> =
     func<X>(n : Nat, xs : List<X>) : List<List<X>> {
       let (l, r) = splitAt<X>(n, xs);
-      if (isNil<X>(l)) {
+      if isNil<X>(l) {
         null
       } else {
         push<List<X>>(l, chunksOf<X>(n, r))
@@ -527,7 +527,7 @@ module {
       Array.thaw<A>(toArray<A>(xs));
     };
 
-/*
+  /*
 
 To do:
 --------

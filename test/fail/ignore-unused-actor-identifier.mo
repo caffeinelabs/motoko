@@ -1,2 +1,1 @@
-actor UnusedActorIdentifier {
-};
+actor UnusedActorIdentifier {};

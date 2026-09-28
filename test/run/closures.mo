@@ -27,5 +27,3 @@ var answer3 = 50;
 func test_answer3() { assert (answer3 == 51) };
 answer3 := 51;
 test_answer3();
-
-

@@ -10,7 +10,7 @@ actor {
   func Same<T>(_ : T, _ : T, _ : T) {};
 
   public func test() : async () {
-    let { go = go3 } = IC;     // general let-destructure of an actor handle
+    let { go = go3 } = IC; // general let-destructure of an actor handle
     Same(IC.go, go, go3)
   };
 };

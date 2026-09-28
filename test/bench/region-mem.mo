@@ -27,14 +27,14 @@ actor stablemem {
     let (m0, n0) = counters();
     var o : Nat64 = 0;
     var n16 : Nat16 = 0;
-    while (o < pages * 65536) {
+    while o < pages * 65536 {
       storeNat16(r, o, n16);
       o += 2;
       n16 +%= 1;
     };
     o := 0;
     n16 := 0;
-    while (o < pages * 65536) {
+    while o < pages * 65536 {
       let m16 = loadNat16(r, o);
       assert m16 == n16;
       o += 2;

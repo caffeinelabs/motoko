@@ -1,6 +1,6 @@
-lub-prim-sieve.mo:9.9-9.66: type error [M0059], operator is not defined for operand type
+lub-prim-sieve.mo:9.11-9.68: type error [M0059], operator is not defined for operand type
   [T11]
-lub-prim-sieve.mo:20.9-20.66: type error [M0059], operator is not defined for operand type
+lub-prim-sieve.mo:20.11-20.68: type error [M0059], operator is not defined for operand type
   [?(Nat,
      ?(Int,
        ?(Int,

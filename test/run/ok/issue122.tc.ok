@@ -1,2 +1,2 @@
-issue122.mo:1.8-1.25: warning [M0155], operator may trap for inferred type
+issue122.mo:1.8-1.27: warning [M0155], operator may trap for inferred type
   Nat

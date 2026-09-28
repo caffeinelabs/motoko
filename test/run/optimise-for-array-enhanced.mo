@@ -5,7 +5,7 @@ import Prim "mo:⛔";
 
 // CHECK-NOT:  call $@immut_array_size
 // DON'TCHECK: i64.load offset=17
-// CHECK:      i64.load offset= 
+// CHECK:      i64.load offset=
 // CHECK:      i64.const 2
 // CHECK:      i64.shr_s
 // CHECK-NEXT: i64.const 3
@@ -14,7 +14,7 @@ import Prim "mo:⛔";
 // CHECK:      local.tee $check0
 // CHECK:      i64.const 4
 // CHECK:      i64.add
-for (check0 in ["hello", "world"].values()) { Prim.debugPrint check0 };
+for check0 in ["hello", "world"].values() { Prim.debugPrint check0 };
 
 // CHECK-NOT:  call $@mut_array_size
 // DON'TCHECK: i64.load offset=17
@@ -29,7 +29,7 @@ for (check0 in ["hello", "world"].values()) { Prim.debugPrint check0 };
 // CHECK:      call $print_ptr
 // CHECK:      i64.const 4
 // CHECK:      i64.add
-for (check1Values in [var "hello", "mutable", "world"].values()) { Prim.debugPrint check1Values };
+for check1Values in [var "hello", "mutable", "world"].values() { Prim.debugPrint check1Values };
 
 let array = [var "hello", "mutable", "world"];
 array[1] := "remutable";
@@ -43,7 +43,7 @@ array[1] := "remutable";
 // DON'T-CHECK: local.set $check2
 // `arr` being a `VarE` already (but we rebind anyway, otherwise we open a can of worms)
 // later when we have path compression for variables in the backend, we can bring this back
-for (check2 in array.values()) { Prim.debugPrint check2 };
+for check2 in array.values() { Prim.debugPrint check2 };
 
 // FIX-CHECK-NOT:  call $@immut_array_size
 // DON'TCHECK: i64.load offset=17
@@ -57,7 +57,6 @@ for (check2 in array.values()) { Prim.debugPrint check2 };
 // interfering parentheses don't disturb us
 for (check3 in (((["hello", "immutable", "world"].values())))) { Prim.debugPrint check3 };
 
-
 // FIX-CHECK:      i64.const 170
 // FIX-CHECK:      call $B_add
 // FIX-CHECK-NEXT: call $B_eq
@@ -70,8 +69,8 @@ for (check3 in (((["hello", "immutable", "world"].values())))) { Prim.debugPrint
 // FIX-CHECK-NEXT: else
 // bottom iteration expression is treated fairly
 var c = 42;
-if (c == c + 1) {
-    for (check4 in (loop {}).values()) { Prim.debugPrint check4 }
+if c == c + 1 {
+  for check4 in (loop {}).values() { Prim.debugPrint check4 }
 };
 
 // FIX-CHECK:      i64.const 170
@@ -86,8 +85,8 @@ if (c == c + 1) {
 // FIX-CHECK-NEXT: else
 // bottom iteration expression is treated fairly
 c := 42;
-if (c == c + 1) {
-    for (check4 in (loop {}).values()) { Prim.debugPrint check4 }
+if c == c + 1 {
+  for check4 in (loop {}).values() { Prim.debugPrint check4 }
 };
 
 // FIX-CHECK:      call $B_add
@@ -100,8 +99,8 @@ if (c == c + 1) {
 // FIX-CHECK-NEXT: unreachable
 // FIX-CHECK-NEXT: else
 // typed bottom iteration expression is treated fairly
-if (c == c + 1) {
-    for (check5 in ((loop {}) : [Text]).values()) { Prim.debugPrint check5 }
+if c == c + 1 {
+  for check5 in ((loop {}) : [Text]).values() { Prim.debugPrint check5 }
 };
 
 // FIX-CHECK:      call $B_add
@@ -114,22 +113,22 @@ if (c == c + 1) {
 // FIX-CHECK-NEXT: unreachable
 // FIX-CHECK-NEXT: else
 // typed bottom iteration expression is treated fairly
-if (c == c + 1) {
-    for (check5 in ((loop {}) : [Text]).values()) { Prim.debugPrint check5 }
+if c == c + 1 {
+  for check5 in ((loop {}) : [Text]).values() { Prim.debugPrint check5 }
 };
 
 let check6 = [var "hello", "immutable", "world"];
 check6[1] := "mutable";
 // `check6` being a `VarE` already and iteration variable is named identically
 // this passes the IR type check, which demonstrates that no name capture happens
-for (check6 in check6.values()) { ignore check6 };
+for check6 in check6.values() { ignore check6 };
 
 // DON'TCHECK: i64.load offset=17
 // FIX-CHECK:      i64.load offset=
 // FIX-CHECK:      i64.const 3
 // FIX-CHECK:      i64.shl
 // argument to vals can have an effect too, expect it
-for (check7 in [].values(Prim.debugPrint "want to see you")) { };
+for check7 in [].values(Prim.debugPrint "want to see you") {};
 
 // FIX-CHECK:      local.set $num8
 // FIX-CHECK-NOT:  call $@immut_array_size
@@ -146,14 +145,14 @@ var num8 = 42;
 num8 := 25;
 // `keys` is even easier to rewrite, as the "indexing expression" is just the
 // indexing variable itself
-for (check8 in ["hello", "keyed", "world"].keys()) { ignore (check8 + num8) };
+for check8 in ["hello", "keyed", "world"].keys() { ignore (check8 + num8) };
 
 // polymorphic arrays should still work
 func _f9<A>(array : [A]) {
-  for (check9 in array.keys()) { }
+  for check9 in array.keys() {}
 };
 
 // make sure that one-byte-sized elements still work
 var sum10 : Nat8 = 0;
-for (check10 in ([3, 5, 7, 11] : [Nat8]).values()) { sum10 += check10 };
+for check10 in ([3, 5, 7, 11] : [Nat8]).values() { sum10 += check10 };
 assert sum10 == 26;

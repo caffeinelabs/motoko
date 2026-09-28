@@ -2,18 +2,18 @@
 import Prim "mo:prim";
 
 actor {
-    var unsigned : Nat = 12345678901234567890123456789012345678901234567890123456789012345678901234567890;
-    var signed : Int = -12345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  var unsigned : Nat = 12345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  var signed : Int = -12345678901234567890123456789012345678901234567890123456789012345678901234567890;
 
-    public func modify() : async () {
-        unsigned := 2 * unsigned + 1;
-        signed := 2 * signed - 1;
-    };
+  public func modify() : async () {
+    unsigned := 2 * unsigned + 1;
+    signed := 2 * signed - 1;
+  };
 
-    public func print() : async () {
-        Prim.debugPrint(debug_show (unsigned));
-        Prim.debugPrint(debug_show (signed));
-    };
+  public func print() : async () {
+    Prim.debugPrint(debug_show (unsigned));
+    Prim.debugPrint(debug_show (signed));
+  };
 };
 
 //CALL ingress print "DIDL\x00\x00"

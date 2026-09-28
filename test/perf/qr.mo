@@ -76,7 +76,7 @@ actor QR {
       func(accum1, array) {
         Array.foldl<Bool, Text>(
           func(accum2, bit) {
-            let text = if bit "##" else "  ";
+            let text = if bit { "##" } else { "  " };
             text # accum2;
           },
           "\n",
@@ -94,12 +94,12 @@ actor QR {
       (#Version 1, #Q, #Alphanumeric, "HELLO WORLD"),
       (#Version 2, #M, #Alphanumeric, "HTTPS://SDK.DFINITY.ORG"),
     ];
-    for ((version, level, mode, text) in tests.values()) {
+    for (version, level, mode, text) in tests.values() {
       let result = await QR.encode(version, level, mode, text);
       Prelude.printLn(
         switch result {
-          case (?matrix) "\n" # (await QR.show(matrix));
-          case _ "Error: Invalid input!";
+          case ?matrix { "\n" # (await QR.show(matrix)) }
+          case _ { "Error: Invalid input!" }
         }
       );
     };

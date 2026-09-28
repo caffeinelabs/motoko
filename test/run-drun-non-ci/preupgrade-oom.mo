@@ -11,30 +11,30 @@ actor {
   ignore P.regionGrow(r, 1);
 
   system func preupgrade() {
-   // allocate up to last page
-   P.debugPrint("(pre");
-   while (P.rts_memory_size() / 65536 < 65534) {
-     ignore P.regionLoadBlob(r, 0, 65536);
-   };
-   P.debugPrint("filled");
+    // allocate up to last page
+    P.debugPrint("(pre");
+    while P.rts_memory_size() / 65536 < 65534 {
+      ignore P.regionLoadBlob(r, 0, 65536);
+    };
+    P.debugPrint("filled");
 
-   P.debugPrint(debug_show(P.rts_memory_size() / 65536));
-   // try to trigger oom on last page
-   P.debugPrint("try to trigger OOM");
-   do {
-     var i = 32768;
-     while (i > 0) {
-       ignore P.regionLoadBlob(r, 0, i);
-       i /= 2;
-     };
-   };
-   P.debugPrint("pre)");
+    P.debugPrint(debug_show(P.rts_memory_size() / 65536));
+    // try to trigger oom on last page
+    P.debugPrint("try to trigger OOM");
+    do {
+      var i = 32768;
+      while i > 0 {
+        ignore P.regionLoadBlob(r, 0, i);
+        i /= 2;
+      };
+    };
+    P.debugPrint("pre)");
   };
 
   system func postupgrade() {
-   P.debugPrint("(post");
-   P.trap("deliberate trap - this code should not be reached!");
-   P.debugPrint("post)");
+    P.debugPrint("(post");
+    P.trap("deliberate trap - this code should not be reached!");
+    P.debugPrint("post)");
   };
 
 }

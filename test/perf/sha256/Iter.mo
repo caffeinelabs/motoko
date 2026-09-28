@@ -33,14 +33,14 @@ module {
   /// ```
   public class range(x : Nat, y : Int) {
     var i = x;
-    public func next() : ?Nat { if (i > y) { null } else {let j = i; i += 1; ?j} };
+    public func next() : ?Nat { if i > y { null } else { let j = i; i += 1; ?j } };
   };
 
   /// Like `range` but produces the values in the opposite
   /// order.
   public class revRange(x : Int, y : Int) {
-      var i = x;
-      public func next() : ?Int { if (i < y) { null } else {let j = i; i -= 1; ?j} };
+    var i = x;
+    public func next() : ?Int { if i < y { null } else { let j = i; i -= 1; ?j } };
   };
 
   /// Calls a function `f` on every value produced by an iterator and discards
@@ -60,13 +60,13 @@ module {
   ) {
     var i = 0;
     label l loop {
-      switch (xs.next()) {
-        case (?next) {
+      switch xs.next() {
+        case ?next {
           f(next, i);
-        };
-        case (null) {
+        }
+        case null {
           break l;
-        };
+        }
       };
       i += 1;
       continue l;
@@ -94,13 +94,13 @@ module {
   /// ```
   public func map<A, B>(xs : Iter<A>, f : A -> B) : Iter<B> = object {
     public func next() : ?B {
-      switch (xs.next()) {
-        case (?next) {
+      switch xs.next() {
+        case ?next {
           ?f(next);
-        };
-        case (null) {
+        }
+        case null {
           null;
-        };
+        }
       };
     };
   };
@@ -118,15 +118,15 @@ module {
   public func filter<A>(xs : Iter<A>, f : A -> Bool) : Iter<A> = object {
     public func next() : ?A {
       loop {
-        switch (xs.next()) {
-          case (null) {
+        switch xs.next() {
+          case null {
             return null;
-          };
-          case (?x) {
-            if (f(x)) {
+          }
+          case ?x {
+            if f(x) {
               return ?x;
             };
-          };
+          }
         };
       };
       null;
@@ -162,7 +162,7 @@ module {
     let size = xs.size();
     object {
       public func next() : ?A {
-        if (ix >= size) {
+        if ix >= size {
           return null
         } else {
           let res = ?(xs[ix]);

@@ -1,2 +1,2 @@
-M0113.mo:1.5-1.10: type error [M0113], object pattern cannot consume expected type
+M0113.mo:1.5-1.12: type error [M0113], object pattern cannot consume expected type
 expected `Bool`, got object type

@@ -2,13 +2,13 @@
 import Mixin "enhanced-migration-mixin/Mixin";
 
 actor {
-    let actorInt : Int;
-    ignore actorInt;
+  let actorInt : Int;
+  ignore actorInt;
 
-    include Mixin();
+  include Mixin();
 
-    let actorText : Text;
-    ignore actorText;
+  let actorText : Text;
+  ignore actorText;
 };
 
 //SKIP run-ir

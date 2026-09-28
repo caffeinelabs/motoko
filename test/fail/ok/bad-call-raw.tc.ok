@@ -1,2 +1,2 @@
-bad-call-raw.mo:4.11-4.53: type error [M0047], send capability required, but not available
+bad-call-raw.mo:4.11-4.55: type error [M0047], send capability required, but not available
  (need an enclosing async expression or function body)

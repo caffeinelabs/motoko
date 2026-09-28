@@ -1,1 +1,1 @@
-not-compile/not-compile.mo:2.5-2.25: type error [M0057], unbound variable _this_doesnt_compile
+not-compile/not-compile.mo:2.3-2.23: type error [M0057], unbound variable _this_doesnt_compile

@@ -1,11 +1,11 @@
 //MOC-FLAG -A=M0194
 class QS<T>(cmp : (T, T) -> Int) {
   public func quicksort(a : [var T], lo : Nat, hi : Nat) {
-   	if (lo < hi) {
+    if lo < hi {
       let p = partition(a, lo, hi);
-	    quicksort(a, lo, p);
-	    quicksort(a, p + 1, hi); 
-	  }
+      quicksort(a, lo, p);
+      quicksort(a, p + 1, hi);
+    }
   };
 
   func swap(a : [var T], i : Nat, j : Nat) {
@@ -15,20 +15,20 @@ class QS<T>(cmp : (T, T) -> Int) {
   };
 
   func trace<T>(v : T) {};
-   
+
   func partition(a : [var T], lo : Nat, hi : Nat) : Nat {
     trace<[var T]>(a);
     let pivot = a[lo];
     var i = lo;
     var j = hi;
     loop {
-      while (cmp(a[i], pivot) < 0) {
+      while cmp(a[i], pivot) < 0 {
         i += 1;
       };
-      while (cmp(a[j], pivot) > 0) {
+      while cmp(a[j], pivot) > 0 {
         j -= 1;
       };
-      if (i >= j) return j;
+      if i >= j { return j };
       swap(a, i, j);
       i += 1;
       j -= 1;

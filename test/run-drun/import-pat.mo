@@ -15,13 +15,11 @@ import {
   inc
 } = "import-pat/A";
 
-
-
 actor {
 
-   type U = A.T;
-   P.debugPrint(debug_show(A.inc(A.start)));
-   P.debugPrint(debug_show(next(start)));
-   P.debugPrint(debug_show(inc(begin)));
+  type U = A.T;
+  P.debugPrint(debug_show(A.inc(A.start)));
+  P.debugPrint(debug_show(next(start)));
+  P.debugPrint(debug_show(inc(begin)));
 
 }

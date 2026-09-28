@@ -20,6 +20,7 @@ module {
     };
     await ic00.provisional_top_up_canister({
       canister_id = Prim.principalOfActor(a);
-      amount = amount_})
+      amount = amount_
+    })
   }
 }

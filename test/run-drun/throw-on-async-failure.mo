@@ -13,7 +13,7 @@ actor {
 
   public func test1() : async () {
     var n = 0;
-    while (n < DOUBLE_CAPACITY) {
+    while n < DOUBLE_CAPACITY {
       ignore async ();
       n += 1;
     }
@@ -23,17 +23,16 @@ actor {
   public func test2() : async () {
     try {
       var n = 0;
-      while (n < DOUBLE_CAPACITY) {
+      while n < DOUBLE_CAPACITY {
         ignore async();
         n += 1;
       }
     } catch e {
-      assert (Prim.errorCode(e) == #call_error {err_code = 2});
+      assert (Prim.errorCode(e) == #call_error { err_code = 2 });
       Prim.debugPrint("caught " # showError(e));
       throw e;
     }
   };
-
 
   public func go() : async () {
 

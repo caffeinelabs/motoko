@@ -76,7 +76,8 @@ do {
   module CoreOps {
     public func sortNats(arr : [Nat]) : [Nat] = arr.sort();
     public func eqNatArrays(
-      a : [Nat], b : [Nat],
+      a : [Nat],
+      b : [Nat],
       equal : (implicit : ([Nat], [Nat]) -> Bool),
     ) : Bool = equal(a, b);
   };

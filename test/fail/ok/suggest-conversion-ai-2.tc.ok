@@ -1,4 +1,4 @@
-suggest-conversion-ai-2.mo:8.3-8.5: type error [M0096], expression of type
+suggest-conversion-ai-2.mo:9.3-9.5: type error [M0096], expression of type
   Nat8
 cannot produce expected type
   Nat
@@ -7,7 +7,7 @@ Maybe try conversion:
   `Nat8.fromNat8(_)`,
   `Nat8.Outer.Inner.toNat(_)` or
   `Nat8.Outer.Inner.fromNat8(_)`?
-suggest-conversion-ai-2.mo:9.3-9.6: type error [M0096], expression of type
+suggest-conversion-ai-2.mo:10.3-10.6: type error [M0096], expression of type
   Nat16
 cannot produce expected type
   Nat

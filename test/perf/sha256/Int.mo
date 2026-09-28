@@ -17,7 +17,7 @@ module {
 
   /// Conversion.
   public let toText : Int -> Text = func(x) {
-    if (x == 0) {
+    if x == 0 {
       return "0";
     };
 
@@ -27,20 +27,20 @@ module {
     var text = "";
     let base = 10;
 
-    while (int > 0) {
+    while int > 0 {
       let rem = int % base;
-      text := (switch (rem) {
-        case 0 { "0" };
-        case 1 { "1" };
-        case 2 { "2" };
-        case 3 { "3" };
-        case 4 { "4" };
-        case 5 { "5" };
-        case 6 { "6" };
-        case 7 { "7" };
-        case 8 { "8" };
-        case 9 { "9" };
-        case _ { Prelude.unreachable() };
+      text := (switch rem {
+        case 0 { "0" }
+        case 1 { "1" }
+        case 2 { "2" }
+        case 3 { "3" }
+        case 4 { "4" }
+        case 5 { "5" }
+        case 6 { "6" }
+        case 7 { "7" }
+        case 8 { "8" }
+        case 9 { "9" }
+        case _ { Prelude.unreachable() }
       }) # text;
       int := int / base;
     };
@@ -50,12 +50,12 @@ module {
 
   /// Returns the minimum of `x` and `y`.
   public func min(x : Int, y : Int) : Int {
-    if (x < y) { x } else { y };
+    if x < y { x } else { y };
   };
 
   /// Returns the maximum of `x` and `y`.
   public func max(x : Int, y : Int) : Int {
-    if (x < y) { y } else { x };
+    if x < y { y } else { x };
   };
 
   /// Returns `x == y`.
@@ -78,8 +78,8 @@ module {
 
   /// Returns the order of `x` and `y`.
   public func compare(x : Int, y : Int) : { #less; #equal; #greater } {
-    if (x < y) { #less }
-    else if (x == y) { #equal }
+    if x < y { #less }
+    else if x == y { #equal }
     else { #greater }
   };
 
@@ -107,4 +107,3 @@ module {
   public func pow(x : Int, y : Int) : Int { x ** y };
 
 }
-

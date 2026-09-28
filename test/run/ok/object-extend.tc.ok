@@ -1,20 +1,20 @@
 object-extend.mo:49.16-49.21: warning [M0215], field `l` is provided but not expected in record of type
   {}
-object-extend.mo:74.67-74.75: warning [M0215], field `bur` is provided but not expected in record extension of type
+object-extend.mo:73.67-73.75: warning [M0215], field `bur` is provided but not expected in record extension of type
   {bar : Nat; next : () -> ?Text}
-object-extend.mo:75.48-75.61: warning [M0215], field `quux` is provided but not expected in record of type
+object-extend.mo:74.48-74.61: warning [M0215], field `quux` is provided but not expected in record of type
   {foo : Text}
-object-extend.mo:76.77-76.81: warning [M0215], public field `quux` is provided but not expected in object of type
+object-extend.mo:75.77-75.81: warning [M0215], public field `quux` is provided but not expected in object of type
   {foo : Text}
-object-extend.mo:77.71-77.75: warning [M0215], public field `quux` is provided but not expected in object of type
+object-extend.mo:76.71-76.75: warning [M0215], public field `quux` is provided but not expected in object of type
   {foo : Text}
-object-extend.mo:78.47-78.51: warning [M0215], public field `quux` is provided but not expected in object of type
+object-extend.mo:77.47-77.51: warning [M0215], public field `quux` is provided but not expected in object of type
   {foo : Text}
-object-extend.mo:81.88-81.92: warning [M0215], public type `Quux` is provided but not expected in object of type
+object-extend.mo:80.88-80.92: warning [M0215], public type `Quux` is provided but not expected in object of type
   {foo : Text}
-object-extend.mo:83.100-83.104: warning [M0215], public field `Quux` is provided but not expected in object of type
+object-extend.mo:82.100-82.104: warning [M0215], public field `Quux` is provided but not expected in object of type
   {type Quux = Text; foo : Text}
-object-extend.mo:85.77-85.81: warning [M0215], public type `Quux` is provided but not expected in object of type
+object-extend.mo:84.77-84.81: warning [M0215], public type `Quux` is provided but not expected in object of type
   {foo : Text}
-object-extend.mo:86.66-86.70: warning [M0215], public type `Quux` is provided but not expected in object of type
+object-extend.mo:85.66-85.70: warning [M0215], public type `Quux` is provided but not expected in object of type
   {foo : Text}

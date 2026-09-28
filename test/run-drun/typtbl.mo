@@ -5,7 +5,7 @@ actor {
   debugPrint (debug_show (getCandidTypeLimits<system>()));
   setCandidTypeLimits<system> { scalar = 1; bias = 0 };
   debugPrint (debug_show (getCandidTypeLimits<system>()));
-  
+
   transient let ?contents : ?() = from_candid "DIDL\00\00";
   debugPrint "worked";
 

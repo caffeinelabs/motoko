@@ -1,17 +1,17 @@
+commit-on-await.mo:25.9-25.10: warning [M0145], this pattern of type
+  Nat
+does not cover value
+  0 or 2 or _
 commit-on-await.mo:27.9-27.10: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 2 or _
-commit-on-await.mo:29.9-29.10: warning [M0145], this pattern of type
-  Nat
-does not cover value
-  0 or 2 or _
-commit-on-await.mo:42.9-42.15: warning [M0145], this pattern of type
+commit-on-await.mo:40.9-40.15: warning [M0145], this pattern of type
   (Nat, Nat)
 does not cover value
   (1, 0 or 1 or _) or
   (0 or 2 or _, _)
-commit-on-await.mo:44.9-44.15: warning [M0145], this pattern of type
+commit-on-await.mo:42.9-42.15: warning [M0145], this pattern of type
   (Nat, Nat)
 does not cover value
   (1, 0 or 1 or _) or

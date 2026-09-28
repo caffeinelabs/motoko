@@ -5,13 +5,13 @@
 
 import Prim "mo:⛔";
 module {
-  public func equals<A>(a : [A], b : [A], eq : (A,A) -> Bool) : Bool {
-    if (a.size() != b.size()) {
+  public func equals<A>(a : [A], b : [A], eq : (A, A) -> Bool) : Bool {
+    if a.size() != b.size() {
       return false;
     };
     var i = 0;
-    while (i < a.size()) {
-      if (not eq(a[i],b[i])) {
+    while i < a.size() {
+      if not eq(a[i], b[i]) {
         return false;
       };
       i += 1;
@@ -21,24 +21,24 @@ module {
 
   public func append<A>(xs : [A], ys : [A]) : [A] {
     switch(xs.size(), ys.size()) {
-      case (0, 0) { []; };
-      case (0, _) { ys; };
-      case (_, 0) { xs; };
+      case (0, 0) { []; }
+      case (0, _) { ys; }
+      case (_, 0) { xs; }
       case (xsLen, ysLen) {
         Prim.Array_tabulate<A>(xsLen + ysLen, func (i : Nat) : A {
-          if (i < xsLen) {
+          if i < xsLen {
             xs[i];
           } else {
             ys[i - xsLen];
           };
         });
-      };
+      }
     };
   };
 
   public func apply<A, B>(fs : [A -> B], xs : [A]) : [B] {
     var ys : [B] = [];
-    for (f in fs.values()) {
+    for f in fs.values() {
       ys := append<B>(ys, map<A, B>(f, xs));
     };
     ys;
@@ -46,7 +46,7 @@ module {
 
   public func bind<A, B>(xs : [A], f : A -> [B]) : [B] {
     var ys : [B] = [];
-    for (i in xs.keys()) {
+    for i in xs.keys() {
       ys := append<B>(ys, f(xs[i]));
     };
     ys;
@@ -60,8 +60,8 @@ module {
 
   public func filter<A>(f : A -> Bool, xs : [A]) : [A] {
     var ys : [A] = [];
-    for (x in xs.values()) {
-      if (f(x)) {
+    for x in xs.values() {
+      if f(x) {
         ys := append<A>(ys, [x]);
       };
     };
@@ -72,7 +72,7 @@ module {
     var acc = initial;
     let len = xs.size();
     var i = 0;
-    while (i < len) {
+    while i < len {
       acc := f(acc, xs[i]);
       i += 1;
     };
@@ -83,7 +83,7 @@ module {
     var acc = initial;
     let len = xs.size();
     var i = len;
-    while (i > 0) {
+    while i > 0 {
       i -= 1;
       acc := f(xs[i], acc);
     };
@@ -91,8 +91,8 @@ module {
   };
 
   public func find<A>(f : A -> Bool, xs : [A]) : ?A {
-    for (x in xs.values()) {
-      if (f(x)) {
+    for x in xs.values() {
+      if f(x) {
         return ?x;
       }
     };
@@ -129,34 +129,34 @@ module {
 
   public func thaw<A>(xs : [A]) : [var A] {
     let xsLen = xs.size();
-    if (xsLen == 0) {
+    if xsLen == 0 {
       return [var];
     };
     let ys = Prim.Array_init<A>(xsLen, xs[0]);
-    for (i in ys.keys()) {
+    for i in ys.keys() {
       ys[i] := xs[i];
     };
     ys;
   };
 
-  public func init<A>(len : Nat,  x : A) : [var A] {
+  public func init<A>(len : Nat, x : A) : [var A] {
     Prim.Array_init<A>(len, x);
   };
 
-  public func tabulate<A>(len : Nat,  gen : Nat -> A) : [A] {
+  public func tabulate<A>(len : Nat, gen : Nat -> A) : [A] {
     Prim.Array_tabulate<A>(len, gen);
   };
 
   // copy from iter.mo, but iter depends on array
   class range(x : Nat, y : Nat) {
     var i = x;
-    public func next() : ?Nat { if (i > y) null else {let j = i; i += 1; ?j} };
+    public func next() : ?Nat { if i > y { null } else { let j = i; i += 1; ?j } };
   };
 
-  public func tabulateVar<A>(len : Nat,  gen : Nat -> A) : [var A] {
-    if (len == 0) { return [var] };
+  public func tabulateVar<A>(len : Nat, gen : Nat -> A) : [var A] {
+    if len == 0 { return [var] };
     let xs = Prim.Array_init<A>(len, gen 0);
-    for (i in range(1,len-1)) {
+    for i in range(1, len - 1) {
       xs[i] := gen i;
     };
     return xs;

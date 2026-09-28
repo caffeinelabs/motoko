@@ -24,7 +24,7 @@ actor {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       len += hashArray[i].index;
       i += 1;
     };
@@ -33,24 +33,24 @@ actor {
   func getLiveBlobs(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       var list = hashArray[i];
       label countLoop loop {
         let weakRef = list.value;
         switch weakRef {
-          case (?weakRef) {
+          case ?weakRef {
             let deref = Prim.weakGet(weakRef.ref);
             switch deref {
-              case (?deref) { len += 1 };
-              case null {};
+              case ?deref { len += 1 }
+              case null {}
             };
-          };
-          case null {};
+          }
+          case null {}
         };
         let next = list.next;
         switch next {
-          case (?next) { list := next };
-          case null { break countLoop };
+          case ?next { list := next }
+          case null { break countLoop }
         };
       };
       i += 1;
@@ -59,16 +59,16 @@ actor {
   };
   func showMeAllBlobs(hashArray : [var List]) : () {
     var i = 0;
-    while (i < 16_384) {
+    while i < 16_384 {
       // Deref the weak ref.
       let weakRef = hashArray[i].value;
       switch weakRef {
-        case (?weakRef) {
+        case ?weakRef {
           Prim.debugPrint(debug_show (hashArray[i].originalBlob));
           Prim.debugPrint(debug_show ("============"));
           Prim.debugPrint(debug_show (weakRef.ref));
-        };
-        case null {};
+        }
+        case null {}
       };
       i += 1;
     };
@@ -78,12 +78,12 @@ actor {
 
     let hash = Prim.__getDedupTable();
     switch hash {
-      case (?hashArray) {
+      case ?hashArray {
         Prim.debugPrint(debug_show (getHashArrayLen(hashArray)));
         assert (getHashArrayLen(hashArray) == 6);
         //showMeAllBlobs(hashArray);
-      };
-      case null {};
+      }
+      case null {}
     };
 
   };
@@ -100,7 +100,7 @@ actor {
 
     var n = 20;
     // try to trigger GC.
-    while (n > 0) {
+    while n > 0 {
       // Allocate large array.
       let _arr = Prim.Array_init<Nat>(1_000 * 1_000, 1);
       await async {};
@@ -109,22 +109,22 @@ actor {
 
     let hash = Prim.__getDedupTable();
     switch hash {
-      case (?hashArray) {
+      case ?hashArray {
         // The number of live blobs should be 3.
         // because only blobs from v1 are kept alive.
         // blobs from v2 are collected by the GC since there is nothing referencing them.
         Prim.debugPrint(debug_show (getLiveBlobs(hashArray)));
         assert (getLiveBlobs(hashArray) == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
 
     let deadBlobs = Prim.getDeadBlobs();
     switch deadBlobs {
-      case (?deadBlobs) {
+      case ?deadBlobs {
         assert (deadBlobs.size() == 3);
-      };
-      case null {};
+      }
+      case null {}
     };
 
     assert (Prim.isStorageBlobLive("coffeerules") == false);
@@ -137,10 +137,10 @@ actor {
 
     let deadBlobs2 = Prim.getDeadBlobs();
     switch deadBlobs2 {
-      case (?deadBlobs) {
+      case ?deadBlobs {
         assert (deadBlobs.size() == 2);
-      };
-      case null {};
+      }
+      case null {}
     };
 
   };

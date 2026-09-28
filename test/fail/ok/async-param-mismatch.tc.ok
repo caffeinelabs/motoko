@@ -1,1 +1,1 @@
-async-param-mismatch.mo:4.8-4.22: type error [M0045], wrong number of type arguments: expected 2 but got 1
+async-param-mismatch.mo:4.8-4.23: type error [M0045], wrong number of type arguments: expected 2 but got 1

@@ -1,12 +1,11 @@
 // test pretty printing of inference errors
-func p<T,U>(x : T, y: U) : (T, U) { (x,y);};
-let p1 = p(1,true);
+func p<T, U>(x : T, y: U) : (T, U) { (x, y); };
+let p1 = p(1, true);
 
 let p2 = p(p1, p1);
 let p3 = p(p2, p2);
 let p4 = p(p3, p3);
 let p5 = p(p4, p4);
-
 
 func f<T <: ()>(x:T) {};
 
@@ -22,7 +21,7 @@ f(p4);
 
 f(p5);
 
-type C<X> = (X,X);
+type C<X> = (X, X);
 func g<T <: C<C<C<C<Nat>>>>>(x:T) {};
 
 g(1);

@@ -1,7 +1,7 @@
 let a = 'N';
 
-func foo() = if (a == 'Y') {} else {};
-func barX() = if (a == 'Y') {} else {};
+func foo() = if a == 'Y' {} else {};
+func barX() = if a == 'Y' {} else {};
 
 barX();
 foo();

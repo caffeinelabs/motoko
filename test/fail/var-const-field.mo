@@ -1,1 +1,1 @@
-let o : {var x : Nat} = {x = 0};
+let o : { var x : Nat } = { x = 0 };

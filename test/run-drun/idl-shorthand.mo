@@ -1,5 +1,5 @@
 actor {
-  public type Foo = { #nil;  };
+  public type Foo = { #nil; };
   public query func foo(#nil) : async Foo {
     #nil;
   }

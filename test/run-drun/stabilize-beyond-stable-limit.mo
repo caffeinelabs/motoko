@@ -9,26 +9,26 @@ import Prim "mo:prim";
 
 actor {
 
-    let pages : Nat64 = 16;
-    let r = Prim.regionNew();
-    if (Prim.regionSize(r) == 0) {
-      Prim.debugPrint("growing stable memory");
-      ignore Prim.regionGrow(r, pages);
-    };
-    assert Prim.regionSize(r) == pages;
-    let blob = Prim.regionLoadBlob(r, 0, 65536);
+  let pages : Nat64 = 16;
+  let r = Prim.regionNew();
+  if Prim.regionSize(r) == 0 {
+    Prim.debugPrint("growing stable memory");
+    ignore Prim.regionGrow(r, pages);
+  };
+  assert Prim.regionSize(r) == pages;
+  let blob = Prim.regionLoadBlob(r, 0, 65536);
 
-    public func check() : async () {
-        Prim.debugPrint(debug_show (blob.size()))
-    };
+  public func check() : async () {
+    Prim.debugPrint(debug_show (blob.size()))
+  };
 
-    system func preupgrade() {
-        Prim.debugPrint("PRE-UPGRADE HOOK!");
-    };
+  system func preupgrade() {
+    Prim.debugPrint("PRE-UPGRADE HOOK!");
+  };
 
-    system func postupgrade() {
-        Prim.debugPrint("POST-UPGRADE HOOK!");
-    };
+  system func postupgrade() {
+    Prim.debugPrint("POST-UPGRADE HOOK!");
+  };
 };
 
 //CALL ingress check "DIDL\x00\x00"

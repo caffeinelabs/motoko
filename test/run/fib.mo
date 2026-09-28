@@ -1,9 +1,9 @@
 let a = [var 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 var i = 1;
-while (i < 10) {
+while i < 10 {
   i += 1;
-  a[i] := a[i-1] + a[i-2];
+  a[i] := a[i - 1] + a[i - 2];
 };
 
 assert (i == 10);

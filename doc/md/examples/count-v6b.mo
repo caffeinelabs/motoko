@@ -2,8 +2,9 @@ import Runtime "mo:core/Runtime";
 import Float "mo:core/Float";
 
 (with migration =
-  func (_ : {var state : Int}) : {} { // discard old state
-   {}
+  func (_ : { var state : Int }) : {} {
+    // discard old state
+    {}
   }
 )
 actor Counter_v6 {

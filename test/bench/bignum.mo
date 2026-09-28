@@ -19,7 +19,7 @@ actor Bignum {
   public func go() : async () {
     let (size0, perf0) = counters();
 
-    while (steps < 12) {
+    while steps < 12 {
       nat := nat * 5 * nat;
       arr[steps] := nat;
       steps := steps + 1;

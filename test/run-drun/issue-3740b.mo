@@ -6,7 +6,7 @@ actor {
   };
 
   public func go() : async () {
-    let (0,true) = await f();
+    let (0, true) = await f();
   };
 
 }

@@ -11,7 +11,7 @@ actor class Counter() {
   };
 
   system func preupgrade() {
-    Prim.debugPrint (debug_show({pre=count}));
+    Prim.debugPrint (debug_show({ pre=count }));
   };
 
   transient let f = func(){};

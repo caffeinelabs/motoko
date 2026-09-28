@@ -6,6 +6,6 @@
 // other migration input is demanded — only the actor's own fields b and c,
 // both in the baseline. The check is silent.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

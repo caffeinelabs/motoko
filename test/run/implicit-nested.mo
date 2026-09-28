@@ -7,7 +7,7 @@ type Monoid<T> = module {
 
 func fold<T>(xs : [T], Monoid : (implicit : Monoid<T>)) : T {
   var acc = Monoid.empty();
-  for (x in xs.values()) {
+  for x in xs.values() {
     acc := Monoid.combine(acc, x);
   };
   acc;
@@ -25,21 +25,21 @@ module Monoids {
       public module Three {
         public module Four {
           public module Five {
-           public module Six {
-             public module Seven {
-               // Maximum search depth for nested modules
-               public module Monoid {
-                 public func empty() : Nat = 0;
-                 public func combine(a : Nat, b : Nat) : Nat { a + b };
-               };
-               public module Eight {
-                 public module Monoid {
-                   public func empty() : Int = 0;
-                   public func combine(a : Int, b : Int) : Int { a + b };
-                 };
-               }
-             }
-           }
+            public module Six {
+              public module Seven {
+                // Maximum search depth for nested modules
+                public module Monoid {
+                  public func empty() : Nat = 0;
+                  public func combine(a : Nat, b : Nat) : Nat { a + b };
+                };
+                public module Eight {
+                  public module Monoid {
+                    public func empty() : Int = 0;
+                    public func combine(a : Int, b : Int) : Int { a + b };
+                  };
+                }
+              }
+            }
           }
         }
       }

@@ -1,7 +1,7 @@
 issue442.mo:2.11-2.24: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-issue442.mo:3.11-3.29: warning [M0081], this if has type
+issue442.mo:3.11-3.37: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces

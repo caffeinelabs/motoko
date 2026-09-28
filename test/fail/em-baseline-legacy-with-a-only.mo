@@ -6,6 +6,6 @@
 // (m1's input) and c (untouched by any migration). a is in the baseline, c
 // is not → M0267 with the initial-actor wording.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

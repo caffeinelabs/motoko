@@ -25,5 +25,5 @@ func FromCandid(b : Blob) : ?Region {
 };
 
 do {
-   type t = async Region; // reject
+  type t = async Region; // reject
 };

@@ -3,24 +3,24 @@
 import Prim "mo:prim";
 
 actor {
-    let largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
+  let largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
 
-    public func check() : async () {
-        Prim.debugPrint("Array of length " # debug_show (largeArray.size()));
-        var index = 0;
-        while (index < largeArray.size()) {
-            assert (largeArray[index] == index);
-            index += 1;
-        };
+  public func check() : async () {
+    Prim.debugPrint("Array of length " # debug_show (largeArray.size()));
+    var index = 0;
+    while index < largeArray.size() {
+      assert (largeArray[index] == index);
+      index += 1;
     };
+  };
 
-    system func preupgrade() {
-        Prim.debugPrint("PRE-UPGRADE HOOK!");
-    };
+  system func preupgrade() {
+    Prim.debugPrint("PRE-UPGRADE HOOK!");
+  };
 
-    system func postupgrade() {
-        Prim.debugPrint("POST-UPGRADE HOOK!");
-    };
+  system func postupgrade() {
+    Prim.debugPrint("POST-UPGRADE HOOK!");
+  };
 };
 
 //CALL ingress check "DIDL\x00\x00"

@@ -1,8 +1,8 @@
-ic-calls.mo:15.9-15.10: warning [M0145], this pattern of type
+ic-calls.mo:14.9-14.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-ic-calls.mo:16.9-16.17: warning [M0145], this pattern of type
+ic-calls.mo:15.9-15.18: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (1, false) or

@@ -1,4 +1,4 @@
-idl-sub-variant.mo:29.13-29.19: warning [M0145], this pattern of type
+idl-sub-variant.mo:29.11-29.17: warning [M0145], this pattern of type
   Enum1 = {#A : Int; #B}
 does not cover value
   #B

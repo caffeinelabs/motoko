@@ -1,3 +1,3 @@
 actor {
-  public func baz() : async () = (with) async { }
+  public func baz() : async () = (with) async {}
 }

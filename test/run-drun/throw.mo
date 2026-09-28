@@ -5,19 +5,19 @@ import Prim "mo:⛔";
 
 actor a {
   public func t2() : async () {
-     try {
-       await async {
-         throw Prim.error("t2");
-         assert(false);
+    try {
+      await async {
+        throw Prim.error("t2");
+        assert(false);
       }
-     } catch e {
-          switch (Prim.errorCode(e),Prim.errorMessage(e)) {
-            case (#canister_reject, "t2") { };
-            case (#canister_reject, _) { assert false;};
-            case (sys, _ ) { assert false;};
+    } catch e {
+      switch (Prim.errorCode(e), Prim.errorMessage(e)) {
+        case (#canister_reject, "t2") {}
+        case (#canister_reject, _) { assert false; }
+        case (sys, _) { assert false; }
 
-       }
-     }
+      }
+    }
   };
 
   public func t3() : async () {
@@ -32,31 +32,30 @@ actor a {
           switch (Prim.errorCode(e1), Prim.errorMessage(e1)) {
             case (#canister_reject, "t3") {
               throw Prim.error("t31");
-            };
+            }
             case (#canister_reject, _) {
               assert false;
-            };
+            }
             case (sys, _) {
               assert false;
-            };
+            }
 
           }
         }
       }
     }
     catch e2 {
-      switch (Prim.errorCode(e2),Prim.errorMessage(e2)) {
-       case (#canister_reject, "t31") { };
-       case (#canister_reject, _) {
-         assert true;
-       };
-       case (sys, _) {
-         assert false;
-       };
+      switch (Prim.errorCode(e2), Prim.errorMessage(e2)) {
+        case (#canister_reject, "t31") {}
+        case (#canister_reject, _) {
+          assert true;
+        }
+        case (sys, _) {
+          assert false;
+        }
       }
     }
   };
-
 
   public func go() : async () {
     try {

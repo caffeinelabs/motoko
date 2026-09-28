@@ -9,17 +9,17 @@ showing that string concatenation works as a tree with sharing.
 
 class range(x : Nat, y : Nat) {
   var i = x;
-  public func next() : ?Nat { if (i > y) null else {let j = i; i += 1; ?j} };
+  public func next() : ?Nat { if i > y { null } else { let j = i; i += 1; ?j } };
 };
 
 let before = Prim.rts_heap_size();
 var s = "Badger";
 let n = 27;
-for (i in range(1,n)) {
+for i in range(1, n) {
   s := s # s;
 };
 let after = Prim.rts_heap_size();
-assert(+after-before < 2_000);
+assert(+after - before < 2_000);
 
 //SKIP run
 //SKIP run-low

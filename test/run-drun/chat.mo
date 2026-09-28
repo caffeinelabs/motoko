@@ -1,5 +1,5 @@
 import Prim "mo:⛔";
-type List<T> = ?{head : T; var tail : List<T>};
+type List<T> = ?{ head : T; var tail : List<T> };
 
 type Post = shared Text -> ();
 
@@ -10,22 +10,21 @@ actor class Server() = {
     var next = clients;
     loop {
       switch next {
-        case null return;
-        case (?l) {
+        case null { return }
+        case ?l {
           l.head.send(message);
           next := l.tail;
-        };
+        }
       };
     };
   };
 
   public func subscribe(client : Client) : async Post {
-    let cs = {head = client; var tail = clients};
+    let cs = { head = client; var tail = clients };
     clients := ?cs;
     return broadcast;
   };
 };
-
 
 actor class Client() = this {
   // TODO: these should be constructor params once we can compile them
@@ -47,7 +46,6 @@ actor class Client() = this {
   };
 };
 
-
 actor Test {
   public func go() : async () {
     let server = await Server();
@@ -59,7 +57,6 @@ actor Test {
     charlie.go("charlie", server);
   }
 };
-
 
 /* design flaws:
      - we can't (synchronously) subscribe in the Client constructor as its async, need a separate 'go' method.

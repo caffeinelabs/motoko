@@ -11,8 +11,8 @@ actor {
   };
 
   /// record
-  public func record({x:Nat; y:Nat}) : async {r:Nat} {
-    {r = x + y}
+  public func record({ x:Nat; y:Nat }) : async { r:Nat } {
+    { r = x + y }
   };
 
   /// function arg/ret
@@ -26,11 +26,11 @@ actor {
     actor {
       named : shared (x:Nat, y:Nat) -> async (r : Nat);
       anon : shared (Nat, Nat) -> async Nat
-     }) :
-     async (actor {
-      named : shared (Nat, Nat) -> async Nat;
-      anon : shared (x:Nat, y:Nat) -> async (r : Nat)
-     }) {
+    }) :
+  async (actor {
+    named : shared (Nat, Nat) -> async Nat;
+    anon : shared (x:Nat, y:Nat) -> async (r : Nat)
+  }) {
     A
   };
 

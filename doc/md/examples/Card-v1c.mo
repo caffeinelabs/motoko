@@ -1,4 +1,4 @@
-import {migration} "CardMigration";
+import { migration } "CardMigration";
 
 (with migration) // Declare the migration function
 actor {

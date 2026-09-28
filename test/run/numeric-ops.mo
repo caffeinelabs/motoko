@@ -6,10 +6,11 @@ import Prim "mo:⛔";
 // asserts that those compare equal
 
 func verify<T>(etalon : [T], results : [T], cmp : (T, T) -> Bool) {
-    for (i in etalon.keys())
-    { assert cmp(etalon[i], results[i * 2]);
-      assert cmp(etalon[i], results[i * 2 + 1]);
-    }
+  for i in etalon.keys()
+  {
+    assert cmp(etalon[i], results[i * 2]);
+    assert cmp(etalon[i], results[i * 2 + 1]);
+  }
 };
 
 func intCompare (a : Int, b : Int) : Bool = a == b;
@@ -122,12 +123,43 @@ func testNatInt(a : Nat, b : Int) : [Int] {
   let pow2 = (a ** b) : Int;
   let pow3 = b ** a;
   let pow4 = (b ** a) : Int;
-  [pos1, pos2, neg1, neg2, sum1, sum2, sum3, sum4, diff1, diff2, diff3, diff4,
-   prod1, prod2, prod3, prod4, rat1, rat2, rat3, rat4, mod1, mod2, mod3, mod4, pow1, pow2, pow3, pow4]
+  [
+    pos1,
+    pos2,
+    neg1,
+    neg2,
+    sum1,
+    sum2,
+    sum3,
+    sum4,
+    diff1,
+    diff2,
+    diff3,
+    diff4,
+    prod1,
+    prod2,
+    prod3,
+    prod4,
+    rat1,
+    rat2,
+    rat3,
+    rat4,
+    mod1,
+    mod2,
+    mod3,
+    mod4,
+    pow1,
+    pow2,
+    pow3,
+    pow4
+  ]
 };
 
-verify<Int>([3, -3, 8, 8, -2, 2, 15, 15, 0, 1, 3, 2, 243, 125], testNatInt(3, 5),
-            intCompare);
+verify<Int>(
+  [3, -3, 8, 8, -2, 2, 15, 15, 0, 1, 3, 2, 243, 125],
+  testNatInt(3, 5),
+  intCompare
+);
 
 func testFloat(a : Float, b : Float) : [Float] {
   let pos1 = + a;
@@ -164,7 +196,7 @@ func testInt64(a : Int64, b : Int64) : [Int64] {
   let rat2 = (a / b) : Int64;
   let mod1 = a % b;
   let mod2 = (a % b) : Int64;
-  if (b >= (0 : Int64))
+  if b >= (0 : Int64)
   {
     let pow1 = a ** b;
     let pow2 = (a ** b) : Int64;
@@ -178,13 +210,21 @@ func testInt64(a : Int64, b : Int64) : [Int64] {
 
 func int64Compare(a : Int64, b : Int64) : Bool = a == b;
 
-verify<Int64>([3, -3, 8, -2, 15, 0, 3, 243], testInt64(3, 5),
-              int64Compare);
-verify<Int64>([13, -13, 18, 8, 65, 2, 3, 371293], testInt64(13, 5),
-              int64Compare);
-verify<Int64>([-13, 13, -18, -8, 65, 2, -3], testInt64(-13, -5),
-              int64Compare);
-
+verify<Int64>(
+  [3, -3, 8, -2, 15, 0, 3, 243],
+  testInt64(3, 5),
+  int64Compare
+);
+verify<Int64>(
+  [13, -13, 18, 8, 65, 2, 3, 371293],
+  testInt64(13, 5),
+  int64Compare
+);
+verify<Int64>(
+  [-13, 13, -18, -8, 65, 2, -3],
+  testInt64(-13, -5),
+  int64Compare
+);
 
 func testInt32(a : Int32, b : Int32) : [Int32] {
   let pos1 = + a;
@@ -201,7 +241,7 @@ func testInt32(a : Int32, b : Int32) : [Int32] {
   let rat2 = (a / b) : Int32;
   let mod1 = a % b;
   let mod2 = (a % b) : Int32;
-  if (b >= (0 : Int32))
+  if b >= (0 : Int32)
   {
     let pow1 = a ** b;
     let pow2 = (a ** b) : Int32;
@@ -215,13 +255,21 @@ func testInt32(a : Int32, b : Int32) : [Int32] {
 
 func int32Compare(a : Int32, b : Int32) : Bool = a == b;
 
-verify<Int32>([3, -3, 8, -2, 15, 0, 3, 243], testInt32(3, 5),
-             int32Compare);
-verify<Int32>([13, -13, 18, 8, 65, 2, 3, 371293], testInt32(13, 5),
-             int32Compare);
-verify<Int32>([-13, 13, -18, -8, 65, 2, -3], testInt32(-13, -5),
-             int32Compare);
-
+verify<Int32>(
+  [3, -3, 8, -2, 15, 0, 3, 243],
+  testInt32(3, 5),
+  int32Compare
+);
+verify<Int32>(
+  [13, -13, 18, 8, 65, 2, 3, 371293],
+  testInt32(13, 5),
+  int32Compare
+);
+verify<Int32>(
+  [-13, 13, -18, -8, 65, 2, -3],
+  testInt32(-13, -5),
+  int32Compare
+);
 
 func testInt16(a : Int16, b : Int16) : [Int16] {
   let pos1 = + a;
@@ -238,7 +286,7 @@ func testInt16(a : Int16, b : Int16) : [Int16] {
   let rat2 = (a / b) : Int16;
   let mod1 = a % b;
   let mod2 = (a % b) : Int16;
-  if (b >= (0 : Int16) and a < (10 : Int16)) {
+  if b >= (0 : Int16) and a < (10 : Int16) {
     let pow1 = a ** b;
     let pow2 = (a ** b) : Int16;
     [pos1, pos2, neg1, neg2, sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2, pow1, pow2]
@@ -247,13 +295,21 @@ func testInt16(a : Int16, b : Int16) : [Int16] {
 
 func int16Compare(a : Int16, b : Int16) : Bool = a == b;
 
-verify<Int16>([3, -3, 8, -2, 15, 0, 3, 243], testInt16(3, 5),
-             int16Compare);
-verify<Int16>([13, -13, 18, 8, 65, 2, 3], testInt16(13, 5),
-             int16Compare);
-verify<Int16>([-13, 13, -18, -8, 65, 2, -3], testInt16(-13, -5),
-             int16Compare);
-
+verify<Int16>(
+  [3, -3, 8, -2, 15, 0, 3, 243],
+  testInt16(3, 5),
+  int16Compare
+);
+verify<Int16>(
+  [13, -13, 18, 8, 65, 2, 3],
+  testInt16(13, 5),
+  int16Compare
+);
+verify<Int16>(
+  [-13, 13, -18, -8, 65, 2, -3],
+  testInt16(-13, -5),
+  int16Compare
+);
 
 func testInt8(a : Int8, b : Int8) : [Int8] {
   let pos1 = + a;
@@ -270,7 +326,7 @@ func testInt8(a : Int8, b : Int8) : [Int8] {
   let rat2 = (a / b) : Int8;
   let mod1 = a % b;
   let mod2 = (a % b) : Int8;
-  if (b >= (0 : Int8) and b < (5 : Int8)) {
+  if b >= (0 : Int8) and b < (5 : Int8) {
     let pow1 = a ** b;
     let pow2 = (a ** b) : Int8;
     [pos1, pos2, neg1, neg2, sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2, pow1, pow2]
@@ -279,19 +335,36 @@ func testInt8(a : Int8, b : Int8) : [Int8] {
 
 func int8Compare(a : Int8, b : Int8) : Bool = a == b;
 
-verify<Int8>([3, -3, 7, -1, 12, 0, 3, 81], testInt8(3, 4),
-             int8Compare);
-verify<Int8>([3, -3, 8, -2, 15, 0, 3], testInt8(3, 5),
-             int8Compare);
-verify<Int8>([13, -13, 18, 8, 65, 2, 3], testInt8(13, 5),
-             int8Compare);
-verify<Int8>([3, -3, -2, 8, -15, 0, 3], testInt8(3, -5),
-             int8Compare);
-verify<Int8>([13, -13, 8, 18, -65, -2, 3], testInt8(13, -5),
-             int8Compare);
-verify<Int8>([-13, 13, -18, -8, 65, 2, -3], testInt8(-13, -5),
-             int8Compare);
-
+verify<Int8>(
+  [3, -3, 7, -1, 12, 0, 3, 81],
+  testInt8(3, 4),
+  int8Compare
+);
+verify<Int8>(
+  [3, -3, 8, -2, 15, 0, 3],
+  testInt8(3, 5),
+  int8Compare
+);
+verify<Int8>(
+  [13, -13, 18, 8, 65, 2, 3],
+  testInt8(13, 5),
+  int8Compare
+);
+verify<Int8>(
+  [3, -3, -2, 8, -15, 0, 3],
+  testInt8(3, -5),
+  int8Compare
+);
+verify<Int8>(
+  [13, -13, 8, 18, -65, -2, 3],
+  testInt8(13, -5),
+  int8Compare
+);
+verify<Int8>(
+  [-13, 13, -18, -8, 65, 2, -3],
+  testInt8(-13, -5),
+  int8Compare
+);
 
 func testNat64(a : Nat64, b : Nat64) : [Nat64] {
   let sum1 = a + b;
@@ -311,11 +384,16 @@ func testNat64(a : Nat64, b : Nat64) : [Nat64] {
 
 func nat64Compare(a : Nat64, b : Nat64) : Bool = a == b;
 
-verify<Nat64>([8, 2, 15, 1, 2, 125], testNat64(5, 3),
-              nat64Compare);
-verify<Nat64>([18, 8, 65, 2, 3, 371293], testNat64(13, 5),
-              nat64Compare);
-
+verify<Nat64>(
+  [8, 2, 15, 1, 2, 125],
+  testNat64(5, 3),
+  nat64Compare
+);
+verify<Nat64>(
+  [18, 8, 65, 2, 3, 371293],
+  testNat64(13, 5),
+  nat64Compare
+);
 
 func testNat32(a : Nat32, b : Nat32) : [Nat32] {
   let sum1 = a + b;
@@ -330,16 +408,21 @@ func testNat32(a : Nat32, b : Nat32) : [Nat32] {
   let mod2 = (a % b) : Nat32;
   /*let pow1 = a ** b;
   let pow2 = (a ** b) : Nat32;*/
-  [sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2/*, pow1, pow2*/]
+  [sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2 /*, pow1, pow2*/]
 };
 
 func nat32Compare(a : Nat32, b : Nat32) : Bool = a == b;
 
-verify<Nat32>([8, 2, 15, 1, 2/*, 243*/], testNat32(5, 3),
-             nat32Compare);
-verify<Nat32>([18, 12, 45, 5, 0/*, 243*/], testNat32(15, 3),
-             nat32Compare);
-
+verify<Nat32>(
+  [8, 2, 15, 1, 2 /*, 243*/],
+  testNat32(5, 3),
+  nat32Compare
+);
+verify<Nat32>(
+  [18, 12, 45, 5, 0 /*, 243*/],
+  testNat32(15, 3),
+  nat32Compare
+);
 
 func testNat16(a : Nat16, b : Nat16) : [Nat16] {
   let sum1 = a + b;
@@ -354,17 +437,21 @@ func testNat16(a : Nat16, b : Nat16) : [Nat16] {
   let mod2 = (a % b) : Nat16;
   /*let pow1 = a ** b;
   let pow2 = (a ** b) : Nat16;*/
-  [sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2/*, pow1, pow2*/]
+  [sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2 /*, pow1, pow2*/]
 };
-
 
 func nat16Compare(a : Nat16, b : Nat16) : Bool = a == b;
 
-verify<Nat16>([8, 2, 15, 1, 2/*, 243*/], testNat16(5, 3),
-             nat16Compare);
-verify<Nat16>([18, 12, 45, 5, 0/*, 243*/], testNat16(15, 3),
-             nat16Compare);
-
+verify<Nat16>(
+  [8, 2, 15, 1, 2 /*, 243*/],
+  testNat16(5, 3),
+  nat16Compare
+);
+verify<Nat16>(
+  [18, 12, 45, 5, 0 /*, 243*/],
+  testNat16(15, 3),
+  nat16Compare
+);
 
 func testNat8(a : Nat8, b : Nat8) : [Nat8] {
   let sum1 = a + b;
@@ -377,7 +464,7 @@ func testNat8(a : Nat8, b : Nat8) : [Nat8] {
   let rat2 = (a / b) : Nat8;
   let mod1 = a % b;
   let mod2 = (a % b) : Nat8;
-  if (b >= (0 : Nat8) and a < (10 : Nat8)) {
+  if b >= (0 : Nat8) and a < (10 : Nat8) {
     let pow1 = a ** b;
     let pow2 = (a ** b) : Nat8;
     [sum1, sum2, diff1, diff2, prod1, prod2, rat1, rat2, mod1, mod2, pow1, pow2]
@@ -386,7 +473,13 @@ func testNat8(a : Nat8, b : Nat8) : [Nat8] {
 
 func nat8Compare(a : Nat8, b : Nat8) : Bool = a == b;
 
-verify<Nat8>([8, 2, 15, 1, 2, 125], testNat8(5, 3),
-             nat8Compare);
-verify<Nat8>([18, 12, 45, 5, 0], testNat8(15, 3),
-             nat8Compare);
+verify<Nat8>(
+  [8, 2, 15, 1, 2, 125],
+  testNat8(5, 3),
+  nat8Compare
+);
+verify<Nat8>(
+  [18, 12, 45, 5, 0],
+  testNat8(15, 3),
+  nat8Compare
+);

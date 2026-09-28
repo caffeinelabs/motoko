@@ -17,4 +17,3 @@ func wrong4() {
 func wrong5() {
   let _ = ? ((? ()) ! : Nat); // wrong content type
 };
-

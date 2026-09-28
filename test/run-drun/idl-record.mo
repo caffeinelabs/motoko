@@ -4,30 +4,30 @@ import Prim "mo:⛔";
 // do the subtyping from received many-field record
 // to a double-field one (field names are in hash order)
 actor {
-    public query func pair(o : (Text, Int)) : async () {
-     switch o {
-       case (content, num) Prim.debugPrint ("ok: " # debug_show num);
-     }
+  public query func pair(o : (Text, Int)) : async () {
+    switch o {
+      case (content, num) { Prim.debugPrint ("ok: " # debug_show num) }
+    }
   };
-  public query func record(o : {content: Text; value : Int}) : async () {
-     switch o {
-       case {content} Prim.debugPrint ("ok: " # content);
-     }
+  public query func record(o : { content: Text; value : Int }) : async () {
+    switch o {
+      case { content } { Prim.debugPrint ("ok: " # content) }
+    }
   };
-  public query func record1(o : {value : Int; byte : Int8}) : async () {
-     switch o {
-       case {byte} Prim.debugPrint ("ok: " # debug_show byte);
-     }
+  public query func record1(o : { value : Int; byte : Int8 }) : async () {
+    switch o {
+      case { byte } { Prim.debugPrint ("ok: " # debug_show byte) }
+    }
   };
-  public query func record2(o : {content: Text; value : Int}, follower : Int8) : async Int8 {
-     switch o {
-       case {content} { Prim.debugPrint ("ok: " # " " # content # " " # debug_show follower); follower };
-     }
+  public query func record2(o : { content: Text; value : Int }, follower : Int8) : async Int8 {
+    switch o {
+      case { content } { Prim.debugPrint ("ok: " # " " # content # " " # debug_show follower); follower }
+    }
   };
-  public query func record3(o : {content: Text; value : Int; extra : Nat }) : async () {
-     switch o {
-       case {content} Prim.debugPrint ("ok: " # content);
-     }
+  public query func record3(o : { content: Text; value : Int; extra : Nat }) : async () {
+    switch o {
+      case { content } { Prim.debugPrint ("ok: " # content) }
+    }
   };
 }
 

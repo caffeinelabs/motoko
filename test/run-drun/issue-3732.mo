@@ -5,17 +5,18 @@ actor class TestAPI() {
   public func endpoint2(x:Nat, y: Nat) : async () {}; // works
 
   system func inspect(
-     {
-       caller : Principal; // unused, could be omitted
-       arg : Blob;
-       msg : {
-         #endpoint1 : () -> ((Nat, Nat));
-         #endpoint2 : () -> (Nat, Nat);
-       }
-     }) : Bool {
-    switch (msg) {
-      case (#endpoint1 f1) { let ((_,_),) = f1(); true };
-      case (#endpoint2 f2) { let (_,_) = f2(); true };
+    {
+      caller : Principal; // unused, could be omitted
+      arg : Blob;
+      msg : {
+        #endpoint1 : () -> ((Nat, Nat));
+        #endpoint2 : () -> (Nat, Nat);
+      }
+    }
+  ) : Bool {
+    switch msg {
+      case #endpoint1(f1) { let ((_, _),) = f1(); true }
+      case #endpoint2(f2) { let (_, _) = f2(); true }
     }
   }
 };

@@ -1,21 +1,21 @@
-migration.mo:10.7-10.22: warning [M0215], field `unused` is provided but not expected in record of type
+migration.mo:12.7-12.22: warning [M0215], field `unused` is provided but not expected in record of type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
-migration.mo:3.7-13.7: type error [M0201], expected stable type, but migration expression produces non-stable type
+migration.mo:3.7-16.4: type error [M0201], expected stable type, but migration expression produces non-stable type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
-migration.mo:3.7-13.7: type error [M0201], expected stable type, but migration expression consumes non-stable type
+migration.mo:3.7-16.4: type error [M0201], expected stable type, but migration expression consumes non-stable type
   {unstable1 : () -> ()}
-migration.mo:3.7-13.7: type error [M0204], migration expression produces field `three` of type
+migration.mo:3.7-16.4: type error [M0204], migration expression produces field `three` of type
   var Text
 , not the expected type
   var [var (Nat, Text)]
-migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `unstable2` of type
+migration.mo:3.7-16.4: type error [M0205], migration expression produces unexpected field `unstable2` of type
   () -> ()
 The actor should declare a corresponding `stable` field.
-migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `versoin` of type
+migration.mo:3.7-16.4: type error [M0205], migration expression produces unexpected field `versoin` of type
   var ()
 The actor should declare a corresponding `stable` field.
 help: did you mean field version?
-migration.mo:3.7-13.7: warning [M0207], migration expression consumes field `unstable1` of type
+migration.mo:3.7-16.4: warning [M0207], migration expression consumes field `unstable1` of type
   () -> ()
 but does not produce it. The field is not declared in the actor.
 This field will be removed from the actor, discarding its consumed value.

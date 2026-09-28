@@ -31,8 +31,8 @@ ignore [1, 2, 3].toBlob();
 // ArrayE receiver with branch lub (reduced from `motoko-core/Base64.encode`):
 // a `Nat8` indexing and a default-typed `Nat` literal lub up via the param.
 // Compiles — the param makes both branches `Nat8`.
-func pad(b : [Nat8], i : Nat) : Blob = Array.toBlob([b[i], if (i == 0) b[i] else 61]);
+func pad(b : [Nat8], i : Nat) : Blob = Array.toBlob([b[i], if i == 0 { b[i] } else { 61 }]);
 // Fails — without context the branches lub to `Any`, so `[Any]` has no `toBlob`.
-func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if (i == 0) b[i] else 61].toBlob();
+func padBroken(b : [Nat8], i : Nat) : Blob = [b[i], if i == 0 { b[i] } else { 61 }].toBlob();
 ignore pad;
 ignore padBroken;

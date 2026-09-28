@@ -4,6 +4,6 @@
 // even with --enhanced-migration flag
 
 module {
-    public var x : Nat;
-    public let y : Nat;
+  public var x : Nat;
+  public let y : Nat;
 };

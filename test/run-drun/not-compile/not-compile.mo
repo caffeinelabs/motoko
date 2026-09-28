@@ -1,3 +1,3 @@
 actor {
-    _this_doesnt_compile();
+  _this_doesnt_compile();
 };

@@ -1,5 +1,5 @@
 import Prim "mo:⛔";
-import {migration} = "Migration2"
+import { migration } = "Migration2"
 
 (with migration)
 actor {
@@ -13,8 +13,8 @@ actor {
   let b = (() : Any, obj);
 
   public query func checkArray2() : async () {
-    for (i in a.1.keys()) {
-      assert(a.1[i] == i+1);
+    for i in a.1.keys() {
+      assert(a.1[i] == i + 1);
     };
   };
 

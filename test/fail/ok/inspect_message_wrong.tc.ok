@@ -1,4 +1,4 @@
-inspect_message_wrong.mo:10.4-10.29: type error [M0127], system function inspect is declared with type
+inspect_message_wrong.mo:10.3-10.28: type error [M0127], system function inspect is declared with type
   () -> ()
 instead of expected type
   {

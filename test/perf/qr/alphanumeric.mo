@@ -76,11 +76,51 @@ module {
 
   func genTable() : Trie<Char, Nat> {
     let chars = [
-      '0', '1', '2', '3', '4', '5', '6', '7', '8',
-      '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-      'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
-      'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-      ' ', '$', '%', '*', '+', '-', '.', '/', ':'
+      '0',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
+      'R',
+      'S',
+      'T',
+      'U',
+      'V',
+      'W',
+      'X',
+      'Y',
+      'Z',
+      ' ',
+      '$',
+      '%',
+      '*',
+      '+',
+      '-',
+      '.',
+      '/',
+      ':'
     ];
     Array.foldl<Char, (Trie<Char, Nat>, Nat)>(
       func (accum, char) {
@@ -108,8 +148,8 @@ module {
 
   func encodeChunkOrTrap(chunk : List<Nat>) : List<Bool> {
     switch chunk {
-      case (?(x, null)) Util.padLeftTo(6, Nat.natToBits(x));
-      case (?(x, ?(y, null))) Util.padLeftTo(11, Nat.natToBits(x * 45 + y));
+      case ?(x, null) { Util.padLeftTo(6, Nat.natToBits(x)) }
+      case ?(x, ?(y, null)) { Util.padLeftTo(11, Nat.natToBits(x * 45 + y)) }
       case _ {
         Prelude.printLn("Error: Invalid chunk size!");
         Prelude.unreachable();

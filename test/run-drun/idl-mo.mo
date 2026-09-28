@@ -14,14 +14,14 @@ type field = shared {_1291438163_ : Nat8; test : tree} -> async {};
 */
 
 type expected = actor {
-  field : shared {_1291438163_ : Nat8; test : Nat16} -> async {};
-  fieldnat : shared {_2_ : Int; _50_ : Nat} -> async {_0_ : Int};
+  field : shared { _1291438163_ : Nat8; test : Nat16 } -> async {};
+  fieldnat : shared { _2_ : Int; _50_ : Nat } -> async { _0_ : Int };
   //o : shared o -> async o;
   oneway : shared Nat8 -> ();
   query_ : shared query Blob -> async Blob;
   //service : t;
-  tuple : shared ((Int, Blob, Text)) -> async {_0_ : Int; _1_ : Nat8};
-  variant : shared {#A; #B; #C; #D : Float} -> async ()
+  tuple : shared ((Int, Blob, Text)) -> async { _0_ : Int; _1_ : Nat8 };
+  variant : shared { #A; #B; #C; #D : Float } -> async ()
 };
 
 ignore ([var imported] : [var expected]); // variable arrays are invariant, so this checks type equality.
@@ -31,4 +31,3 @@ ignore ([var imported] : [var expected]); // variable arrays are invariant, so t
 //SKIP run-low
 //SKIP drun-run
 //SKIP wasm-run
-

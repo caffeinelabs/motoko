@@ -28,5 +28,5 @@ error[M0189]: mismatched types for type N in patterns
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0189]: different set of type bindings in pattern alternatives
     ┌─ objpat-type-fields.mo:62:8
- 62 │    let (#left{ type N } or #right { }) = x else {
-    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+ 62 │    let (#left{ type N } or #right {}) = x else {
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

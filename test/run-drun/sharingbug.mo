@@ -6,5 +6,5 @@ type IServer = actor {
 };
 
 type IClient = actor {
-   send: shared Text -> async ();
+  send: shared Text -> async ();
 };

@@ -6,9 +6,9 @@ actor {
   };
 
   public shared query func get() : async Bool {
-    switch (Prim.getCertificate()) {
-      case null { return false; };
-      case (?_) { return true; };
+    switch Prim.getCertificate() {
+      case null { return false; }
+      case ?_ { return true; }
     }
   };
 };

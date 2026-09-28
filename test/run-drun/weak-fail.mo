@@ -10,14 +10,14 @@ actor a {
     weak_ "abc",
     weak_ ("" : Blob),
     weak_ {},
-    weak_ {x = 1},
+    weak_ { x = 1 },
     weak_ ([]),
     weak_ ([var]),
     weak_ (#ok),
     weak_ (#ok "hello"),
     weak_ (?"Hello"),
     weak_ (?null),
-    weak_ (1,2),
+    weak_ (1, 2),
     weak_ (func(){}),
     weak_ (func(){}),
   ];
@@ -30,7 +30,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -38,7 +38,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -46,7 +46,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -54,8 +54,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
-
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -63,7 +62,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -71,7 +70,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -79,7 +78,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -87,7 +86,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -95,7 +94,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -103,7 +102,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -111,8 +110,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
-
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -120,7 +118,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -128,7 +126,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -136,7 +134,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -144,7 +142,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -152,7 +150,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -160,7 +158,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -168,7 +166,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -176,7 +174,7 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
     try {
       await async {
@@ -184,13 +182,12 @@ actor a {
         ignore weak_(v);
       };
       assert false;
-    } catch e {Prim.debugPrint (Prim.errorMessage(e))};
+    } catch e { Prim.debugPrint (Prim.errorMessage(e)) };
 
   };
 
 };
-a.go();//OR-CALL ingress go "DIDL\x00\x00"
+a.go(); //OR-CALL ingress go "DIDL\x00\x00"
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-

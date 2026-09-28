@@ -10,7 +10,7 @@ actor class Bucket(n : Nat, i : Nat) {
 
   public func get(k : Key) : async ?Value {
     assert((k % n) == i);
-    Map.get(map, Nat.compare,  k);
+    Map.get(map, Nat.compare, k);
   };
 
   public func put(k : Key, v : Value) : async () {

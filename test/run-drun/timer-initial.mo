@@ -13,13 +13,13 @@ actor {
   public shared func go() : async () {
     var attempts = 0;
 
-    while (count < 1) {
+    while count < 1 {
       ignore await raw_rand(); // yield to scheduler
       attempts += 1;
-      if (attempts >= 200 and count == 0)
-        throw error("he's dead Jim");
+      if attempts >= 200 and count == 0
+        { throw error("he's dead Jim") };
     };
-    debugPrint(debug_show {count});
+    debugPrint(debug_show { count });
   }
 }
 

@@ -11,7 +11,7 @@ assert(foo.bar.0 == 25);
 
 assert(foo.bar.1.zap == 42);
 
-assert((0,((1,1,2), (3,5), 8), 12).1.1.1 == 5);
+assert((0, ((1, 1, 2), (3, 5), 8), 12).1.1.1 == 5);
 
 // Slight imbalance: between DOT and ID we can have whitespace...
 

@@ -1,4 +1,3 @@
-
 module X {
   public func f() { g() };
   func g() { f() };

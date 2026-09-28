@@ -18,5 +18,5 @@ region-ops.mo:20.3-20.15: type error [M0173], to_candid argument must have share
   Region
 region-ops.mo:24.20-24.33: type error [M0174], from_candid produces an optional shared type, not type
   ?Region
-region-ops.mo:28.19-28.25: type error [M0033], async has non-shared content type
+region-ops.mo:28.18-28.24: type error [M0033], async has non-shared content type
   Region

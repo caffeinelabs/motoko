@@ -1,1 +1,1 @@
-modules-fwd.mo:5.9-5.12: type error [M0071], cannot infer type of forward field reference v
+modules-fwd.mo:5.11-5.14: type error [M0071], cannot infer type of forward field reference v

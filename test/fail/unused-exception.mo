@@ -1,5 +1,5 @@
 module {
-    public func foo() : async () {
-        try { } catch (exception) {};
-    };
+  public func foo() : async () {
+    try {} catch (exception) {};
+  };
 };

@@ -29,7 +29,7 @@ actor Self {
       settings = { environment_variables = ?vars };
     });
     let currentVars = await* getEnvVars();
-    if (currentVars != vars) {
+    if currentVars != vars {
       Prim.debugPrint("Unexpected environment variables: " # debug_show currentVars);
       assert false;
     };

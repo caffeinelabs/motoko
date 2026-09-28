@@ -3,9 +3,9 @@ See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhan
     ┌─ em-baseline-with-x-and-extra.mo:6:1
   5 │    // x explained by baseline (silent); `extra` in baseline but not in new pre → M0169
   6 │ ╭  actor {
-  7 │ │      let a : Float;
+  7 │ │    let a : Float;
     · │  
- 10 │ │      let x : {#X};
+ 10 │ │    let x : { #X };
  11 │ │  };
     │ ╰──^ 
  12 │    

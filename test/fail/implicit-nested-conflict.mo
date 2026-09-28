@@ -1,10 +1,10 @@
 module Top {
- public module Nested {
-   public let zero : Nat = 0;
-   public let one : Nat = 1;
- };
- public let zero : Nat = 0;
- public let one : Nat = 1;
+  public module Nested {
+    public let zero : Nat = 0;
+    public let one : Nat = 1;
+  };
+  public let zero : Nat = 0;
+  public let one : Nat = 1;
 };
 
 let one : Nat = 1;

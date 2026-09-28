@@ -1,19 +1,18 @@
 actor a {
-  public func A() : async () {
-  };
+  public func A() : async () {};
 
   public func B(x : Int) : async Int {
-   x
+    x
   };
 
-  public func C(x : Int, y: Bool) : async (Int,Bool) {
-   (x,y);
+  public func C(x : Int, y: Bool) : async (Int, Bool) {
+    (x, y);
   };
 
   public func go() : () {
     await A();
     let 1 = await B(1);
-    let (1,true) = await C(1,true);
+    let (1, true) = await C(1, true);
   };
 
 };

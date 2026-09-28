@@ -1,4 +1,4 @@
-lib/type-lub.mo:37.16-37.42: warning [M0074], this array has type
+lib/type-lub.mo:43.16-43.42: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
 lib/type-lub.mo:1.5-1.9: warning [M0194], unused identifier: `opts`
@@ -17,59 +17,59 @@ lib/type-lub.mo:10.5-10.9: warning [M0194], unused identifier: `arrs`
 help: if this is intentional, prefix it with an underscore: `_arrs`
 lib/type-lub.mo:12.5-12.23: warning [M0194], unused identifier: `incompatible_funcs`
 help: if this is intentional, prefix it with an underscore: `_incompatible_funcs`
-lib/type-lub.mo:13.34-13.35: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:14.9-14.10: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:16.5-16.15: warning [M0194], unused identifier: `poly_funcs`
+lib/type-lub.mo:17.5-17.15: warning [M0194], unused identifier: `poly_funcs`
 help: if this is intentional, prefix it with an underscore: `_poly_funcs`
-lib/type-lub.mo:17.29-17.30: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:19.12-19.13: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:20.5-20.16: warning [M0194], unused identifier: `poly_funcs2`
+lib/type-lub.mo:22.5-22.16: warning [M0194], unused identifier: `poly_funcs2`
 help: if this is intentional, prefix it with an underscore: `_poly_funcs2`
-lib/type-lub.mo:21.30-21.31: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:24.12-24.13: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:24.5-24.16: warning [M0194], unused identifier: `poly_funcs3`
+lib/type-lub.mo:27.5-27.16: warning [M0194], unused identifier: `poly_funcs3`
 help: if this is intentional, prefix it with an underscore: `_poly_funcs3`
-lib/type-lub.mo:24.43-24.44: warning [M0194], unused identifier: `b`
+lib/type-lub.mo:28.25-28.26: warning [M0194], unused identifier: `b`
 help: if this is intentional, prefix it with an underscore: `_b`
-lib/type-lub.mo:25.43-25.44: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:29.25-29.26: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:28.5-28.10: warning [M0194], unused identifier: `funcs`
+lib/type-lub.mo:32.5-32.10: warning [M0194], unused identifier: `funcs`
 help: if this is intentional, prefix it with an underscore: `_funcs`
-lib/type-lub.mo:29.21-29.22: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:34.9-34.10: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:32.5-32.18: warning [M0194], unused identifier: `variant_funcs`
+lib/type-lub.mo:37.5-37.18: warning [M0194], unused identifier: `variant_funcs`
 help: if this is intentional, prefix it with an underscore: `_variant_funcs`
-lib/type-lub.mo:37.5-37.13: warning [M0194], unused identifier: `mut_arrs`
+lib/type-lub.mo:43.5-43.13: warning [M0194], unused identifier: `mut_arrs`
 help: if this is intentional, prefix it with an underscore: `_mut_arrs`
-lib/type-lub.mo:42.5-42.12: warning [M0194], unused identifier: `shareds`
+lib/type-lub.mo:48.5-48.12: warning [M0194], unused identifier: `shareds`
 help: if this is intentional, prefix it with an underscore: `_shareds`
-lib/type-lub.mo:43.5-43.13: warning [M0194], unused identifier: `shared2s`
+lib/type-lub.mo:49.5-49.13: warning [M0194], unused identifier: `shared2s`
 help: if this is intentional, prefix it with an underscore: `_shared2s`
-lib/type-lub.mo:45.5-45.17: warning [M0194], unused identifier: `shared_funcs`
+lib/type-lub.mo:51.5-51.17: warning [M0194], unused identifier: `shared_funcs`
 help: if this is intentional, prefix it with an underscore: `_shared_funcs`
-lib/type-lub.mo:46.28-46.29: warning [M0194], unused identifier: `a`
+lib/type-lub.mo:53.9-53.10: warning [M0194], unused identifier: `a`
 help: if this is intentional, prefix it with an underscore: `_a`
-lib/type-lub.mo:52.6-52.8: warning [M0194], unused identifier: `c0`
+lib/type-lub.mo:59.6-59.8: warning [M0194], unused identifier: `c0`
 help: if this is intentional, prefix it with an underscore: `_c0`
-lib/type-lub.mo:54.5-54.8: warning [M0194], unused identifier: `c1s`
+lib/type-lub.mo:61.5-61.8: warning [M0194], unused identifier: `c1s`
 help: if this is intentional, prefix it with an underscore: `_c1s`
-lib/type-lub.mo:63.6-63.7: warning [M0194], unused identifier: `f`
+lib/type-lub.mo:69.6-69.7: warning [M0194], unused identifier: `f`
 help: if this is intentional, prefix it with an underscore: `_f`
-lib/type-lub.mo:70.6-70.8: warning [M0194], unused identifier: `f1`
+lib/type-lub.mo:76.6-76.8: warning [M0194], unused identifier: `f1`
 help: if this is intentional, prefix it with an underscore: `_f1`
-lib/type-lub.mo:80.6-80.7: warning [M0194], unused identifier: `g`
+lib/type-lub.mo:86.6-86.7: warning [M0194], unused identifier: `g`
 help: if this is intentional, prefix it with an underscore: `_g`
-lib/type-lub.mo:91.6-91.8: warning [M0194], unused identifier: `v0`
+lib/type-lub.mo:94.6-94.8: warning [M0194], unused identifier: `v0`
 help: if this is intentional, prefix it with an underscore: `_v0`
-lib/type-lub.mo:97.6-97.8: warning [M0194], unused identifier: `g0`
+lib/type-lub.mo:99.6-99.8: warning [M0194], unused identifier: `g0`
 help: if this is intentional, prefix it with an underscore: `_g0`
-lib/type-lub.mo:103.6-103.8: warning [M0194], unused identifier: `k0`
+lib/type-lub.mo:104.6-104.8: warning [M0194], unused identifier: `k0`
 help: if this is intentional, prefix it with an underscore: `_k0`
 lib/type-lub.mo:109.6-109.8: warning [M0194], unused identifier: `k1`
 help: if this is intentional, prefix it with an underscore: `_k1`
-lib/type-lub.mo:122.6-122.8: warning [M0194], unused identifier: `f0`
+lib/type-lub.mo:121.6-121.8: warning [M0194], unused identifier: `f0`
 help: if this is intentional, prefix it with an underscore: `_f0`
-lib/type-lub.mo:127.6-127.9: warning [M0194], unused identifier: `f12`
+lib/type-lub.mo:126.6-126.9: warning [M0194], unused identifier: `f12`
 help: if this is intentional, prefix it with an underscore: `_f12`
-lib/type-lub.mo:132.6-132.8: warning [M0194], unused identifier: `f2`
+lib/type-lub.mo:131.6-131.8: warning [M0194], unused identifier: `f2`
 help: if this is intentional, prefix it with an underscore: `_f2`

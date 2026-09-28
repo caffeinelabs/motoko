@@ -7,6 +7,7 @@ let m = 1;
 ignore M.size(
   m,
 );
-let s = "éé"; ignore M.size(m);
+let s = "éé";
+ignore M.size(m);
 // FF  NEL  LS   PS  
 ignore M.size(m);

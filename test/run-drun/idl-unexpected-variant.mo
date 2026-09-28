@@ -2,7 +2,7 @@ import Prim "mo:prim";
 
 actor This {
 
-  public type CreateServiceNervousSystem = {somefield: Nat};
+  public type CreateServiceNervousSystem = { somefield: Nat };
   public type Action = {
     #RegisterKnownNeuron : Nat;
     #ManageNeuron;
@@ -32,7 +32,6 @@ actor This {
     list_proposals : shared query () -> async ListProposalInfoResponse;
   };
 
-
   public type Action_ = {
     #RegisterKnownNeuron : Nat;
     #ManageNeuron;
@@ -61,22 +60,26 @@ actor This {
     list_proposals : shared query () -> async ListProposalInfoResponse_;
   };
 
-
   public shared query func list_proposals() : async ListProposalInfoResponse {
-    { proposal_info = [
-        { proposal = ?
-          { url = "abc";
-            title = ?"abc";
-            action = ?#CreateServiceNervousSystem{somefield=0};
-            summary = "abc";
-           }
+    {
+      proposal_info = [
+        {
+          proposal = ?
+            {
+              url = "abc";
+              title = ?"abc";
+              action = ?#CreateServiceNervousSystem{ somefield=0 };
+              summary = "abc";
+            }
         },
-        { proposal = ?
-          { url = "abc";
-            title = ?"abc";
-            action = ?(#RegisterKnownNeuron 1);
-            summary = "abc";
-           }
+        {
+          proposal = ?
+            {
+              url = "abc";
+              title = ?"abc";
+              action = ?(#RegisterKnownNeuron 1);
+              summary = "abc";
+            }
         }
       ]
     }

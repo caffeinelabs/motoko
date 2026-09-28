@@ -4,8 +4,8 @@ actor {
 
   var c = 5;
 
-  while(c > 0) {
-    let a : [var Nat8] = P.Array_init<Nat8>(1024*1024*1024/4, 0xFF);
+  while c > 0 {
+    let a : [var Nat8] = P.Array_init<Nat8>(1024 * 1024 * 1024 / 4, 0xFF);
     c -= 1;
   };
 
@@ -14,5 +14,3 @@ actor {
 //SKIP run
 //SKIP run-low
 //SKIP run-ir
-
-

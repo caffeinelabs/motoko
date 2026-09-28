@@ -32,76 +32,78 @@ b.put(2, 7);
 assert(b[2] == 7);
 
 func opt_eq(x : ?Nat, y : Nat) : Bool {
-  switch x { case null { false };
-             case (?i) { i == y } }
+  switch x {
+    case null { false }
+    case ?i { i == y }
+  }
 };
 
 let emptyit = ([] : [Nat]).keys();
-switch (emptyit.next()) { case null {}; case _ {assert false} };
+switch emptyit.next() { case null {} case _ { assert false } };
 
 let it = a.keys();
 assert (opt_eq(it.next(), 0));
 assert (opt_eq(it.next(), 1));
 assert (opt_eq(it.next(), 2));
-switch (it.next()) { case null {}; case _ {assert false} };
+switch it.next() { case null {} case _ { assert false } };
 
 let it_again = a.keys();
 assert (opt_eq(it_again.next(), 0));
 assert (opt_eq(it_again.next(), 1));
 assert (opt_eq(it_again.next(), 2));
-switch (it_again.next()) { case null {}; case _ {assert false} };
+switch it_again.next() { case null {} case _ { assert false } };
 
 let it2 = a.vals();
 assert (opt_eq(it2.next(), 1));
 assert (opt_eq(it2.next(), 2));
 assert (opt_eq(it2.next(), 42));
-switch (it2.next()) { case null {}; case _ {assert false} };
+switch it2.next() { case null {} case _ { assert false } };
 
 let it3 = a.values();
 assert (opt_eq(it3.next(), 1));
 assert (opt_eq(it3.next(), 2));
 assert (opt_eq(it3.next(), 42));
-switch (it3.next()) { case null {}; case _ {assert false} };
+switch it3.next() { case null {} case _ { assert false } };
 
 var i = 0;
 
 i := 0;
-for (j in a.keys()) {
+for j in a.keys() {
   assert(j == i);
   i += 1;
 };
 assert(i == a.size());
 
 i := 0;
-for (n in a.vals()) {
+for n in a.vals() {
   assert(n == a[i]);
   i += 1;
 };
 assert(i == a.size());
 
 i := 0;
-for (n in a.values()) {
+for n in a.values() {
   assert(n == a[i]);
   i += 1;
 };
 assert(i == a.size());
 
 i := 0;
-for (j in b.keys()) {
+for j in b.keys() {
   assert(j == i);
   i += 1;
 };
 assert(i == b.size());
 
 i := 0;
-for (n in b.vals()) {
+for n in b.vals() {
   assert(n == b[i]);
   i += 1;
 };
 assert(i == b.size());
 
 i := 0;
-for (n in b.values()) {
+for n in b.values() {
   assert(n == b[i]);
   i += 1;
 };

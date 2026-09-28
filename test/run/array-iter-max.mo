@@ -1,17 +1,18 @@
 import Prim "mo:⛔";
 // test we can iterate over vals and keys of largest array
 let max_size = 2**29; // maximum array size
-let a = Prim.Array_tabulate<Nat>(max_size,func i = i+1);
+let a = Prim.Array_tabulate<Nat>(max_size, func i = i + 1);
 var c = 0;
-for (i in a.values()) {
-  assert i == c+1; c += 1;
-}
-;
+for i in a.values() {
+  assert i == c + 1;
+  c += 1;
+};
 assert c == max_size;
 Prim.debugPrint(debug_show c);
 var d = 0;
-for (k in a.keys()) {
-  assert k == d; d += 1;
+for k in a.keys() {
+  assert k == d;
+  d += 1;
 };
 assert d == max_size;
 Prim.debugPrint(debug_show d);

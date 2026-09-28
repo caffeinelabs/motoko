@@ -13,11 +13,11 @@ actor Tagged {
   public func go() : async () {
     var i = 0;
     let (m0, n0) = counters();
-    while (i < 16) {
+    while i < 16 {
       var n : Nat16 = 0;
 
       var temp : Nat16 = 0;
-      while (n < 65535) {
+      while n < 65535 {
         temp := n +% n;
         temp := n -% n;
         temp := ^n;

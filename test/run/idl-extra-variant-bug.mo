@@ -4,9 +4,9 @@ import Prim "mo:prim";
 // due to failure to skip payload of unknown variant
 let b : Blob = to_candid ([(?(#b "abc"), true)]);
 
-let o = (from_candid b) : ?[(?{#a},Bool)];
+let o = (from_candid b) : ?[(?{ #a }, Bool)];
 Prim.debugPrint(debug_show o);
-assert(o == ?[(null,true)]);
+assert(o == ?[(null, true)]);
 
 //SKIP run
 //SKIP run-ir

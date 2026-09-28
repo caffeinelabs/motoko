@@ -11,4 +11,3 @@ go(1000);
 // CHECK: func $go
 // CHECK-NOT: call_indirect
 // CHECK: call $rec
-

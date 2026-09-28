@@ -2,8 +2,7 @@
 import { type T } = "canister:management";
 
 actor {
-  public func go(_ : T) : async () {
-  };
+  public func go(_ : T) : async () {};
 }
 
 //SKIP run

@@ -13,30 +13,39 @@ actor {
   var periodicTimer = 0;
 
   public shared func go() : async () {
-     var attempts = 0;
-   
-     periodicTimer := setTimer<system>(1 * second, true,
-                        func () : async () { 
-                          count += 1; 
-                          debugPrint ("YEP!");
-                          repetition += 1;
-                          assert(repetition <= 2);
-                          if (repetition == 2) {
-                            cancelTimer periodicTimer;
-                          }
-                        });
-     ignore setTimer<system>(1 * second, false,
-                            func () : async () { count += 1; debugPrint "EEK!"; assert false });
-     ignore setTimer<system>(1 * second, false,
-                            func () : async () { count += 1; debugPrint "BEAM!"; throw error("beam me up Scotty!") });
+    var attempts = 0;
 
-     while (count < max) {
-       ignore await raw_rand(); // yield to scheduler
-       attempts += 1;
-       if (attempts >= 200 and count == 0)
-         throw error("he's dead Jim");
-     };
-     debugPrint(debug_show {count});
+    periodicTimer := setTimer<system>(
+      1 * second,
+      true,
+      func () : async () {
+        count += 1;
+        debugPrint ("YEP!");
+        repetition += 1;
+        assert(repetition <= 2);
+        if repetition == 2 {
+          cancelTimer periodicTimer;
+        }
+      }
+    );
+    ignore setTimer<system>(
+      1 * second,
+      false,
+      func () : async () { count += 1; debugPrint "EEK!"; assert false }
+    );
+    ignore setTimer<system>(
+      1 * second,
+      false,
+      func () : async () { count += 1; debugPrint "BEAM!"; throw error("beam me up Scotty!") }
+    );
+
+    while count < max {
+      ignore await raw_rand(); // yield to scheduler
+      attempts += 1;
+      if attempts >= 200 and count == 0
+        { throw error("he's dead Jim") };
+    };
+    debugPrint(debug_show { count });
   };
 };
 

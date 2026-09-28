@@ -2,8 +2,7 @@ import Prim "mo:⛔";
 actor a {
 
   var s = 0;
-  public func ping0(): async () {
-  };
+  public func ping0(): async () {};
 
   // this observes how far the trap rolls back
   public func bar0(): async () {
@@ -13,9 +12,8 @@ actor a {
     await f;
     s := 3; // this will not be rolled back!
     await f;
-    ignore(0/0);
+    ignore(0 / 0);
   };
-
 
   public func ping1(x:Nat): async Nat { x };
 
@@ -27,10 +25,10 @@ actor a {
     let 1 = await f;
     s := 3; // this will not be rolled back!
     let 1 = await f;
-    ignore(0/0);
+    ignore(0 / 0);
   };
 
-  public func ping2(x:Nat,y:Nat): async (Nat, Nat) {
+  public func ping2(x:Nat, y:Nat): async (Nat, Nat) {
     (x, y);
   };
 
@@ -42,9 +40,8 @@ actor a {
     let (1, 2) = await f;
     s := 3; // this will not be rolled back!
     let (1, 2) = await f;
-    ignore(0/0);
+    ignore(0 / 0);
   };
-
 
   public func ping3(): async () {
     throw (Prim.error("fail"));
@@ -59,15 +56,14 @@ actor a {
       await f;
       assert false
     }
-    catch e { assert Prim.errorMessage e == "fail";};
+    catch e { assert Prim.errorMessage e == "fail"; };
     s := 3; // this will not be rolled back!
     try {
       await f;
       assert false
-    } catch e { assert Prim.errorMessage e == "fail";};
-    ignore(0/0);
+    } catch e { assert Prim.errorMessage e == "fail"; };
+    ignore(0 / 0);
   };
-
 
   public func go() : async () {
     try {
@@ -100,4 +96,3 @@ actor a {
   }
 };
 a.go(); //OR-CALL ingress go "DIDL\x00\x00"
-

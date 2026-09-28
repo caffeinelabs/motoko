@@ -10,8 +10,8 @@ actor {
 
   public func modify() : async () {
     switch root {
-      case (#two record) record.name #= " TEST";
-      case _ assert false;
+      case #two(record) { record.name #= " TEST" }
+      case _ { assert false }
     };
   };
 

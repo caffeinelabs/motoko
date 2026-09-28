@@ -38,6 +38,6 @@ error[M0174]: from_candid produces an optional shared type, not type
     │                     ^^^^^^^^^^^^^ 
 error[M0033]: async has non-shared content type
   Region
-    ┌─ region-ops.mo:28:19
- 28 │     type t = async Region; // reject
-    │                    ^^^^^^ 
+    ┌─ region-ops.mo:28:18
+ 28 │    type t = async Region; // reject
+    │                   ^^^^^^ 

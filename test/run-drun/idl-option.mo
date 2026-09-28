@@ -3,10 +3,10 @@ import Prim "mo:⛔";
 // do the subtyping from null to option
 actor {
   public query func any(o : ?Text) : async () {
-     switch o {
-       case null Prim.debugPrint ("ok: null");
-       case (?x) Prim.debugPrint ("ok: " # x);
-     }
+    switch o {
+      case null { Prim.debugPrint ("ok: null") }
+      case ?x { Prim.debugPrint ("ok: " # x) }
+    }
   };
 }
 

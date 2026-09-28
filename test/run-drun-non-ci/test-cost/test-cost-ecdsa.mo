@@ -14,7 +14,7 @@ actor client {
     sign_with_ecdsa : shared Args -> async { signature : Blob };
   };
   func encodeCurve(curve : EcdsaCurve) : Nat32 = switch curve {
-    case (#secp256k1) 0;
+    case #secp256k1 { 0 }
   };
 
   public shared ({ caller }) func go() : async () {

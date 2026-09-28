@@ -15,10 +15,11 @@ actor {
         #read : Any;
         #reset : Any;
       }
-    }) : Bool {
-    switch (msg) {
-      case ((#set _) or (#reset _)) { false };
-      case _ { true }; // allow inc and read
+    }
+  ) : Bool {
+    switch msg {
+      case ((#set _) or (#reset _)) { false }
+      case _ { true } // allow inc and read
     }
   }
 

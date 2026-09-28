@@ -4,11 +4,11 @@
 import Prim "mo:⛔";
 
 func isNegative(number: Float): Bool {
-    Prim.floatCopySign(1.0, number) < 0.0
+  Prim.floatCopySign(1.0, number) < 0.0
 };
 
 func negate(number: Float): Float {
-    Prim.floatCopySign(number, if (isNegative(number)) { 1.0 } else { -1.0 })
+  Prim.floatCopySign(number, if isNegative(number) { 1.0 } else { -1.0 })
 };
 
 let positiveZero = 0.0;
@@ -22,7 +22,7 @@ assert (not isNegative(negate(negativeZero)));
 Prim.debugPrint(debug_show(positiveZero));
 Prim.debugPrint(debug_show(negativeZero));
 
-let positiveNaN = Prim.floatCopySign(0.0/0.0, 1.0); // issue https://github.com/dfinity/motoko/issues/3647
+let positiveNaN = Prim.floatCopySign(0.0 / 0.0, 1.0); // issue https://github.com/dfinity/motoko/issues/3647
 let negativeNaN = -positiveNaN;
 assert(positiveNaN != positiveNaN);
 assert(positiveNaN != negativeNaN);

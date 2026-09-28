@@ -16,7 +16,7 @@ actor a {
 
     let b = async {
       let o = object {
-        let a = await (async "ba") ;
+        let a = await (async "ba");
         let b = "bb";
         public func get_a() : Text { a };
         public func get_b() : Text { b };
@@ -27,7 +27,7 @@ actor a {
 
     let c = async {
       let o = object {
-        let a = await (async "ca") ;
+        let a = await (async "ca");
         let b = await (async "cb");
         public func get_a() : Text { a };
         public func get_b() : Text { b };

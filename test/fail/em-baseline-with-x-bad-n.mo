@@ -4,9 +4,9 @@
 
 // x explained by baseline (silent); n has incompatible baseline type → M0170
 actor {
-    let a : Float;
-    let b : Bool;
-    var c : Nat;
-    let x : {#X};
-    var n : Nat;
+  let a : Float;
+  let b : Bool;
+  var c : Nat;
+  let x : { #X };
+  var n : Nat;
 };

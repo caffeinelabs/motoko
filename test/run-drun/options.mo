@@ -17,10 +17,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -28,11 +28,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -40,18 +40,17 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // Null
   do {
@@ -60,10 +59,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -71,11 +70,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -83,12 +82,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -102,10 +101,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -113,11 +112,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -125,12 +124,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -144,10 +143,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -155,11 +154,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -167,18 +166,17 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // Nat8
   do {
@@ -187,10 +185,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -198,11 +196,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -210,12 +208,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -229,10 +227,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -240,11 +238,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -252,12 +250,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -271,10 +269,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -282,11 +280,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -294,18 +292,17 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // Nat (boxed)
   do {
@@ -314,10 +311,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -325,11 +322,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -337,12 +334,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -351,15 +348,15 @@ actor {
 
   // variant
   do {
-    type T = {#lab};
+    type T = { #lab };
     let v : T = #lab;
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -367,11 +364,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -379,30 +376,29 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // record
   do {
-    type T = { fld : ()};
-    let v : T = {fld = ()};
+    type T = { fld : () };
+    let v : T = { fld = () };
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -410,11 +406,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -422,18 +418,17 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // array
   do {
@@ -442,10 +437,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -453,11 +448,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -465,12 +460,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -480,14 +475,14 @@ actor {
   // unit
   do {
     type T = ();
-    let (#unit v) = #unit ();  // avoids MO239 warning
+    let (#unit v) = #unit (); // avoids MO239 warning
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -495,11 +490,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -507,12 +502,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
@@ -526,10 +521,10 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and w == v; };
+          case null { assert i == 0 }
+          case ?w { assert i == 1 and w == v; }
         };
         i += 1;
       }
@@ -537,11 +532,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and w == v; };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w { assert i == 2 and w == v; }
         };
         i += 1;
       }
@@ -549,18 +544,17 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and w == v };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w { assert i == 3 and w == v }
         };
         i += 1;
       };
     };
   };
-
 
   // errors
   do {
@@ -569,12 +563,13 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?v].values()) {
+      for o in [null, ?v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?w) { assert i == 1 and
-	    Prim.errorMessage(w) == Prim.errorMessage(v);
-	  };
+          case null { assert i == 0 }
+          case ?w {
+            assert i == 1 and
+              Prim.errorMessage(w) == Prim.errorMessage(v);
+          }
         };
         i += 1;
       }
@@ -582,13 +577,14 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??v].values()) {
+      for o in [null, ?null, ??v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??w) { assert i == 2 and
-  	    Prim.errorMessage(w) == Prim.errorMessage(v);
-	  };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??w {
+            assert i == 2 and
+              Prim.errorMessage(w) == Prim.errorMessage(v);
+          }
         };
         i += 1;
       }
@@ -596,58 +592,58 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null, ???v].values()) {
+      for o in [null, ?null, ??null, ???v].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-          case (???w) { assert i == 3 and
-	    Prim.errorMessage(w) == Prim.errorMessage(v);
-          };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          case ???w {
+            assert i == 3 and
+              Prim.errorMessage(w) == Prim.errorMessage(v);
+          }
         };
         i += 1;
       };
     };
   };
 
-
   func generic_test<T>(v : T, eq : (T, T) -> Bool) {
     do {
 
       do {
-	var i = 0;
-	for(o in [null, ?v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?w) { assert i == 1 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?w { assert i == 1 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??w) { assert i == 2 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?null, ??v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??w { assert i == 2 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??null, ???v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??null) { assert i == 2 };
-	    case (???w) { assert i == 3 and eq(w, v) };
-	  };
-	  i += 1;
-	};
+        var i = 0;
+        for o in [null, ?null, ??null, ???v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??null { assert i == 2 }
+            case ???w { assert i == 3 and eq(w, v) }
+          };
+          i += 1;
+        };
       };
     };
   };
@@ -661,44 +657,43 @@ actor {
   generic_test<()>((), func (t1, t2) = t1 == t2);
   generic_test<?()>(?(), func (t1, t2) = t1 == t2);
 
-
   func bounded_test<T <: Int>(v : T, eq : (T, T) -> Bool) {
     do {
 
       do {
-	var i = 0;
-	for(o in [null, ?v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?w) { assert i == 1 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?w { assert i == 1 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??w) { assert i == 2 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?null, ??v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??w { assert i == 2 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??null, ???v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??null) { assert i == 2 };
-	    case (???w) { assert i == 3 and eq(w, v) };
-	  };
-	  i += 1;
-	};
+        var i = 0;
+        for o in [null, ?null, ??null, ???v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??null { assert i == 2 }
+            case ???w { assert i == 3 and eq(w, v) }
+          };
+          i += 1;
+        };
       };
     };
   };
@@ -706,44 +701,43 @@ actor {
   bounded_test<Int>(-1, func (t1, t2) = t1 == t2);
   bounded_test<Nat>(0, func (t1, t2) = t1 == t2);
 
-
   func rec_bounded_test<T <: U, U>(v : T, eq : (T, T) -> Bool) {
     do {
 
       do {
-	var i = 0;
-	for(o in [null, ?v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?w) { assert i == 1 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?w { assert i == 1 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??w) { assert i == 2 and eq(w, v); };
-	  };
-	  i += 1;
-	}
+        var i = 0;
+        for o in [null, ?null, ??v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??w { assert i == 2 and eq(w, v); }
+          };
+          i += 1;
+        }
       };
 
       do {
-	var i = 0;
-	for(o in [null, ?null, ??null, ???v].values()) {
-	  switch o {
-	    case null { assert i == 0 };
-	    case (?null) { assert i == 1 };
-	    case (??null) { assert i == 2 };
-	    case (???w) { assert i == 3 and eq(w, v) };
-	  };
-	  i += 1;
-	};
+        var i = 0;
+        for o in [null, ?null, ??null, ???v].values() {
+          switch o {
+            case null { assert i == 0 }
+            case ?null { assert i == 1 }
+            case ??null { assert i == 2 }
+            case ???w { assert i == 3 and eq(w, v) }
+          };
+          i += 1;
+        };
       };
     };
   };
@@ -751,17 +745,16 @@ actor {
   rec_bounded_test<Int, Int>(-1, func (t1, t2) = t1 == t2);
   rec_bounded_test<Nat, Int>(0, func (t1, t2) = t1 == t2);
 
-
   // None
   do {
     type T = None;
 
     do {
       var i = 0;
-      for(o in [null].values()) {
+      for o in [null].values() {
         switch o {
-          case null { assert i == 0 };
-//        case (?_w) { assert false };
+          case null { assert i == 0 }
+          //        case (?_w) { assert false };
         };
         i += 1;
       }
@@ -769,11 +762,11 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null].values()) {
+      for o in [null, ?null].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-//        case (??w) { assert false };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          //        case (??w) { assert false };
         };
         i += 1;
       }
@@ -781,12 +774,12 @@ actor {
 
     do {
       var i = 0;
-      for(o in [null, ?null, ??null].values()) {
+      for o in [null, ?null, ??null].values() {
         switch o {
-          case null { assert i == 0 };
-          case (?null) { assert i == 1 };
-          case (??null) { assert i == 2 };
-//        case (???_w) { assert false };
+          case null { assert i == 0 }
+          case ?null { assert i == 1 }
+          case ??null { assert i == 2 }
+          //        case (???_w) { assert false };
         };
         i += 1;
       };
@@ -794,5 +787,3 @@ actor {
   };
 
 };
-
-

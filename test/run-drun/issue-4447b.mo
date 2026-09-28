@@ -15,9 +15,9 @@ actor {
   class D<system, T>(t : T) {
     public func add<system>(_t : T) {
       cyclesAdd<system>(100);
-   };
+    };
 
-   add<system>(t);
+    add<system>(t);
 
   };
 

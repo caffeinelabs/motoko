@@ -1,14 +1,14 @@
 module Wrong = {
-  func f() { assert false;};
+  func f() { assert false; };
   let _ = f(); // non_static!
   let _ = [var 0]; // non static
   var x = 0; // non-static
   let a = [0];
 
   object WrongO = {
-   let _ = f(); // non_static!
-   let _ = [var 0]; // non static
-   var x = 0; // non-static
+    let _ = f(); // non_static!
+    let _ = [var 0]; // non static
+    var x = 0; // non-static
   };
 
   object OkO = {
@@ -17,9 +17,9 @@ module Wrong = {
   };
 
   module WrongM = {
-   let _ = f(); // non_static!
-   let _ = [var 0]; // non static
-   var x = 0; // non-static
+    let _ = f(); // non_static!
+    let _ = [var 0]; // non static
+    var x = 0; // non-static
   };
 
   object OkM = {
@@ -27,6 +27,4 @@ module Wrong = {
     let a = [0];
   };
 
-
 };
-

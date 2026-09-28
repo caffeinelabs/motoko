@@ -29,7 +29,6 @@ Prim.debugPrint(debug_show (42000));
 Prim.debugPrint(debug_show (42000000));
 Prim.debugPrint(debug_show (420000000000000));
 
-
 // int corner cases
 Prim.debugPrint(debug_show (+0x7FFFFFFE));
 Prim.debugPrint(debug_show (+0x7FFFFFFF));
@@ -55,13 +54,13 @@ Prim.debugPrint(debug_show (0x8FFFFFFF));
 Prim.debugPrint(debug_show (0x100000000));
 Prim.debugPrint(debug_show (0x100000001));
 
-Prim.debugPrint(debug_show (42,-42,()));
+Prim.debugPrint(debug_show (42, -42, ()));
 Prim.debugPrint(debug_show ("Foobar", null, null, ?23));
 Prim.debugPrint(debug_show ([]));
-Prim.debugPrint(debug_show ([1,2,3]));
+Prim.debugPrint(debug_show ([1, 2, 3]));
 Prim.debugPrint(debug_show ([var]));
-Prim.debugPrint(debug_show ([var 1,2,3]));
-class Foo() { public let foo : Int = 42; public var bar : Bool = true ; let hidden = [1,2] };
+Prim.debugPrint(debug_show ([var 1, 2, 3]));
+class Foo() { public let foo : Int = 42; public var bar : Bool = true; let hidden = [1, 2] };
 Prim.debugPrint(debug_show (Foo()));
 Prim.debugPrint(debug_show (#foo ()));
 Prim.debugPrint(debug_show (#bar (1, 2)));
@@ -69,7 +68,7 @@ Prim.debugPrint(debug_show (#bar {}));
 Prim.debugPrint(debug_show (#bar ([])));
 Prim.debugPrint(debug_show (#bar 42));
 Prim.debugPrint(debug_show (#bar (-42)));
-Prim.debugPrint(debug_show (#foo 42 : {#foo : Int; #bar : Text}));
+Prim.debugPrint(debug_show (#foo 42 : { #foo : Int; #bar : Text }));
 Prim.debugPrint(debug_show (42 : Nat8));
 Prim.debugPrint(debug_show (42 : Int32));
 Prim.debugPrint(debug_show (Prim.intToInt64 (-42)));

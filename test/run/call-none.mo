@@ -1,1 +1,1 @@
-func (f : None) { f() ; f 1; f (1,2) }
+func (f : None) { f(); f 1; f (1, 2) }

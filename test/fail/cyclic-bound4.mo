@@ -1,6 +1,6 @@
 /* check cyclic bounds are rejected, would loop sans check */
 
-type C<U,V> = U;
+type C<U, V> = U;
 
 type T<U> = C<U,U>;
 

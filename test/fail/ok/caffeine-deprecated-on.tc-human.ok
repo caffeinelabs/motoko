@@ -23,15 +23,15 @@ warning[M0235]: type field T is deprecated for caffeine
  23 │  ignore (5 : A.T);
     │              ^^^ 
 warning[M0235]: field f is deprecated for caffeine
-    ┌─ caffeine-deprecated-on.mo:25:11
- 25 │  do { let {f} = A; };
-    │            ^ 
+    ┌─ caffeine-deprecated-on.mo:25:12
+ 25 │  do { let { f } = A; };
+    │             ^ 
 warning[M0235]: field f is deprecated for caffeine
-    ┌─ caffeine-deprecated-on.mo:26:11
- 26 │  do { let {f = x} = A; };
-    │            ^^^^^ 
+    ┌─ caffeine-deprecated-on.mo:26:12
+ 26 │  do { let { f = x } = A; };
+    │             ^^^^^ 
 warning[M0235]: field withMsg is deprecated for caffeine
-    ┌─ caffeine-deprecated-on.mo:42:9
- 42 │  ignore (C.withMsg);
+    ┌─ caffeine-deprecated-on.mo:41:9
+ 41 │  ignore (C.withMsg);
     │          ^^^^^^^^^ 
     = note: use `bar` instead

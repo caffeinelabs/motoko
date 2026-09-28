@@ -8,7 +8,7 @@ func storeGenericElement<T>(a : [var T], v: T) { a[0] := v };
 storeGenericElement<Nat>([var 1], 123_456_789_000_000);
 
 func storeInGenericArray<T, A <: [var T]>(a : A, v: T) { a[0] := v };
-storeInGenericArray<Nat,[var Nat]>([var 1], 123_456_789_000_000);
+storeInGenericArray<Nat, [var Nat]>([var 1], 123_456_789_000_000);
 
 type ArrayTypeAlias = [var Nat16];
 func storeInAliasTypedArrayNoBarrier<T>(a : ArrayTypeAlias, v: Nat16) { a[0] := v };

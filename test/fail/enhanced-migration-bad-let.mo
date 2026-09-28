@@ -6,7 +6,7 @@ actor {
 
   let x : Int; // accept
 
-  let (y,_) : (Int,Int); // reject
+  let (y, _) : (Int, Int); // reject
 
   let untyped; // reject, no annotation
 

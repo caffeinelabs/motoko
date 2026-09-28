@@ -1,14 +1,14 @@
-pat-subtyping-fail.mo:4.9-4.11: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:4.8-4.10: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:8.9-8.11: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:13.13-13.15: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:17.18-17.20: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:22.21-22.23: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:26.26-26.28: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:31.11-31.13: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:22.22-22.24: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:26.27-26.29: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:31.10-31.12: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:35.11-35.13: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:39.11-39.13: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:44.12-44.14: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:48.12-48.14: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:39.10-39.12: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:44.11-44.13: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:48.11-48.13: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:52.12-52.14: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:57.9-57.16: type error [M0117], pattern of type
   Nat
@@ -26,35 +26,35 @@ pat-subtyping-fail.mo:67.9-67.16: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:71.9-71.31: type error [M0117], pattern of type
+pat-subtyping-fail.mo:71.9-71.33: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {a : Int; b : Int}
-pat-subtyping-fail.mo:74.9-74.36: type error [M0117], pattern of type
+pat-subtyping-fail.mo:74.9-74.40: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {a : Int; b : Int}
-pat-subtyping-fail.mo:77.13-77.20: type error [M0117], pattern of type
+pat-subtyping-fail.mo:77.14-77.21: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:80.9-80.31: type error [M0117], pattern of type
+pat-subtyping-fail.mo:80.9-80.33: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {a : Nat}
-pat-subtyping-fail.mo:83.9-83.36: type error [M0117], pattern of type
+pat-subtyping-fail.mo:83.9-83.40: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {a : Nat}
-pat-subtyping-fail.mo:86.9-86.31: type error [M0117], pattern of type
+pat-subtyping-fail.mo:86.9-86.33: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {}
-pat-subtyping-fail.mo:89.9-89.36: type error [M0117], pattern of type
+pat-subtyping-fail.mo:89.9-89.40: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {}
-pat-subtyping-fail.mo:94.8-94.13: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:94.8-94.11: warning [M0146], this pattern is never matched
 pat-subtyping-fail.mo:97.9-97.20: type error [M0117], pattern of type
   Null
 cannot consume expected type
@@ -63,54 +63,54 @@ pat-subtyping-fail.mo:101.9-101.18: type error [M0117], pattern of type
   ?Nat
 cannot consume expected type
   ?Int
-pat-subtyping-fail.mo:105.11-105.18: type error [M0117], pattern of type
+pat-subtyping-fail.mo:105.10-105.17: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:110.8-110.31: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:113.9-113.26: type error [M0117], pattern of type
+pat-subtyping-fail.mo:110.8-110.33: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:113.9-113.28: type error [M0117], pattern of type
   {#A : Nat}
 cannot consume expected type
   {#A : Nat; #B}
-pat-subtyping-fail.mo:117.9-117.18: type error [M0117], pattern of type
+pat-subtyping-fail.mo:117.9-117.20: type error [M0117], pattern of type
   {#B}
 cannot consume expected type
   {#A : Nat; #B}
-pat-subtyping-fail.mo:123.8-123.12: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:124.8-124.9: warning [M0146], this pattern is never matched
-pat-subtyping-fail.mo:132.10-132.17: type error [M0117], pattern of type
+pat-subtyping-fail.mo:122.8-122.12: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:123.8-123.9: warning [M0146], this pattern is never matched
+pat-subtyping-fail.mo:130.10-130.17: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:135.10-135.17: type error [M0117], pattern of type
+pat-subtyping-fail.mo:133.10-133.17: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:138.10-138.23: type error [M0117], pattern of type
+pat-subtyping-fail.mo:136.10-136.23: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:144.16-144.23: type error [M0117], pattern of type
+pat-subtyping-fail.mo:142.16-142.23: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:147.16-147.23: type error [M0117], pattern of type
+pat-subtyping-fail.mo:145.16-145.23: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:150.16-150.29: type error [M0117], pattern of type
+pat-subtyping-fail.mo:148.16-148.29: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:156.11-156.29: type error [M0096], expression of type
+pat-subtyping-fail.mo:154.11-154.29: type error [M0096], expression of type
   (x : Nat) -> ()
 cannot produce expected type
   Int -> ()
-pat-subtyping-fail.mo:159.18-159.25: type error [M0117], pattern of type
+pat-subtyping-fail.mo:157.18-157.25: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
-pat-subtyping-fail.mo:162.11-162.35: type error [M0096], expression of type
+pat-subtyping-fail.mo:160.11-160.35: type error [M0096], expression of type
   Nat -> ()
 cannot produce expected type
   Int -> ()

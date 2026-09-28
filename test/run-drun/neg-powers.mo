@@ -6,229 +6,229 @@ import Prim "mo:⛔";
 
 actor a {
   public func go() : async (){
-    try {await async {
-        ignore (2 ** 2 :Int);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
+    try { await async {
+      ignore (2 ** 2 :Int);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
     };
-    try {await async {
-        ignore (2 ** 0 :Int);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
+    try { await async {
+      ignore (2 ** 0 :Int);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
     };
-    try {await async {
-        ignore (2 ** -1 :Int);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
+    try { await async {
+      ignore (2 ** -1 :Int);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
     };
-    try {await async {
-        ignore (2 ** -2 :Int);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
-    };
-
-    try {await async {
-        ignore (2 ** 2 :Int8);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
-    };
-    try {await async {
-        ignore (2 ** 0 :Int8);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
-    };
-    try {await async {
-        ignore (2 ** -1 :Int8);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
-    };
-    try {await async {
-        ignore (2 ** -2 :Int8);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
+    try { await async {
+      ignore (2 ** -2 :Int);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
     };
 
-    try {await async {
-        ignore (2 ** 2 :Int16);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
+    try { await async {
+      ignore (2 ** 2 :Int8);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
     };
-    try {await async {
-        ignore (2 ** 0 :Int16);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
+    try { await async {
+      ignore (2 ** 0 :Int8);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
     };
-    try {await async {
-        ignore (2 ** -1 :Int16);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
+    try { await async {
+      ignore (2 ** -1 :Int8);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
     };
-    try {await async {
-        ignore (2 ** -2 :Int16);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
-    };
-
-    try {await async {
-        ignore (2 ** 2 :Int32);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
-    };
-    try {await async {
-        ignore (2 ** 0 :Int32);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
-    };
-    try {await async {
-        ignore (2 ** -1 :Int32);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
-    };
-    try {await async {
-        ignore (2 ** -2 :Int32);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
+    try { await async {
+      ignore (2 ** -2 :Int8);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
     };
 
-    try {await async {
-        ignore (2 ** 2 :Int64);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
+    try { await async {
+      ignore (2 ** 2 :Int16);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
     };
-    try {await async {
-        ignore (2 ** 0 :Int64);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
+    try { await async {
+      ignore (2 ** 0 :Int16);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
     };
-    try {await async {
-        ignore (2 ** -1 :Int64);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
+    try { await async {
+      ignore (2 ** -1 :Int16);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
     };
-    try {await async {
-        ignore (2 ** -2 :Int64);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
-    };
-
-    try {await async {
-        ignore (2 **% 2 :Int8);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
-    };
-    try {await async {
-        ignore (2 **% 0 :Int8);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
-    };
-    try {await async {
-        ignore (2 **% -1 :Int8);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
-    };
-    try {await async {
-        ignore (2 **% -2 :Int8);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
+    try { await async {
+      ignore (2 ** -2 :Int16);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
     };
 
-    try {await async {
-        ignore (2 **% 2 :Int16);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
+    try { await async {
+      ignore (2 ** 2 :Int32);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
     };
-    try {await async {
-        ignore (2 **% 0 :Int16);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
+    try { await async {
+      ignore (2 ** 0 :Int32);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
     };
-    try {await async {
-        ignore (2 **% -1 :Int16);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
+    try { await async {
+      ignore (2 ** -1 :Int32);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
     };
-    try {await async {
-        ignore (2 **% -2 :Int16);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
-    };
-
-    try {await async {
-        ignore (2 **% 2 :Int32);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
-    };
-    try {await async {
-        ignore (2 **% 0 :Int32);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
-    };
-    try {await async {
-        ignore (2 **% -1 :Int32);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
-    };
-    try {await async {
-        ignore (2 **% -2 :Int32);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
+    try { await async {
+      ignore (2 ** -2 :Int32);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
     };
 
-    try {await async {
-        ignore (2 **% 2 :Int64);
-        Prim.debugPrint("ok 1");
-    }} catch e {
-        Prim.debugPrint("not ok 1");
+    try { await async {
+      ignore (2 ** 2 :Int64);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
     };
-    try {await async {
-        ignore (2 **% 0 :Int64);
-        Prim.debugPrint("ok 2");
-    }} catch e {
-        Prim.debugPrint("not ok 2");
+    try { await async {
+      ignore (2 ** 0 :Int64);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
     };
-    try {await async {
-        ignore (2 **% -1 :Int64);
-        Prim.debugPrint("not ok 3");
-    }} catch e {
-        Prim.debugPrint("ok 3");
+    try { await async {
+      ignore (2 ** -1 :Int64);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
     };
-    try {await async {
-        ignore (2 **% -2 :Int64);
-        Prim.debugPrint("not ok 4");
-    }} catch e {
-        Prim.debugPrint("ok 4");
+    try { await async {
+      ignore (2 ** -2 :Int64);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
+    };
+
+    try { await async {
+      ignore (2 **% 2 :Int8);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
+    };
+    try { await async {
+      ignore (2 **% 0 :Int8);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
+    };
+    try { await async {
+      ignore (2 **% -1 :Int8);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
+    };
+    try { await async {
+      ignore (2 **% -2 :Int8);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
+    };
+
+    try { await async {
+      ignore (2 **% 2 :Int16);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
+    };
+    try { await async {
+      ignore (2 **% 0 :Int16);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
+    };
+    try { await async {
+      ignore (2 **% -1 :Int16);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
+    };
+    try { await async {
+      ignore (2 **% -2 :Int16);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
+    };
+
+    try { await async {
+      ignore (2 **% 2 :Int32);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
+    };
+    try { await async {
+      ignore (2 **% 0 :Int32);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
+    };
+    try { await async {
+      ignore (2 **% -1 :Int32);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
+    };
+    try { await async {
+      ignore (2 **% -2 :Int32);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
+    };
+
+    try { await async {
+      ignore (2 **% 2 :Int64);
+      Prim.debugPrint("ok 1");
+    } } catch e {
+      Prim.debugPrint("not ok 1");
+    };
+    try { await async {
+      ignore (2 **% 0 :Int64);
+      Prim.debugPrint("ok 2");
+    } } catch e {
+      Prim.debugPrint("not ok 2");
+    };
+    try { await async {
+      ignore (2 **% -1 :Int64);
+      Prim.debugPrint("not ok 3");
+    } } catch e {
+      Prim.debugPrint("ok 3");
+    };
+    try { await async {
+      ignore (2 **% -2 :Int64);
+      Prim.debugPrint("not ok 4");
+    } } catch e {
+      Prim.debugPrint("ok 4");
     };
 
   }

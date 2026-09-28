@@ -115,9 +115,9 @@ module {
     #equal;
     #greater
   } {
-    if (principal1 < principal2) {
+    if principal1 < principal2 {
       #less
-    } else if (principal1 == principal2) {
+    } else if principal1 == principal2 {
       #equal
     } else {
       #greater

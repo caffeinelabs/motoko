@@ -20,7 +20,7 @@ actor This : actor { type U = Nat; beep : () -> async () } {
 
   public func beep() : async () {};
 
-  public func ok() : async () {Prim.debugPrint "ok"}; // still exported, despite not in declared interface!
+  public func ok() : async () { Prim.debugPrint "ok" }; // still exported, despite not in declared interface!
 
   public func check() : async ()  { await This.ok() }; // check no curtailment this
 

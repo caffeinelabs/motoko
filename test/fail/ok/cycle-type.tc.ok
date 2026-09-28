@@ -1,15 +1,15 @@
-cycle-type.mo:4.39-4.42: type error [M0050], literal of type
+cycle-type.mo:4.35-4.38: type error [M0050], literal of type
   Char
 does not have expected type
   Nat
-cycle-type.mo:5.39-5.46: type error [M0050], literal of type
+cycle-type.mo:5.35-5.42: type error [M0050], literal of type
   Text
 does not have expected type
   Nat
-cycle-type.mo:7.16-7.22: warning [M0210], misplaced parenthetical (this call does not send a message)
-cycle-type.mo:7.16-7.22: warning [M0211], redundant empty parenthetical note
-cycle-type.mo:9.9-9.18: warning [M0211], redundant empty parenthetical note
-cycle-type.mo:10.31-10.34: type error [M0050], literal of type
+cycle-type.mo:7.12-7.18: warning [M0210], misplaced parenthetical (this call does not send a message)
+cycle-type.mo:7.12-7.18: warning [M0211], redundant empty parenthetical note
+cycle-type.mo:9.5-9.14: warning [M0211], redundant empty parenthetical note
+cycle-type.mo:10.27-10.30: type error [M0050], literal of type
   Char
 does not have expected type
   Nat32

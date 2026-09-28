@@ -4,8 +4,8 @@
 
 // x explained by baseline (silent); `extra` in baseline but not in new pre → M0169
 actor {
-    let a : Float;
-    let b : Bool;
-    var c : Nat;
-    let x : {#X};
+  let a : Float;
+  let b : Bool;
+  var c : Nat;
+  let x : { #X };
 };

@@ -1,36 +1,36 @@
-inf-error.mo:44.13-44.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-inf-error.mo:45.13-45.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-inf-error.mo:46.45-46.51: type error [M0096], expression of type
+inf-error.mo:48.12-48.46: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+inf-error.mo:49.12-49.33: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+inf-error.mo:50.44-50.50: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
-inf-error.mo:47.13-47.39: type error [M0230], Cannot determine implicit argument `compare` of type
+inf-error.mo:51.12-51.38: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
-inf-error.mo:51.40-51.46: type error [M0096], expression of type
+inf-error.mo:55.39-55.45: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
-inf-error.mo:52.13-52.34: type error [M0230], Cannot determine implicit argument `compare` of type
+inf-error.mo:56.12-56.33: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
-inf-error.mo:57.13-57.51: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
-inf-error.mo:58.13-58.38: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
-inf-error.mo:59.45-59.51: type error [M0096], expression of type
+inf-error.mo:61.12-61.50: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
+inf-error.mo:62.12-62.37: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
+inf-error.mo:63.44-63.50: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
-inf-error.mo:60.13-60.43: type error [M0230], Cannot determine implicit argument `compare` of type
+inf-error.mo:64.12-64.42: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
-inf-error.mo:62.40-62.46: type error [M0096], expression of type
+inf-error.mo:66.39-66.45: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
-inf-error.mo:64.40-64.46: type error [M0096], expression of type
+inf-error.mo:68.39-68.45: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
-inf-error.mo:65.13-65.38: type error [M0230], Cannot determine implicit argument `compare` of type
+inf-error.mo:69.12-69.37: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.

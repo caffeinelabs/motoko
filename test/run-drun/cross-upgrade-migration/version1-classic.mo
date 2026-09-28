@@ -8,13 +8,13 @@ import Migration "Migration1";
 (with migration = Migration.run)
 actor {
 
-   Prim.debugPrint("Version 1");
+  Prim.debugPrint("Version 1");
 
-   var zero : Nat = 0;
+  var zero : Nat = 0;
 
-   var three : [var (Nat, Text)] = [var (1,"1")];
+  var three : [var (Nat, Text)] = [var (1, "1")];
 
-   public func check(): async() {
-     Prim.debugPrint (debug_show {zero; three});
-   }
+  public func check(): async() {
+    Prim.debugPrint (debug_show { zero; three });
+  }
 };

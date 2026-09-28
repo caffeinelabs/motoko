@@ -14,10 +14,10 @@ module M1 {
 module Main {
   func inv<T>(t : T) : T -> () = func(_ : T) = ();
   func check<T>(t : T, _ : T -> ()) {};
-  func showRecord(r : {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}) {
-    let _ : {m2 : M1.Map<Nat, Text> } = r;
+  func showRecord(r : { m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text> }) {
+    let _ : { m2 : M1.Map<Nat, Text> } = r;
   };
-  func showBimatch(r : {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}) {
+  func showBimatch(r : { m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text> }) {
     check(r.m1, func(m : MyMap.Map<Nat, Text>) = ());
   };
   func showTransitiveImport() {

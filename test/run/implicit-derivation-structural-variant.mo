@@ -13,7 +13,7 @@ func show(__variant : (Text, () -> Text)) : Text {
 // Per-payload instances (each returns Text = elem_typ)
 module TextShow { public func show(self : Text) : Text = self };
 module NatShow { public func show(self : Nat) : Text = debug_show self };
-module BoolShow { public func show(self : Bool) : Text = if self "true" else "false" };
+module BoolShow { public func show(self : Bool) : Text = if self { "true" } else { "false" } };
 // Instance for the unit payload of no-arg cases like `#red`
 module UnitShow { public func show(_self : ()) : Text = "" };
 
@@ -41,8 +41,8 @@ module RecordShow {
   public func show(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
-    for ((k, v) in __record.values()) {
-      if (not first) { s #= "," };
+    for (k, v) in __record.values() {
+      if not first { s #= "," };
       s #= k # "=" # v();
       first := false;
     };

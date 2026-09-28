@@ -18,6 +18,4 @@ actor A {
       { rts_callback_table_count = rts_callback_table_count() });
   };
 
-
 };
-

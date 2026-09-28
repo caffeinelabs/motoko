@@ -1,77 +1,77 @@
-type-inference.mo:6.9-6.28: warning [M0081], this if has type
+type-inference.mo:6.9-6.36: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Bool
 false produces
   Nat
-type-inference.mo:7.9-7.34: warning [M0081], this if has type
+type-inference.mo:7.9-7.42: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Bool
 false produces
   [var Nat]
-type-inference.mo:8.9-8.27: warning [M0081], this if has type
+type-inference.mo:8.9-8.35: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Nat
 false produces
   Float
-type-inference.mo:9.9-9.29: warning [M0081], this if has type
+type-inference.mo:9.9-9.33: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   ()
 false produces
   {}
-type-inference.mo:14.33-14.41: warning [M0101], the switch has type
+type-inference.mo:14.36-14.48: warning [M0101], the switch has type
   Any
 because branches have inconsistent types,
 this case produces type
   Bool
 the previous produce type
   Nat
-type-inference.mo:15.33-15.47: warning [M0101], the switch has type
+type-inference.mo:15.36-15.54: warning [M0101], the switch has type
   Any
 because branches have inconsistent types,
 this case produces type
   Bool
 the previous produce type
   [var Nat]
-type-inference.mo:16.43-16.56: warning [M0101], the switch has type
+type-inference.mo:16.49-16.66: warning [M0101], the switch has type
   Any
 because branches have inconsistent types,
 this case produces type
   Int
 the previous produce type
   Text
-type-inference.mo:22.9-22.18: warning [M0074], this array has type
+type-inference.mo:21.9-21.18: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-type-inference.mo:23.9-23.24: warning [M0074], this array has type
+type-inference.mo:22.9-22.24: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-type-inference.mo:156.16-156.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:150.16-150.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:157.16-157.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:151.16-151.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:158.16-158.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:152.16-152.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:159.19-159.24: warning [M0155], operator may trap for inferred type
+type-inference.mo:153.19-153.24: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:160.19-160.24: warning [M0155], operator may trap for inferred type
+type-inference.mo:154.19-154.24: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:172.16-172.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:166.16-166.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:173.16-173.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:167.16-167.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:174.16-174.21: warning [M0155], operator may trap for inferred type
+type-inference.mo:168.16-168.21: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:175.19-175.24: warning [M0155], operator may trap for inferred type
+type-inference.mo:169.19-169.24: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:176.19-176.24: warning [M0155], operator may trap for inferred type
+type-inference.mo:170.19-170.24: warning [M0155], operator may trap for inferred type
   Nat
-type-inference.mo:187.5-187.10: warning [M0155], operator may trap for inferred type
+type-inference.mo:181.5-181.10: warning [M0155], operator may trap for inferred type
   Nat

@@ -7,8 +7,8 @@ actor a {
 
   public func go() : async() {
     // To get lots of cycles in drun
-    if (Cycles.balance() == 0)
-      await Cycles.provisional_top_up_actor(a, 100_000_000_000_000);
+    if Cycles.balance() == 0
+      { await Cycles.provisional_top_up_actor(a, 100_000_000_000_000) };
 
     try {
       Prim.debugPrint("Installing actor:");
@@ -16,7 +16,7 @@ actor a {
       let principal = await Prim.createActor(wasm_mod, empty_arg);
       let id = debug_show principal;
       Prim.debugPrint(id);
-      let a = actor (id) : actor { };
+      let a = actor (id) : actor {};
     } catch e {
       Prim.debugPrint("Exception: " # debug_show (Prim.errorMessage(e)));
     }
@@ -27,4 +27,3 @@ actor a {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-

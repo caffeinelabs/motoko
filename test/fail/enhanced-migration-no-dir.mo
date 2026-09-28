@@ -2,6 +2,6 @@
 //MOC-FLAG -A=M0194
 
 actor {
-    let a : Float;
-    let b : Bool;
+  let a : Float;
+  let b : Bool;
 };

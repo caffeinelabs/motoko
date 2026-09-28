@@ -48,7 +48,7 @@ if inc(2) == 3 {} else { assert false };
 // operators spaced on both sides, or on neither, extend the head
 var k : Int = 3;
 if k - 1 > 0 {} else { assert false };
-if k-1 > 0 {} else { assert false };
+if k - 1 > 0 {} else { assert false };
 while k - 1 > 0 { k -= 1 };
 assert k == 1;
 
@@ -108,7 +108,7 @@ assert sign(0) == "zero";
 // `??x` (unspaced) still introduces two options; `?? ` (spaced) is the operator
 let nn : ??Nat = ??1;
 switch (nn : ??Nat) {
-  case (??n) { assert n == 1 }
+  case ??n { assert n == 1 }
   case _ { assert false }
 };
 

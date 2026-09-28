@@ -2,7 +2,7 @@ import Prim "mo:⛔";
 actor a {
   public shared func test() : async () {
     do {
-      let o = {var l = 0};
+      let o = { var l = 0 };
       (await async o).l := await async 1; // type error (o mutable, not shared)
       Prim.debugPrintNat(o.l);
       assert o.l == 1;

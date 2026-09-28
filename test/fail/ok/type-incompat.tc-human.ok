@@ -11,9 +11,9 @@ cannot produce expected type
   {x : Nat}
 because of incompatible object sorts:
  module does not match object
-    ┌─ type-incompat.mo:4:64
-  4 │  do { module M { public let x : Nat = 42 }; let _ : {x : Nat} = M };
-    │                                                                 ^ 
+    ┌─ type-incompat.mo:4:66
+  4 │  do { module M { public let x : Nat = 42 }; let _ : { x : Nat } = M };
+    │                                                                   ^ 
 error[M0096]: expression of type
   (n : Nat) -> async Nat
 cannot produce expected type

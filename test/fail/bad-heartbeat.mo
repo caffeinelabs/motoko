@@ -1,5 +1,5 @@
 actor {
-  system func heartbeat() : () { // reject, should be async ()
+  system func heartbeat() : () {
+    // reject, should be async ()
   };
 };
-

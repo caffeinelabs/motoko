@@ -1,1 +1,1 @@
-type List<T> = ?{head : T; var tail : List<T>};
+type List<T> = ?{ head : T; var tail : List<T> };

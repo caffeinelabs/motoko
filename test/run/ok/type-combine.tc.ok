@@ -1,74 +1,74 @@
-type-combine.mo:422.16-422.39: warning [M0166], this intersection results in type
+type-combine.mo:631.16-631.39: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [var Int]
-type-combine.mo:423.16-423.35: warning [M0166], this intersection results in type
+type-combine.mo:632.16-632.35: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [Nat]
-type-combine.mo:425.16-425.25: warning [M0166], this intersection results in type
+type-combine.mo:634.16-634.25: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   ()
 right operand is
   {}
-type-combine.mo:428.22-428.29: warning [M0166], this intersection results in type
+type-combine.mo:637.22-637.29: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:431.32-431.39: warning [M0166], this intersection results in type
+type-combine.mo:640.32-640.39: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:433.16-433.53: warning [M0166], this intersection results in type
+type-combine.mo:642.16-642.53: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   <A <: Nat>() -> ()
 right operand is
   <A <: Int>() -> ()
-type-combine.mo:448.16-448.38: warning [M0167], this union results in type
+type-combine.mo:657.16-657.38: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [var Int]
-type-combine.mo:449.16-449.34: warning [M0167], this union results in type
+type-combine.mo:658.16-658.34: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [Nat]
-type-combine.mo:451.16-451.24: warning [M0167], this union results in type
+type-combine.mo:660.16-660.24: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   ()
 right operand is
   {}
-type-combine.mo:454.22-454.28: warning [M0167], this union results in type
+type-combine.mo:663.22-663.28: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:459.16-459.52: warning [M0167], this union results in type
+type-combine.mo:668.16-668.52: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is

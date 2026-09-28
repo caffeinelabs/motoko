@@ -2,7 +2,6 @@
 
 actor {
 
-    system func timer(_ : Nat64 -> ()) : async () {
-  }
+  system func timer(_ : Nat64 -> ()) : async () {}
 
 }

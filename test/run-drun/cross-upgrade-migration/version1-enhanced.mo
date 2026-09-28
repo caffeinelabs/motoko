@@ -6,14 +6,14 @@ import Migration "Migration1";
 (with migration = Migration.run)
 actor {
 
-   Prim.debugPrint("Version 1");
+  Prim.debugPrint("Version 1");
 
-   var zero : Nat = Prim.trap "unreachable"; // inherited
-   assert zero == 0;
+  var zero : Nat = Prim.trap "unreachable"; // inherited
+  assert zero == 0;
 
-   var three : [var (Nat, Text)] = [var];
+  var three : [var (Nat, Text)] = [var];
 
-   public func check(): async() {
-     Prim.debugPrint (debug_show {zero; three});
-   }
+  public func check(): async() {
+    Prim.debugPrint (debug_show { zero; three });
+  }
 };

@@ -8,7 +8,7 @@ actor self {
   };
 
   public shared func int(n : Int) : async Int {
-    P.debugPrint(debug_show("int",n));
+    P.debugPrint(debug_show("int", n));
     return n;
   };
 
@@ -43,20 +43,20 @@ actor self {
     do {
       let arg : Int = 1;
       let res : ? Int =
-        from_candid(await P.call_raw(p,"int", to_candid(arg)));
+        from_candid(await P.call_raw(p, "int", to_candid(arg)));
       assert (res == ?arg);
-     };
+    };
 
     do {
       let arg : Text = "hello";
       let res : ?Text =
-        from_candid(await P.call_raw(p,"text", to_candid(arg)));
+        from_candid(await P.call_raw(p, "text", to_candid(arg)));
       assert (res == ?arg);
     };
 
     do {
       let res : ?(Nat, Bool, Char) =
-        from_candid(await P.call_raw(p,"tuple", to_candid(1, true, 'a')));
+        from_candid(await P.call_raw(p, "tuple", to_candid(1, true, 'a')));
       assert (res == ?(1, true, 'a'));
     };
 
@@ -66,7 +66,7 @@ actor self {
         // expected to fail due to arity mismatch
         // (passing a 1 triple where 3 args expected)
         let res : ? (Nat, Bool, Char) =
-          from_candid(await P.call_raw(p,"tuple", to_candid(arg)));
+          from_candid(await P.call_raw(p, "tuple", to_candid(arg)));
         assert false;
       }
       catch e {
@@ -74,12 +74,11 @@ actor self {
       }
     };
 
-
     do {
       let arg : Int =  1;
       try {
         let res : ? Int =
-          from_candid(await P.call_raw(p,"trapInt", to_candid(arg)));
+          from_candid(await P.call_raw(p, "trapInt", to_candid(arg)));
         assert false;
       }
       catch e {
@@ -101,4 +100,3 @@ actor self {
 //SKIP run-low
 //SKIP run-ir
 //CALL ingress go 0x4449444C0000
-

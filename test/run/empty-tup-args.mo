@@ -14,7 +14,7 @@ let gh : [(()) -> ()] = [g, g1, h, h1, func (()) {}, func g2 (()) {}];
 
 f();
 g(); // accepted, because "At calls there is an implicit coercion
-     //                    between tuples and n-ary arguments"
+//                    between tuples and n-ary arguments"
 h(); // dito
 gh[0](); // dito
 gh[1](); // dito
@@ -63,16 +63,15 @@ let _ : [(()) -> G1] = [G1];
 let _ : [(()) -> H] = [H];
 let _ : [(()) -> H1] = [H1];
 
-func annih<A,B>(f : A -> B) : (A -> ()) { func (a : A) { ignore (f a) } };
-let _ : [(()) -> ()] = [annih<(),G> G, annih<(),G1> G1, annih<(),H> H, annih<(),H1> H1];
-
+func annih<A, B>(f : A -> B) : (A -> ()) { func (a : A) { ignore (f a) } };
+let _ : [(()) -> ()] = [annih<(), G> G, annih<(), G1> G1, annih<(), H> H, annih<(), H1> H1];
 
 // test that parens are not significant deeper into the pattern,
 // even around tuples
 
-func p(a:Int,  () ) {};
+func p(a:Int, ()) {};
 func q(a:Int, (())) {};
-func r(a:Int,  (b:Int,) ) {};
+func r(a:Int, (b:Int,)) {};
 func s(a:Int, ((b:Int,))) {};
 let _ : [(Int, ()) -> ()] = [p, q];
 let _ : [(Int, (Int,)) -> ()] = [r, s];
@@ -84,5 +83,5 @@ let _ = (func ((a:Nat, (()))) : Nat { a }) (42, ());
 
 // test that switch expressions also behave correctly with redundant parens
 
-let _ = switch (42,) { case (3,) 3; case ((5,)) 5; case (a,) a};
-let _ = switch (42,) { case (3,) 3; case ((5,)) 5; case (((a,))) a};
+let _ = switch (42,) { case (3,) { 3 } case (5,) { 5 } case (a,) { a } };
+let _ = switch (42,) { case (3,) { 3 } case (5,) { 5 } case (a,) { a } };

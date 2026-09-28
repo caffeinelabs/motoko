@@ -1,4 +1,4 @@
-// Only works with incremental GC. 
+// Only works with incremental GC.
 // Use:
 // ```
 // export EXTRA_MOC_ARGS=""
@@ -7,23 +7,23 @@
 import Prim "mo:prim";
 
 actor {
-    let MB = 1024 * 1024;
-    let GB = 1024 * MB;
+  let MB = 1024 * 1024;
+  let GB = 1024 * MB;
 
-    Prim.debugPrint("Hello Wasm64 Motoko on IC!");
+  Prim.debugPrint("Hello Wasm64 Motoko on IC!");
 
-    func trace() {
-        Prim.debugPrint("Heap size: " # debug_show (Prim.rts_heap_size() / GB) # " GB");
-    };
+  func trace() {
+    Prim.debugPrint("Heap size: " # debug_show (Prim.rts_heap_size() / GB) # " GB");
+  };
 
-    type Node = ?{ value : [var Nat]; next : Node };
-    var first : Node = null;
+  type Node = ?{ value : [var Nat]; next : Node };
+  var first : Node = null;
 
-    public func allocate() : async () {
-        let value = Prim.Array_init<Nat>(128 * MB, 0);
-        first := ?{ value; next = first };
-        trace();
-    };
+  public func allocate() : async () {
+    let value = Prim.Array_init<Nat>(128 * MB, 0);
+    first := ?{ value; next = first };
+    trace();
+  };
 };
 
 //SKIP run

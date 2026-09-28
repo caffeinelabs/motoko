@@ -17,7 +17,6 @@ module Float {
 
 };
 
-
 ignore 0.toText(); // Nat.toText()
 
 ignore 0 .toText(); // Nat.toText()
@@ -29,7 +28,6 @@ ignore (-0).toText(); // Int.toText()
 ignore 0.0.toText(); // Float.toText()
 
 ignore 0..toText(); // Float.toText()
-
 
 ignore +0 .toText(); // dubious (error)
 ignore -0 .toText(); // dubious (error)

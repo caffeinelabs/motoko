@@ -10,7 +10,7 @@ deprecated.mo:20.8-20.11: warning [M0154], field f is deprecated
 note: deprecated function
 deprecated.mo:22.13-22.16: warning [M0154], type field T is deprecated
 note: also types
-deprecated.mo:24.11-24.12: warning [M0154], field f is deprecated
+deprecated.mo:24.12-24.13: warning [M0154], field f is deprecated
 note: deprecated function
-deprecated.mo:25.11-25.16: warning [M0154], field f is deprecated
+deprecated.mo:25.12-25.17: warning [M0154], field f is deprecated
 note: deprecated function

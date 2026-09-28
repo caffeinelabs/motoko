@@ -88,9 +88,9 @@ module {
   /// Blob.compare(blob1, blob2) // => #less
   /// ```
   public func compare(blob1 : Blob, blob2 : Blob) : { #less; #equal; #greater } {
-    if (blob1 < blob2) {
+    if blob1 < blob2 {
       #less
-    } else if (blob1 == blob2) {
+    } else if blob1 == blob2 {
       #equal
     } else {
       #greater

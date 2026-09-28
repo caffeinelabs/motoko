@@ -3,10 +3,9 @@
 // Warnings should become errors here
 
 do {
- let true = true;
+  let true = true;
 };
 
 do {
- ignore [true, 1];
+  ignore [true, 1];
 };
-

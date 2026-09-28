@@ -2,11 +2,11 @@ import Prim "mo:⛔";
 
 func Array_thaw<A>(xs : [A]) : [var A] {
   let xsLen = xs.size();
-  if (xsLen == 0) {
+  if xsLen == 0 {
     return [var];
   };
   let ys = Prim.Array_init<A>(xsLen, xs[0]);
-  for (i in ys.keys()) {
+  for i in ys.keys() {
     ys[i] := xs[i];
   };
   ys;
@@ -20,7 +20,7 @@ do {
 
   assert(actual.size() == expected.size());
 
-  for (i in actual.keys()) {
+  for i in actual.keys() {
     assert(actual[i] == expected[i]);
   };
 };

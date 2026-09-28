@@ -13,7 +13,7 @@ error[M0268]: deployed migration `m2` is missing from the migration directory; o
     ┌─ em-baseline-history-mismatch.mo:10:1
   9 │    // the baseline boundary themselves are consistent and stay silent.
  10 │ ╭  actor {
- 11 │ │      let a : Nat;
+ 11 │ │    let a : Nat;
  12 │ │  };
     │ ╰──^ 
  13 │    

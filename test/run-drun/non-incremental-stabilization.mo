@@ -1,23 +1,23 @@
 import Prim "mo:prim";
 
 actor {
-    let stableNat = 12345678901234567890123456789012345678901234567890123456789012345678901234567890;
-    let stableInt = -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
-    let stableText = "Motoko graph-copy-based upgrade test";
-    
-    public func print() : async () {
-        Prim.debugPrint(debug_show (stableNat));
-        Prim.debugPrint(debug_show (stableInt));
-        Prim.debugPrint(debug_show (stableText));
-    };
+  let stableNat = 12345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  let stableInt = -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
+  let stableText = "Motoko graph-copy-based upgrade test";
 
-    system func preupgrade() {
-        Prim.debugPrint("PRE-UPGRADE HOOK!");
-    };
+  public func print() : async () {
+    Prim.debugPrint(debug_show (stableNat));
+    Prim.debugPrint(debug_show (stableInt));
+    Prim.debugPrint(debug_show (stableText));
+  };
 
-    system func postupgrade() {
-        Prim.debugPrint("POST-UPGRADE HOOK!");
-    };
+  system func preupgrade() {
+    Prim.debugPrint("PRE-UPGRADE HOOK!");
+  };
+
+  system func postupgrade() {
+    Prim.debugPrint("POST-UPGRADE HOOK!");
+  };
 };
 
 // Testing different invalid and correct combinations of explicit (de)stabilization calls

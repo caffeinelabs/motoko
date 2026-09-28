@@ -1,7 +1,4 @@
 error[M0182]: system function timer is present but -no-timer flag is specified
-    ┌─ no-timer.mo:5:5
-  4 │    
-  5 │ ╭      system func timer(_ : Nat64 -> ()) : async () {
-  6 │ │    }
-    │ ╰────^ 
-  7 │    
+    ┌─ no-timer.mo:5:3
+  5 │    system func timer(_ : Nat64 -> ()) : async () {}
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -32,10 +32,9 @@ actor a {
     try {
       let null = await* doThrow();
       assert(false);
-    } catch (e) { assert P.errorMessage(e) == "oops";};
+    } catch (e) { assert P.errorMessage(e) == "oops"; };
   }
 
 };
-
 
 a.go(); //OR-CALL ingress go "DIDL\x00\x00"

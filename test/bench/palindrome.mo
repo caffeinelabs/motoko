@@ -13,11 +13,11 @@ actor Palindrome {
 
   func cps(xs : List<Char>) : Bool {
     func walk(xs1 : List<Char>, xs2 : List<Char>, k : List<Char> -> Bool) : Bool = switch (xs1, xs2) {
-      case (_, null) { k xs1 };
-      case (?(_, xs1), ?(_, null)) { k xs1 };
+      case (_, null) { k xs1 }
+      case (?(_, xs1), ?(_, null)) { k xs1 }
       case (?(x, xs1), ?(_, ?(_, xs2))) {
         walk(xs1, xs2, func(?(y, ys)) = x == y and k ys);
-      };
+      }
     };
     walk(xs, xs, func null = true);
   };
@@ -25,14 +25,14 @@ actor Palindrome {
   func direct(xs : List<Char>) : Bool {
     func walk(xs1 : List<Char>, xs2 : List<Char>) : ?List<Char> = do ? {
       switch (xs1, xs2) {
-        case (_, null) xs1; // even length
-        case (?(_, xs1), ?(_, null)) xs1; // odd length
+        case (_, null) { xs1 } // even length
+        case (?(_, xs1), ?(_, null)) { xs1 } // odd length
         case (?(x, xs1), ?(_, ?(_, xs2))) {
           let ?(y, ys) = walk(xs1, xs2)!;
-          if (x == y) {
+          if x == y {
             ys;
           } else { return null };
-        };
+        }
       };
     };
     let _ = do ? {
@@ -44,7 +44,7 @@ actor Palindrome {
 
   func as_list(cs : Text) : List<Char> {
     var l : List<Char> = null;
-    for (c in cs.chars()) {
+    for c in cs.chars() {
       l := ?(c, l);
     };
     l;

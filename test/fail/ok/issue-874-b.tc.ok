@@ -1,1 +1,1 @@
-issue-874-b.mo:5.14-5.21: type error [M0071], cannot infer type of forward field reference bar
+issue-874-b.mo:5.13-5.20: type error [M0071], cannot infer type of forward field reference bar

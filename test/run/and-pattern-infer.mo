@@ -23,7 +23,7 @@ assert (fLit true == true);
 func fOpt(?(a : Nat) and _b) : ?Nat = ?a;
 assert (fOpt (?7) == ?7);
 
-func fTag(#foo (a : Nat) and _b) : {#foo : Nat} = #foo a;
+func fTag(#foo (a : Nat) and _b) : { #foo : Nat } = #foo a;
 assert (fTag (#foo 3) == #foo 3);
 
 func fTup((a : Nat, b : Text) and _c) : (Nat, Text) = (a, b);

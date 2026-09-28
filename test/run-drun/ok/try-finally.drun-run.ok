@@ -93,9 +93,9 @@ debug.print: InnerIN8t
 debug.print: OUT8t
 debug.print: OTHER SIDE
 debug.print: OTHER SIDE: CLEANING UP
-debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:324.17-324.29'.
+debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:322.9-322.21'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
-debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:330.25-330.41'.
+debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:328.21-328.37'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: OUTER CAUGHT: foo
 debug.print: BEFORE7
@@ -106,9 +106,9 @@ debug.print: InnerLIVESTILL7
 debug.print: InnerOUT7
 debug.print: OUT7
 debug.print: It's over
-ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:238.17-238.29'.
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:236.9-236.21'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: go2
 debug.print: It's so over
-ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:350.13-350.25'.
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally.mo:348.7-348.19'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

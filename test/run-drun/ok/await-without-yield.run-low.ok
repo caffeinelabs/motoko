@@ -1,1 +1,1 @@
-await-without-yield.mo:17.12-17.15: execution error, arithmetic overflow
+await-without-yield.mo:16.12-16.17: execution error, arithmetic overflow

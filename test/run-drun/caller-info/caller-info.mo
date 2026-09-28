@@ -35,13 +35,13 @@ actor {
     let trustedSigners = Runtime.envVar<system>("trusted_attribute_signers");
     switch (signer.size() != 0, trustedSigners) {
       case (true, ?trustedSigners) {
-        if (Principal.fromBlob(signer) != Principal.fromText(trustedSigners)) {
+        if Principal.fromBlob(signer) != Principal.fromText(trustedSigners) {
           Runtime.trap("untrusted signer");
         };
-      };
+      }
       case _ {
         Runtime.trap("Signer or trusted signers not available");
-      };
+      }
     };
     let info = Prim.callerInfoData<system>();
     assert info == ("\00\00\00" : Blob);
@@ -60,11 +60,11 @@ actor {
   };
 
   func lookupText(map : [(Text, Icrc3Value)], key : Text) : ?Text {
-    for ((k, v) in map.values()) {
-      if (k == key) {
+    for (k, v) in map.values() {
+      if k == key {
         switch v {
-          case (#Text t) { return ?t };
-          case _ {};
+          case #Text(t) { return ?t }
+          case _ {}
         };
       };
     };
@@ -73,7 +73,7 @@ actor {
 
   public shared func checkCallerInfo() : async () {
     let signer = Prim.callerInfoSigner<system>();
-    if (signer.size() == 0) {
+    if signer.size() == 0 {
       Runtime.trap("no signer");
     };
     assert signer == iiSignerBlob;
@@ -85,13 +85,13 @@ actor {
     let ?origin = lookupText(entries, "implicit:origin") else Runtime.trap("missing origin");
     assert origin == "https://some-dapp.com";
 
-    switch (lookupText(entries, "email")) {
-      case (?email) { Debug.print(email) };
-      case _ {};
+    switch lookupText(entries, "email") {
+      case ?email { Debug.print(email) }
+      case _ {}
     };
-    switch (lookupText(entries, "openid:https://accounts.google.com:email")) {
-      case (?email) { Debug.print(email) };
-      case _ {};
+    switch lookupText(entries, "openid:https://accounts.google.com:email") {
+      case ?email { Debug.print(email) }
+      case _ {}
     };
 
   };

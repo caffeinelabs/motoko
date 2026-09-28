@@ -1,7 +1,7 @@
 import { setTimer } = "mo:⛔";
 
 class _Sys<system>() : {} {
-    ignore setTimer<system>(0, false, func() : async () {})
+  ignore setTimer<system>(0, false, func() : async () {})
 }
 
 //SKIP run

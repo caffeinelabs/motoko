@@ -10,18 +10,17 @@ import imported1 "ic:rwlgt-iiaaa-aaaaa-aaaaa-cai";
 import imported2 "canister:self";
 actor {
   public func go1() : async (actor { cq : composite query () -> async () }) = async {
-     imported1;
+    imported1;
   };
 
   public func go2() : async (actor { cq : composite query () -> async () }) = async {
-     imported2;
+    imported2;
   };
-
 
   public composite query func cq() : async () {
     Prim.debugPrint "cq()";
-    if false await imported1.cq();
-    if false await imported2.cq();
+    if false { await imported1.cq() };
+    if false { await imported2.cq() };
   };
 
 };
@@ -32,4 +31,3 @@ actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-

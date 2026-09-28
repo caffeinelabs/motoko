@@ -1,17 +1,16 @@
 //MOC-FLAG -A=M0240
-shared({caller = creator}) actor class C() {
+shared({ caller = creator }) actor class C() {
 
   let c : Principal = creator;
   let d = creator;
 
   public shared ctxt func c1 () : async Principal {
-     return c;
+    return c;
   };
 
   public shared ctxt func c2 () : async Principal {
-     return d;
+    return d;
   };
-
 
 };
 

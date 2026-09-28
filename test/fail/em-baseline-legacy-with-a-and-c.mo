@@ -6,6 +6,6 @@
 // (m1's input) and c (untouched by any migration). Both are in the baseline,
 // so the check is silent.
 actor {
-    let b : Nat;
-    var c : Nat;
+  let b : Nat;
+  var c : Nat;
 };

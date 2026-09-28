@@ -27,17 +27,19 @@ module {
   public func hash(n : Nat) : Hash {
     let j = Prim.intToNat32Wrap(n);
     hashNat8(
-      [j & (255 << 0),
-       j & (255 << 8),
-       j & (255 << 16),
-       j & (255 << 24)
-      ]);
+      [
+        j & (255 << 0),
+        j & (255 << 8),
+        j & (255 << 16),
+        j & (255 << 24)
+      ]
+    );
   };
 
   /// @deprecated This function will be removed in future.
   public func debugPrintBits(bits : Hash) {
-    for (j in Iter.range(0, length - 1)) {
-      if (bit(bits, j)) {
+    for j in Iter.range(0, length - 1) {
+      if bit(bits, j) {
         Prim.debugPrint("1")
       } else {
         Prim.debugPrint("0")
@@ -47,8 +49,8 @@ module {
 
   /// @deprecated This function will be removed in future.
   public func debugPrintBitsRev(bits : Hash) {
-    for (j in Iter.revRange(length - 1, 0)) {
-      if (bit(bits, Prim.abs(j))) {
+    for j in Iter.revRange(length - 1, 0) {
+      if bit(bits, Prim.abs(j)) {
         Prim.debugPrint("1")
       } else {
         Prim.debugPrint("0")
@@ -67,7 +69,7 @@ module {
   /// @deprecated This function may be removed or changed in future.
   public func hashNat8(key : [Hash]) : Hash {
     var hash : Nat32 = 0;
-    for (natOfKey in key.values()) {
+    for natOfKey in key.values() {
       hash := hash +% natOfKey;
       hash := hash +% hash << 10;
       hash := hash ^ (hash >> 6);

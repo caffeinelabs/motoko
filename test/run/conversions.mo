@@ -85,7 +85,7 @@ func test_Int_Int8(n1 : Int, n2 : Int8) {
 };
 func wrap_Int_Int8(n1 : Int, n2 : Int8) {
   var n1_wrapped = n1 % 2 ** 8;
-  if (n1_wrapped >= 2 ** 7) n1_wrapped -= 2 ** 8;
+  if n1_wrapped >= 2 ** 7 { n1_wrapped -= 2 ** 8 };
   assert Prim.intToInt8 n1_wrapped == n2;
   assert Prim.intToInt8Wrap n1 == n2;
   assert n1_wrapped == Prim.int8ToInt n2;
@@ -109,7 +109,7 @@ func test_Int_Int16(n1 : Int, n2 : Int16) {
 };
 func wrap_Int_Int16(n1 : Int, n2 : Int16) {
   var n1_wrapped = n1 % 2 ** 16;
-  if (n1_wrapped >= 2 ** 15) n1_wrapped -= 2 ** 16;
+  if n1_wrapped >= 2 ** 15 { n1_wrapped -= 2 ** 16 };
   assert Prim.intToInt16 n1_wrapped == n2;
   assert Prim.intToInt16Wrap n1 == n2;
   assert n1_wrapped == Prim.int16ToInt n2;
@@ -133,7 +133,7 @@ func test_Int_Int32(n1 : Int, n2 : Int32) {
 };
 func wrap_Int_Int32(n1 : Int, n2 : Int32) {
   var n1_wrapped = n1 % 2 ** 32;
-  if (n1_wrapped >= 2 ** 31) n1_wrapped -= 2 ** 32;
+  if n1_wrapped >= 2 ** 31 { n1_wrapped -= 2 ** 32 };
   assert Prim.intToInt32 n1_wrapped == n2;
   assert Prim.intToInt32Wrap n1 == n2;
   assert n1_wrapped == Prim.int32ToInt n2;
@@ -157,7 +157,7 @@ func test_Int_Int64(n1 : Int, n2 : Int64) {
 };
 func wrap_Int_Int64(n1 : Int, n2 : Int64) {
   var n1_wrapped = n1 % 2 ** 64;
-  if (n1_wrapped >= 2 ** 63) n1_wrapped -= 2 ** 64;
+  if n1_wrapped >= 2 ** 63 { n1_wrapped -= 2 ** 64 };
   assert Prim.intToInt64 n1_wrapped == n2;
   assert Prim.intToInt64Wrap n1 == n2;
   assert n1_wrapped == Prim.int64ToInt n2;

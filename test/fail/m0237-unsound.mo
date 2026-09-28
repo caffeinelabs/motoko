@@ -19,7 +19,9 @@ module Map {
     iter : Iter.Iter<(K, V)>,
     compare : (implicit : (K, K) -> Order),
   ) : Map<K, V> {
-    ignore iter; ignore compare; { var kv = null }
+    ignore iter;
+    ignore compare;
+    { var kv = null }
   };
 };
 

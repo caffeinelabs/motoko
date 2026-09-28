@@ -1,8 +1,8 @@
 // test type components in object and actors (not just modules)
 
 object X = {
-  public func f() { g();};
-  func g() { f();};
+  public func f() { g(); };
+  func g() { f(); };
   public object Y = {
     public type U = Int;
   };
@@ -13,10 +13,9 @@ object X = {
 type XT = X.T;
 type XYU = X.Y.U;
 
-
 actor A = {
-  public func f() : () { g();};
-  flexible shared func g() : () { f();};
+  public func f() : () { g(); };
+  flexible shared func g() : () { f(); };
   flexible object Y = {
     public type U = Int;
   };

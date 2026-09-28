@@ -16,17 +16,17 @@ actor {
     var sent = 0;
     try {
       loop {
-       ignore inc();
-       sent += 1
+        ignore inc();
+        sent += 1
       }
     } catch (e) {
-      Prim.debugPrint(debug_show {sent});
+      Prim.debugPrint(debug_show { sent });
       return sent
     }
   };
 
   public func get() : async Nat {
-    Prim.debugPrint(debug_show {count});
+    Prim.debugPrint(debug_show { count });
     return count;
   }
 

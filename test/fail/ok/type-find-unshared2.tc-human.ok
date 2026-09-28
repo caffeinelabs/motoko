@@ -12,5 +12,5 @@ type
 is or contains non-shared type
   var Nat
     ┌─ type-find-unshared2.mo:3:29
-  3 │    public shared func bad_obj(o : {var n : Nat}) : async Nat {
-    │                              ^^^^^^^^^^^^^^^^^^^ 
+  3 │    public shared func bad_obj(o : { var n : Nat }) : async Nat {
+    │                              ^^^^^^^^^^^^^^^^^^^^^ 

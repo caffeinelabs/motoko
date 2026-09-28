@@ -23,7 +23,7 @@ module {
   };
 
   public func new(n : Nat) : ?Version {
-    if (n > 40 or n == 0) null else ?#Version n
+    if n > 40 or n == 0 { null } else { ?#Version n }
   };
 
   public func encode(version : Version) : List<Bool> {

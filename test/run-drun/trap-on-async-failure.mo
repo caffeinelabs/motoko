@@ -11,15 +11,13 @@ actor {
 
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
-  public func request() : async () {
-  };
+  public func request() : async () {};
 
-  public func oneway() : () {
-  };
+  public func oneway() : () {};
 
   public func test1() : async () {
     var n = 0;
-    while (n < DOUBLE_CAPACITY) {
+    while n < DOUBLE_CAPACITY {
       ignore async ();
       n += 1;
     }
@@ -29,7 +27,7 @@ actor {
   public func test2() : async () {
     try {
       var n = 0;
-      while (n < DOUBLE_CAPACITY) {
+      while n < DOUBLE_CAPACITY {
         ignore async();
         n += 1;
       }

@@ -12,7 +12,7 @@ Prim.debugPrint (debug_show { { c = 'C'; d = "D" } with a = 8; b = 6 });
 // analysis
 ignore ({ b with a = 8 } : { a : Nat });
 ignore ({ b with a = 8 } : { a : Nat; b : Nat });
-ignore ({ b and m with a = 8 : Int; b = 'X'} : { a : Int; b : Char });
+ignore ({ b and m with a = 8 : Int; b = 'X' } : { a : Int; b : Char });
 ignore ({ b and m and m with a = 8 : Int; b = 'X' } : { a : Int; b : Char });
 ignore ({ b and m and m and b with a = 8 : Int; b = 'X' } : { a : Int; b : Char });
 
@@ -29,8 +29,8 @@ assert e.c + 1 == c.c;
 
 // methods closing over var fields
 let c0 = object {
-    public var c : Int = 0;
-    public func incr() = c += 1
+  public var c : Int = 0;
+  public func incr() = c += 1
 };
 
 let c1 = { c0 with d = 2; };
@@ -64,7 +64,6 @@ func mox<A <: { a : Int }, B <: { b : Char }>(a : A, b : B) : { a : Int } and { 
 
 func mux<A <: { a : Int }, B <: { b : Char }>(a : A, b : B) : { a : Int; b : Char; c : Text } =
     { a and b with c = "Yeah" };
-
 
 // extending iterators
 let tb_ok : { next : () -> ?Char; bar : Nat } = { "Text base".chars() with bar = 42 };

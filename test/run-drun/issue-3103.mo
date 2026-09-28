@@ -6,8 +6,8 @@ import B "ic:aaaaa-aa";
 
 actor a {
   public func go() : async () {
-     let _ : Bool = await A.getBool();
-     let _ : Int = await B.getInt();
+    let _ : Bool = await A.getBool();
+    let _ : Int = await B.getInt();
   };
 }
 
@@ -15,4 +15,3 @@ actor a {
 //SKIP run-ir
 //SKIP run-low
 //SKIP comp
-

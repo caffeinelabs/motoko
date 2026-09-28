@@ -1,8 +1,8 @@
-no-system-cap.mo:6.12-6.70: type error [M0197], `system` capability required, but not available
+no-system-cap.mo:6.12-6.69: type error [M0197], `system` capability required, but not available
  (need an enclosing async expression or function body or explicit `system` type parameter)
 no-system-cap.mo:7.5-7.33: type error [M0197], `system` capability required, but not available
  (need an enclosing async expression or function body or explicit `system` type parameter)
-no-system-cap.mo:11.13-11.71: type error [M0197], `system` capability required, but not available
+no-system-cap.mo:11.12-11.69: type error [M0197], `system` capability required, but not available
  (need an enclosing async expression or function body or explicit `system` type parameter)
-no-system-cap.mo:12.6-12.34: type error [M0197], `system` capability required, but not available
+no-system-cap.mo:12.5-12.33: type error [M0197], `system` capability required, but not available
  (need an enclosing async expression or function body or explicit `system` type parameter)

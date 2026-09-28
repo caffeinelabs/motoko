@@ -7,11 +7,12 @@ class Container() {
   public func add() { count += 1 };
 };
 let ctr = Container();
-ctr.add(); ctr.add();
+ctr.add();
+ctr.add();
 assert (ctr.count == 2);
 
 module M { public type T = Nat; public let x : T = 42; };
-type HasType = {type T = Nat; n : Nat};
+type HasType = { type T = Nat; n : Nat };
 func poly<A, B>(a : A, b : B) : (A, B) = (a, b);
 let _pa = poly(1, "x");
 let _pb = poly(true, 0.5);
@@ -21,27 +22,27 @@ let _al : Alias2 = 42;
 type Id<T> = T;
 let _id : Id<Nat> = 7;
 
-type Color = {#red; #green; #blue};
+type Color = { #red; #green; #blue };
 func check_variant(c : Color) : Text =
-  switch c { case (#red) "red"; case (#green) "green"; case (#blue) "blue" };
+  switch c { case #red { "red" } case #green { "green" } case #blue { "blue" } };
 type MyNat = Nat;
 func check_con(n : MyNat) : MyNat = n;
-type Unit_ = {#unit};
-func check_unit(u : Unit_) : Bool = switch u { case (#unit) true };
-type Wrapper = {#some : Nat; #none};
-func check_wrapper(w : Wrapper) : Nat = switch w { case (#some n) n; case (#none) 0 };
-func check_tup(p : (Nat, Bool)) : Nat = switch p { case (n, _) n };
-func check_obj(o : {x : Nat; y : Text}) : Nat = switch o { case {x; y = _} x };
-func check_nested(p : (Nat, (Bool, Text))) : Nat = switch p { case (n, (_, _)) n };
-func check_obj2(o : {a : Nat; b : Bool; c : Text}) : Bool = switch o { case {a = _; b; c = _} b };
+type Unit_ = { #unit };
+func check_unit(u : Unit_) : Bool = switch u { case #unit { true } };
+type Wrapper = { #some : Nat; #none };
+func check_wrapper(w : Wrapper) : Nat = switch w { case #some(n) { n } case #none { 0 } };
+func check_tup(p : (Nat, Bool)) : Nat = switch p { case (n, _) { n } };
+func check_obj(o : { x : Nat; y : Text }) : Nat = switch o { case { x; y = _ } { x } };
+func check_nested(p : (Nat, (Bool, Text))) : Nat = switch p { case (n, (_, _)) { n } };
+func check_obj2(o : { a : Nat; b : Bool; c : Text }) : Bool = switch o { case { a = _; b; c = _ } { b } };
 assert (check_variant(#red) == "red");
 assert (check_con(99) == 99);
 assert (check_unit(#unit) == true);
 assert (check_wrapper(#some 3) == 3);
 assert (check_tup((7, true)) == 7);
-assert (check_obj({x = 5; y = "hi"}) == 5);
+assert (check_obj({ x = 5; y = "hi" }) == 5);
 assert (check_nested((1, (true, "x"))) == 1);
-assert (check_obj2({a = 1; b = false; c = "z"}) == false);
+assert (check_obj2({ a = 1; b = false; c = "z" }) == false);
 
 func upper<T>(_consume : T -> ()) : [var T] = [var];
 func lower<T>(_produce : () -> T) : [var T] = [var];

@@ -1,10 +1,10 @@
-try-finally.mo:10.26-10.29: type error [M0047], send capability required, but not available
+try-finally.mo:9.22-9.25: type error [M0047], send capability required, but not available
  (need an enclosing async expression or function body)
-try-finally.mo:16.19-16.37: type error [M0039], misplaced throw
-try-finally.mo:22.26-22.34: type error [M0037], misplaced async expression; try enclosing in an async function
-try-finally.mo:28.19-28.21: type error [M0050], literal of type
+try-finally.mo:15.15-15.33: type error [M0039], misplaced throw
+try-finally.mo:21.22-21.30: type error [M0037], misplaced async expression; try enclosing in an async function
+try-finally.mo:27.15-27.17: type error [M0050], literal of type
   Nat
 does not have expected type
   ()
-try-finally.mo:34.19-34.25: type error [M0085], misplaced return
-try-finally.mo:40.25-40.28: type error [M0083], unbound label out
+try-finally.mo:33.15-33.21: type error [M0085], misplaced return
+try-finally.mo:39.21-39.24: type error [M0083], unbound label out

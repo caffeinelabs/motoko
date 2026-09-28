@@ -11,9 +11,9 @@ error[M0125]: public actor field needs to be a manifest function
  11 │      public let exported_three = test.exported_too;
  12 │      public let (exported_four, exported_five) =
     │ ╭───────────^
- 13 │ │      if (true)
- 14 │ │        (test.exported_too, test.exported_too)
+ 13 │ │      if true
+ 14 │ │        { (test.exported_too, test.exported_too) }
  15 │ │      else
- 16 │ │        (exported_three, exported_three)
-    │ ╰───────────────────────────────────────^ 
+ 16 │ │        { (exported_three, exported_three) }
+    │ ╰───────────────────────────────────────────^ 
  17 │    };

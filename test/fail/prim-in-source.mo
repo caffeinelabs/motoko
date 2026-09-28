@@ -1,1 +1,2 @@
-let x : Int -> Int = prim "aprim"; ()
+let x : Int -> Int = prim "aprim";
+()

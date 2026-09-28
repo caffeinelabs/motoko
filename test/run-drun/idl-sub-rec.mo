@@ -19,7 +19,8 @@ actor this {
     #left:
       (T, {
         //#nil;
-        #left: (T, EvenList<T>)})
+        #left: (T, EvenList<T>)
+      })
   };
 
   type EvenSeq<T> = {
@@ -32,7 +33,8 @@ actor this {
     #right: (T, {
       // #nil;
       #left: (T, EvenSeq<T>);
-      #right: (T, EvenSeq<T>)});
+      #right: (T, EvenSeq<T>)
+    });
   };
 
   // sanity subtype checks, verify:
@@ -75,7 +77,6 @@ actor this {
     Prim.debugPrint("ok f4");
   };
 
-
   func tabulate<T>(n : Nat, v : T) : [T] {
     Prim.Array_tabulate(n, func (_ : Nat) : T { v });
   };
@@ -106,7 +107,6 @@ actor this {
         Prim.debugPrint "wrong_1";
       };
     };
-
 
     do {
       let this = actor (t) : actor {
@@ -162,7 +162,7 @@ actor this {
     };
 
     // test vectors, should benefit from memoization
-     do {
+    do {
       try {
         await this.send_f1(tabulate(1024, f0));
         Prim.debugPrint "ok_6";
@@ -224,7 +224,6 @@ actor this {
         Prim.debugPrint ("wrong_10" # Prim.errorMessage(e))
       };
     };
-
 
   };
 }

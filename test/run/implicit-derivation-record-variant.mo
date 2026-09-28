@@ -33,13 +33,13 @@ module Variant3 {
     compareC : (implicit : (compare : (C, C) -> Order)),
   ) : Order {
     switch (v1, v2) {
-      case (#a a1, #a a2) compareA(a1, a2);
-      case (#a _, _) #less;
-      case (_, #a _) #greater;
-      case (#b b1, #b b2) compareB(b1, b2);
-      case (#b _, _) #less;
-      case (_, #b _) #greater;
-      case (#c c1, #c c2) compareC(c1, c2);
+      case (#a a1, #a a2) { compareA(a1, a2) }
+      case (#a _, _) { #less }
+      case (_, #a _) { #greater }
+      case (#b b1, #b b2) { compareB(b1, b2) }
+      case (#b _, _) { #less }
+      case (_, #b _) { #greater }
+      case (#c c1, #c c2) { compareC(c1, c2) }
     };
   };
 };
@@ -54,16 +54,16 @@ module Variant4 {
     compareD : (implicit : (compare : (D, D) -> Order)),
   ) : Order {
     switch (v1, v2) {
-      case (#a a1, #a a2) compareA(a1, a2);
-      case (#a _, _) #less;
-      case (_, #a _) #greater;
-      case (#b b1, #b b2) compareB(b1, b2);
-      case (#b _, _) #less;
-      case (_, #b _) #greater;
-      case (#c c1, #c c2) compareC(c1, c2);
-      case (#c _, _) #less;
-      case (_, #c _) #greater;
-      case (#d d1, #d d2) compareD(d1, d2);
+      case (#a a1, #a a2) { compareA(a1, a2) }
+      case (#a _, _) { #less }
+      case (_, #a _) { #greater }
+      case (#b b1, #b b2) { compareB(b1, b2) }
+      case (#b _, _) { #less }
+      case (_, #b _) { #greater }
+      case (#c c1, #c c2) { compareC(c1, c2) }
+      case (#c _, _) { #less }
+      case (_, #c _) { #greater }
+      case (#d d1, #d d2) { compareD(d1, d2) }
     };
   };
 };
@@ -95,9 +95,9 @@ module Status {
       b,
       func(s) {
         switch s {
-          case (#pending) #a;
-          case (#inProgress { assignees }) (#b assignees);
-          case (#completed { completedAt; score }) (#c(completedAt, score));
+          case #pending { #a }
+          case #inProgress({ assignees }) { (#b assignees) }
+          case #completed({ completedAt; score }) { (#c(completedAt, score)) }
         };
       },
     );
@@ -111,10 +111,10 @@ module Priority {
       b,
       func(p) {
         switch p {
-          case (#low) #a;
-          case (#medium) #b;
-          case (#high) #c;
-          case (#critical) #d;
+          case #low { #a }
+          case #medium { #b }
+          case #high { #c }
+          case #critical { #d }
         };
       },
     );
@@ -137,25 +137,25 @@ module WithoutImplicitDerivation {
   module Status {
     public func compare(a : Status, b : Status) : Order {
       switch (a, b) {
-        case (#pending, #pending) #equal;
-        case (#pending, _) #less;
-        case (_, #pending) #greater;
+        case (#pending, #pending) { #equal }
+        case (#pending, _) { #less }
+        case (_, #pending) { #greater }
         case (#inProgress r1, #inProgress r2) {
           switch (r1.assignees, r2.assignees) {
-            case (null, null) #equal;
-            case (null, _) #less;
-            case (_, null) #greater;
-            case (?l1, ?l2) l1.compare(l2);
+            case (null, null) { #equal }
+            case (null, _) { #less }
+            case (_, null) { #greater }
+            case (?l1, ?l2) { l1.compare(l2) }
           };
-        };
-        case (#inProgress _, _) #less;
-        case (_, #inProgress _) #greater;
+        }
+        case (#inProgress _, _) { #less }
+        case (_, #inProgress _) { #greater }
         case (#completed r1, #completed r2) {
-          switch (Nat.compare(r1.completedAt, r2.completedAt)) {
-            case (#equal) Nat.compare(r1.score, r2.score);
-            case (ord) ord;
+          switch Nat.compare(r1.completedAt, r2.completedAt) {
+            case #equal { Nat.compare(r1.score, r2.score) }
+            case ord { ord }
           };
-        };
+        }
       };
     };
   };
@@ -163,43 +163,43 @@ module WithoutImplicitDerivation {
   module Priority {
     public func compare(a : Priority, b : Priority) : Order {
       switch (a, b) {
-        case (#low, #low) #equal;
-        case (#low, _) #less;
-        case (_, #low) #greater;
-        case (#medium, #medium) #equal;
-        case (#medium, _) #less;
-        case (_, #medium) #greater;
-        case (#high, #high) #equal;
-        case (#high, _) #less;
-        case (_, #high) #greater;
-        case (#critical, #critical) #equal;
+        case (#low, #low) { #equal }
+        case (#low, _) { #less }
+        case (_, #low) { #greater }
+        case (#medium, #medium) { #equal }
+        case (#medium, _) { #less }
+        case (_, #medium) { #greater }
+        case (#high, #high) { #equal }
+        case (#high, _) { #less }
+        case (_, #high) { #greater }
+        case (#critical, #critical) { #equal }
       };
     };
   };
 
   module Task {
     public func compare(a : Task, b : Task) : Order {
-      switch (Priority.compare(a.priority, b.priority)) {
-        case (#equal) switch (Status.compare(a.status, b.status)) {
-          case (#equal) switch (Nat.compare(a.id, b.id)) {
-            case (#equal) Text.compare(a.name, b.name);
-            case (ord) ord;
-          };
-          case (ord) ord;
-        };
-        case (ord) ord;
+      switch Priority.compare(a.priority, b.priority) {
+        case #equal { switch Status.compare(a.status, b.status) {
+          case #equal { switch Nat.compare(a.id, b.id) {
+            case #equal { Text.compare(a.name, b.name) }
+            case ord { ord }
+          } }
+          case ord { ord }
+        } }
+        case ord { ord }
       };
     };
   };
 
   module TaskByStatus {
     public func compare(a : Task, b : Task) : Order {
-      switch (Status.compare(a.status, b.status)) {
-        case (#equal) switch (Priority.compare(a.priority, b.priority)) {
-          case (#equal) Nat.compare(a.id, b.id);
-          case (ord) ord;
-        };
-        case (ord) ord;
+      switch Status.compare(a.status, b.status) {
+        case #equal { switch Priority.compare(a.priority, b.priority) {
+          case #equal { Nat.compare(a.id, b.id) }
+          case ord { ord }
+        } }
+        case ord { ord }
       };
     };
   };
@@ -282,9 +282,9 @@ assert byStatus[5].name == "Fix crash"; // completed, critical
 // Verify manual compare functions produce the same results
 
 let sorted2 = tasks.sort(WithoutImplicitDerivation.taskCompare);
-for (i in sorted.keys()) { assert sorted[i].id == sorted2[i].id };
+for i in sorted.keys() { assert sorted[i].id == sorted2[i].id };
 
 let byStatus2 = tasks.sort(WithoutImplicitDerivation.taskByStatusCompare);
-for (i in byStatus.keys()) { assert byStatus[i].id == byStatus2[i].id };
+for i in byStatus.keys() { assert byStatus[i].id == byStatus2[i].id };
 
 //SKIP comp

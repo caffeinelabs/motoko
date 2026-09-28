@@ -1,13 +1,13 @@
-queries.mo:13.5-13.20: type error [M0038], misplaced await
-queries.mo:17.5-17.13: type error [M0188], send capability required, but not available
+queries.mo:12.5-12.20: type error [M0038], misplaced await
+queries.mo:16.5-16.13: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)
-queries.mo:21.13-21.22: type error [M0188], send capability required, but not available
+queries.mo:20.13-20.22: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)
-queries.mo:22.5-22.20: type error [M0038], misplaced await
-queries.mo:22.11-22.20: type error [M0188], send capability required, but not available
+queries.mo:21.5-21.20: type error [M0038], misplaced await
+queries.mo:21.11-21.20: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)
-queries.mo:26.5-26.14: type error [M0037], misplaced async expression; a query cannot contain an async expression
-queries.mo:26.5-26.14: type error [M0096], expression of type
+queries.mo:25.5-25.13: type error [M0037], misplaced async expression; a query cannot contain an async expression
+queries.mo:25.5-25.13: type error [M0096], expression of type
   async<$bogus> ()
 cannot produce expected type
   ()

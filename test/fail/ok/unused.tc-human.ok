@@ -8,12 +8,12 @@ warning[M0194]: unused identifier: `unused2`
     │        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused2`
 warning[M0194]: unused identifier: `rec`
     ┌─ unused.mo:7:6
-  7 │  func rec() { }; //reject ok
+  7 │  func rec() {}; //reject ok
     │       ^^^ help: if this is intentional, prefix it with an underscore: `_rec`
 warning[M0194]: unused identifier: `unused`
-    ┌─ unused.mo:9:9
-  9 │  do {let unused = 1 };
-    │          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused`
+    ┌─ unused.mo:9:10
+  9 │  do { let unused = 1 };
+    │           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused`
 warning[M0194]: unused identifier: `g`
     ┌─ unused.mo:11:6
  11 │  func g(x : ()) {};
@@ -27,18 +27,18 @@ warning[M0194]: unused identifier: `hmm`
  15 │  let hmm = _ok; // should we warn about the use of a silenced identifier? OCaml doesn't actually, so perhaps not
     │      ^^^ help: if this is intentional, prefix it with an underscore: `_hmm`
 warning[M0194]: unused identifier: `u`
-    ┌─ unused.mo:23:10
- 23 │    case (?u) {}; //unused u
-    │           ^ help: if this is intentional, prefix it with an underscore: `_u`
+    ┌─ unused.mo:24:9
+ 24 │    case ?u {} //unused u
+    │          ^ help: if this is intentional, prefix it with an underscore: `_u`
 warning[M0194]: unused identifier: `o`
-    ┌─ unused.mo:24:8
- 24 │    case o {}; //unused 0
+    ┌─ unused.mo:25:8
+ 25 │    case o {} //unused 0
     │         ^ help: if this is intentional, prefix it with an underscore: `_o`
 warning[M0194]: unused identifier: `r`
     ┌─ unused.mo:32:5
- 32 │  let r = object {private let f = 0; public let x = 0};
+ 32 │  let r = object { private let f = 0; public let x = 0 };
     │      ^ help: if this is intentional, prefix it with an underscore: `_r`
 warning[M0194]: unused identifier: `f`
-    ┌─ unused.mo:32:29
- 32 │  let r = object {private let f = 0; public let x = 0};
-    │                              ^ help: if this is intentional, prefix it with an underscore: `_f`
+    ┌─ unused.mo:32:30
+ 32 │  let r = object { private let f = 0; public let x = 0 };
+    │                               ^ help: if this is intentional, prefix it with an underscore: `_f`

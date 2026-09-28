@@ -10,7 +10,7 @@ module Array {
 // Two leaf implicits for Nat — inner resolution is ambiguous
 module Nat {
   public func compare(a : Nat, b : Nat) : Order {
-    if (a < b) #less else if (a == b) #equal else #greater;
+    if a < b { #less } else if a == b { #equal } else { #greater };
   };
 };
 

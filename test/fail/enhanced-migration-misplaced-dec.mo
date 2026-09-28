@@ -14,7 +14,7 @@ actor {
   func f () {
     let x : Int; // reject
     var y : Int; // reject
-    switch ()  {
+    switch () {
       case _ {
         let x : Int; // reject
         var y : Int; // reject
@@ -30,10 +30,10 @@ actor {
   };
 
   do {
-     let M = module {
-       let x : Int; // reject
-       var y : Int; // reject
-     };
+    let M = module {
+      let x : Int; // reject
+      var y : Int; // reject
+    };
   };
 
   do {

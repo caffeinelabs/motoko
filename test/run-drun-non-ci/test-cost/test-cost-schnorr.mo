@@ -20,8 +20,8 @@ actor client {
     sign_with_schnorr : shared Args -> async { signature : Blob };
   };
   func encodeAlgorithm(algorithm : SchnorrAlgorithm) : Nat32 = switch algorithm {
-    case (#bip340secp256k1) 0;
-    case (#ed25519) 1;
+    case #bip340secp256k1 { 0 }
+    case #ed25519 { 1 }
   };
 
   public shared ({ caller }) func go() : async () {

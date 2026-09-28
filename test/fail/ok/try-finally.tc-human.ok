@@ -1,28 +1,28 @@
 error[M0047]: send capability required, but not available
  (need an enclosing async expression or function body)
-    ┌─ try-finally.mo:10:26
- 10 │          finally { ignore m() } // BAD: no effects allowed!
-    │                           ^^^ 
+    ┌─ try-finally.mo:9:22
+  9 │      finally { ignore m() } // BAD: no effects allowed!
+    │                       ^^^ 
 error[M0039]: misplaced throw
-    ┌─ try-finally.mo:16:19
- 16 │          finally { throw error "Nope" } // BAD: has effect.
-    │                    ^^^^^^^^^^^^^^^^^^ 
+    ┌─ try-finally.mo:15:15
+ 15 │      finally { throw error "Nope" } // BAD: has effect.
+    │                ^^^^^^^^^^^^^^^^^^ 
 error[M0037]: misplaced async expression; try enclosing in an async function
-    ┌─ try-finally.mo:22:26
- 22 │          finally { ignore async {} } // BAD: has effect. Weird error...
-    │                           ^^^^^^^^ 
+    ┌─ try-finally.mo:21:22
+ 21 │      finally { ignore async {} } // BAD: has effect. Weird error...
+    │                       ^^^^^^^^ 
 error[M0050]: literal of type
   Nat
 does not have expected type
   ()
-    ┌─ try-finally.mo:28:19
- 28 │          finally { 42 } // BAD: should return unit.
-    │                    ^^ 
+    ┌─ try-finally.mo:27:15
+ 27 │      finally { 42 } // BAD: should return unit.
+    │                ^^ 
 error[M0085]: misplaced return
-    ┌─ try-finally.mo:34:19
- 34 │          finally { return } // BAD: no outward edges allowed!
-    │                    ^^^^^^ 
+    ┌─ try-finally.mo:33:15
+ 33 │      finally { return } // BAD: no outward edges allowed!
+    │                ^^^^^^ 
 error[M0083]: unbound label out
-    ┌─ try-finally.mo:40:25
- 40 │          finally { break out } // BAD: no outward edges allowed!
-    │                          ^^^ 
+    ┌─ try-finally.mo:39:21
+ 39 │      finally { break out } // BAD: no outward edges allowed!
+    │                      ^^^ 

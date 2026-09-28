@@ -1,6 +1,6 @@
 import Runtime "mo:core/Runtime";
 import Float "mo:core/Float";
-import {migration} "Migration";
+import { migration } "Migration";
 
 (with migration) // declare the migration function (using field punning)
 actor Counter_v8 {

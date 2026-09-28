@@ -9,80 +9,82 @@ import WalletLib = "cycles/wallet";
 
 actor a {
 
- transient let print = Prim.debugPrint;
+  transient let print = Prim.debugPrint;
 
- public func go() : async () {
-  if (Cycles.balance() == 0)
-    await Cycles.provisional_top_up_actor(a, 3_000_000_000_000);
+  public func go() : async () {
+    if Cycles.balance() == 0
+      { await Cycles.provisional_top_up_actor(a, 3_000_000_000_000) };
 
-  Cycles.add<system>(2_000_000_000_000);
-  let wallet : WalletLib.Wallet = await WalletLib.Wallet();
-  await wallet.show();
-  print ("setting cycles");
-  await Cycles.provisional_top_up_actor(wallet, 2_000_000_000_000);
-  await wallet.show();
+    Cycles.add<system>(2_000_000_000_000);
+    let wallet : WalletLib.Wallet = await WalletLib.Wallet();
+    await wallet.show();
+    print ("setting cycles");
+    await Cycles.provisional_top_up_actor(wallet, 2_000_000_000_000);
+    await wallet.show();
 
-  // debit from the wallet, crediting this actor via callback
-  print ("debit");
-//  print("balance " # debug_show(Cycles.balance()));
-  let b = Cycles.balance();
-  await wallet.debit(1_000_000_000_000, credit);
+    // debit from the wallet, crediting this actor via callback
+    print ("debit");
+    //  print("balance " # debug_show(Cycles.balance()));
+    let b = Cycles.balance();
+    await wallet.debit(1_000_000_000_000, credit);
 
-//  print(debug_show(Cycles.balance()));
+    //  print(debug_show(Cycles.balance()));
 
-  do { // check cycles available
+    do {
+      // check cycles available
+      Cycles.add<system>(1000_000);
+      let cs = await wallet.available();
+      assert (cs == 1000_000);
+      assert (Cycles.refunded() == 1000_000);
+    };
+    do {
+      // check cycles reset to zero on send
+      let cs = await wallet.available();
+      assert (cs == 0);
+      assert (Cycles.refunded() == 0);
+    };
+
+    do {
+      // check cycles additive to zero on send
+      Cycles.add<system>(1000_000);
+      Cycles.add<system>(2000_000);
+      let cs = await wallet.available();
+      assert (cs == 3000_000);
+      assert (Cycles.refunded() == 3000_000);
+    };
+
+    // check cycles reset on context switch
     Cycles.add<system>(1000_000);
-    let cs = await wallet.available();
-    assert (cs == 1000_000);
+    await async {
+      assert(Cycles.available() == 1000_000);
+      // check cycles received
+      Cycles.add<system>(5000);
+      let cs = await wallet.available();
+      assert (cs == 5000);
+      assert (Cycles.refunded() == 5000);
+
+      // add some unconsumed cycles
+      Cycles.add<system>(200);
+    };
+    // check refund from await async ...
     assert (Cycles.refunded() == 1000_000);
-  };
-  do { // check cycles reset to zero on send
+    // check unconsumed cycles, declared before await, cleared on context switch
     let cs = await wallet.available();
     assert (cs == 0);
-    assert (Cycles.refunded() == 0);
+
   };
 
-  do { // check cycles additive to zero on send
-    Cycles.add<system>(1000_000);
-    Cycles.add<system>(2000_000);
-    let cs = await wallet.available();
-    assert (cs == 3000_000);
-    assert (Cycles.refunded() == 3000_000);
+  // callback for accepting cycles from wallet.
+  public func credit() : async () {
+    let b = Cycles.balance();
+    let a = Cycles.available();
+    let acc = Cycles.accept<system>(a);
+    // print("balance before " # debug_show(b));
+    // print("available " # debug_show(a));
+    // print("accepted " # debug_show(acc));
+    // print("balalance after " # debug_show(Cycles.balance()));
+    assert (Cycles.balance() == b + acc);
   };
-
-  // check cycles reset on context switch
-  Cycles.add<system>(1000_000);
-  await async {
-    assert(Cycles.available() == 1000_000);
-    // check cycles received
-    Cycles.add<system>(5000);
-    let cs = await wallet.available();
-    assert (cs == 5000);
-    assert (Cycles.refunded() == 5000);
-
-    // add some unconsumed cycles
-    Cycles.add<system>(200);
-  };
-  // check refund from await async ...
-  assert (Cycles.refunded() == 1000_000);
-  // check unconsumed cycles, declared before await, cleared on context switch
-  let cs = await wallet.available();
-  assert (cs == 0);
-
- };
-
- // callback for accepting cycles from wallet.
- public func credit() : async () {
-   let b = Cycles.balance();
-   let a = Cycles.available();
-   let acc = Cycles.accept<system>(a);
-   // print("balance before " # debug_show(b));
-   // print("available " # debug_show(a));
-   // print("accepted " # debug_show(acc));
-   // print("balalance after " # debug_show(Cycles.balance()));
-   assert (Cycles.balance() == b + acc);
- };
-
 
 };
 
@@ -91,4 +93,3 @@ a.go(); //OR-CALL ingress go "DIDL\x00\x00"
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-

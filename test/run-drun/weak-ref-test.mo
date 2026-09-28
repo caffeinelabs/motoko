@@ -17,7 +17,7 @@ actor {
     // Trigger GC by yielding to the scheduler.
     // The weak ref isLive should be false now and the deref should be null.
     var n = 10;
-    while (n > 0) {
+    while n > 0 {
       n -= 1;
       // Allocate large array.
       arr := Prim.Array_init<Nat>(1_000, 1);
@@ -38,10 +38,10 @@ actor {
     let wrs = [Prim.allocWeakRef(blob1), Prim.allocWeakRef(blob2), Prim.allocWeakRef(blob3)];
 
     var idx = 0;
-    while (idx < 5) {
+    while idx < 5 {
 
       Prim.debugPrint(debug_show ("================"));
-      for (wr in wrs.values()) {
+      for wr in wrs.values() {
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
       };
 
@@ -62,11 +62,11 @@ actor {
     let wrs = [Prim.allocWeakRef(blobs[0]), Prim.allocWeakRef(blobs[1]), Prim.allocWeakRef(blobs[2])];
 
     var idx = 0;
-    while (idx < 5) {
+    while idx < 5 {
 
       Prim.debugPrint(debug_show ("================"));
 
-      for (wr in wrs.values()) {
+      for wr in wrs.values() {
         let val = Prim.weakGet(wr);
         Prim.debugPrint(debug_show (val));
         Prim.debugPrint(debug_show (Prim.isLive(wr)));

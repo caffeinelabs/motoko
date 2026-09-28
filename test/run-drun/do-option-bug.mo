@@ -3,9 +3,9 @@ import P "mo:⛔";
 
 actor a {
 
-  public func opt() : async ?(Text,Text) {
+  public func opt() : async ?(Text, Text) {
     do ? {
-      ((await async ? "a") !, (? "b") ! )
+      ((await async ? "a") !, (? "b") !)
     }
   };
 

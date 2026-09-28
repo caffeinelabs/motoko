@@ -3,11 +3,11 @@
 
 actor A {
 
-public func f0 () : async () {};
+  public func f0 () : async () {};
 
-public func test0 () : async () { await f0 ();};
+  public func test0 () : async () { await f0 (); };
 
-/*
+  /*
 public func f1 () : async<$> () {}; // this is now illegal since f1 not (implicitly) parametric
 
 public func test1 () : async () {
@@ -16,7 +16,7 @@ public func test1 () : async () {
 };
 */
 
-/*
+  /*
 public func f2<$>() : async<$> () {};
 
 public func test2(): async () {
@@ -32,14 +32,14 @@ public func test2b() : async () {
 };
 */
 
-func f3<A<:Int>() : async () {};
+  func f3<A<:Int>() : async () {};
 
-public func test3 () : async () {
- await f3<Int>();   // scope passed as implicit first argument
-/* await f3<$,Int>(); // scope passed as explicit first argument */
-};
+  public func test3 () : async () {
+    await f3<Int>(); // scope passed as implicit first argument
+    /* await f3<$,Int>(); // scope passed as explicit first argument */
+  };
 
-/*
+  /*
 public func f4<$,B<:Int>() : async<$> () {}; // explict scope parameter 1
 
 public func test4() : async () {
@@ -57,7 +57,7 @@ public func test5() : async () {
 ;
 */
 
-/*
+  /*
 public func f6<A<:Int,$>() : async () {}; // explict scope parameter 2, implicit index
 
 public func test6() : async () {
@@ -67,7 +67,7 @@ public func test6() : async () {
 ;
 */
 
-/*
+  /*
 public func f7<X,A<:Int>(n:Int) : async<X>() {
    if (n == 0) ()
    else
@@ -86,20 +86,18 @@ public func test7 () : async () {
 
 */
 
-public func test() : async () {
-  await test0();
-//  await test2();
-//  await test2b();
-  await test3();
-//  await test4();
-//  await test5();
-//  await test6();
-//  await test7();
-};
+  public func test() : async () {
+    await test0();
+    //  await test2();
+    //  await test2b();
+    await test3();
+    //  await test4();
+    //  await test5();
+    //  await test6();
+    //  await test7();
+  };
 
 };
 
 A.test(); //OR-CALL ingress test 0x4449444C0000
 //SKIP comp
-
-

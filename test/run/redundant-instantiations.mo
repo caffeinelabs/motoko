@@ -48,7 +48,8 @@ vaBlob[0] := t3;
 module Nested {
   type R = { x : Int; y : Nat };
   public func testVarTab0() {
-    var _grid = Prim.Array_tabulate<[var ?R]>( // Redundant
+    var _grid = Prim.Array_tabulate<[var ?R]>(
+      // Redundant
       3,
       func _ = Prim.Array_tabulateVar<?R>(5, func _ = null), // Should NOT be redundant. Only one of these two is redundant.
     );

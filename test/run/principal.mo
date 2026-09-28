@@ -3,7 +3,6 @@ import Prim "mo:⛔";
 
 func isEq(x : Principal, y : Principal) : Bool { x == y };
 
-
 Prim.debugPrint(debug_show(Prim.principalOfBlob("")));
 Prim.debugPrint(debug_show(Prim.principalOfBlob("\00")));
 Prim.debugPrint(debug_show(Prim.principalOfBlob("\2a\01")));

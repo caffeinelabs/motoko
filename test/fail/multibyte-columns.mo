@@ -7,9 +7,12 @@
 import Char "mo:core/Char";
 module {
   public func go(c : Char) {
-    ignore Char.toNat32(c);                       // ASCII baseline
-    ignore "京"; ignore Char.toNat32(c);          // 3-byte UTF-8 before span
-    ignore "💩"; ignore Char.toNat32(c);          // 4-byte UTF-8 (non-BMP) before span
-    ignore "京京"; ignore Char.toNat32(c);        // multibyte text before span
+    ignore Char.toNat32(c); // ASCII baseline
+    ignore "京";
+    ignore Char.toNat32(c); // 3-byte UTF-8 before span
+    ignore "💩";
+    ignore Char.toNat32(c); // 4-byte UTF-8 (non-BMP) before span
+    ignore "京京";
+    ignore Char.toNat32(c); // multibyte text before span
   };
 };

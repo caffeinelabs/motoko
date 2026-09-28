@@ -16,4 +16,3 @@ foobaz2();
 // CHECK-LABEL: func $go
 // CHECK-NOT: call_indirect
 // CHECK: call $foobar1
-

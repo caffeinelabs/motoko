@@ -1,10 +1,10 @@
 error[M0059]: operator is not defined for operand type
   Text
-    ┌─ nat-dot.mo:34:8
- 34 │  ignore +0 .toText(); // dubious (error)
+    ┌─ nat-dot.mo:32:8
+ 32 │  ignore +0 .toText(); // dubious (error)
     │         ^^^^^^^^^^^^ 
 error[M0059]: operator is not defined for operand type
   Text
-    ┌─ nat-dot.mo:35:8
- 35 │  ignore -0 .toText(); // dubious (error)
+    ┌─ nat-dot.mo:33:8
+ 33 │  ignore -0 .toText(); // dubious (error)
     │         ^^^^^^^^^^^^ 

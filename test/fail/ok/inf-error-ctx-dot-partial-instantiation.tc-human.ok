@@ -23,5 +23,5 @@ to argument of type
 because there is no "best" choice for type parameter `V2`.
 Hint: Add explicit type instantiation, e.g. <Nat, Text, Nat>
     ┌─ inf-error-ctx-dot-partial-instantiation.mo:16:23
- 16 │    func x3() { let _ = peopleMap.map(func(k, _) { 123 })};
+ 16 │    func x3() { let _ = peopleMap.map(func(k, _) { 123 }) };
     │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

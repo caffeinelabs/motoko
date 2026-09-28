@@ -1,4 +1,4 @@
-pretty.mo:22.20-22.21: type error [M0096], expression of type
+pretty.mo:25.20-25.21: type error [M0096], expression of type
   T = {
         aaaaaaaaaaaaaaaaaaa : Nat;
         bbbbbbbbbbbbbbbbbbb : Nat;
@@ -21,11 +21,11 @@ cannot produce expected type
       ddddddddddddddddddd : Nat;
       eeeeeeeeeeeeeeeeeee : Nat
     }
-pretty.mo:24.25-24.26: type error [M0096], expression of type
+pretty.mo:27.25-27.26: type error [M0096], expression of type
   Int
 cannot produce expected type
   Nat
-pretty.mo:26.23-26.24: type error [M0096], expression of type
+pretty.mo:29.23-29.24: type error [M0096], expression of type
   Int
 cannot produce expected type
   {
@@ -35,7 +35,7 @@ cannot produce expected type
     ddddddddddddddddddd : Nat;
     eeeeeeeeeeeeeeeeeee : Nat
   }
-pretty.mo:28.23-28.24: type error [M0096], expression of type
+pretty.mo:31.23-31.24: type error [M0096], expression of type
   T = {
         aaaaaaaaaaaaaaaaaaa : Nat;
         bbbbbbbbbbbbbbbbbbb : Nat;
@@ -45,7 +45,7 @@ pretty.mo:28.23-28.24: type error [M0096], expression of type
       }
 cannot produce expected type
   Nat
-pretty.mo:40.13-40.16: type error [M0072], field foo does not exist in type:
+pretty.mo:43.13-43.16: type error [M0072], field foo does not exist in type:
   module {
     bar1 : Nat;
     bar2 : Nat;
@@ -56,40 +56,40 @@ pretty.mo:40.13-40.16: type error [M0072], field foo does not exist in type:
     bar7 : Nat;
     bar8 : Nat
   }
-pretty.mo:43.4-43.53: type error [M0096], expression of type
+pretty.mo:46.3-46.70: type error [M0096], expression of type
   (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
    Nat, Nat, Nat, Nat)
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:47.4-47.57: type error [M0096], expression of type
+pretty.mo:50.3-50.74: type error [M0096], expression of type
   (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
    (Nat, Nat, Nat, (Nat, Nat, Nat, Nat, Nat, Nat)))
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:53.4-53.6: type error [M0096], expression of type
+pretty.mo:56.3-56.5: type error [M0096], expression of type
   ({#A}, {#B})
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:55.4-55.6: type error [M0096], expression of type
+pretty.mo:58.3-58.5: type error [M0096], expression of type
   (({#A}, {#B}), ({#A}, {#B}))
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:57.4-57.6: type error [M0096], expression of type
+pretty.mo:60.3-60.5: type error [M0096], expression of type
   ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:59.4-59.6: type error [M0096], expression of type
+pretty.mo:62.3-62.5: type error [M0096], expression of type
   (((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
    ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))))
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:61.4-61.6: type error [M0096], expression of type
+pretty.mo:64.3-64.5: type error [M0096], expression of type
   ((((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
     ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))),
    (((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
@@ -97,22 +97,22 @@ pretty.mo:61.4-61.6: type error [M0096], expression of type
 cannot produce expected type
   ()
 because there are more tuple arguments than expected
-pretty.mo:67.4-67.6: type error [M0096], expression of type
+pretty.mo:70.3-70.5: type error [M0096], expression of type
   {A : {#A}; B : {#B}}
 cannot produce expected type
   ()
-pretty.mo:69.4-69.6: type error [M0096], expression of type
+pretty.mo:72.3-72.5: type error [M0096], expression of type
   {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
 cannot produce expected type
   ()
-pretty.mo:71.4-71.6: type error [M0096], expression of type
+pretty.mo:74.3-74.5: type error [M0096], expression of type
   {
     A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
     B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
   }
 cannot produce expected type
   ()
-pretty.mo:73.4-73.6: type error [M0096], expression of type
+pretty.mo:76.3-76.5: type error [M0096], expression of type
   {
     A :
       {
@@ -127,7 +127,7 @@ pretty.mo:73.4-73.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:75.4-75.6: type error [M0096], expression of type
+pretty.mo:78.3-78.5: type error [M0096], expression of type
   {
     A :
       {
@@ -158,15 +158,15 @@ pretty.mo:75.4-75.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:81.4-81.6: type error [M0096], expression of type
+pretty.mo:84.3-84.5: type error [M0096], expression of type
   module {A : {#A}; B : {#B}}
 cannot produce expected type
   ()
-pretty.mo:83.4-83.6: type error [M0096], expression of type
+pretty.mo:86.3-86.5: type error [M0096], expression of type
   module {A : module {A : {#A}; B : {#B}}; B : module {A : {#A}; B : {#B}}}
 cannot produce expected type
   ()
-pretty.mo:85.4-85.6: type error [M0096], expression of type
+pretty.mo:88.3-88.5: type error [M0096], expression of type
   module {
     A :
       module {
@@ -181,7 +181,7 @@ pretty.mo:85.4-85.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:87.4-87.6: type error [M0096], expression of type
+pretty.mo:90.3-90.5: type error [M0096], expression of type
   module {
     A :
       module {
@@ -212,7 +212,7 @@ pretty.mo:87.4-87.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:89.4-89.6: type error [M0096], expression of type
+pretty.mo:92.3-92.5: type error [M0096], expression of type
   module {
     A :
       module {
@@ -275,27 +275,27 @@ pretty.mo:89.4-89.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:95.4-95.6: type error [M0096], expression of type
+pretty.mo:98.3-98.5: type error [M0096], expression of type
   ({#B} -> {#A}) -> {#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:97.4-97.6: type error [M0096], expression of type
+pretty.mo:100.3-100.5: type error [M0096], expression of type
   (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:99.4-99.6: type error [M0096], expression of type
+pretty.mo:102.3-102.5: type error [M0096], expression of type
   ((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
     (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:101.4-101.6: type error [M0096], expression of type
+pretty.mo:104.3-104.5: type error [M0096], expression of type
   (((({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
      (({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
     ((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
       (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:103.4-103.6: type error [M0096], expression of type
+pretty.mo:106.3-106.5: type error [M0096], expression of type
   ((((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
       (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
      ((({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
@@ -306,24 +306,24 @@ pretty.mo:103.4-103.6: type error [M0096], expression of type
         (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:107.62-107.63: type error [M0103], cannot infer type of variable
-pretty.mo:109.4-109.6: type error [M0096], expression of type
+pretty.mo:110.62-110.63: type error [M0103], cannot infer type of variable
+pretty.mo:112.3-112.5: type error [M0096], expression of type
   <W>(<X>{#B} -> {#A}) -> <Y>{#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:111.4-111.6: type error [M0096], expression of type
+pretty.mo:114.3-114.5: type error [M0096], expression of type
   <W>(<X>(<Y>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
     <Y>(<X>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:113.4-113.6: type error [M0096], expression of type
+pretty.mo:116.3-116.5: type error [M0096], expression of type
   <W>(<X>(<Y>(<X_1>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}) ->
         <X_1>(<Y>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
     <Y>(<X>(<Y_1>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
       <Y_1>(<X>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:115.4-115.6: type error [M0096], expression of type
+pretty.mo:118.3-118.5: type error [M0096], expression of type
   <W>(<X>(<Y>(<X_1>(<Y_1>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
             <Y_1>(<X_1>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
         <X_1>(<Y>(<X_2>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}) ->
@@ -334,7 +334,7 @@ pretty.mo:115.4-115.6: type error [M0096], expression of type
         <Y_2>(<X>{#B} -> {#A}) -> <Y_3>{#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:117.4-117.6: type error [M0096], expression of type
+pretty.mo:120.3-120.5: type error [M0096], expression of type
   <W>(<X>(<Y>(<X_1>(<Y_1>(<X_2>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
                 <X_2>(<Y_1>{#A} -> {#B}) -> <X_3>{#B} -> {#A}) ->
             <Y_1>(<X_1>(<Y_2>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
@@ -353,46 +353,46 @@ pretty.mo:117.4-117.6: type error [M0096], expression of type
           <Y_3>(<X>{#B} -> {#A}) -> <Y_4>{#A} -> {#B}
 cannot produce expected type
   ()
-pretty.mo:123.4-123.6: type error [M0096], expression of type
+pretty.mo:126.3-126.5: type error [M0096], expression of type
   ?(Nat, Nat)
 cannot produce expected type
   ()
-pretty.mo:125.4-125.6: type error [M0096], expression of type
+pretty.mo:128.3-128.5: type error [M0096], expression of type
   ?(?(Nat, Nat), ?(Nat, Nat))
 cannot produce expected type
   ()
-pretty.mo:127.4-127.6: type error [M0096], expression of type
+pretty.mo:130.3-130.5: type error [M0096], expression of type
   ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))
 cannot produce expected type
   ()
-pretty.mo:129.4-129.6: type error [M0096], expression of type
+pretty.mo:132.3-132.5: type error [M0096], expression of type
   ?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
     ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))))
 cannot produce expected type
   ()
-pretty.mo:131.4-131.6: type error [M0096], expression of type
+pretty.mo:134.3-134.5: type error [M0096], expression of type
   ?(?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
       ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))),
     ?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
       ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))))
 cannot produce expected type
   ()
-pretty.mo:137.4-137.6: type error [M0096], expression of type
+pretty.mo:140.3-140.5: type error [M0096], expression of type
   {#A : {#Foo}; #B : {#Bar}}
 cannot produce expected type
   ()
-pretty.mo:139.4-139.6: type error [M0096], expression of type
+pretty.mo:142.3-142.5: type error [M0096], expression of type
   {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
 cannot produce expected type
   ()
-pretty.mo:141.4-141.6: type error [M0096], expression of type
+pretty.mo:144.3-144.5: type error [M0096], expression of type
   {
     #A : {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}};
     #B : {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
   }
 cannot produce expected type
   ()
-pretty.mo:143.4-143.6: type error [M0096], expression of type
+pretty.mo:146.3-146.5: type error [M0096], expression of type
   {
     #A :
       {
@@ -411,7 +411,7 @@ pretty.mo:143.4-143.6: type error [M0096], expression of type
   }
 cannot produce expected type
   ()
-pretty.mo:145.4-145.6: type error [M0096], expression of type
+pretty.mo:148.3-148.5: type error [M0096], expression of type
   {
     #A :
       {

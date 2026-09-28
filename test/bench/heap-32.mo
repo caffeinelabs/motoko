@@ -23,7 +23,7 @@ actor Tagged {
           state := (state + 17) * 57 % cutoff;
           let wrapped = intToNat32Wrap state;
           let bits = (wrapped >> 30) & 3;
-          if (bits == 0 or bits == 3) taggable += 1;
+          if bits == 0 or bits == 3 { taggable += 1 };
           wrapped;
         },
       ),
@@ -42,7 +42,7 @@ actor Tagged {
           state := (state + 17) * 57 % cutoff;
           let wrapped = intToInt32Wrap state;
           let bits = (wrapped >> 30) & 3;
-          if (bits == 0 or bits == 3) taggable += 1;
+          if bits == 0 or bits == 3 { taggable += 1 };
           wrapped;
         },
       ),

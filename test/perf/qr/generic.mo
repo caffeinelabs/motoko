@@ -25,10 +25,10 @@ module {
     text : Text
   ) : ?List<Bool> {
     switch mode {
-      case (#Alphanumeric) Alphanumeric.encode(version, text);
-      case (#EightBit) EightBit.encode(version, text);
-      case (#Kanji) Kanji.encode(version, text);
-      case (#Numeric) Numeric.encode(version, text)
+      case #Alphanumeric { Alphanumeric.encode(version, text) }
+      case #EightBit { EightBit.encode(version, text) }
+      case #Kanji { Kanji.encode(version, text) }
+      case #Numeric { Numeric.encode(version, text) }
     }
   };
 

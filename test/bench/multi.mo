@@ -27,7 +27,7 @@ actor Multi {
   // the parent needs, eliminating the naive `fib(n-1) + fib(n-2)`
   // double recursion.
   func fibPair(n : Nat) : (Nat, Nat) =
-    if (n == 0) (0, 1)
+    if n == 0 { (0, 1) }
     else {
       let (a, b) = fibPair (n - 1);
       (b, a + b)
@@ -35,7 +35,7 @@ actor Multi {
 
   // egcd(a, b) returns (g, x, y) with a*x + b*y = g = gcd(a, b).
   func egcd(a : Int, b : Int) : (Int, Int, Int) =
-    if (b == 0) (a, 1, 0)
+    if b == 0 { (a, 1, 0) }
     else {
       let (g, x1, y1) = egcd(b, a % b);
       (g, y1, x1 - (a / b) * y1)
@@ -52,7 +52,7 @@ actor Multi {
     var len = 1;
     loop {
       let (q, _r) = divmod128(v);
-      if (q == 0) return len;
+      if q == 0 { return len };
       v := q;
       len += 1;
     }
@@ -62,7 +62,7 @@ actor Multi {
     let (m0, n0) = counters();
     var sink : Nat = 0;
     var i = 0;
-    while (i < 1_000) {
+    while i < 1_000 {
       let (a, _) = fibPair(40);
       sink += a;
       i += 1;
@@ -75,7 +75,7 @@ actor Multi {
     let (m0, n0) = counters();
     var sink : Int = 0;
     var i = 0;
-    while (i < 10_000) {
+    while i < 10_000 {
       // Consecutive Fibonacci numbers — worst case for Euclidean depth.
       let (g, x, y) = egcd(46368, 75025);
       sink += g + x + y;
@@ -89,7 +89,7 @@ actor Multi {
     let (m0, n0) = counters();
     var sink : Nat = 0;
     var i = 0;
-    while (i < 100_000) {
+    while i < 100_000 {
       sink += leb128Length(0xDEAD_BEEF_CAFE_BABE);
       i += 1;
     };

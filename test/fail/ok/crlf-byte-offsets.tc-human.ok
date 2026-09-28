@@ -6,22 +6,22 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
   8 │ │    m,
   9 │ │  );
     │ ╰──^ 
- 10 │    let s = "éé"; ignore M.size(m);
+ 10 │    let s = "éé";
     = help: replace `M` with `m`
     = help: remove `m,`
 warning[M0236]: You can use the dot notation `m.size(...)` here
-    ┌─ crlf-byte-offsets.mo:10:22
- 10 │  let s = "éé"; ignore M.size(m);
-    │                       ^^^^^^^^^ 
+    ┌─ crlf-byte-offsets.mo:11:8
+ 11 │  ignore M.size(m);
+    │         ^^^^^^^^^ 
     = help: replace `M` with `m`
     = help: remove `m`
 warning[M0236]: You can use the dot notation `m.size(...)` here
-    ┌─ crlf-byte-offsets.mo:12:8
- 12 │  ignore M.size(m);
+    ┌─ crlf-byte-offsets.mo:13:8
+ 13 │  ignore M.size(m);
     │         ^^^^^^^^^ 
     = help: replace `M` with `m`
     = help: remove `m`
 warning[M0194]: unused identifier: `s`
     ┌─ crlf-byte-offsets.mo:10:5
- 10 │  let s = "éé"; ignore M.size(m);
+ 10 │  let s = "éé";
     │      ^ help: if this is intentional, prefix it with an underscore: `_s`

@@ -15,7 +15,7 @@ actor a {
   };
 
   public func run() : async () {
-    if (Cycles.balance() == 0) {
+    if Cycles.balance() == 0 {
       await Cycles.provisional_top_up_actor(a, 100_000_000_000_000);
     };
 

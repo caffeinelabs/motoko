@@ -2,15 +2,15 @@
 // These fields will be re-initialized, not retained.
 // This may be intentional or a sign of data loss, hence just a warning.
 (with migration =
-  func({data : Nat}) : {} {
+  func({ data : Nat }) : {} {
     ignore data;
     {}
-   })
+  })
 actor A {
 
-   var data = 0;
+  var data = 0;
 
-   ignore data;
+  ignore data;
 
 };
 
@@ -21,21 +21,21 @@ actor A {
   })
 actor B {
 
-   var data = 0;
+  var data = 0;
 
-   ignore data;
+  ignore data;
 
 };
 
 // fix 2: add to range
 (with migration =
-  func({data : Nat}) : {data : Nat} {
-    {data}
+  func({ data : Nat }) : { data : Nat } {
+    { data }
   })
 actor C {
 
-   var data = 0;
+  var data = 0;
 
-   ignore data;
+  ignore data;
 
 };

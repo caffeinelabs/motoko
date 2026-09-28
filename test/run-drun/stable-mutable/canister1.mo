@@ -4,7 +4,7 @@ actor {
   flexible let obj = { var field = "hello"; extra = 1 };
 
   let a = (array, array);
-  let b = (obj : { var field : Text} , obj);
+  let b = (obj : { var field : Text }, obj);
 
   type Cyclic = { var self : [Cyclic]; var field : Text };
   let c : Cyclic = { var self = ([] : [Cyclic]); var field = "hello"; };
@@ -16,7 +16,7 @@ actor {
   public query func checkArray() : async () {
     // check that mutable values are properly aliased
 
-    for (i in a.0.keys()) {
+    for i in a.0.keys() {
       assert(a.0[i] == a.1[i]);
       a.0[i] += 1;
       assert(a.0[i] == a.1[i]);

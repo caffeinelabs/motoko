@@ -1,8 +1,8 @@
-scope-example-func-implicit.mo:7.13-7.22: type error [M0037], misplaced async expression; try enclosing in an async function
-scope-example-func-implicit.mo:7.13-7.22: type error [M0092], async at scope
+scope-example-func-implicit.mo:7.12-7.21: type error [M0037], misplaced async expression; try enclosing in an async function
+scope-example-func-implicit.mo:7.12-7.21: type error [M0092], async at scope
   $bogus
 cannot produce expected scope
   $
-  scope $f is scope-example-func-implicit.mo:3.43-17.4
-scope-example-func-implicit.mo:3.43: info, start of scope $f mentioned in error at scope-example-func-implicit.mo:7.13-7.22
-scope-example-func-implicit.mo:17.3: info, end of scope $f mentioned in error at scope-example-func-implicit.mo:7.13-7.22
+  scope $f is scope-example-func-implicit.mo:3.44-17.4
+scope-example-func-implicit.mo:3.44: info, start of scope $f mentioned in error at scope-example-func-implicit.mo:7.12-7.21
+scope-example-func-implicit.mo:17.3: info, end of scope $f mentioned in error at scope-example-func-implicit.mo:7.12-7.21

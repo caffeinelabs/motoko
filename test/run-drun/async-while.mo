@@ -4,15 +4,14 @@ actor a {
     do {
       var i = 0;
       var j = 0;
-      while (j <= 2) {
-       Prim.debugPrintNat(j);
-       assert(j == i);
-       i += 1;
-       j += 1;
+      while j <= 2 {
+        Prim.debugPrintNat(j);
+        assert(j == i);
+        i += 1;
+        j += 1;
       };
       assert(i == 3);
     };
-
 
     do {
       var i = 0;
@@ -29,11 +28,11 @@ actor a {
     do {
       var i = 0;
       var j = 0;
-      while (j <= 2) {
-       Prim.debugPrintNat(j);
-       assert(j == i);
-       await (async (i += 1));
-       j += 1;
+      while j <= 2 {
+        Prim.debugPrintNat(j);
+        assert(j == i);
+        await (async (i += 1));
+        j += 1;
       };
       assert(i == 3);
     };
@@ -42,17 +41,17 @@ actor a {
       var i = 0;
       var j = 0;
       label l
-      while (true) {
-       if (j > 2) {
-         break l;
-         assert(false);
-       };
-       Prim.debugPrintNat(j);
-       assert(j == i);
-       await (async (i += 1));
-       j += 1;
-       continue l;
-       assert(false);
+      while true {
+        if j > 2 {
+          break l;
+          assert(false);
+        };
+        Prim.debugPrintNat(j);
+        assert(j == i);
+        await (async (i += 1));
+        j += 1;
+        continue l;
+        assert(false);
       };
       assert(i == 3);
     };

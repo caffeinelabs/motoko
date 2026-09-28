@@ -117,12 +117,12 @@ func sortedInsert(
   compare : (implicit : (Int, Int) -> Order),
 ) : IntList {
   switch xs {
-    case null ?(x, null);
-    case (?(h, t)) {
-      switch (compare(x, h)) {
-        case (#less) ?(x, xs);
-        case (#equal) ?(x, xs);
-        case (#greater) ?(h, sortedInsert(x, t));
+    case null { ?(x, null) }
+    case ?(h, t) {
+      switch compare(x, h) {
+        case #less { ?(x, xs) }
+        case #equal { ?(x, xs) }
+        case #greater { ?(h, sortedInsert(x, t)) }
       }
     }
   }

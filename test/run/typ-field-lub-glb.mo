@@ -14,7 +14,6 @@ class Cty() {
   public let y = true
 };
 
-
 class Ct() {
   public type T = Int;
 };
@@ -28,31 +27,35 @@ class Dtx() {
   public let x = 1
 };
 
-let _ : [Ctx] = [ Ctx(), Ctx() ];
-let _ : [Ct] = [ Ct(), Ctx() ];
-let _ : [Ct] = [ Ctx(), Ct() ];
+let _ : [Ctx] = [Ctx(), Ctx()];
+let _ : [Ct] = [Ct(), Ctx()];
+let _ : [Ct] = [Ctx(), Ct()];
 
 // let _ : [Ctx] = [ Ctx(), Cx() ]; //wrong
 // let _ : [Ctx] = [ Ctx(), Ct() ]; //wrong
 
-let _ : [Cx] = [ Ctx(), Cx() ];
-let _ : [Cx] = [ Cx(), Ctx() ];
+let _ : [Cx] = [Ctx(), Cx()];
+let _ : [Cx] = [Cx(), Ctx()];
 
-let _ : [Cx] = [ Dtx(), Cx() ];
-let _ : [Cx] = [ Dtx(), Ctx() ];
-let _ : Any = [ Dtx(), Ctx() ];
+let _ : [Cx] = [Dtx(), Cx()];
+let _ : [Cx] = [Dtx(), Ctx()];
+let _ : Any = [Dtx(), Ctx()];
 
-let _ : [Cx] = [ Ctx(), Dtx() ];
+let _ : [Cx] = [Ctx(), Dtx()];
 
 let otx : Ctx =
-  [ object { public type T = Int; public let x = 1 },
-    object { public type T = Int; public let x = 2 } ][0];
+  [
+    object { public type T = Int; public let x = 1 },
+    object { public type T = Int; public let x = 2 }
+  ][0];
 
 func oktx() { type U = otx.T; let x:Nat = otx.x };
 
 let ox =
-  [ object { public type T = Int; public let x = 1 },
-    object { public type T = Bool; public let x = 2 } ][0];
+  [
+    object { public type T = Int; public let x = 1 },
+    object { public type T = Bool; public let x = 2 }
+  ][0];
 
 func okx() { let x : Nat = ox.x };
 

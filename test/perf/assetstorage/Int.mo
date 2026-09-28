@@ -35,7 +35,7 @@ module {
   /// Int.toText(-1234) // => "-1234"
   /// ```
   public func toText(x : Int) : Text {
-    if (x == 0) {
+    if x == 0 {
       return "0"
     };
 
@@ -45,20 +45,20 @@ module {
     var text = "";
     let base = 10;
 
-    while (int > 0) {
+    while int > 0 {
       let rem = int % base;
       text := (
-        switch (rem) {
-          case 0 { "0" };
-          case 1 { "1" };
-          case 2 { "2" };
-          case 3 { "3" };
-          case 4 { "4" };
-          case 5 { "5" };
-          case 6 { "6" };
-          case 7 { "7" };
-          case 8 { "8" };
-          case 9 { "9" };
+        switch rem {
+          case 0 { "0" }
+          case 1 { "1" }
+          case 2 { "2" }
+          case 3 { "3" }
+          case 4 { "4" }
+          case 5 { "5" }
+          case 6 { "6" }
+          case 7 { "7" }
+          case 8 { "8" }
+          case 9 { "9" }
           case _ { Prelude.unreachable() }
         }
       ) # text;
@@ -75,7 +75,7 @@ module {
   /// Int.min(2, -3) // => -3
   /// ```
   public func min(x : Int, y : Int) : Int {
-    if (x < y) { x } else { y }
+    if x < y { x } else { y }
   };
 
   /// Returns the maximum of `x` and `y`.
@@ -85,13 +85,13 @@ module {
   /// Int.max(2, -3) // => 2
   /// ```
   public func max(x : Int, y : Int) : Int {
-    if (x < y) { y } else { x }
+    if x < y { y } else { x }
   };
 
   // this is a local copy of deprecated Hash.hashNat8 (redefined to suppress the warning)
   private func hashNat8(key : [Nat32]) : Hash.Hash {
     var hash : Nat32 = 0;
-    for (natOfKey in key.values()) {
+    for natOfKey in key.values() {
       hash := hash +% natOfKey;
       hash := hash +% hash << 10;
       hash := hash ^ (hash >> 6)
@@ -240,7 +240,7 @@ module {
   /// Array.sort([1, -2, -3], Int.compare) // => [-3, -2, 1]
   /// ```
   public func compare(x : Int, y : Int) : { #less; #equal; #greater } {
-    if (x < y) { #less } else if (x == y) { #equal } else { #greater }
+    if x < y { #less } else if x == y { #equal } else { #greater }
   };
 
   /// Returns the negation of `x`, `-x` .

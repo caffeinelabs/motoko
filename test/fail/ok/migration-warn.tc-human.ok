@@ -7,21 +7,21 @@ If reinitialization is unintended, and you want to preserve the consumed value, 
   3 │    // This may be intentional or a sign of data loss, hence just a warning.
   4 │    (with migration =
     │ ╭────────^
-  5 │ │    func({data : Nat}) : {} {
+  5 │ │    func({ data : Nat }) : {} {
   6 │ │      ignore data;
   7 │ │      {}
-  8 │ │     })
-    │ ╰─────^ 
+  8 │ │    })
+    │ ╰────^ 
   9 │    actor A {
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:11:8
- 11 │     var data = 0;
-    │         ^^^^ 
+    ┌─ migration-warn.mo:11:7
+ 11 │    var data = 0;
+    │        ^^^^ 
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:24:8
- 24 │     var data = 0;
-    │         ^^^^ 
+    ┌─ migration-warn.mo:24:7
+ 24 │    var data = 0;
+    │        ^^^^ 
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:37:8
- 37 │     var data = 0;
-    │         ^^^^ 
+    ┌─ migration-warn.mo:37:7
+ 37 │    var data = 0;
+    │        ^^^^ 
