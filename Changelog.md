@@ -233,6 +233,11 @@
       `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
       are removed.
 
+  * feat!: the `-no-system-api` flag is removed. It compiled to a bare Wasm
+    module with no `ic0` or WASI imports, no printing, and a Wasm start
+    function in place of `canister_init`. Use `-wasi-system-api` to run
+    outside the Internet Computer, e.g. in `wasmtime` (#NNNN).
+
 * motoko-js (`moc.js`)
 
   * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.

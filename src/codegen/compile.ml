@@ -366,7 +366,7 @@ in one big record, for convenience).
 The fields fall into the following categories:
 
  1. Static global fields. Never change.
-    Example: whether we are compiling with -no-system-api
+    Example: whether we are compiling with -wasi-system-api
 
  2. Mutable global fields. Change only monotonically.
     These are used to register things like functions. This should be monotone
@@ -786,7 +786,7 @@ module E = struct
        match mode env with
        | Flags.ICMode ->
           ()
-       | Flags.WASIMode | Flags.WasmMode ->
+       | Flags.WASIMode ->
           add_feature env "bulk-memory";
           add_feature env "multi-memory")
 
@@ -797,7 +797,7 @@ module E = struct
     nr {mtype = MemoryType ({min = initial_memory_pages; max = None}, I64IndexType)}
     ::
     match mode env with
-    | Flags.WASIMode | Flags.WasmMode when !(env.requires_stable_memory) ->
+    | Flags.WASIMode when !(env.requires_stable_memory) ->
       [ nr {mtype = MemoryType ({min = Int64.zero; max = None}, I64IndexType)} ]
     | _ -> []
 
@@ -4952,8 +4952,7 @@ module IC = struct
       import_ic0 env
     | Flags.WASIMode ->
       (* Wasi function is still 32-bit based *)
-      E.add_func_import env "wasi_snapshot_preview1" "fd_write" [I32Type; I32Type; I32Type; I32Type] [I32Type];
-    | Flags.WasmMode -> ()
+      E.add_func_import env "wasi_snapshot_preview1" "fd_write" [I32Type; I32Type; I32Type; I32Type] [I32Type]
 
   let system_call env funcname = E.call_import env "ic0" funcname
 
@@ -4966,7 +4965,6 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", I64Type); ("len", I64Type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.nop
         | Flags.ICMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
@@ -5087,7 +5085,6 @@ module IC = struct
 
   let trap_ptr_len env =
     match E.mode env with
-    | Flags.WasmMode -> G.i Unreachable
     | Flags.WASIMode -> print_ptr_len env ^^ G.i Unreachable
     | Flags.ICMode -> ic_trap env ^^ G.i Unreachable
 
@@ -6238,7 +6235,7 @@ module RTS_Exports = struct
       match E.mode env with
       | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_write"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_write" (
           Func.of_body env ["offset", I64Type; "src", I64Type; "size", I64Type] []
             (fun env ->
@@ -6261,7 +6258,7 @@ module RTS_Exports = struct
       match E.mode env with
       | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_read"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_read" (
           Func.of_body env ["dst", I64Type; "offset", I64Type; "size", I64Type] []
             (fun env ->
@@ -6284,7 +6281,7 @@ module RTS_Exports = struct
       match E.mode env with
       | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_size"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_size" (
           Func.of_body env [] [I64Type]
             (fun env ->
@@ -6305,7 +6302,7 @@ module RTS_Exports = struct
       match E.mode env with
       | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_grow"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_grow" (
           Func.of_body env ["newPages", I64Type] [I64Type]
             (fun env ->
@@ -13765,7 +13762,7 @@ and metadata name value =
            List.mem name !Flags.public_metadata_names,
            value)
 
-and conclude_module env set_serialization_globals start_fi_o =
+and conclude_module env set_serialization_globals =
 
   RTS_Exports.system_exports env;
 
@@ -13789,15 +13786,11 @@ and conclude_module env set_serialization_globals start_fi_o =
   let dynamic_heap_start = Lifecycle.end_ () in
   set_heap_base dynamic_heap_start;
 
-  (* Wrap the start function with the RTS initialization *)
+  (* The Wasm start function initializes the RTS *)
   let rts_start_fi = E.add_fun env "rts_start" (Func.of_body env [] [] (fun env1 ->
     E.call_rts env ("initialize_incremental_gc") ^^
     GCRoots.register_static_variables env ^^
-    match start_fi_o with
-    | Some fi ->
-      G.i (Call fi)
-    | None ->
-      Lifecycle.set env Lifecycle.PreInit
+    Lifecycle.set env Lifecycle.PreInit
   )) in
 
   IC.default_exports env;
@@ -13899,14 +13892,8 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
      it here fills that slot, once nothing can change `requires_blob_dedup` anymore. *)
   BlobDedup.define_hook env;
 
-  let start_fi_o = match E.mode env with
-    | Flags.ICMode ->
-      IC.export_init env;
-      None
-    | Flags.WASIMode ->
-      IC.export_wasi_start env;
-      None
-    | Flags.WasmMode ->
-      Some (nr (E.built_in env "init"))
-  in
-  conclude_module env set_serialization_globals start_fi_o
+  begin match E.mode env with
+  | Flags.ICMode -> IC.export_init env
+  | Flags.WASIMode -> IC.export_wasi_start env
+  end;
+  conclude_module env set_serialization_globals

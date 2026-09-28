@@ -372,7 +372,6 @@ let flag_of_compile_mode mode =
   match mode with
   | Flags.ICMode -> ""
   | Flags.WASIMode -> " and flag -wasi-system-api"
-  | Flags.WasmMode -> " and flag -no-system-api"
 
 let diag_in type_diag modes env at code notes spans edits fmt =
   let mode = !Flags.compile_mode in
@@ -2573,7 +2572,7 @@ and infer_exp'' env exp : T.typ =
   | ObjBlockE (exp_opt, obj_sort, typ_opt, dec_fields) as e ->
     let _typ_opt = infer_migration env obj_sort exp_opt in
     if obj_sort.it = T.Actor then begin
-      error_in Flags.[WASIMode; WasmMode] env exp.at "M0068"
+      error_in Flags.[WASIMode] env exp.at "M0068"
         "actors are not supported";
       match context with
       | (AsyncE _ :: AwaitE _ :: _ :: _ ) ->
@@ -2652,7 +2651,7 @@ and infer_exp'' env exp : T.typ =
     end
   | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _sugar, exp1) ->
     if not env.pre && not in_actor && T.is_shared_sort shared_pat.it then begin
-      error_in Flags.[WASIMode; WasmMode] env exp1.at "M0076"
+      error_in Flags.[WASIMode] env exp1.at "M0076"
         "shared functions are not supported";
       if not in_actor then
         error_in Flags.[ICMode] env exp1.at "M0077"
@@ -2871,7 +2870,7 @@ and infer_exp'' env exp : T.typ =
     end;
     T.Non
   | AsyncE (par_opt, s, typ_bind, exp1) ->
-    error_in Flags.[WASIMode; WasmMode] env exp1.at "M0086"
+    error_in Flags.[WASIMode] env exp1.at "M0086"
       "async expressions are not supported";
     if not env.pre then check_parenthetical env None par_opt;
     let t1, next_cap = check_AsyncCap env "async expression" exp.at in
@@ -3143,7 +3142,7 @@ and check_exp' env0 t exp : T.typ =
     List.iter (check_exp env (T.as_immut t')) exps;
     t
   | AsyncE (par, s1, tb, exp1), T.Async (s2, t1', t') ->
-    error_in Flags.[WASIMode; WasmMode] env exp1.at "M0086"
+    error_in Flags.[WASIMode] env exp1.at "M0086"
       "async expressions are not supported";
     let t1, next_cap = check_AsyncCap env "async expression" exp.at in
     if s1 <> s2 then begin
@@ -4060,7 +4059,7 @@ and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
   | T.Local -> T.Local, T.Env.empty
   | T.Shared (ss, pat) ->
     if pat.it <> WildP then
-      error_in Flags.[WASIMode; WasmMode] env pat.at "M0106" "shared function cannot take a context pattern";
+      error_in Flags.[WASIMode] env pat.at "M0106" "shared function cannot take a context pattern";
     env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
     T.Shared ss, check_pat_exhaustive local_error env T.ctxt pat
 
@@ -4073,7 +4072,7 @@ and check_class_shared_pat env shared_pat obj_sort : Scope.val_env =
     if sort <> T.Actor then
       error env pat.at "M0107" "non-actor class cannot take a context pattern";
     if pat.it <> WildP then
-      error_in Flags.[WASIMode; WasmMode] env pat.at "M0108" "actor class cannot take a context pattern";
+      error_in Flags.[WASIMode] env pat.at "M0108" "actor class cannot take a context pattern";
     if mode = T.Query then
       error env shared_pat.at "M0109" "class cannot be a query";
     env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
@@ -5601,7 +5600,7 @@ and infer_dec_valdecs env dec : Scope.t =
   | MixinD (_, _, _) -> Scope.empty
   | ClassD (_exp_opt, _shared_pat, obj_sort, id, typ_binds, pat, _, _, _) ->
     if obj_sort.it = T.Actor then begin
-      error_in Flags.[WASIMode; WasmMode] env dec.at "M0138" "actor classes are not supported";
+      error_in Flags.[WASIMode] env dec.at "M0138" "actor classes are not supported";
       if not env.in_prog then
         error_in Flags.[ICMode] env dec.at "M0139"
           "inner actor classes are not supported yet; any actor class must come last in your program";
