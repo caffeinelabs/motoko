@@ -236,7 +236,7 @@
   * feat!: the `-no-system-api` flag is removed. It compiled to a bare Wasm
     module with no `ic0` or WASI imports, no printing, and a Wasm start
     function in place of `canister_init`. Use `-wasi-system-api` to run
-    outside the Internet Computer, e.g. in `wasmtime` (#NNNN).
+    outside the Internet Computer, e.g. in `wasmtime` (#6411).
 
 * motoko-js (`moc.js`)
 
