@@ -4,10 +4,6 @@
 
 * motoko (`moc`)
 
-  * chore: `-ref-system-api` is deprecated and has no effect beyond selecting
-    the default Internet Computer system API. It will be removed in the next
-    release; drop it from build scripts (#6405).
-
   * fix: contextual dot resolves functions returning `async` when used in an
     async context, e.g. `await x.asyncFunc()` (#6085).
 
@@ -187,6 +183,15 @@
     byte early, so tools applying the suggested edits by byte offset (e.g.
     `mops check --fix`) garbled the file. A form feed, NEL, U+2028 or U+2029
     in a comment or text literal likewise shifted every later offset (#6393).
+
+  * chore: `-ref-system-api` is deprecated and has no effect beyond selecting
+    the default Internet Computer system API. It will be removed in the next
+    release; drop it from build scripts (#6405).
+
+  * chore!: `-g` emits just the DWARF line table, `.debug_line` and
+    `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
+    `.debug_rnglists` sections are gone: they only served a `.debug_info`
+    section that `moc` never emitted (#6406).
 
   * bugfix: the dot-notation suggestion (`M0236`) is no longer silently dropped
     after a line that ends with a lone CR (#6393).
