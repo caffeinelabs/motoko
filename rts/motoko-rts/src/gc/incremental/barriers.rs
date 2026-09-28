@@ -14,11 +14,6 @@ use super::{
     pre_write_barrier,
 };
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn running_gc() -> bool {
-    get_incremental_gc_state().phase != Phase::Pause
-}
-
 /// Write a potential pointer value with a pre-update barrier and resolving pointer forwarding.
 /// Used for the incremental GC.
 /// `location` (unskewed) denotes the field or array element where the value will be written to.
@@ -63,7 +58,7 @@ pub unsafe fn read_with_barrier<M: Memory>(mem: &mut M, value: Value) -> Value {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn allocation_barrier(new_object: Value) -> Value {
     let state = get_incremental_gc_state();
-    if state.phase != Phase::Pause {
+    if state.phase() != Phase::Pause {
         post_allocation_barrier(state, new_object);
         count_allocation(state);
     }

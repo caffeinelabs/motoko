@@ -1,0 +1,6 @@
+enhanced-migration/enh-mig-history/m0.mo:0.1: type error [M0268], migration `m0` is not part of the deployed history recorded by the stable baseline
+enhanced-migration/enh-mig-history/m1.mo:0.1: type error [M0268], migration `m1` no longer matches the deployed history: it now has type
+  (old : {a : Nat}) -> {a : Nat}
+but the stable baseline records
+  {} -> {a : Nat}
+em-baseline-history-mismatch.mo:10.1-12.2: type error [M0268], deployed migration `m2` is missing from the migration directory; only the oldest migrations may be trimmed away

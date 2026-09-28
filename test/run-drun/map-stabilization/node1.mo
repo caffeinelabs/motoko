@@ -1,14 +1,14 @@
 import Prim "mo:⛔";
 actor class Node(i : Nat) {
 
-  stable var upgrades = 0;
+  var upgrades = 0;
 
   type Key = Nat;
   type Value = Text;
 
   type List = ?(Key, Value, List);
 
-  stable var map : List = null;
+  var map : List = null;
 
   Prim.debugPrint(debug_show {node = i; upgrades = upgrades; state = map});
 

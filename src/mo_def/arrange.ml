@@ -46,10 +46,9 @@ module Make (Cfg : Config) = struct
   let trivia at it =
     match Cfg.include_docs with
     | Some table ->
-      let rec lookup_trivia (line, column) =
-        Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-      and find_trivia (parser_pos : region) : Trivia.trivia_info =
-        lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
+      let find_trivia (parser_pos : region) : Trivia.trivia_info =
+        Trivia.PosHashtbl.find_opt table parser_pos.left
+        |> Option.get
       in
       (match Trivia.doc_comment_of_trivia_info (find_trivia at) with
       | Some s -> "*" $$ [Atom s; it]
@@ -236,7 +235,7 @@ module Make (Cfg : Config) = struct
     | Some s ->
       (match s.it with
       | Flexible -> Atom "Flexible"
-      | Stable _ -> Atom "Stable")
+      | Stable -> Atom "Stable")
 
   and typ_field (tf : typ_field) = source tf.at (match tf.it with
     | ValF (lab, t, m) -> "ValF" $$ [id lab; typ t; mut m]

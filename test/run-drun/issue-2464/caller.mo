@@ -6,7 +6,7 @@ actor class Caller(_callee: Principal) {
         get: query () -> async Nat;
     };
 
-    private var calleeHandler : CalleeActor = actor(debug_show(_callee));
+    private let calleeHandler : CalleeActor = actor(debug_show(_callee));
 
     public func add1() : async Nat {
         await calleeHandler.add1()

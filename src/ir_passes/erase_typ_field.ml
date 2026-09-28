@@ -167,7 +167,6 @@ let transform prog =
     match dec' with
     | LetD (pat,exp) -> LetD (t_pat pat,t_exp exp)
     | VarD (id, t, exp) -> VarD (id, t_typ t, t_exp exp)
-    | RefD (id, t, lexp) -> RefD (id, t_typ t, t_lexp lexp)
 
   and t_decs decs = List.map t_dec decs
 

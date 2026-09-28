@@ -33,7 +33,7 @@ module Map {
   };
 };
 
-persistent actor {
+actor {
   let peopleMap = Map.empty<Nat, Text>();
 
   func _test1() {

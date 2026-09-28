@@ -15,7 +15,7 @@ actor {
 
   public func test1() : async () {
     var n = 0;
-    var a = async ();
+    let a = async ();
     await a;
     while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
       ignore request();
@@ -28,7 +28,7 @@ actor {
   public func test2() : async () {
     try {
       var n = 0;
-      var a = async ();
+      let a = async ();
       await a;
       while (n < PRED_MAX_SELF_QUEUE_CAPACITY) {
         ignore request();

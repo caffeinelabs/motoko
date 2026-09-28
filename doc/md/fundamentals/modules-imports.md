@@ -173,7 +173,7 @@ When imported, an [actor](./actors/actors-async.md) class provides a type defini
 For example, if you define the following actor class:
 
 ```motoko no-repl title="Counters.mo"
-persistent actor class Counter(init : Nat) {
+actor class Counter(init : Nat) {
   var count = init;
 
   public func inc() : async () { count += 1 };
@@ -194,7 +194,7 @@ import Counters "Counters";
 import Debug "mo:core/Debug";
 import Nat "mo:core/Nat";
 
-persistent actor CountToTen {
+actor CountToTen {
   public func countToTen() : async () {
     let counterActor = await Counters.Counter(1);
     while ((await counterActor.read()) < 10) {

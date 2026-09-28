@@ -53,11 +53,11 @@ coverage.mo:36.3-36.51: warning [M0145], this switch of type
   (Nat, Nat)
 does not cover value
   (1 or 2 or _, 1 or 2 or _)
-coverage.mo:38.56-38.70: warning [M0146], this pattern is never matched
-coverage.mo:39.44-39.51: warning [M0146], this pattern is never matched
-coverage.mo:40.61-40.62: warning [M0146], this pattern is never matched
-coverage.mo:41.54-41.55: warning [M0146], this pattern is never matched
-coverage.mo:42.3-42.61: warning [M0145], this switch of type
+coverage.mo:38.58-38.72: warning [M0146], this pattern is never matched
+coverage.mo:39.46-39.53: warning [M0146], this pattern is never matched
+coverage.mo:40.63-40.64: warning [M0146], this pattern is never matched
+coverage.mo:41.56-41.57: warning [M0146], this pattern is never matched
+coverage.mo:42.3-42.63: warning [M0145], this switch of type
   {a : Nat; b : Nat}
 does not cover value
   {a = 1 or 2 or _; b = 1 or 2 or _}

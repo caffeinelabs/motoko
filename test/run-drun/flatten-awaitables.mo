@@ -35,7 +35,7 @@ let a = actor {
 
     Prim.debugPrint "first-order";
 
-    let () = await a.m0();
+    await a.m0();
     Prim.debugPrint "0";
     let 1 = await a.m1(1);
     Prim.debugPrint "1";
@@ -44,7 +44,7 @@ let a = actor {
     let (3,false,"text") = await a.m3(3,false,"text");
     Prim.debugPrint "3";
 
-    let () = await a.n0();
+    await a.n0();
     Prim.debugPrint "4";
     let 1 = await a.n1(1);
     Prim.debugPrint "5";
@@ -58,7 +58,7 @@ let a = actor {
     let xy:(Int,Bool) = (2,true);
     let xyz:(Int,Bool,Text) = (3,false,"text");
 
-    let () = await a.m0 u;
+    await a.m0 u;
     Prim.debugPrint "8";
     let 1 = await a.m1 x;
     Prim.debugPrint "9";
@@ -67,7 +67,7 @@ let a = actor {
     let (3,false,"text") = await a.m3 xyz;
     Prim.debugPrint "11";
 
-    let () = await a.n0 u;
+    await a.n0 u;
     Prim.debugPrint "12";
     let 1 = await a.n1 x;
     Prim.debugPrint "13";
@@ -77,7 +77,7 @@ let a = actor {
     Prim.debugPrint "15";
 
     Prim.debugPrint "higher-order";
-    let () = await a.h0(a.m0,());
+    await a.h0(a.m0,());
     Prim.debugPrint "0";
     let 1 = await a.h1(a.m1,1);
     Prim.debugPrint "1";
@@ -86,7 +86,7 @@ let a = actor {
     let (3,false,"text") = await a.h3(a.m3,(3,false,"text"));
     Prim.debugPrint "3";
 
-    let () = await a.g0(a.n0,());
+    await a.g0(a.n0,());
     Prim.debugPrint "4";
     let 1 = await a.g1(a.n1,1);
     Prim.debugPrint "5";
@@ -95,7 +95,7 @@ let a = actor {
     let (3,false,"text") = await a.g3(a.n3,(3,false,"text"));
     Prim.debugPrint "7";
 
-    let () = await a.h0(a.m0,u);
+    await a.h0(a.m0,u);
     Prim.debugPrint "8";
     let 1 = await a.h1(a.m1,x);
     Prim.debugPrint "9";
@@ -104,7 +104,7 @@ let a = actor {
     let (3,false,"text") = await a.h3(a.m3,xyz);
     Prim.debugPrint "11";
 
-    let () = await a.g0(a.n0,u);
+    await a.g0(a.n0,u);
     Prim.debugPrint "12";
     let 1 = await a.g1(a.n1,x);
     Prim.debugPrint "13";

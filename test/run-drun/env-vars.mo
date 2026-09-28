@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 
-persistent actor Self {
+actor Self {
   type EnvVar = { name : Text; value : Text };
 
   let ic = actor "aaaaa-aa" : actor {

@@ -1,0 +1,2 @@
+install $ID mixins-system-redundant/mixins-system-redundant.mo ""
+ingress $ID check "DIDL\x00\x00"

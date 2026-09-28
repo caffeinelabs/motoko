@@ -411,7 +411,6 @@ func @install_actor_helper(
       canister : actor {};
     };
   },
-  enhanced_orthogonal_persistence : Bool,
   wasm_module : Blob,
   arg : Blob,
 ) : async* Principal = async* {
@@ -431,13 +430,8 @@ func @install_actor_helper(
       (#reinstall, (prim "principalOfActor" : (actor {}) -> Principal) actor1);
     };
     case (#upgrade actor2) {
-      let wasm_memory_persistence = if enhanced_orthogonal_persistence {
-        ?(#keep);
-      } else {
-        null;
-      };
       let upgradeOptions = {
-        wasm_memory_persistence;
+        wasm_memory_persistence = ?(#keep);
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) actor2);
     };
@@ -507,9 +501,10 @@ func @call_error() : Error {
 // corollary: if expire == 0 then the pre is completely expired
 //
 // Note: Below the `expire` field is an encoding of an aliased mutable field with
-//       a single-element mutable array. It eliminates `--experimental-field-aliasing`
-//       while compiling this file at the cost of slightly higher syntactic noise
-//       as well as increased allocation and runtime cost accessing the data. Oh well.
+//       a single-element mutable array. It gives the timer mechanism a shared
+//       mutable cell without relying on var-field aliasing, at the cost of
+//       slightly higher syntactic noise as well as increased allocation and
+//       runtime cost accessing the data. Oh well.
 //
 type @Node = {
   expire : [var Nat64];

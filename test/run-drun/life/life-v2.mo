@@ -2,7 +2,7 @@ import P = "mo:⛔";
 
 actor Life {
 
-  object Random {
+  transient object Random {
     var state = 1;
     public func next() : Bool {
       state := (123138118391*state + 133489131) % 9999;
@@ -122,7 +122,7 @@ actor Life {
     };
   };
 
-  stable var state : State = do {
+  var state : State = do {
     let n = 32;
     let len = (n * n) / 64 + 1;
     let words = P.Array_tabulate<Nat64>(len,

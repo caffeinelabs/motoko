@@ -20,7 +20,7 @@ actor class Maker() {
       };
     };
 
-    private stable var callers : [Principal] = [];
+    private var callers : [Principal] = [];
 
     public func newCaller(callee: Principal) : async Principal {
         let callerActor : actor {} = await Caller.Caller(callee);

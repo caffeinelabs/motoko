@@ -155,7 +155,7 @@ A chessboard is a fixed `8×8` grid. Using immutable arrays to represent the ini
 import Array "mo:core/Array";
 import Debug "mo:core/Debug";
 
-persistent actor Chess{
+actor Chess{
 
   func generateChessboard() : [[Text]] {
     let size : Nat = 8;

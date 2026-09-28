@@ -1,1 +1,1 @@
-weak-fail.mo:30.9-30.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+weak-fail.mo:29.9-29.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

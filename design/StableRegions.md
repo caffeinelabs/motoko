@@ -334,4 +334,4 @@ of the first block (128 pages) of memory.
 
 ## Orthogonal Persistence
 
-Stable regions can be used together with orthogonal persistence, see [Classical Persistence](OldStableMemory.md) and [Enhanced Orthogonal Persistence](OrthogonalPersistence.md).
+Stable regions can be used together with orthogonal persistence, see [Enhanced Orthogonal Persistence](OrthogonalPersistence.md).

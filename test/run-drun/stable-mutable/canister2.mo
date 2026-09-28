@@ -9,8 +9,8 @@ actor {
 
   // checks that decoding still works if the first
   // occurrence of the aliased object is ignored due to subtyping
-  stable let a = (() : Any, array);
-  stable let b = (() : Any, obj);
+  let a = (() : Any, array);
+  let b = (() : Any, obj);
 
   public query func checkArray2() : async () {
     for (i in a.1.keys()) {

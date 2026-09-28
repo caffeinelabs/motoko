@@ -1,4 +1,4 @@
-persistent actor class Counter(init : Nat) {
+actor class Counter(init : Nat) {
   var count = init;
 
   public func inc() : async () { count += 1 };

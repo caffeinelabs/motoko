@@ -129,7 +129,7 @@ jobs:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_TOKEN }}
           # Pinned frontier model; the account default ("Auto") routes to cheaper
           # models that produce shallow reviews.
-          REVIEW_MODEL: grok-4.5
+          REVIEW_MODEL: grok-4.6
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

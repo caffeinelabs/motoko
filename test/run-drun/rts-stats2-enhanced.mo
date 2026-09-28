@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 import Prim "mo:⛔";
 actor a {
   func runGC(): async() {

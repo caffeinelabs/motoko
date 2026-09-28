@@ -8,7 +8,7 @@ actor this {
         test2() : async ();
     };
 
-    stable var instance : ?OriginalActor = null;
+    var instance : ?OriginalActor = null;
 
     public func initialize() : async () {
         await Cycles.provisional_top_up_actor(this, 100_000_000_000_000);

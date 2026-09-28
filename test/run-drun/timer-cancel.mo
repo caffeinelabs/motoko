@@ -18,7 +18,7 @@ actor {
 
   let second : Nat64 = 1_000_000_000;
 
-  var max = 4;
+  let max = 4;
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
   public shared func go() : async () {

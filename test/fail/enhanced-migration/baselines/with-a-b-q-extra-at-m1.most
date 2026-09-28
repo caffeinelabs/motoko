@@ -1,0 +1,10 @@
+// Version: 4.0.0
+{
+  "m1" : {a : Nat} -> {a : Nat; b : Nat}
+}
+actor  {
+  stable a : Nat;
+  stable b : Nat;
+  stable extra : Text;
+  stable q : {x : Nat; y : Nat}
+};

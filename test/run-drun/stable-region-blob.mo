@@ -4,9 +4,9 @@ import P "mo:⛔";
 import Region "stable-region/Region";
 actor {
 
-  stable var n : Nat64 = 0;
+  var n : Nat64 = 0;
 
-  stable let r = Region.new();
+  let r = Region.new();
 
   assert (n == Region.size(r));
 
@@ -103,3 +103,4 @@ actor {
 //CALL upgrade ""
 //CALL ingress testBounds "DIDL\x00\x00"
 //CALL upgrade ""
+//MOC-FLAG -A=M0270

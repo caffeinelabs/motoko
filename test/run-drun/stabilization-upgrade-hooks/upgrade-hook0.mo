@@ -1,8 +1,8 @@
 import Prim "mo:⛔";
 actor {
   Prim.debugPrint ("init'ed 0");
-  stable var c = "a";
-  var d = c; // unstable cached state
+  var c = "a";
+  transient var d = c; // unstable cached state
   public func inc() : () { d #= "a"; };
   public query func check(n : Int) : async () {
     Prim.debugPrint(d);

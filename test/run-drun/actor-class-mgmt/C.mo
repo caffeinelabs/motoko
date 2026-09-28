@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 import Cycles = "../cycles/cycles";
-persistent actor class C(n : Nat, contr : ?Principal, cycleStats : Bool) = this {
+actor class C(n : Nat, contr : ?Principal, cycleStats : Bool) = this {
    var upgrades = 0;
    switch contr { case (?contr) assert Prim.isController contr; case _ () };
 

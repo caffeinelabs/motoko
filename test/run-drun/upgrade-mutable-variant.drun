@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID upgrade-mutable-variant/version0.mo ""
 ingress $ID test "DIDL\x00\x00"
 upgrade $ID upgrade-mutable-variant/version1.mo ""

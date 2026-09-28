@@ -7,7 +7,7 @@ actor {
     #one : Nat;
   };
 
-  stable var root: Variant = #one 0;
+  var root: Variant = #one 0;
 
   public func modify() : async () {
     switch root {

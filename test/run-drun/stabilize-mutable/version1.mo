@@ -4,8 +4,8 @@ actor {
    type Entry = { key : Nat; value : Text };
    type SubEntry = { key : Nat; };
    
-   stable var array1 : [var Entry] = [var { key = 1; value = "1" }];
-   stable var array2 : [var SubEntry] = [var];
+   var array1 : [var Entry] = [var { key = 1; value = "1" }];
+   var array2 : [var SubEntry] = [var];
 
    public func modify() : async () {
       array2[0] := { key = 3; };

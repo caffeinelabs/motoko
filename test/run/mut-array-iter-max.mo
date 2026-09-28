@@ -3,7 +3,7 @@ import Prim "mo:⛔";
 let max_size = 2**29; // maximum array size
 let a = Prim.Array_init<Nat>(max_size, 666);
 var c1 = 0;
-for (v in a.vals()) {
+for (v in a.values()) {
  assert v == 666; c1 += 1;
 };
 var c2 = 0;

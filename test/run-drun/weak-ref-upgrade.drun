@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID weak-ref-upgrade/v1.mo ""
 ingress $ID test1 "DIDL\x00\x00"
 upgrade $ID weak-ref-upgrade/v2.mo ""

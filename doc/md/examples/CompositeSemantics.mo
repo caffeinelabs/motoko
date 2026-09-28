@@ -1,4 +1,4 @@
-persistent actor Composites {
+actor Composites {
 
   var state = 0;
 

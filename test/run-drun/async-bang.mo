@@ -28,7 +28,7 @@ actor a {
     let o3 = do ? {
        var sum = 0;
        await async {};
-       for(o in [?1, ?2, ?3].vals()) {
+       for(o in [?1, ?2, ?3].values()) {
          sum += o!
        };
        sum
@@ -49,7 +49,7 @@ actor a {
     let o4 = do ? {
        var sum = 0;
        await async {};
-       for(o in [?1, ?2, null].vals()) {
+       for(o in [?1, ?2, null].values()) {
          sum += o!
        };
        sum

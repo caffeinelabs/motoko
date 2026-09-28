@@ -1,7 +1,7 @@
 import Nat "mo:core/Nat";
 import Map "mo:core/Map";
 
-persistent actor class Bucket(n : Nat, i : Nat) {
+actor class Bucket(n : Nat, i : Nat) {
 
   type Key = Nat;
   type Value = Text;

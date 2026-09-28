@@ -47,5 +47,5 @@ actor {
     Fresh
   );
 
-  stable var t = [] : [T];
+  var t = [] : [T];
 }

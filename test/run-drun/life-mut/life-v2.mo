@@ -2,7 +2,7 @@ import P = "mo:⛔";
 
 actor Life {
 
-  object Random {
+  transient object Random {
     var state = 1;
     public func next() : Bool {
       state := (123138118391*state + 133489131) % 9999;
@@ -130,10 +130,10 @@ actor Life {
     #v2 { size = size; bits = words };
   };
 
-  stable var state : State = newState(32);
+  var state : State = newState(32);
 
-  var src = Grid(state);
-  var dst = Grid(newState(src.size()));
+  transient var src = Grid(state);
+  transient var dst = Grid(newState(src.size()));
 
   func update(c : Nat) {
     var i = c;

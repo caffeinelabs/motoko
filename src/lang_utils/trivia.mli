@@ -29,7 +29,7 @@ val docs_of_trivia_info : trivia_info -> doc list
 
 val doc_comment_of_trivia_info : trivia_info -> string option
 
-type pos = { line : int; column : int }
+type pos = Source.pos = { file : string; line : int; column : int }
 
 val pos_of_lexpos : Lexing.position -> pos
 
@@ -40,3 +40,5 @@ type triv_table = trivia_info PosHashtbl.t
 val empty_triv_table : triv_table
 
 val find_trivia : triv_table -> Source.region -> trivia_info
+
+val merge_triv_tables : triv_table list -> triv_table

@@ -19,11 +19,6 @@
 // [1]: https://github.com/rust-lang/reference/blob/master/src/types/struct.md
 // [2]: https://doc.rust-lang.org/stable/reference/type-layout.html#the-c-representation
 
-use motoko_rts_macros::{
-    classical_persistence, enhanced_orthogonal_persistence, incremental_gc, is_incremental_gc,
-    non_incremental_gc,
-};
-
 use crate::barriers::{init_with_barrier, write_with_barrier};
 use crate::memory::Memory;
 use crate::tommath_bindings::{mp_digit, mp_int};
@@ -166,7 +161,6 @@ pub const TRUE_VALUE: usize = 0x1;
 /// Constant sentinel pointer value for fast null tests.
 /// Points to the last unallocated Wasm page.
 /// See also `compile.ml` for other reserved sentinel values.
-#[enhanced_orthogonal_persistence]
 pub const NULL_POINTER: Value = Value::from_raw(0xffff_ffff_ffff_fffb);
 
 /// A value in a heap slot
@@ -247,14 +241,7 @@ impl Value {
         self.get().is_scalar()
     }
 
-    /// Is the value a pointer?
-    #[classical_persistence]
-    pub fn is_ptr(&self) -> bool {
-        self.get().is_ptr()
-    }
-
     /// Is the value a non-null pointer?
-    #[enhanced_orthogonal_persistence]
     pub fn is_non_null_ptr(&self) -> bool {
         self.get().is_ptr() && *self != NULL_POINTER
     }
@@ -283,36 +270,28 @@ impl Value {
     /// Check that the forwarding pointer is valid.
     #[inline]
     pub unsafe fn check_forwarding_pointer(self) {
-        if is_incremental_gc!() {
-            debug_assert!(
-                self.forward().get_ptr() == self.get_ptr()
-                    || self.forward().forward().get_ptr() == self.forward().get_ptr()
-            );
-        }
+        debug_assert!(
+            self.forward().get_ptr() == self.get_ptr()
+                || self.forward().forward().get_ptr() == self.forward().get_ptr()
+        );
     }
 
     /// Check whether the object's forwarding pointer refers to a different location.
     pub unsafe fn is_forwarded(self) -> bool {
-        if is_incremental_gc!() {
-            self.check_forwarding_pointer();
-            self.forward().get_ptr() != self.get_ptr()
-        } else {
-            false
-        }
+        self.check_forwarding_pointer();
+        self.forward().get_ptr() != self.get_ptr()
     }
 
     /// Get the object tag. No forwarding. Can be applied to any block, regular objects
     /// with a header as well as `OneWordFiller`, `FwdPtr`, and `FreeSpace`.
     /// In debug mode panics if the value is not a pointer.
     pub unsafe fn tag(self) -> Tag {
-        #[enhanced_orthogonal_persistence]
         debug_assert_ne!(self, NULL_POINTER);
 
         *(self.get_ptr() as *const Tag)
     }
 
     /// Get the forwarding pointer. Used by the incremental GC.
-    #[incremental_gc]
     pub unsafe fn forward(self) -> Value {
         debug_assert!(self.is_obj());
         debug_assert!(self.get_ptr() as *const Obj != null());
@@ -320,25 +299,7 @@ impl Value {
         (*obj).forward
     }
 
-    /// Get the forwarding pointer. Used without the incremental GC.
-    #[non_incremental_gc]
-    pub unsafe fn forward(self) -> Value {
-        self
-    }
-
     /// Resolve forwarding if the value is a pointer. Otherwise, return the same value.
-    #[classical_persistence]
-    pub unsafe fn forward_if_possible(self) -> Value {
-        // Second condition: Ignore raw null addresses used in `text_iter`.
-        if is_incremental_gc!() && self.is_ptr() && self.get_ptr() as *const Obj != null() {
-            self.forward()
-        } else {
-            self
-        }
-    }
-
-    /// Resolve forwarding if the value is a pointer. Otherwise, return the same value.
-    #[enhanced_orthogonal_persistence]
     pub unsafe fn forward_if_possible(self) -> Value {
         // Second condition: Ignore raw null addresses used in `text_iter`.
         if self.is_non_null_ptr() && self.get_ptr() as *const Obj != null() {
@@ -402,16 +363,6 @@ impl Value {
         self.forward().get_ptr() as *mut Region
     }
 
-    /// Get the pointer as `Stream` using forwarding, which is a glorified `Blob`.
-    /// In debug mode panics if the value is not a pointer or the
-    /// pointed object is not a `Blob`.
-    #[classical_persistence]
-    pub unsafe fn as_stream(self) -> *mut Stream {
-        debug_assert_eq!(self.tag(), TAG_BLOB_B);
-        self.check_forwarding_pointer();
-        self.forward().get_ptr() as *mut Stream
-    }
-
     /// Get the pointer as `Region` using forwarding, without checking the tag.
     /// NB: One cannot check the tag during stabilization.
     pub unsafe fn as_untagged_region(self) -> *mut Region {
@@ -458,19 +409,10 @@ impl Value {
     // optimized version of `value.is_non_null_ptr() && value.get_ptr() >= address`
     // value is a non-null pointer equal or greater than the unskewed address > 1
     #[inline]
-    #[enhanced_orthogonal_persistence]
     pub fn points_to_or_beyond(&self, address: usize) -> bool {
         debug_assert!(address > TRUE_VALUE);
         let raw = self.get_raw();
         is_skewed(raw) && unskew(raw) >= address && *self != NULL_POINTER
-    }
-
-    #[inline]
-    #[classical_persistence]
-    pub fn points_to_or_beyond(&self, address: usize) -> bool {
-        debug_assert!(address > TRUE_VALUE);
-        let raw = self.get_raw();
-        is_skewed(raw) && unskew(raw) >= address
     }
 }
 
@@ -524,12 +466,9 @@ pub const TAG_BIGINT: Tag = 35;
 pub const TAG_CONCAT: Tag = 37;
 pub const TAG_REGION: Tag = 39;
 
-#[enhanced_orthogonal_persistence]
 pub const TAG_ONE_WORD_FILLER: Tag = 41;
-#[enhanced_orthogonal_persistence]
 pub const TAG_FREE_SPACE: Tag = 43;
 
-#[enhanced_orthogonal_persistence]
 pub const TAG_WEAK_REF: Tag = 45;
 
 // Special value to visit only a range of array fields.
@@ -542,37 +481,14 @@ pub const TAG_WEAK_REF: Tag = 45;
 // Note: The minimum value can be even, as it only denotes
 // a lower boundary to distinguish slice information from
 // the actual tag values.
-#[enhanced_orthogonal_persistence]
 pub const TAG_ARRAY_SLICE_MIN: Tag = 46;
 
 pub const TAG_SPACING: Tag = 2;
 
-#[classical_persistence]
-pub const TAG_BITS32_U: Tag = 41;
-#[classical_persistence]
-pub const TAG_BITS32_S: Tag = 43;
-#[classical_persistence]
-pub const TAG_BITS32_F: Tag = 45;
-#[classical_persistence]
-pub const TAG_NULL: Tag = 47;
-#[classical_persistence]
-pub const TAG_ONE_WORD_FILLER: Tag = 49;
-#[classical_persistence]
-pub const TAG_FREE_SPACE: Tag = 51;
-#[classical_persistence]
-pub const TAG_ARRAY_SLICE_MIN: Tag = 52;
-
-#[enhanced_orthogonal_persistence]
 pub fn is_object_tag(tag: Tag) -> bool {
     tag >= TAG_OBJECT && tag <= TAG_REGION || tag == TAG_WEAK_REF
 }
 
-#[classical_persistence]
-pub fn is_object_tag(tag: Tag) -> bool {
-    tag >= TAG_OBJECT && tag <= TAG_NULL
-}
-
-#[enhanced_orthogonal_persistence]
 pub fn is_weak_ref_tag(tag: Tag) -> bool {
     tag == TAG_WEAK_REF
 }
@@ -633,34 +549,22 @@ pub fn base_array_tag(tag: Tag) -> Tag {
 pub struct Obj {
     pub tag: Tag,
     // Cannot use `#[incremental_gc]` as Rust only allows non-macro attributes for fields.
-    #[cfg(feature = "incremental_gc")]
     /// Forwarding pointer to support object moving in the incremental GC.
     pub forward: Value,
 }
 
 impl Obj {
-    #[enhanced_orthogonal_persistence]
     pub fn new(tag: Tag, forward: Value) -> Obj {
         Obj { tag, forward }
     }
 
-    #[incremental_gc]
     pub fn init_forward(&mut self, value: Value) {
         self.forward = value;
     }
 
-    #[non_incremental_gc]
-    pub fn init_forward(&mut self, _value: Value) {}
-
     /// Check whether the object's forwarding pointer refers to a different location.
-    #[incremental_gc]
     pub unsafe fn is_forwarded(self: *const Self) -> bool {
         (*self).forward.get_ptr() != self as usize
-    }
-
-    #[non_incremental_gc]
-    pub unsafe fn is_forwarded(self: *const Self) -> bool {
-        false
     }
 
     pub unsafe fn tag(self: *const Self) -> Tag {
@@ -754,7 +658,6 @@ impl Array {
 
 #[rustfmt::skip]
 #[repr(C)] // See the note at the beginning of this module
-#[enhanced_orthogonal_persistence]
 pub struct Region {
     pub header: Obj,
     pub id: u64,
@@ -762,7 +665,6 @@ pub struct Region {
     pub vec_pages: Value, // Blob of u16's (each a page block ID).
 }
 
-#[enhanced_orthogonal_persistence]
 impl Region {
     pub unsafe fn write_id64(self: *mut Self, value: u64) {
         (*self).id = value;
@@ -773,46 +675,13 @@ impl Region {
     }
 }
 
-#[rustfmt::skip]
 #[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Region {
-    pub header: Obj,
-    // 64-bit id split into lower and upper halves for alignment reasons
-    pub id_lower: u32,
-    pub id_upper: u32,
-    pub page_count: usize,
-    pub vec_pages: Value, // Blob of u16's (each a page block ID).
-}
-
-#[classical_persistence]
-impl Region {
-    pub unsafe fn write_id64(self: *mut Self, value: u64) {
-        write64(&mut (*self).id_lower, &mut (*self).id_upper, value);
-    }
-
-    pub unsafe fn read_id64(self: *mut Self) -> u64 {
-        read64((*self).id_lower, (*self).id_upper)
-    }
-}
-
-#[repr(C)] // See the note at the beginning of this module
-#[enhanced_orthogonal_persistence]
 pub struct Object {
     pub header: Obj,
     pub hash_blob: Value, // Pointer to a blob containing the hashes of the object field labels.
 }
 
-#[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Object {
-    pub header: Obj,
-    pub size: usize,     // Number of elements
-    pub hash_ptr: usize, // Pointer to static information about object field labels. Not important for GC (does not contain pointers).
-}
-
 impl Object {
-    #[enhanced_orthogonal_persistence]
     pub unsafe fn hash_blob_addr(self: *mut Self) -> *mut Value {
         &mut (*self).hash_blob
     }
@@ -822,16 +691,10 @@ impl Object {
     }
 
     /// Number of fields in the object.
-    #[enhanced_orthogonal_persistence]
     pub(crate) unsafe fn size(self: *mut Self) -> usize {
         let hash_blob_length = (*self).hash_blob.as_blob().len().as_usize();
         debug_assert_eq!(hash_blob_length % WORD_SIZE, 0);
         hash_blob_length / WORD_SIZE
-    }
-
-    #[classical_persistence]
-    pub(crate) unsafe fn size(self: *mut Self) -> usize {
-        (*self).size
     }
 
     #[allow(unused)]
@@ -927,81 +790,6 @@ impl Blob {
     }
 }
 
-/// NOTE: The stream is not used by enhanced orthogonal persistence and is designed for 32-bit only.
-/// Do not declare 64-bit fields for 32-bit stream, as otherwise, the objects are expected to be 64-bit
-/// aligned which is not the case in 32-bit heap. Moreover, fields would also get 64-bit aligned causing
-/// implicit paddding on 32-bit memory.
-#[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Stream {
-    pub header: Blob,
-
-    /// Components of the 64-bit `ptr` value. Little-endian encoding.
-    /// Use `read_ptr64()` and `write_ptr64()` to access.
-    pub ptr_lower: u32,
-    pub ptr_upper: u32,
-
-    /// Components of the 64-bit `start` value. Little-endian encoding.
-    /// Use `read_start64()` and `write_start64()` to access.
-    pub start_lower: u32,
-    pub start_upper: u32,
-
-    /// Components of the 64-bit `limit` value. Little-endian encoding.
-    /// Use `read_limit64()` and `write_limit64()` to access.
-    pub limit_lower: u32,
-    pub limit_upper: u32,
-
-    pub outputter: fn(*mut Self, *const u8, Bytes<usize>) -> (),
-    pub filled: Bytes<usize>, // cache data follows ..
-}
-
-#[classical_persistence]
-impl Stream {
-    pub unsafe fn is_forwarded(self: *const Self) -> bool {
-        (self as *const Obj).is_forwarded()
-    }
-
-    pub unsafe fn as_blob_mut(self: *mut Self) -> *mut Blob {
-        debug_assert!(!self.is_forwarded());
-        self as *mut Blob
-    }
-
-    pub unsafe fn write_ptr64(self: *mut Self, value: u64) {
-        write64(&mut (*self).ptr_lower, &mut (*self).ptr_upper, value);
-    }
-
-    pub unsafe fn read_ptr64(self: *const Self) -> u64 {
-        read64((*self).ptr_lower, (*self).ptr_upper)
-    }
-
-    pub unsafe fn write_start64(self: *mut Self, value: u64) {
-        write64(&mut (*self).start_lower, &mut (*self).start_upper, value);
-    }
-
-    pub unsafe fn read_start64(self: *const Self) -> u64 {
-        read64((*self).start_lower, (*self).start_upper)
-    }
-
-    pub unsafe fn write_limit64(self: *mut Self, value: u64) {
-        write64(&mut (*self).limit_lower, &mut (*self).limit_upper, value);
-    }
-
-    pub unsafe fn read_limit64(self: *const Self) -> u64 {
-        read64((*self).limit_lower, (*self).limit_upper)
-    }
-}
-
-#[classical_persistence]
-pub fn read64(lower: u32, upper: u32) -> u64 {
-    ((upper as u64) << u32::BITS) | lower as u64
-}
-
-#[classical_persistence]
-pub fn write64(lower: &mut u32, upper: &mut u32, value: u64) {
-    *upper = (value >> u32::BITS) as u32;
-    *lower = (value & u32::MAX as u64) as u32;
-}
-
 /// Only used by the copying GC - not to be confused with the forwarding pointer in the general object header
 /// that is used by the incremental GC.
 /// A forwarding pointer placed by the copying GC in place of an evacuated object.
@@ -1019,7 +807,7 @@ pub struct BigInt {
     /// the data within this object before it is used.
     /// (NB: If we have a non-moving GC, we can make this an invariant)
     /// NOTE: `mp_int` originates from Tom's math library implementation.
-    /// Layout in 64-bit memory (with enhanced orthogonal persistence):
+    /// Layout:
     /// ```
     /// pub struct mp_int { // Total size 24
     ///   pub used: c_int, // Offset 0, size 4
@@ -1027,15 +815,6 @@ pub struct BigInt {
     ///   pub sign: mp_sign, // Offset 8, size 4
     ///   _padding: u32, // Implicit padding to align subsequent 64-bit pointer
     ///   pub dp: *mut mp_digit, // Offset 16, size 8
-    /// }
-    /// ```
-    /// Layout in 32-bit memory (with classical persistence):
-    /// ```
-    /// pub struct mp_int { // Total size 24
-    ///   pub used: c_int, // Offset 0, size 4
-    ///   pub alloc: c_int, // Offset 4, size 4
-    ///   pub sign: mp_sign, // Offset 8, size 4
-    ///   pub dp: *mut mp_digit, // Offset 12, size 4
     /// }
     /// ```
     pub mp_int: mp_int,
@@ -1057,14 +836,8 @@ impl BigInt {
         self.add(1) as *mut mp_digit // skip closure header
     }
 
-    #[incremental_gc]
     pub unsafe fn forward(self: *mut Self) -> *mut Self {
         (*self).header.forward.as_bigint()
-    }
-
-    #[non_incremental_gc]
-    pub unsafe fn forward(self: *mut Self) -> *mut Self {
-        self
     }
 
     pub unsafe fn from_payload(ptr: *mut mp_digit) -> *mut Self {
@@ -1125,47 +898,15 @@ impl Concat {
 }
 
 #[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Null {
-    pub header: Obj,
-}
-
-#[repr(C)] // See the note at the beginning of this module
-#[enhanced_orthogonal_persistence]
 pub struct Bits64 {
     pub header: Obj,
     pub bits: u64,
 }
 
-#[enhanced_orthogonal_persistence]
 impl Bits64 {
     pub fn bits(&self) -> u64 {
         self.bits
     }
-}
-
-#[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Bits64 {
-    pub header: Obj,
-    // We have two 32-bit fields instead of one 64-bit to avoid aligning the fields on 64-bit
-    // boundary.
-    bits_lo: u32,
-    bits_hi: u32,
-}
-
-#[classical_persistence]
-impl Bits64 {
-    pub fn bits(&self) -> u64 {
-        (u64::from(self.bits_hi) << 32) | u64::from(self.bits_lo)
-    }
-}
-
-#[repr(C)] // See the note at the beginning of this module
-#[classical_persistence]
-pub struct Bits32 {
-    pub header: Obj,
-    pub bits: u32,
 }
 
 /// Marks one word empty space in heap
@@ -1195,7 +936,6 @@ pub struct WeakRef {
     pub field: Value,
 }
 
-#[cfg(feature = "enhanced_orthogonal_persistence")]
 impl WeakRef {
     pub unsafe fn is_live(&self) -> bool {
         let field_tag = self.header.tag;
@@ -1223,7 +963,6 @@ pub(crate) unsafe fn block_size(address: usize) -> Words<usize> {
             size_of::<Object>() + Words(size)
         }
 
-        #[cfg(feature = "enhanced_orthogonal_persistence")]
         TAG_WEAK_REF => size_of::<WeakRef>(),
 
         // `block_size` is not used during the incremental mark phase and
@@ -1272,12 +1011,6 @@ pub(crate) unsafe fn block_size(address: usize) -> Words<usize> {
         }
 
         TAG_REGION => size_of::<Region>(),
-
-        #[cfg(not(feature = "enhanced_orthogonal_persistence"))]
-        TAG_BITS32_U | TAG_BITS32_S | TAG_BITS32_F => size_of::<Bits32>(),
-
-        #[cfg(not(feature = "enhanced_orthogonal_persistence"))]
-        TAG_NULL => size_of::<Null>(),
 
         _ => {
             rts_trap_with("object_size: invalid object tag");

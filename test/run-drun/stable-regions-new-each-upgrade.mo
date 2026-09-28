@@ -5,8 +5,8 @@ import P "mo:⛔";
 import Region "stable-region/Region";
 
 actor {
-  stable var n = 0;
-  stable let regions : [var ?Region] = [var null, null, null];
+  var n = 0;
+  let regions : [var ?Region] = [var null, null, null];
   
   system func preupgrade() {
     P.debugPrint("upgrading... calling Region.new(), n=" # debug_show n);
@@ -38,3 +38,4 @@ actor {
 //CALL ingress sanityTest "DIDL\x00\x00"
 //CALL upgrade ""
 //CALL ingress sanityTest "DIDL\x00\x00"
+//MOC-FLAG -A=M0270

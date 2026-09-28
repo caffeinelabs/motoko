@@ -200,7 +200,10 @@ debug_show(updatedPerson);
 
 :::note
 
-If `person` contained a mutable (`var`) field, `with` must redefine it, preventing aliasing.
+If `person` contained a mutable (`var`) field, `{ person with ... }` copies it
+into a fresh mutable field holding its current value. Mutating the copy leaves
+`person` unchanged, and vice versa — the same independence you get by writing
+`var <field> = person.<field>` explicitly.
 
 :::
 

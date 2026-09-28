@@ -93,7 +93,6 @@ impl MarkBitmap {
     }
 }
 
-/// Adopted and adjusted from `mark_compact/bitmap.rs`.
 /// The iterator separates advancing `next()` from inspection `current_marked_offset()`
 /// to better support the incremental evacuation and update GC increments.
 #[repr(C)]

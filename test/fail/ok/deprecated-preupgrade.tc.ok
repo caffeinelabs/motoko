@@ -1,0 +1,2 @@
+deprecated-preupgrade.mo:14.15-14.25: warning [M0270], system function `preupgrade` is deprecated; use migration functions instead
+deprecated-preupgrade.mo:15.15-15.26: warning [M0270], system function `postupgrade` is deprecated; use migration functions instead

@@ -1,8 +1,8 @@
 error[M0131]: variable bad1 is declared stable but has non-stable type
   weak (() -> ())
-    ┌─ weak.mo:12:14
- 12 │    stable let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
-    │               ^^^^ 
+    ┌─ weak.mo:12:7
+ 12 │    let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
+    │        ^^^^ 
 error[M0031]: shared function has non-shared parameter type
   (x : weak Blob)
 type

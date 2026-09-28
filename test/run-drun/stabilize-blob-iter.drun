@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
 install $ID stabilize-blob-iter/version0.mo ""
 ingress $ID print "DIDL\x00\x00"

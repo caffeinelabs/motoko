@@ -1,0 +1,4 @@
+The classical install artifacts are committed as `old-v0.wasm` … `old-v4.wasm`,
+generated from `version{0..4}-classic.mo` by a pre-removal compiler
+(`moc --legacy-persistence --legacy-actors -c <src>.mo -o <fixture>.wasm`, release 1.14.1).
+Classical persistence can no longer be produced by the current compiler.

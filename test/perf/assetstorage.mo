@@ -12,7 +12,7 @@ shared ({ caller = creator }) actor class () {
 
   let initializer : Principal = creator;
 
-  let db : Tree.RBTree<Path, Contents> = Tree.RBTree(Text.compare);
+  flexible let db : Tree.RBTree<Path, Contents> = Tree.RBTree(Text.compare);
 
   public shared ({ caller }) func store(path : Path, contents : Contents) : async () {
     if (caller != initializer) {

@@ -7,4 +7,3 @@ ic-calls.mo:16.9-16.17: warning [M0145], this pattern of type
 does not cover value
   (1, false) or
   (0 or -1 or _, _)
-ic-calls.mo:14.5-14.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

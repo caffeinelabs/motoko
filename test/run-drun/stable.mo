@@ -8,8 +8,8 @@ actor {
   stable let () = ();
   stable let (fst,snd) = ("hello","world");
 */
-  stable var c = 1;
-  stable var b = true;
+  var c = 1;
+  var b = true;
   public func inc() : () { c += 1; };
   public query func check(n : Int) : async () {
     assert (c == n);

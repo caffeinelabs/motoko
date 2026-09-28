@@ -1,5 +1,4 @@
 //MOC-FLAG -A=M0194
-//MOC-FLAG --experimental-field-aliasing
 import Prim "mo:⛔";
 
 // synthesis
@@ -26,7 +25,7 @@ assert c.c == d.c + 1;
 
 let e = { c with e = 42 };
 c.c += 1;
-assert c.c == e.c;
+assert e.c + 1 == c.c;
 
 // methods closing over var fields
 let c0 = object {
@@ -36,9 +35,12 @@ let c0 = object {
 
 let c1 = { c0 with d = 2; };
 
+// c1.c is a fresh copy of c0.c, so it is independent of c0.c
 assert c1.c == 0;
+// incr is inherited from c0 and closes over c0's cell,
+// so it mutates c0.c rather than the copy c1.c
 c1.incr();
-assert c1.c == 1;
+assert c1.c == 0;
 assert c0.c == 1;
 
 // this is checking that the interpreter doesn't consider

@@ -6,7 +6,7 @@ module Map {
   };
 };
 
-persistent actor {
+actor {
   let peopleMap = Map.empty<Nat, Text>();
 
   // Make sure the errors report the `V2` type parameter unsolved!

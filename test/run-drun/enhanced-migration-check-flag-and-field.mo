@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration/migrations
+//MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration multi-migration/migrations
 
 import Prim "mo:prim";
 
@@ -15,6 +15,5 @@ actor {
 //SKIP run-ir
 //SKIP run-low
 //SKIP wasm-run
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress check "DIDL\x00\x00"

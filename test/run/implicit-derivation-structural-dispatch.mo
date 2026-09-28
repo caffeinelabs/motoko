@@ -24,7 +24,7 @@ module RecRender {
   public func render(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
-    for ((lab, v) in __record.vals()) {
+    for ((lab, v) in __record.values()) {
       if (not first) { s #= ", " };
       s #= lab # ":" # v();
       first := false;
@@ -39,7 +39,7 @@ module TupRender {
   public func render(__tuple : [() -> Text]) : Text {
     var s = "(";
     var first = true;
-    for (v in __tuple.vals()) {
+    for (v in __tuple.values()) {
       if (not first) { s #= ", " };
       s #= v();
       first := false;

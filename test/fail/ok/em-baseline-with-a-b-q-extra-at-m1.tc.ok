@@ -1,0 +1,12 @@
+em-baseline-with-a-b-q-extra-at-m1.mo:9.1-12.2: Compatibility error [M0169], stable variable `extra` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+em-baseline-with-a-b-q-extra-at-m1.mo:11.9-11.10: Compatibility error [M0216], stable variable `q` implicitly drops data of version `m1`.
+Previous type
+  {x : Nat; y : Nat}
+ is not a stable subtype of
+  {x : Nat}
+ because field `y` is missing from expected type 
+  {x : Nat}
+ of `q`.
+The data can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/

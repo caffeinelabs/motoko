@@ -3,7 +3,7 @@
 import { principalOfActor; debugPrint } = "mo:⛔";
 import Management "canister:management";
 
-persistent actor Self {
+actor Self {
   public func go() : async () {
     let status = await Management.canister_status { canister_id = principalOfActor Self };
     let vars = status.settings.environment_variables;

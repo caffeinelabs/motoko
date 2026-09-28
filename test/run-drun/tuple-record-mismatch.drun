@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID tuple-record-mismatch/version0.mo ""
 upgrade $ID tuple-record-mismatch/version0.mo ""
 upgrade $ID tuple-record-mismatch/version1.mo ""

@@ -136,10 +136,10 @@ let uppercased = texts.map(func(t) { /* convert to uppercase */ });
 
 ## Compiler warnings and best practices
 
-The Motoko compiler can optionally warn you about opportunities to use contextual dot notation. You can enable this with the `-W M0236` flag:
+The Motoko compiler warns when a function call could use contextual dot notation, e.g. `Array.filter(arr, ...)` where `arr.filter(...)` would work. This warning (`M0236`) is enabled by default. Silence it with the `-A M0236` flag:
 
 ```bash
-moc -W M0236 myfile.mo
+moc -A M0236 myfile.mo
 ```
 
 This helps you maintain consistent coding style across your project.

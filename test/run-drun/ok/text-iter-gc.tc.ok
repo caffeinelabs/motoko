@@ -1,1 +1,0 @@
-text-iter-gc.mo:9.8-9.12: warning [M0244], variable text is never reassigned, consider using `let`

@@ -49,3 +49,4 @@ actor {
 //CALL ingress testArray "DIDL\x00\x00"
 //CALL ingress testArrayMut "DIDL\x00\x00"
 
+//MOC-FLAG -A=M0269

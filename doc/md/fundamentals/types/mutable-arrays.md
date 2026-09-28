@@ -180,7 +180,7 @@ A Tic-tac-toe board is a `3x3` grid that requires updates as players take turns.
 import VarArray "mo:core/VarArray";
 import Debug "mo:core/Debug";
 
-persistent actor TicTacToe {
+actor TicTacToe {
 func createTicTacToeBoard() : [var [var Text]] {
     let size : Nat = 3;
 
@@ -207,7 +207,7 @@ func createTicTacToeBoard() : [var [var Text]] {
 
   // Function to print the board
   func printBoard() {
-    for (row in board.vals()) {
+    for (row in board.values()) {
       let rowText = Array.foldLeft<Text, Text>(Array.freeze<Text>(row), "", func(acc, cell) = acc # cell # " ");
       Debug.print(rowText)
     }

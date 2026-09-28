@@ -17,3 +17,9 @@ val codepoint_column : t -> Source.pos -> int
 (** Loaded UTF-8 content of [path]. [None] if unreadable. *)
 val content : t -> string -> string option
 
+
+(** Source text of a region, read from its file. [None] for synthetic regions or unreadable files. *)
+val read_region : Source.region -> string option
+
+(** Like [read_region], but the region's whole lines, with [**] marking its start and end. *)
+val read_region_with_markers : Source.region -> string option

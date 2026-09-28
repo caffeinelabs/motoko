@@ -7,7 +7,7 @@ import Prim = "mo:⛔";
    { } =
    { }
 )
-persistent actor {
+actor {
   assert false;
 
 }

@@ -3,7 +3,7 @@ import Float "mo:core/Float";
 import {migration} "Migration";
 
 (with migration) // declare the migration function (using field punning)
-persistent actor Counter_v8 {
+actor Counter_v8 {
 
   var state : Float = 0.0; // implicitly `stable`
 

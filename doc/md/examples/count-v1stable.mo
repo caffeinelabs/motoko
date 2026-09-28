@@ -1,7 +1,7 @@
 import Debug "mo:core/Debug";
 
-persistent actor Counter_v1 {
-  stable var state : Nat = 0; // explicitly `stable`
+actor Counter_v1 {
+  var state : Nat = 0; // persisted across upgrades (the default)
 
   public func increment() : async () {
     state += 1;

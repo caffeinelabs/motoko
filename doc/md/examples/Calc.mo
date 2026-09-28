@@ -2,7 +2,7 @@
 // public entry point (add, sub, mul, div).
 
 // Create a simple Calc actor.
-persistent actor Calc {
+actor Calc {
 
   var cell : Int = 0;
 

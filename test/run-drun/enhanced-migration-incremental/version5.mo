@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration enhanced-migration-incremental/migrations_5
+//MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration enhanced-migration-incremental/migrations_5
 
 import Prim "mo:prim";
 import Info "../runtime-info/info";
