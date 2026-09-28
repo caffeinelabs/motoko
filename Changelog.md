@@ -8,6 +8,9 @@
     the default Internet Computer system API. It will be removed in the next
     release; drop it from build scripts (#6405).
 
+  * fix: contextual dot resolves functions returning `async` when used in an
+    async context, e.g. `await x.asyncFunc()` (#6085).
+
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
     call now gives the same diagnostics as one call per file, with duplicates
