@@ -39,7 +39,7 @@ let argspec =
   Args.ai_args
   @ [
   "-c", Arg.Unit (set_mode Compile), " compile a program to WebAssembly";
-  "-g", Arg.Set Flags.debug_info, " generate source-level debug information";
+  "-g", Arg.Set Flags.debug_info, " generate a DWARF line table (.debug_line)";
   "-r", Arg.Unit (set_mode Run), " interpret a program";
   "-i", Arg.Unit (set_mode Interact), " run interactive REPL (implies -r)";
   "--check", Arg.Unit (set_mode Check), " type-check only; each given file is checked on its own";
