@@ -20,7 +20,7 @@ module {
      let cs = {head = c; var tail = clients};
      clients := ?cs;
      return object {
-       public shared func post(message : Text) {
+       public shared func post(message : Text) : () {
 	 if (not c.revoked) {
 	   let id = c.id;
 	   var next = clients;
@@ -35,7 +35,7 @@ module {
 	   };
 	 }
        };
-       public shared func cancel() { unsubscribe(c.id) };
+       public shared func cancel() : () { unsubscribe(c.id) };
      };
    };
 
