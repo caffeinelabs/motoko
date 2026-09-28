@@ -229,14 +229,14 @@ actor PizzaParlor {
     public shared func placeOrder(order : Text) : async Text {
         // Use Array.tabulate to create a new array with the additional element
         let newOrders = Array.tabulate<Text>(orders.size() + 1, func(i) {
-            if (i < orders.size()) { orders[i] } else { order }
+            if i < orders.size() { orders[i] } else { order }
         });
         orders := newOrders;
         return "Order received: " # order;
     };
 
     public shared func makePizza() : async Text {
-        if (orders.size() == 0) {
+        if orders.size() == 0 {
             return "No orders to make.";
         };
 
@@ -294,7 +294,7 @@ actor class (Logger : actor { log : Text -> async () }) {
   var logging = true;
 
   func maybeLog(msg : Text) : async* () {
-    if (logging) { await Logger.log(msg) };
+    if logging { await Logger.log(msg) };
   };
 
   func doStuff() : async () {
@@ -323,7 +323,7 @@ public shared func placeOrder(order : Text) : async Text {
       let newOrders = Array.tabulate<Text>(
         orders.size() + 1,
         func(i) {
-          if (i < orders.size()) {orders[i]} else {order}
+          if i < orders.size() {orders[i]} else {order}
         }
       );
 

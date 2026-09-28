@@ -26,7 +26,7 @@ For example, you might use an `if-else` to choose a label based on a value.
 let x : Int = 1;
 
 let identity : Text =
-  if (x == 1) {
+  if x == 1 {
     "x is 1"
   } else {
     "x is not 1"
@@ -37,7 +37,7 @@ The result of the `if-else` is assigned to `identity`. Here, both branches have 
 
 ```motoko no-repl
 let n : Nat = 0;
-let parity = if (n % 2 == 0) #even else #odd;
+let parity = if n % 2 == 0 { #even } else { #odd };
 ```
 Here, the first branch has type `{#even}` and the second branch has type `{#odd}`. These types are different but they have a common supertype `{#even; #odd}`. The type of the `if-else` is then `{#even; #odd}`.
 
@@ -45,7 +45,7 @@ Motoko will infer the common supertype for you, choosing the most specific one p
 
 ```motoko no-repl
 let n : Nat = 0;
-let oops = if (n % 2 == 0) #even else 0;
+let oops = if n % 2 == 0 { #even } else { 0 };
 ```
 
 ## `if`-expression
@@ -61,7 +61,7 @@ Since `if`-expressions have type `()`, they can be used as declaration expressio
 ```motoko no-repl
 let x : Int = 1;
 
-if (x == 1) {
+if x == 1 {
     Debug.print("x is 1"); // Prints and returns ()
 };
 ```
@@ -74,9 +74,9 @@ if (x == 1) {
 ```motoko no-repl
 var age = 21;
 
-if (age < 18) {
+if age < 18 {
   "You are a minor."
-} else if (age >= 18 and age < 65) {
+} else if age >= 18 and age < 65 {
   "You are an adult."
 } else {
   "You are a senior citizen."

@@ -23,7 +23,7 @@ Here’s a simple function that validates a username. If it's non-empty, it will
 import Result "mo:core/Result";
 
 func greet(name : Text) : Result.Result<Text, Text> {
-  if (name.size() == 0) #err "Name is empty" else #ok ("Hello " # name);
+  if name.size() == 0 { #err "Name is empty" } else { #ok ("Hello " # name) };
 };
 ```
 
@@ -37,17 +37,17 @@ When a Motoko value has type `Result<T, E>`, it is either a success, written `#o
 import Result "mo:core/Result";
 
 func greet(name : Text) : Result.Result<Text, Text> {
-  if (name.size() == 0) #err "Name is empty" else #ok ("Hello " # name);
+  if name.size() == 0 { #err "Name is empty" } else { #ok ("Hello " # name) };
 };
 
 let result = greet("Motoko");
-switch (result){
-  case (#ok message) {
+switch result {
+  case #ok(message) {
     message
-  };
-  case (#err error) {
+  }
+  case #err(error) {
     error
-  };
+  }
 } // "Hello Motoko"
 ```
 
@@ -61,7 +61,7 @@ Values can be extracted from `Result` using the `let ... else` pattern. This can
 import Result "mo:core/Result";
 
 func greet(name : Text) : Result.Result<Text, Text> {
-  if (name.size() == 0) #err "Name is empty" else #ok ("Hello " # name);
+  if name.size() == 0 { #err "Name is empty" } else { #ok ("Hello " # name) };
 };
 
 func safeGreet(name : Text) : Text {

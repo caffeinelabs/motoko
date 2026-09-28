@@ -26,7 +26,7 @@ object Account {
     balance
   };
   func withdraw(amount : Nat) : ?Nat {
-    if (amount > balance) { return null };
+    if amount > balance { return null };
       balance -= amount;
       ?balance
     };
@@ -46,7 +46,7 @@ class Account(initialBalance : Nat) {
     balance
   };
   public func withdraw(amount : Nat) : ?Nat {
-    if (amount > balance) { return null };
+    if amount > balance { return null };
       balance -= amount;
       ?balance
     };
@@ -71,7 +71,7 @@ object class Account(initialBalance : Nat) {
   };
 
   public func withdraw(amount : Nat) : ?Nat {
-    if (amount > balance) { return null };
+    if amount > balance { return null };
       balance -= amount;
       ?balance
     };
@@ -138,7 +138,7 @@ object _premiumAccount : PremiumAccount = {
   };
 
   public func withdraw(amount : Nat) : Bool {
-    if (amount <= balance) {
+    if amount <= balance {
       balance -= amount;
       true
     } else {

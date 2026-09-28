@@ -27,8 +27,8 @@ The simplest use of switch is to emulate an `if-else` expression:
 ```motoko no-repl
 func toText(b : Bool) : Text {
    switch b {
-      case true "true";
-      case false "false";
+      case true { "true" }
+      case false { "false" }
    }
 }
 ```
@@ -38,9 +38,9 @@ If you add a second case for `true`, Motoko issues a warning that it will never 
 ```motoko no-repl
 func toText(b : Bool) : Text {
    switch b {
-      case true "true";
-      case false "false";
-      case true "dead code";
+      case true { "true" }
+      case false { "false" }
+      case true { "dead code" }
    }
 }
 ```
@@ -50,7 +50,7 @@ If you forget the case for `false`, Motoko will also issue a warning that `false
 ```motoko no-repl
 func toText(b : Bool) : Text {
    switch b {
-      case true "true";
+      case true { "true" }
    }
 }
 ```
@@ -59,14 +59,14 @@ Motoko is able to issue these warnings for much more complicated patterns where 
 ```motoko no-repl
 func getDayOfWeek(day : Nat) : Text {
     switch day {
-        case 1 "Monday";
-        case 2 "Tuesday";
-        case 3 "Wednesday";
-        case 4 "Thursday";
-        case 5 "Friday";
-        case 6 "Saturday";
-        case 7 "Sunday";
-        case _ "Invalid day"; // Default case for numbers outside 1-7
+        case 1 { "Monday" }
+        case 2 { "Tuesday" }
+        case 3 { "Wednesday" }
+        case 4 { "Thursday" }
+        case 5 { "Friday" }
+        case 6 { "Saturday" }
+        case 7 { "Sunday" }
+        case _ { "Invalid day" } // Default case for numbers outside 1-7
     }
 }
 ```
@@ -80,8 +80,8 @@ Here's a simple example of matching against an option:
 ```motoko no-repl
 func value<T>(option : ?T, default : T) : T {
    switch option {
-      case null default;
-      case (?value) value;
+      case null { default }
+      case ?value { value }
    }
 }
 ```
@@ -97,8 +97,8 @@ type List<T> = ?(T, List<T>);
 
 func size<T>(list : List<T>) : Nat {
   switch list {
-     case null { 0 };
-     case (?(_, tail)) { 1 + size(tail) };
+     case null { 0 }
+     case ?(_, tail) { 1 + size(tail) }
   }
 }
 ```
@@ -115,23 +115,22 @@ A more complex example can be found below:
 type Exp = {#Lit : Nat; #Div : (Exp, Exp); #If : (Exp, Exp, Exp)};
 func eval(e : Exp) : ? Nat {
   switch e {
-    case (#Lit n) { ?n };
-    case (#Div (e1, e2)) {
+    case #Lit(n) { ?n }
+    case #Div(e1, e2) {
       switch (eval e1, eval e2) {
         case (?v1, ?v2) {
-          if (v2 == 0) null
-          else ?(v1 / v2)
-        };
+          if v2 == 0 { null } else { ?(v1 / v2) }
+        }
         case _ { null }
       }
-    };
-    case (#If (e1, e2, e3)) {
-      switch (eval e1) {
-        case (?0) { eval e2 };
-        case (?_) { eval e3 };
+    }
+    case #If(e1, e2, e3) {
+      switch eval(e1) {
+        case ?0 { eval e2 }
+        case ?_ { eval e3 }
         case _ { null }
       };
-    };
+    }
   };
 };
 
@@ -151,20 +150,23 @@ type Exp = {#Lit : Nat; #Div : (Exp, Exp); #If : (Exp, Exp, Exp)};
 func eval(e : Exp) : ? Nat {
   do ? {
     switch e {
-      case (#Lit n) { n };
-      case (#Div (e1, e2)) {
+      case #Lit(n) { n }
+      case #Div(e1, e2) {
         let v1 = eval e1 !;  // If eval e1 returns null, exit with null
         let v2 = eval e2 !;  // If eval e2 returns null, exit with null
-        if (v2 == 0)
+        if v2 == 0 {
           null !  // Explicitly exit with null for division by zero
-        else v1 / v2
-      };
-      case (#If (e1, e2, e3)) {
-        if (eval e1 ! == 0)  // Unwrap and check if zero
+        } else {
+          v1 / v2
+        }
+      }
+      case #If(e1, e2, e3) {
+        if eval(e1) ! == 0 {  // Unwrap and check if zero
           eval e2 !  // Return result of e2 (or null if it's null)
-        else
+        } else {
           eval e3 !  // Return result of e3 (or null if it's null)
-      };
+        }
+      }
     };
   };
 };

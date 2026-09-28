@@ -30,9 +30,9 @@ shared func add(x : Nat, y : Nat) : async Nat {
 
 // Example of using a block expression with conditional logic:
 func classify(n : Int) : Text {
-    if (n > 0) {
+    if n > 0 {
         "Positive"
-    } else if (n < 0) {
+    } else if n < 0 {
         "Negative"
     } else {
         "Zero"

@@ -5,7 +5,7 @@ actor {
     public func averageTemperature() : Float {
       var sum = 0.0;
       var count = 0.0;
-      for (value in temperatures.values()) {
+      for value in temperatures.values() {
         sum += value;
         count += 1;
       };

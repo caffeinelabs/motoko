@@ -35,58 +35,58 @@ actor Todo {
   };
 
   public shared func markDoneBad(id : TodoId) : async Seconds {
-    switch (Map.get(todos, Int.compare, id)) {
-      case (?(#todo(todo))) {
+    switch Map.get(todos, Int.compare, id) {
+      case ?(#todo(todo)) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
-      };
-      case _ { -1 };
+      }
+      case _ { -1 }
     }
   };
 
   public shared func markDoneOption(id : TodoId) : async ?Seconds {
-    switch (Map.get(todos, Int.compare, id)) {
-      case (?(#todo(todo))) {
+    switch Map.get(todos, Int.compare, id) {
+      case ?(#todo(todo)) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         ?(secondsBetween(todo.opened, now))
-      };
-      case _ { null };
+      }
+      case _ { null }
     }
   };
 
   public type TodoError = { #notFound; #alreadyDone : Time };
 
   public shared func markDoneResult(id : TodoId) : async Result.Result<Seconds, TodoError> {
-    switch (Map.get(todos, Int.compare, id)) {
-      case (?(#todo(todo))) {
+    switch Map.get(todos, Int.compare, id) {
+      case ?(#todo(todo)) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         #ok(secondsBetween(todo.opened, now))
-      };
-      case (?(#done(time))) {
+      }
+      case ?(#done(time)) {
         #err(#alreadyDone(time))
-      };
+      }
       case null {
         #err(#notFound)
-      };
+      }
     }
   };
 
   public shared func markDoneException(id : TodoId) : async Seconds {
-    switch (Map.get(todos, Int.compare, id)) {
-      case (?(#todo(todo))) {
+    switch Map.get(todos, Int.compare, id) {
+      case ?(#todo(todo)) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
-      };
-      case (?(#done _)) {
+      }
+      case ?(#done _) {
         throw Error.reject("Already done")
-      };
+      }
       case null {
         throw Error.reject("Not Found")
-      };
+      }
     }
   };
 
@@ -106,7 +106,7 @@ actor TodoCaller {
 
   public shared func doneTodo1(id : Todo.TodoId) : async Text {
     let seconds = await Todo.markDoneBad(id);
-    if (seconds != -1) {
+    if seconds != -1 {
       "Congrats! That took " # Int.toText(seconds) # " seconds.";
     } else {
       "Something went wrong.";
@@ -114,28 +114,28 @@ actor TodoCaller {
   };
 
   public shared func doneTodo2(id : Todo.TodoId) : async Text {
-    switch (await Todo.markDoneOption(id)) {
+    switch await Todo.markDoneOption(id) {
       case null {
         "Something went wrong."
-      };
-      case (?seconds) {
+      }
+      case ?seconds {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
-      };
+      }
     };
   };
 
   public shared func doneTodo3(id : Todo.TodoId) : async Text {
-    switch (await Todo.markDoneResult(id)) {
-      case (#err(#notFound)) {
+    switch await Todo.markDoneResult(id) {
+      case #err(#notFound) {
         "There is no Todo with that ID."
-      };
-      case (#err(#alreadyDone(at))) {
+      }
+      case #err(#alreadyDone(at)) {
         let doneAgo = secondsBetween(at, Time.now());
         "You've already completed this todo " # Int.toText(doneAgo) # " seconds ago."
-      };
-      case (#ok(seconds)) {
+      }
+      case #ok(seconds) {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
-      };
+      }
     };
   };
 

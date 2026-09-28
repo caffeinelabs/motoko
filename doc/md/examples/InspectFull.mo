@@ -20,13 +20,13 @@ actor {
          #reset : () -> ();
        }
      }) : Bool {
-    if (Principal.isAnonymous(caller)) return false;
-    if (arg.size() > 512) return false;
-    switch (msg) {
-      case (#inc _) { true };
-      case (#set n) { n() != 13 };
-      case (#read _) { true };
-      case (#reset _) { false };
+    if Principal.isAnonymous(caller) { return false };
+    if arg.size() > 512 { return false };
+    switch msg {
+      case #inc(_) { true }
+      case #set(n) { n() != 13 }
+      case #read(_) { true }
+      case #reset(_) { false }
     }
   }
 };

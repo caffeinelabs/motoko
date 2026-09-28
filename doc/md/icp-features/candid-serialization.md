@@ -79,14 +79,14 @@ actor {
     let decodedUser : ?User = from_candid(encodedData);
 
     switch decodedUser {
-      case (?user) {
+      case ?user {
         Debug.print("User data deserialized successfully.");
         return ?user;
-      };
+      }
       case null {
         Debug.print("Deserialization failed: Invalid blob or type mismatch.");
         return null;
-      };
+      }
     };
   };
 }
@@ -110,7 +110,7 @@ actor MyActor {
 
    public func concat(ts : [Text]) : async Text {
       var r = "";
-      for (t in ts.values()) { r #= t };
+      for t in ts.values() { r #= t };
       r
    };
 

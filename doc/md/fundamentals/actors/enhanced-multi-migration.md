@@ -261,8 +261,8 @@ import Text "mo:core/Text";
 module {
   public func migration(old : { name : Text }) : { firstName : Text; lastName : Text } {
     let parts = Text.split(old.name, #char ' ');
-    let first = switch (parts.next()) { case (?f) f; case null "" };
-    let last = switch (parts.next()) { case (?l) l; case null "" };
+    let first = switch parts.next() { case ?f { f } case null { "" } };
+    let last = switch parts.next() { case ?l { l } case null { "" } };
     { firstName = first; lastName = last }
   }
 }
