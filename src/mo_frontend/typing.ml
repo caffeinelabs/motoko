@@ -373,7 +373,6 @@ let flag_of_compile_mode mode =
   | Flags.ICMode -> ""
   | Flags.WASIMode -> " and flag -wasi-system-api"
   | Flags.WasmMode -> " and flag -no-system-api"
-  | Flags.RefMode -> " and flag -ref-system-api"
 
 let diag_in type_diag modes env at code notes spans edits fmt =
   let mode = !Flags.compile_mode in
@@ -2578,7 +2577,7 @@ and infer_exp'' env exp : T.typ =
         "actors are not supported";
       match context with
       | (AsyncE _ :: AwaitE _ :: _ :: _ ) ->
-         error_in Flags.[ICMode; RefMode] env exp.at "M0069"
+         error_in Flags.[ICMode] env exp.at "M0069"
            "non-toplevel actor; an actor can only be declared at the toplevel of a program"
       | _ -> ()
       end;
@@ -2656,7 +2655,7 @@ and infer_exp'' env exp : T.typ =
       error_in Flags.[WASIMode; WasmMode] env exp1.at "M0076"
         "shared functions are not supported";
       if not in_actor then
-        error_in Flags.[ICMode; RefMode] env exp1.at "M0077"
+        error_in Flags.[ICMode] env exp1.at "M0077"
           "a shared function is only allowed as a public field of an actor";
     end;
     if not env.pre && T.is_shared_sort shared_pat.it && Option.is_none typ_opt then
@@ -3335,7 +3334,7 @@ and check_exp_field env (ef : exp_field) fts =
 and check_func_step in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2) : env * T.typ * T.typ =
   let sort, ve = check_shared_pat env shared_pat in
   if not env.pre && not in_actor && T.is_shared_sort sort then
-    error_in Flags.[ICMode; RefMode] env exp.at "M0077"
+    error_in Flags.[ICMode] env exp.at "M0077"
       "a shared function is only allowed as a public field of an actor";
   let ve1 = check_pat_exhaustive (if T.is_shared_sort sort then local_error else warn) env (T.seq ts1) pat in
   let ve2 = T.Env.adjoin ve ve1 in
@@ -4553,7 +4552,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
       ) dec_fields;
       List.iter (fun df ->
         if df.it.vis.it = Syntax.Private && is_actor_method df.it.dec then
-          error_in Flags.[ICMode; RefMode] env df.it.dec.at "M0126"
+          error_in Flags.[ICMode] env df.it.dec.at "M0126"
             "a shared function cannot be private"
       ) dec_fields;
     end;
@@ -5052,7 +5051,7 @@ and infer_block env decs at check_unused : T.typ * Scope.scope =
   let env' = adjoin env scope in
   (* HACK: when compiling to IC, mark class constructors as unavailable *)
   let ve = match !Flags.compile_mode with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       List.fold_left (fun ve' dec ->
         match dec.it with
         | ClassD(_, _, { it = T.Actor; _}, id, _, _, _,  _, _) ->
@@ -5607,7 +5606,7 @@ and infer_dec_valdecs env dec : Scope.t =
     if obj_sort.it = T.Actor then begin
       error_in Flags.[WASIMode; WasmMode] env dec.at "M0138" "actor classes are not supported";
       if not env.in_prog then
-        error_in Flags.[ICMode; RefMode] env dec.at "M0139"
+        error_in Flags.[ICMode] env dec.at "M0139"
           "inner actor classes are not supported yet; any actor class must come last in your program";
       if not (List.length typ_binds = 1) then
         local_error env dec.at "M0140"
@@ -5733,7 +5732,7 @@ let check_actors ?(check_actors=false) scope prog : unit Diag.result =
             if ds <> [] || ds' <> [] then begin
               report (List.rev ds);
               report ds';
-              error_in Flags.[ICMode; RefMode] env d.at "M0141"
+              error_in Flags.[ICMode] env d.at "M0141"
                 "an actor or actor class must be the only non-imported declaration in a program"
             end
           | (d::ds') -> go (d::ds) ds'
