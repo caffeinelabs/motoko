@@ -1,0 +1,5 @@
+error[M0072]: field asyncFunc does not exist in type:
+  Text
+    ┌─ contextual-dot-async.mo:13:7
+ 13 │      x.asyncFunc() // errors
+    │        ^^^^^^^^^ 
