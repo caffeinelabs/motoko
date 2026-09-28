@@ -147,24 +147,6 @@ let
     '';
   };
 
-  # wasm-profiler is not compatible with passive data segments and memory64
-  # profiling-graphs = testDerivation {
-  #  src = test_src "perf";
-  #  buildInputs =
-  #    (with pkgs; [ perl wabt wasm-profiler-instrument wasm-profiler-postproc flamegraph-bin ]) ++
-  #    [ moc pkgs.drun ];
-  #  checkPhase = ''
-  #    patchShebangs .
-  #    type -p moc && moc --version
-  #    type -p drun && drun --help
-  #    ./profile-report.sh
-  #  '';
-  #  installPhase = ''
-  #    mv _profile $out;
-  #    mkdir -p $out/nix-support
-  #    echo "report flamegraphs $out index.html" >> $out/nix-support/hydra-build-products
-  #  '';
-  #};
   fix_names = builtins.mapAttrs (name: deriv:
     deriv.overrideAttrs { name = "test-${name}"; }
   );

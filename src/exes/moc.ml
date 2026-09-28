@@ -22,7 +22,6 @@ let set_mode m () =
   mode := m
 
 let out_file = ref ""
-let link = ref true
 let interpret_ir = ref false
 let gen_source_map = ref false
 let explain_code = ref ""
@@ -55,7 +54,6 @@ let argspec =
     set_mode Compile ()), (* similar to --stable-types *)
       " compile and emit Candid IDL specification to `.did` file";
   "--print-deps", Arg.Unit (set_mode PrintDeps), " prints the dependencies for a given source file";
-  "--print-source-on-error", Arg.Set Flags.print_source_on_error, " prints the source code for error messages";
   "--explain", Arg.String (fun c -> explain_code := c; set_mode Explain ()), " provides a detailed explanation of an error message";
   "-o", Arg.Set_string out_file, "<file>  output file";
 
@@ -91,13 +89,6 @@ let argspec =
   @ Args.package_args
 
   @ [
-  "--profile", Arg.Set Flags.profile, " activate profiling counters in interpreters ";
-  "--profile-file", Arg.Set_string Flags.profile_file, "<file>  set profiling output file ";
-  "--profile-line-prefix", Arg.Set_string Flags.profile_line_prefix, "<string>  prefix each profile line with the given string ";
-  "--profile-field",
-    Arg.String (fun n -> Flags.(profile_field_names := n :: !profile_field_names)),
-      "<field>  profile file includes the given field from the program result ";
-
   "--public-metadata",
     Arg.String (fun n -> Flags.(public_metadata_names := n :: !public_metadata_names)),
     "<name>  emit icp custom section <name> (" ^
@@ -115,7 +106,6 @@ let argspec =
   "-no-await", Arg.Clear Flags.await_lowering, " no await-lowering (with -iR)";
   "-no-async", Arg.Clear Flags.async_lowering, " no async-lowering (with -iR)";
 
-  "-no-link", Arg.Clear link, " do not statically link-in runtime";
   "-no-timer", Arg.Clear Flags.global_timer, " do not create a global timer expiration endpoint";
   "-no-system-api",
     Arg.Unit (fun () -> Flags.(compile_mode := WasmMode)),
@@ -162,10 +152,6 @@ let argspec =
   "--max-stable-pages",
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
-
-  "--trap-on-call-error",
-  Arg.Unit (fun () -> Flags.trap_on_call_error := true),
-  " Trap, don't throw an `Error`, when an IC call fails due to destination queue full or freezing threshold is crossed. Emulates behaviour of moc versions < 0.8.0.";
 
   (* persistence *)
   "--enhanced-orthogonal-persistence",
@@ -254,7 +240,7 @@ let process_files files : unit =
     let file = single_file "compilation" files in
     set_out_file file ".wasm";
     let source_map_file = !out_file ^ ".map" in
-    let (idl_prog, module_) = Diag.run Pipeline.(compile_file !Flags.compile_mode !link file) in
+    let (idl_prog, module_) = Diag.run Pipeline.(compile_file !Flags.compile_mode file) in
     let module_ = CustomModule.{ module_ with
       source_mapping_url =
         if !gen_source_map
@@ -307,19 +293,6 @@ let process_files files : unit =
      | None ->
         printf "%s is not a known error code. Make sure you pass a code format like this: '--explain M0123'" !explain_code
 
-(* Copy relevant flags into the profiler library's (global) settings.
-   This indirection affords the profiler library an independence from the (hacky) Flags library.
-   See also, this discussion:
-   https://github.com/dfinity/motoko/pull/405#issuecomment-503326551
-*)
-let process_profiler_flags () =
-  ProfilerFlags.profile             := !Flags.profile;
-  ProfilerFlags.profile_verbose     := !Flags.profile_verbose;
-  ProfilerFlags.profile_file        := !Flags.profile_file;
-  ProfilerFlags.profile_line_prefix := !Flags.profile_line_prefix;
-  ProfilerFlags.profile_field_names := !Flags.profile_field_names;
-  ()
-
 let process_metadata_names kind =
   List.iter
     (fun s ->
@@ -350,7 +323,6 @@ let () =
     eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
   end;
 
-  process_profiler_flags ();
   process_metadata_names "public" !Flags.public_metadata_names;
   process_metadata_names "omit" !Flags.omit_metadata_names;
   try

@@ -316,7 +316,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   let open Call_conv in
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | VarE (_, id) ->
     (match Lib.Promise.value_opt (find id env.vals) with

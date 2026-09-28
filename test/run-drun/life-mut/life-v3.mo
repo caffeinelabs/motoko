@@ -175,8 +175,8 @@ actor Life {
 
   var state : State = newState(0, 32);
 
-  flexible var src = Grid(0, state);
-  flexible var dst = Grid(32, newState(32, src.size()));
+  transient var src = Grid(0, state);
+  transient var dst = Grid(32, newState(32, src.size()));
 
   func update(c : Nat) {
     var i = c;

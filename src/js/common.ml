@@ -120,7 +120,7 @@ let js_compile_wasm mode source =
     | "ic" -> Flags.ICMode
     | _ -> raise (Invalid_argument "js_compile_with: Unexpected mode")
   in
-  Mo_types.Cons.session (fun _ -> js_result (Pipeline.compile_file mode true source)
+  Mo_types.Cons.session (fun _ -> js_result (Pipeline.compile_file mode source)
     (fun (idl_prog, m) ->
       let open CustomModule in
       let sig_ = match m.motoko.stable_types_text with

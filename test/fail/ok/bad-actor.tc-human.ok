@@ -22,7 +22,7 @@ does not match expected type
     ┌─ bad-actor.mo:8:1
   8 │  actor class A4() : async object {} {}; // reject bad async return type
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0135]: actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
+error[M0193]: actor class has non-async return type
     ┌─ bad-actor.mo:9:1
   9 │  actor class A5() : actor {} {}; // reject non async return type
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

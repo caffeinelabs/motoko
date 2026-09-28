@@ -655,9 +655,6 @@ func canisterSubnet() : Principal = (prim "canister_subnet" : () -> Principal)()
 func rootKey() : Blob = (prim "root_key" : () -> Blob)();
 func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Principal)();
 
-// Untyped dynamic actor creation from blobs
-let createActor : (wasm : Blob, argument : Blob) -> async Principal = @create_actor_helper;
-
 func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
 func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
 func cyclesRefunded() : Nat = @refund;
@@ -689,9 +686,6 @@ func costVetkdDeriveKey(keyName : Text, curveEncoding : Nat32) : (resultCode : N
 // certified data
 func setCertifiedData(data : Blob) = (prim "setCertifiedData" : Blob -> ()) data;
 func getCertificate() : ?Blob = (prim "getCertificate" : () -> ?Blob)();
-
-// Returns a query that computes the current actor's stable variable statistics (for now, the current size, in bytes, of serialized stable variable data).
-func stableVarQuery() : shared query () -> async { size : Nat64 } = (prim "stableVarQuery" : () -> (shared query () -> async { size : Nat64 }))();
 
 // stable regions
 

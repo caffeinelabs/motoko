@@ -358,7 +358,6 @@
 
 <stab> ::= 
     <empty>
-    'flexible'
     'stable'
     'transient'
 

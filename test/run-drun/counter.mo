@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor {
-  flexible var c = 1;
+  transient var c = 1;
   public func inc() : () {
     c += 1;
     Prim.debugPrintNat c

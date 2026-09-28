@@ -1,2 +1,2 @@
 suggest-short.mo:3.6-3.7: type error [M0072], field s does not exist in module.
-help: did you mean field sin, setTimer, shiftLeft, shiftRight, stableVarQuery, setCandidLimits, setCertifiedData, safeFloatToFloat32 or setCandidTypeLimits?
+help: did you mean field sin, setTimer, shiftLeft, shiftRight, setCandidLimits, setCertifiedData, safeFloatToFloat32 or setCandidTypeLimits?

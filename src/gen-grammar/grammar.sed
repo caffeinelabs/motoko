@@ -159,7 +159,6 @@ s/GT/\'>\'/g
 s/GEOP/\'>=\'/g
 s/FUNC/\'func\'/g
 s/FOR/\'for\'/g
-s/FLEXIBLE/\'flexible\'/g
 s/FLOAT/<float>/g
 s/EQOP/\'==\'/g
 s/EQ/\'=\'/g

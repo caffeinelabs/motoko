@@ -459,7 +459,7 @@
         },
         {
           "comment": "other keyword",
-          "match": "\\b(query|composite|stable|flexible|persistent|transient|implicit|weak|mixin)\\b",
+          "match": "\\b(query|composite|stable|persistent|transient|implicit|weak|mixin)\\b",
           "name": "keyword.other.motoko"
         }
       ]

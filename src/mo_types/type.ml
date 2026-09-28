@@ -1790,14 +1790,6 @@ let motoko_async_helper_fld =
     src = empty_src;
   }
 
-let motoko_stable_var_info_fld =
-  { lab = "__motoko_stable_var_info";
-    typ =
-      Func(Shared Query, Promises, [scope_bind], [],
-        [ obj Object [("size", nat64)] ]);
-    src = empty_src;
-  }
-
 let motoko_gc_trigger_fld =
   { lab = "__motoko_gc_trigger";
     typ = Func(Shared Write, Promises, [scope_bind], [], []);
@@ -1832,7 +1824,6 @@ let motoko_runtime_information_fld =
 
 let well_known_actor_fields = [
     motoko_async_helper_fld;
-    motoko_stable_var_info_fld;
     motoko_gc_trigger_fld;
   ]
 

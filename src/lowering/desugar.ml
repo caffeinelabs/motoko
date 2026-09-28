@@ -585,36 +585,6 @@ and build_candid ts obj_typ =
    service = WithComments.string_of_prog prog;
   }
 
-and export_footprint self_id expr =
-  let open T in
-  let {lab;typ;_} = motoko_stable_var_info_fld in
-  let v = "$"^lab in
-  let size = fresh_var "size" T.nat64 in
-  let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
-  let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
-  let bind1 = typ_arg scope_con1 Scope scope_bound in
-  let bind2 = typ_arg scope_con2 Scope scope_bound in
-  let ret_typ = T.(obj Object [("size", nat64)]) in
-  let caller = fresh_var "caller" caller in
-  ([ letD (var v typ) (
-       funcE v (Shared Query) Promises [bind1] [] [ret_typ] (
-           (asyncE T.Fut bind2
-              (blockE [
-                   letD caller (primE I.ICCallerPrim []);
-                   expD (assertE (orE (primE (I.RelPrim (principal, Operator.EqOp))
-                                         [varE caller; selfRefE principal])
-                                    (primE (I.OtherPrim "is_controller") [varE caller])));
-                   letD size (primE (I.ICStableSize expr.note.Note.typ) [expr])
-                 ]
-                 (newObjE T.Object
-                   [{ it = Ir.{name = "size"; var = id_of_var size};
-                      at = no_region;
-                      note = T.nat64 }]
-                   ret_typ))
-              (Con (scope_con1, []))))
-  )],
-  [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
-
 and export_runtime_information self_id =
   let open T in
   let {lab;typ;_} = motoko_runtime_information_fld in
@@ -940,9 +910,8 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
                    note = f.T.typ }
                ) mem_fields vs)
             mem_ty)) in
-  let footprint_d, footprint_f = export_footprint self_id (with_stable_vars Fun.id) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (footprint_d @ runtime_info_d @ ds', footprint_f @ runtime_info_f @ fs,
+  I.(ActorE (runtime_info_d @ ds', runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =

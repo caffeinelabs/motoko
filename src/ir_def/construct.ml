@@ -90,8 +90,7 @@ let primE prim es =
     | ICStableRead t -> t
     | ICStableStore _ -> T.unit
     | ICMethodNamePrim -> T.text
-    | ICPerformGC
-    | ICStableSize _ -> T.nat64
+    | ICPerformGC -> T.unit
     | IdxPrim
     | DerefArrayOffset -> T.(as_immut (as_array_sub (List.hd es).note.Note.typ))
     | EqArrayOffset -> T.bool

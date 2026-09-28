@@ -152,30 +152,6 @@ The format is a simple CSV format, as consumed by
 
 Every PR reports a summary of changes to these numbers to the PR.
 
-Wasm profiling/flamegraphs
---------------------------
-
-The programs in the `perf/` directory can also be used to get some
-instruction-based profiling data/reports, using the
-[wasm-profiler](https://github.com/dfinity/wasm-profiler).
-
-To generate the report, run
-
-    ./profile-report.sh
-
-and look in `_profile/`.
-
-The same can be achieved with
-
-    nix-build -A tests.profiling-graphs ..
-
-and Hydra serves [the latest report].
-
-[the latest report]: https://hydra.dfinity.systems/job/dfinity-ci-build/motoko/tests.profiling-graphs/latest/download/1/index.html
-
-Also see this script for inspiration if you want to profile other programs or
-do other things.
-
 Candid test suite
 -----------------
 

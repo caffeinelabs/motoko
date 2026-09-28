@@ -35,6 +35,7 @@ known_untested_codes = {
     "M0099", # hard to trigger (syntactic checks hit first)
     "M0100", # hard to trigger (syntactic checks hit first)
     "M0108", # mode-specific
+    "M0135", # retired: actor classes with non-async return types are rejected with M0193
     "M0144", # bad import, but seems to be shadowed by non-static expression
     "M0162", # Candid service constructor type not supported as Motoko type
     "M0164", # unknown record or variant label in textual representation

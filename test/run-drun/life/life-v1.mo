@@ -91,8 +91,8 @@ actor Life {
       )
     };
 
-  flexible var src = Grid(state);
-  flexible var dst = Grid(state);
+  transient var src = Grid(state);
+  transient var dst = Grid(state);
 
   func update(c : Nat) {
     var i = c;

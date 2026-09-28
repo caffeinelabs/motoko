@@ -17,6 +17,20 @@
     `: async ()` annotation to fix them, or pass `-W <code>` to downgrade a
     code to a warning again (#6410).
 
+  * feat!: an imported library that is a bare sequence of declarations, rather
+    than `module { ... }` or a named actor class, is now rejected with error
+    `M0142` instead of a deprecation warning. Wrap its declarations in
+    `module { ... }` and mark the exported ones `public`. `-A`, `-W` and `-E`
+    no longer accept `M0142` (#6407).
+
+  * feat!: the `flexible` keyword, an alias of `transient`, is removed. Write
+    `transient` instead; `flexible` is now an ordinary identifier (#6407).
+
+  * feat!: an actor class whose declared return type is not `async T`, as in
+    `actor class C() : actor {} { ... }`, is now rejected with error `M0193`
+    instead of warning `M0135`. Write `: async actor {}`. `-A`, `-W` and `-E`
+    no longer accept `M0135` (#6407).
+
   * chore!: `-g` emits just the DWARF line table, `.debug_line` and
     `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
     `.debug_rnglists` sections are gone: they only served a `.debug_info`
@@ -213,6 +227,24 @@
 
   * bugfix: the dot-notation suggestion (`M0236`) is no longer silently dropped
     after a line that ends with a lone CR (#6393).
+
+  * feat!: remove dead flags and primitives (#6403):
+
+    * Canisters no longer export the `__motoko_stable_var_info` query, which
+      always trapped under enhanced orthogonal persistence, and
+      `Prim.stableVarQuery` is gone. `motoko-base` re-exports it as
+      `ExperimentalStableMemory.stableVarQuery`, so `base` no longer
+      typechecks with this `moc`; `core` is unaffected.
+
+    * `Prim.createActor` is removed. Use actor classes, or the management
+      canister's `create_canister` and `install_code`.
+
+    * The `--trap-on-call-error` flag, which emulated moc < 0.8.0, is removed:
+      a failed call now always throws an `Error`.
+
+    * The unused `--print-source-on-error`, `-no-link`, `--profile`,
+      `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
+      are removed.
 
 * motoko-js (`moc.js`)
 

@@ -50,9 +50,6 @@
       };
     })
 
-    # wasm-profiler
-    (self: super: import ./wasm-profiler.nix self)
-
     # pocket-ic
     (self: super: { pocket-ic = import ./pocket-ic.nix self; })
 
