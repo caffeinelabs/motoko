@@ -1,4 +1,4 @@
-refutable-pat-in-static-block.mo:2.7-2.8: warning [M0145], this pattern of type
+refutable-pat-in-static-block.mo:3.7-3.8: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _

@@ -4,6 +4,17 @@
 
 * motoko (`moc`)
 
+  * feat!: Diagnostics that flag code which traps or silently does not do what
+    it says are now errors by default: non-exhaustive patterns in `switch`,
+    `let`, `catch`, `for` and function parameters (M0145), `ignore` of an
+    `async*` value (M0222), misplaced parentheticals (M0210), unrecognised
+    parenthetical attributes such as `(with cycle = ...)` (M0212), functions
+    named like system methods but declared without `system` (M0128), implicit
+    oneway `public func`s (M0242), and import paths whose letter case differs
+    from the file name (M0005). Use `let ... else`, a `case _` branch, or an
+    explicit `: ()` / `: async ()` annotation to fix them, or pass `-W <code>`
+    to downgrade a code to a warning again (#PRNUM).
+
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
     call now gives the same diagnostics as one call per file, with duplicates

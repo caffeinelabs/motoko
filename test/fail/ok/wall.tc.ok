@@ -1,4 +1,4 @@
-wall.mo:6.6-6.10: warning [M0145], this pattern of type
+wall.mo:6.6-6.10: type error [M0145], this pattern of type
   Bool
 does not cover value
   false

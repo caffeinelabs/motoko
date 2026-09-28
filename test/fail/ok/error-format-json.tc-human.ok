@@ -1,4 +1,4 @@
-warning[M0145]: this pattern of type
+error[M0145]: this pattern of type
   Bool
 does not cover value
   false

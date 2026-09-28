@@ -1,121 +1,121 @@
-flatten-awaitables.mo:40.9-40.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:41.9-41.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:42.9-42.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:43.9-43.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:44.9-44.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:45.9-45.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:49.9-49.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:50.9-50.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:51.9-51.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:52.9-52.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:53.9-53.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:54.9-54.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:63.9-63.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:64.9-64.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:65.9-65.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:66.9-66.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:67.9-67.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:68.9-68.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:72.9-72.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:73.9-73.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:74.9-74.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:75.9-75.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:76.9-76.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:77.9-77.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:82.9-82.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:83.9-83.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:84.9-84.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:85.9-85.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:86.9-86.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:87.9-87.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:91.9-91.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:92.9-92.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:93.9-93.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:94.9-94.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:95.9-95.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:96.9-96.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:100.9-100.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:101.9-101.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:102.9-102.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:103.9-103.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:104.9-104.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:105.9-105.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:109.9-109.10: warning [M0145], this pattern of type
+flatten-awaitables.mo:110.9-110.10: warning [M0145], this pattern of type
   Int
 does not cover value
   0 or -1 or _
-flatten-awaitables.mo:111.9-111.17: warning [M0145], this pattern of type
+flatten-awaitables.mo:112.9-112.17: warning [M0145], this pattern of type
   (Int, Bool)
 does not cover value
   (2, false) or
   (0 or 1 or _, _)
-flatten-awaitables.mo:113.9-113.25: warning [M0145], this pattern of type
+flatten-awaitables.mo:114.9-114.25: warning [M0145], this pattern of type
   (Int, Bool, Text)
 does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:56.5-56.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+flatten-awaitables.mo:57.5-57.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

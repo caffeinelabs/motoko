@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 // The 2 palindrome implementations from
 // "There and Back Again", by Olivier Danvy and Mayer Goldberg
 //

@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0145
 func f() {
   let _ = 0;
   let a = 0;

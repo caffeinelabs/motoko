@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0145
 import Prim "mo:⛔";
 
 // test compilation of local async functions with non-trivial patterns

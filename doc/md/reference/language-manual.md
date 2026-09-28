@@ -1676,14 +1676,15 @@ All bindings declared by a `let-else` if any are immutable.
 
 In the presence of refutable patterns, the pattern in a `let` declaration may fail to match the value of its expression.
 In such cases, the `let`-declaration will evaluate to a trap.
-The compiler emits a warning for any `let`-declaration than can trap due to pattern match failure.
+The compiler reports an error (M0145) for any `let`-declaration that can trap due to pattern match failure.
+To accept the trap instead, pass `-W M0145` to downgrade it to a warning.
 
 Instead of trapping, a user may want to explicitly handle pattern match failures.
 The `let-else` declaration, `let <pat> = <exp> else <block-or-exp>`, has mostly identical static and dynamic semantics to `let`,
 but diverts the program's control flow to `<block-or-exp>` when pattern matching fails, allowing recovery from failure.
 The `else` expression, `<block-or-exp>`, must have type `None` and typically exits the declaration using imperative control flow
 constructs such as `throw`, `return`, `break` or non-returning functions such as `Debug.trap(...)` that all produce a result of type `None`.
-Any compilation warning that is produced for a `let` can be silenced by handling the potential pattern-match failure using `let-else`.
+Handling the potential pattern-match failure with `let-else` resolves the error.
 
 ### Var declaration
 

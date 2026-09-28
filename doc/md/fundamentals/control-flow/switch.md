@@ -16,7 +16,7 @@ Only one branch is ever executed in a switch, the first one that matches. If no 
 
 Motoko will warn you if any of the cases are redundant and can never matched due to previous cases.
 
-Motoko will also warn you if the cases don't cover all possible values, meaning that the switch could fail with a trap at runtime.
+Motoko reports an error if the cases don't cover all possible values, because the switch could otherwise fail with a trap at runtime.
 
 A `switch` is useful for replacing long `if-else` chains, improving both readability and structure. It lets you match specific values or patterns and handle each case individually.
 
@@ -45,7 +45,7 @@ func toText(b : Bool) : Text {
 }
 ```
 
-If you forget the case for `false`, Motoko will also issue a warning that `false is not covered by any case`:
+If you forget the case for `false`, Motoko reports an error that the switch does not cover the value `false`:
 
 ```motoko no-repl
 func toText(b : Bool) : Text {
@@ -55,7 +55,7 @@ func toText(b : Bool) : Text {
 }
 ```
 
-Motoko is able to issue these warnings for much more complicated patterns where it might be hard to see that you've made a mistake, helping you construct correct code and catch errors at compilation.
+Motoko is able to perform these checks for much more complicated patterns where it might be hard to see that you've made a mistake, helping you construct correct code and catch errors at compilation.
 ```motoko no-repl
 func getDayOfWeek(day : Nat) : Text {
     switch day {
@@ -88,7 +88,7 @@ func value<T>(option : ?T, default : T) : T {
 
 The first case matches against the literal `null`, returning `default`. The second case matches against the option pattern `?value`, binding the option's contents to the variable `value` and returning `value`.
 
-If either case is omitted, Motoko will warn that the switch does not cover the `null` or `?_` case.
+If either case is omitted, Motoko reports an error that the switch does not cover the `null` or `?_` case.
 
 Here's an example of a nested pattern:
 
