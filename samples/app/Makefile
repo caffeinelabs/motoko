@@ -10,7 +10,7 @@ SAMPLES:= test
 
 all:
 	rm -f main.txt
-	moc -ref-system-api -r -t -v main.mo >main.txt 2>&1
+	moc -r -t -v main.mo >main.txt 2>&1
 	cat main.txt
 
 clean:
