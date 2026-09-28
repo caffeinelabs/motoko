@@ -9,6 +9,9 @@
     `.debug_rnglists` sections are gone: they only served a `.debug_info`
     section that `moc` never emitted (#6406).
 
+  * fix: contextual dot resolves functions returning `async` when used in an
+    async context, e.g. `await x.asyncFunc()` (#6085).
+
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
     call now gives the same diagnostics as one call per file, with duplicates
