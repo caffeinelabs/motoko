@@ -4,23 +4,8 @@
 
 * motoko (`moc`)
 
-  * feat!: remove dead flags and primitives (#6403):
-
-    * Canisters no longer export the `__motoko_stable_var_info` query, which
-      always trapped under enhanced orthogonal persistence, and
-      `Prim.stableVarQuery` is gone. `motoko-base` re-exports it as
-      `ExperimentalStableMemory.stableVarQuery`, so `base` no longer
-      typechecks with this `moc`; `core` is unaffected.
-
-    * `Prim.createActor` is removed. Use actor classes, or the management
-      canister's `create_canister` and `install_code`.
-
-    * The `--trap-on-call-error` flag, which emulated moc < 0.8.0, is removed:
-      a failed call now always throws an `Error`.
-
-    * The unused `--print-source-on-error`, `-no-link`, `--profile`,
-      `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
-      are removed.
+  * fix: contextual dot resolves functions returning `async` when used in an
+    async context, e.g. `await x.asyncFunc()` (#6085).
 
   * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
     holding only its own imports, and checks every imported library once. One
@@ -201,6 +186,24 @@
 
   * bugfix: the dot-notation suggestion (`M0236`) is no longer silently dropped
     after a line that ends with a lone CR (#6393).
+
+  * feat!: remove dead flags and primitives (#6403):
+
+    * Canisters no longer export the `__motoko_stable_var_info` query, which
+      always trapped under enhanced orthogonal persistence, and
+      `Prim.stableVarQuery` is gone. `motoko-base` re-exports it as
+      `ExperimentalStableMemory.stableVarQuery`, so `base` no longer
+      typechecks with this `moc`; `core` is unaffected.
+
+    * `Prim.createActor` is removed. Use actor classes, or the management
+      canister's `create_canister` and `install_code`.
+
+    * The `--trap-on-call-error` flag, which emulated moc < 0.8.0, is removed:
+      a failed call now always throws an `Error`.
+
+    * The unused `--print-source-on-error`, `-no-link`, `--profile`,
+      `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
+      are removed.
 
 * motoko-js (`moc.js`)
 
