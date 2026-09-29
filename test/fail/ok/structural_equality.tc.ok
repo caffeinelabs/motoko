@@ -22,3 +22,9 @@ which has a single value
 structural_equality.mo:13.41-13.47: type error [M0276], this comparison always has the same result, because it is performed at type
   Any
 which has a single value
+structural_equality.mo:15.9-15.19: type error [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+structural_equality.mo:16.9-16.47: type error [M0276], this comparison always has the same result, because it is performed at type
+  {x : {}}
+which has a single value

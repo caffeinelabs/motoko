@@ -11,3 +11,6 @@ assert(10 == "hi");
 
 func myEq<A>(x : A, y : A) : Bool = x == y;
 func myEq2<A, B>(x : A, y : B) : Bool = x == y;
+
+ignore (10 != "hi");
+ignore ({ x = { p = 1 } } == { x = { q = 1 } });
