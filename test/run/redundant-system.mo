@@ -1,7 +1,7 @@
 //MOC-FLAG --error-format=json
 import Prim "mo:prim";
 
-// A redundant `<system>` warns (M0276) and the call is checked as if it were absent
+// A redundant `<system>` warns (M0196) and the call is checked as if it were absent
 func id<T>(x : T) : T = x;
 
 func _f<system>() {

@@ -11,7 +11,7 @@ warning[M0195]: this function call implicitly requires `system` capability and m
     ┌─ timer-no-send.mo:10:12
  10 │      ignore setTimer(1_000_000, false, func () : async () { });
     │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0276]: `system` capability is not required by this function
+warning[M0196]: `system` capability is not required by this function
     ┌─ timer-no-send.mo:12:15
  12 │      debugPrint<system>("caveat"); // misplaced `<system>`
     │                ^^^^^^^^ 

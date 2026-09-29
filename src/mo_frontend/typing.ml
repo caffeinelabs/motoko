@@ -3672,7 +3672,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
         | [] -> inst.at (* `<system>` *)
         | typ :: _ -> { inst.at with left = { inst.at.left with column = inst.at.left.column + 1 }; right = typ.at.left } (* `system, ` *)
       in
-      warn env inst.at "M0276" ~edits:[edit system_at ""] "`system` capability is not required by this function"
+      warn env inst.at "M0196" ~edits:[edit system_at ""] "`system` capability is not required by this function"
     end;
     begin match T.(is_shared_sort sort || is_async t_ret'), inst.it, tbs with
     | false, (None | Some (false, _)), T.{ sort = Scope; _ } :: _ ->

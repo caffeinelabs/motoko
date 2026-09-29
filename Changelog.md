@@ -10,7 +10,7 @@
     `Prim.callerInfoSigner`, `Prim.callerInfoData`, `Prim.getCandidLimits` and
     `Prim.getCandidTypeLimits`. An explicit `<system>` passed to a function
     that does not require it, e.g. `Prim.callerInfoSigner<system>()`, is now
-    warning M0276 (with a fix-it deleting it) instead of error M0196 (#6414).
+    warning M0196 (with a fix-it deleting it) instead of an error (#6414).
 
   * feat!: An inferred type that collapses to `Any` or `None` is now an error
     by default: array literals (M0074), `if` branches (M0081) and `switch`

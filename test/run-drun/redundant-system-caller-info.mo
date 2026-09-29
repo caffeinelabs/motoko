@@ -1,7 +1,7 @@
 //MOC-FLAG --error-format=json
 import Prim "mo:prim";
 
-// A now-redundant explicit `<system>` still compiles, with warning M0276
+// A now-redundant explicit `<system>` still compiles, with warning M0196
 actor {
   public func test() : async () {
     Prim.debugPrint(debug_show Prim.callerInfoSigner<system>());
