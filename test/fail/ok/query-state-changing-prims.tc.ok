@@ -1,0 +1,25 @@
+query-state-changing-prims.mo:6.12-6.32: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:6.12-6.32: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+query-state-changing-prims.mo:7.5-7.22: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:7.5-7.22: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+query-state-changing-prims.mo:8.12-8.30: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:8.12-8.30: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+query-state-changing-prims.mo:9.5-9.71: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:9.5-9.71: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+query-state-changing-prims.mo:10.5-10.55: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:10.5-10.55: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+query-state-changing-prims.mo:14.12-14.40: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:15.5-15.30: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:16.12-16.38: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:17.5-17.79: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+query-state-changing-prims.mo:18.5-18.63: type error [M0197], `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)

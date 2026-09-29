@@ -1,0 +1,70 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:6:12
+  6 │      ignore Prim.cyclesAccept(1);
+    │             ^^^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ query-state-changing-prims.mo:6:12
+  6 │      ignore Prim.cyclesAccept(1);
+    │             ^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:7:5
+  7 │      Prim.cyclesAdd(1);
+    │      ^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ query-state-changing-prims.mo:7:5
+  7 │      Prim.cyclesAdd(1);
+    │      ^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:8:12
+  8 │      ignore Prim.cyclesBurn(1);
+    │             ^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ query-state-changing-prims.mo:8:12
+  8 │      ignore Prim.cyclesBurn(1);
+    │             ^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:9:5
+  9 │      Prim.setCandidLimits({ numerator = 1; denominator = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ query-state-changing-prims.mo:9:5
+  9 │      Prim.setCandidLimits({ numerator = 1; denominator = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:10:5
+ 10 │      Prim.setCandidTypeLimits({ scalar = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ query-state-changing-prims.mo:10:5
+ 10 │      Prim.setCandidTypeLimits({ scalar = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:14:12
+ 14 │      ignore Prim.cyclesAccept<system>(1);
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:15:5
+ 15 │      Prim.cyclesAdd<system>(1);
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:16:12
+ 16 │      ignore Prim.cyclesBurn<system>(1);
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:17:5
+ 17 │      Prim.setCandidLimits<system>({ numerator = 1; denominator = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ query-state-changing-prims.mo:18:5
+ 18 │      Prim.setCandidTypeLimits<system>({ scalar = 1; bias = 0 });
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
