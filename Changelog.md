@@ -241,9 +241,10 @@
     `mops check --fix`) garbled the file. A form feed, NEL, U+2028 or U+2029
     in a comment or text literal likewise shifted every later offset (#6393).
 
-  * chore: `-ref-system-api` is deprecated and has no effect beyond selecting
-    the default Internet Computer system API. It will be removed in the next
-    release; drop it from build scripts (#6405).
+  * feat!: the `-ref-system-api` flag is removed. It selected the compile
+    mode for `ic-ref`, the retired reference implementation of the Internet
+    Computer, which the compiler had long treated exactly like the default
+    mode. Drop it from build scripts; the default needs no flag (#6405, #6417).
 
   * chore!: `-g` emits just the DWARF line table, `.debug_line` and
     `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and

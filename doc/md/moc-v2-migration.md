@@ -340,9 +340,10 @@ public query func me() : async Principal { Prim.getSelfPrincipal() };
 | `--experimental-field-aliasing` | none: [record update copies `var` fields](#record-update-copies-var-fields) |
 | `--trap-on-call-error` | none: a failed call throws an `Error`; handle it with `try`/`catch` |
 | `-no-system-api` | `-wasi-system-api` to run outside the Internet Computer, e.g. in `wasmtime` |
+| `-ref-system-api` | no longer needed: it selected the default Internet Computer system API |
 | `--print-source-on-error`, `-no-link`, `--profile`, `--profile-file`, `--profile-line-prefix`, `--profile-field` | none |
 
-`-ref-system-api` is still accepted but does nothing. Remove it; it will be dropped in a later release. `--enhanced-orthogonal-persistence` stays, for [classical canisters](#canisters-still-on-classical-persistence).
+`--enhanced-orthogonal-persistence` stays, for [classical canisters](#canisters-still-on-classical-persistence).
 
 ### `moc --check` checks each file on its own
 
