@@ -181,7 +181,7 @@ let error_codes : (string * string option) list =
     "M0189", None; (* Different set of bindings in pattern alternatives *)
     "M0192", None; (* Object/Actor/Module body type mismatch *)
     "M0193", None; (* Actor class result type is not `async` *)
-    "M0196", None; (* `system` capability supplied but not required *)
+    "M0196", None; (* `system` capability supplied but not required; defunct, now warning M0276 *)
     "M0197", Some([%blob "lang_utils/error_codes/M0197.md"]); (* `system` capability required *)
     "M0199", None; (* Deprecated experimental stable memory *)
     "M0200", Some([%blob "lang_utils/error_codes/M0200.md"]); (* Cannot determine subtyping or equality *)
@@ -276,6 +276,7 @@ let warning_codes = [
   "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
   "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
+  "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "The `system` capability is not required by this function";
 ]
 
 let try_find_explanation code =

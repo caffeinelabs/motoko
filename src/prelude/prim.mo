@@ -113,19 +113,19 @@ func isLive(weak_ref : weak Any) : Bool {
   (prim "weak_ref_is_live" : weak Any -> Bool)(weak_ref);
 };
 
-func envVarNames<system>() : [Text] {
+func envVarNames() : [Text] {
   (prim "env_var_names" : () -> [Text])();
 };
 
-func envVar<system>(name : Text) : ?Text {
+func envVar(name : Text) : ?Text {
   (prim "env_var" : Text -> ?Text)(name);
 };
 
-func callerInfoSigner<system>() : Blob {
+func callerInfoSigner() : Blob {
   (prim "caller_info_signer" : () -> Blob)();
 };
 
-func callerInfoData<system>() : Blob {
+func callerInfoData() : Blob {
   (prim "caller_info_data" : () -> Blob)();
 };
 
@@ -653,7 +653,7 @@ func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
 func canisterSubnet() : Principal = (prim "canister_subnet" : () -> Principal)();
 func rootKey() : Blob = (prim "root_key" : () -> Blob)();
-func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Principal)();
+func getSelfPrincipal() : Principal = (prim "canister_self" : () -> Principal)();
 
 func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
 func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
@@ -750,7 +750,7 @@ func setCandidLimits<system>({
   (prim "setCandidLimits" : (Nat32, Nat32, Nat32) -> ())(numerator, denominator, bias);
 };
 
-func getCandidLimits<system>() : {
+func getCandidLimits() : {
   numerator : Nat32;
   denominator : Nat32;
   bias : Nat32;
@@ -770,7 +770,7 @@ func setCandidTypeLimits<system>({
   (prim "setCandidTypeLimits" : (Nat32, Nat32) -> ())(scalar, bias);
 };
 
-func getCandidTypeLimits<system>() : {
+func getCandidTypeLimits() : {
   scalar : Nat32;
   bias : Nat32;
 } {

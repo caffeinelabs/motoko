@@ -3571,13 +3571,23 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
-  let has_explicit_inst = match tbs, inst.it with
+  (* A `<system>` the callee does not require is redundant: check the call as if it were absent *)
+  let redundant_system = match inst.it, tbs with
+    | Some (true, _), ([] | T.{ sort = Type; _ } :: _) -> not T.(is_shared_sort sort || is_async t_ret)
+    | _ -> false
+  in
+  let inst_it = match inst.it with
+    | Some (true, []) when redundant_system -> None
+    | Some (true, typs) when redundant_system -> Some (false, typs)
+    | it -> it
+  in
+  let has_explicit_inst = match tbs, inst_it with
     | [], (None | Some (_, []))  (* no inference required *)
     | [T.{sort = Scope;_}], _  (* special case to allow t_arg driven overload resolution *)
     | _, Some _ -> true
     | _ -> false
   in
-  let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
+  let typs = match inst_it with None -> [] | Some (_, typs) -> typs in
   let explicit_ts =
     if has_explicit_inst
     then Some (check_inst_bounds env sort tbs typs t_ret at)
@@ -3657,9 +3667,14 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
           "shared function call result contains abstract type%a"
           display_typ_expand t_ret';
     end;
+    if redundant_system then begin
+      let system_at = match typs with
+        | [] -> inst.at (* `<system>` *)
+        | typ :: _ -> { inst.at with left = { inst.at.left with column = inst.at.left.column + 1 }; right = typ.at.left } (* `system, ` *)
+      in
+      warn env inst.at "M0276" ~edits:[edit system_at ""] "`system` capability is not required by this function"
+    end;
     begin match T.(is_shared_sort sort || is_async t_ret'), inst.it, tbs with
-    | false, Some (true, _), ([] | T.{ sort = Type; _ } :: _) ->
-       local_error env inst.at "M0196" "unexpected `system` capability (try deleting it)"
     | false, (None | Some (false, _)), T.{ sort = Scope; _ } :: _ ->
        warn env at "M0195" "this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system%s>` to suppress this warning)" (if List.length tbs = 1 then "" else ", ...")
     | _ -> ()

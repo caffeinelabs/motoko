@@ -1015,7 +1015,7 @@ For a function, the number of type arguments, when provided, must agree with the
 
 Given a vector of type arguments instantiating a vector of type parameters, each type argument must satisfy the instantiated bounds of the corresponding type parameter.
 
-In function calls, supplying the `system` pseudo type argument grants system capability to the function that requires it.
+In function calls, supplying the `system` pseudo type argument grants system capability to the function that requires it. Supplying it to a function that does not require it is redundant and produces a warning.
 
 System capability is available only in the following syntactic contexts:
 
