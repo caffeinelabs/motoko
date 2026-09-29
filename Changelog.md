@@ -3,7 +3,7 @@
 ## Next
 
 * Upgrading from `moc` 1.x: the [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
-  lists every breaking change below with its fix (#PRNUM).
+  lists every breaking change below with its fix (#6417).
 
 * motoko (`moc`)
 
