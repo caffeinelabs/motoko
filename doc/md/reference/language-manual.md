@@ -804,7 +804,7 @@ The type `Region` represents opaque stable memory regions. Region objects are dy
 
 The region type is stable but not shared and its objects, which are stateful, may be stored in stable variables and data structures.
 
-Objects of type `Region` are created and updated using the functions provided by base libary `Region`. See [stable regions](./icp-features/stable-memory) and library [Region](https://mops.one/core/docs/Region) for more information.
+Objects of type `Region` are created and updated using the functions provided by core library `Region`. See [stable regions](./icp-features/stable-memory) and library [Region](https://mops.one/core/docs/Region) for more information.
 
 ### Constructed types
 
@@ -1190,7 +1190,7 @@ A type `T` is **stable** if it is:
 
 This definition implies that every shared type is a stable type. The converse does not hold: there are types that are stable but not share, notably types with mutable components.
 
-The types of actor fields declared with the `stable` qualifier must have stable type.
+The types of actor fields not declared `transient` must have stable type.
 
 The current value of such a field is preserved upon upgrade, whereas the values of other fields are reinitialized after an upgrade.
 
@@ -1376,8 +1376,7 @@ Any identifier bound by a `public` declaration appears in the type of enclosing 
 
 An identifier bound by a `private` or `system` declaration is excluded from the type of the enclosing object, module or actor and thus inaccessible.
 
-In a `persistent` actor or actor class (the default), all declarations are persisted across upgrades (`stable`) unless explicitly declared `transient`.
-In a non-`persistent` actor or actor class, all declarations are `transient` unless explicitly declared `stable`.
+In an actor or actor class (`persistent` by default, so the `persistent` keyword is redundant), all declarations are persisted across upgrades (`stable`) unless explicitly declared `transient`.
 
 The declaration field has type `T` provided:
 
@@ -1385,9 +1384,9 @@ The declaration field has type `T` provided:
 
 -   If `<stab>?` is `stable`  then `T` must be a stable type (see [stability](#stability)).
 
--   If `<stab>?` is absent and the actor or actor class is `persistent`, then `T` must be a stable type (see [stability](#stability)).
+-   If `<stab>?` is absent, then `T` must be a stable type (see [stability](#stability)).
 
-Actor fields declared `transient` (or legacy `flexible`) can have any type, but will not be preserved across upgrades.
+Actor fields declared `transient` can have any type, but will not be preserved across upgrades.
 
 
 In the absence of any `<parenthetical>?` migration expression, sequences of declaration fields are evaluated in order by evaluating their constituent declarations, with the following exception:
@@ -1484,7 +1483,7 @@ The declaration `<dec>` of a `system` field must be a manifest `func` declaratio
 
 :::danger
 
-Using the pre- and post-upgrade system methods is discouraged. It is error-prone and can render a canister unusable.
+The pre- and post-upgrade system methods are deprecated (warning M0270) in favor of [migration expressions](#migration-expressions). They are error-prone and can render a canister unusable.
 In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded.
 Per best practices, using these methods should be avoided if possible.
 

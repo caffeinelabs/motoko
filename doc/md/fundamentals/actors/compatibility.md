@@ -11,7 +11,7 @@ When upgrading a canister, it is important to verify that the upgrade can procee
 -   Breaking clients due to a Candid interface change.
 
 `dfx` checks these properties statically before attempting the upgrade.
-Moreover, with [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations.
+Moreover, thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations.
 
 ## Upgrade example
 
@@ -120,7 +120,7 @@ This version is neither compatible to stable type declarations, nor to the Candi
 - The change in the return type of `read` is also not safe.
   If the change were accepted, then existing clients of the `read` method, that still expect to receive integers, would suddenly start receiving incompatible floats.
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko actively rejects any upgrades that require type-incompatible state changes.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko actively rejects any upgrades that require type-incompatible state changes.
 
 This is to guarantee that the stable state is always kept safe.
 
@@ -365,7 +365,7 @@ cannot be consumed at new type
   var Float
 ```
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
 
 ## Adding record fields
 

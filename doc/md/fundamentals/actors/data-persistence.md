@@ -71,7 +71,7 @@ For example, the stable type `TemperatureSeries` covers the persistent data, whi
 ```motoko no-repl file=<motokoExamples>/WeatherActor.mo
 ```
 
-__Discouraged and not recommended__: [Pre- and post-upgrade hooks](#preupgrade-and-postupgrade-system-methods) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
+__Deprecated__: [Pre- and post-upgrade hooks](#preupgrade-and-postupgrade-system-methods) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
 
 ## Stable type signatures
 
@@ -118,7 +118,7 @@ When upgrading a canister, it is important to verify that the upgrade can procee
 -   Introducing an incompatible change in stable declarations.
 -   Breaking clients due to a Candid interface change.
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations during an upgrade attempt.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations during an upgrade attempt.
 Moreover, `dfx` checks the two conditions before attempting the upgrade and warns users as necessary.
 
 A Motoko canister upgrade is safe provided:
@@ -135,7 +135,7 @@ If you have a Motoko canister that has already been deployed, then you make chan
 You are making a BREAKING change. Other canisters or frontend clients relying on your canister may stop working.
 ```
 
-Motoko canisters using enhanced orthogonal persistence implement an extra safeguard in the runtime system to ensure that the stable data is compatible to exclude any data corruption or misinterpretation. Moreover, `dfx` also warns about incompatibility and dropping stable variables.
+Motoko canisters implement an extra safeguard in the runtime system to ensure that the stable data is compatible to exclude any data corruption or misinterpretation. Moreover, `dfx` also warns about incompatibility and dropping stable variables.
 
 ## Data migration
 
@@ -178,7 +178,7 @@ reference material on [migration expressions](../../reference/language-manual.md
 ## Legacy features
 
 :::danger
-Using the pre- and post-upgrade system methods is discouraged. It is error-prone and can render a canister unusable. In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded. Per best practices, using these methods should be avoided if possible.
+The pre- and post-upgrade system methods are deprecated (warning M0270) in favor of [migration functions](#explicit-migration). They are error-prone and can render a canister unusable. In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded. Per best practices, using these methods should be avoided if possible.
 :::
 
 Motoko supports user-defined upgrade hooks that run immediately before and after an upgrade. These upgrade hooks allow triggering additional logic on upgrade.

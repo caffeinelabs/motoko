@@ -5,9 +5,9 @@ sidebar:
   order: 5
 ---
 
-Canisters have two types of storage: Wasm memory and stable memory. The Wasm memory is often referred to as the [heap memory](https://docs.internetcomputer.org/concepts/orthogonal-persistence#heap-wasm-linear-memory). It is automatically used for heap-allocated objects and has a maximum size limitation of 4 GiB or 6 GiB respective to whether you are using 32-bit or 64-bit heap storage without enhanced orthogonal persistence. When a canister is upgraded, the heap memory is cleared, only retaining data stored in stable variables.
+Canisters have two types of storage: Wasm memory and stable memory. The Wasm memory is often referred to as the [heap memory](https://docs.internetcomputer.org/concepts/orthogonal-persistence#heap-wasm-linear-memory). It is automatically used for heap-allocated objects and, with Motoko's [enhanced orthogonal persistence](../fundamentals/actors/orthogonal-persistence/enhanced.md), is a 64-bit memory with a maximum size of 6 GiB that is retained across canister upgrades.
 
-Stable memory has a maximum size of 500 GiB and is preserved across canister upgrades. Motoko utilizes [stable memory](https://docs.internetcomputer.org/concepts/orthogonal-persistence#stable-memory) through the [stable storage feature](https://docs.internetcomputer.org/concepts/orthogonal-persistence#motoko-true-orthogonal-persistence) to preserve data across canister upgrades. Stable regions extend this functionality to allow more structured and flexible memory management.
+Stable memory has a maximum size of 500 GiB and is preserved across canister upgrades. Motoko's stable variables do not need [stable memory](https://docs.internetcomputer.org/concepts/orthogonal-persistence#stable-memory), as they live in the persistent main memory. Stable regions instead give direct access to stable memory, allowing more structured and flexible memory management.
 
 The system automatically commits all memory modifications, both Wasm and stable, after the successful execution of a message. If a message execution fails, the changes are not committed.
 

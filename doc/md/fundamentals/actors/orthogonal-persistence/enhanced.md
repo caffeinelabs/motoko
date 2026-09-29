@@ -12,7 +12,7 @@ Enhanced orthogonal persistence implements the vision of efficient and scalable 
 As a result, the use of secondary storage (explicit stable memory, dedicated stable data structures, DB-like storage abstractions) will no longer be necessary: Motoko developers can directly work on their normal object-oriented program structures that are automatically persisted and retained across program version changes.
 
 
-Enhanced orthogonal persistence is enabled by default.
+Enhanced orthogonal persistence is always enabled: since `moc` 2.0, it is the only persistence mode and classical (32-bit) orthogonal persistence has been removed.
 
 :::tip
 Despite the use of enhanced orthogonal persistence, it is strongly recommended to thoroughly test the upgrades of your application.
@@ -52,7 +52,7 @@ The runtime system checks migration compatibility on upgrade, and if not fulfill
 Any more complex change can be performed with programmatic instruction, see [explicit migration](../data-persistence.md#explicit-migration).
 
 ### Migration path
-When migrating from the old serialization-based stabilization to the new persistent heap, the old data is deserialized one last time from stable memory and then placed in the new persistent heap layout. Once operating on the persistent heap, the system should prevent downgrade attempts to the old serialization-based persistence.
+When upgrading a canister from classical orthogonal persistence (the old serialization-based stabilization) to the new persistent heap, the old data is deserialized one last time from stable memory and then placed in the new persistent heap layout. This one-time upgrade must be compiled with the explicit `--enhanced-orthogonal-persistence` flag and without `--enhanced-migration`; later upgrades need no flag. Once operating on the persistent heap, the system prevents downgrade attempts to the old serialization-based persistence.
 
 #### Graph-copy-based stabilization
 Assuming that the persistent memory layout needs to be changed in the future, the runtime system supports serialization and deserialization to and from stable memory in a defined data format using graph-copy-based stabilization. Arbitrarily large data can be serialized and deserialized beyond the instruction and working set limit of upgrades. Large data serialization and deserialization is split in multiple messages, running before and/or after the IC upgrade to migrate large heaps. Other messages will be blocked during this process and only the canister owner or the canister controllers are permitted to initiate this process.

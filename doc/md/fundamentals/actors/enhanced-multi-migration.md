@@ -21,7 +21,7 @@ With enhanced multi-migration you:
 The compiler reads all migration modules in lexicographic order, checks that they compose correctly, and compiles them into the actor. At runtime, only migrations that have not yet been applied are executed; already-applied migrations are skipped automatically.
 
 :::note
-Enhanced multi-migration requires enhanced orthogonal persistence. It cannot be combined with the inline `(with migration = ...)` syntax used for [single migration functions](./compatibility.md#explicit-migration-using-a-migration-function).
+Enhanced multi-migration cannot be combined with the inline `(with migration = ...)` syntax used for [single migration functions](./compatibility.md#explicit-migration-using-a-migration-function), nor used for the one-time upgrade of a canister from classical orthogonal persistence.
 :::
 
 ## Getting started
@@ -109,8 +109,7 @@ This restriction ensures that the initialization of stable state is fully determ
 Pass the migration directory to the compiler:
 
 ```bash
-moc --enhanced-orthogonal-persistence \
-    --enhanced-migration ./migrations \
+moc --enhanced-migration ./migrations \
     src/main.mo -o main.wasm
 ```
 
@@ -394,7 +393,7 @@ The first migration in the chain must initialize all required fields. When a can
 
 - Each migration file must be a module containing a `public func migration(...)`.
 - The `--enhanced-migration` flag cannot be combined with the inline `(with migration = ...)` syntax.
-- Enhanced multi-migration requires enhanced orthogonal persistence.
+- Enhanced multi-migration cannot be used for the one-time upgrade of a canister from classical orthogonal persistence.
 - Stable actor variables must be declared without initializers (e.g. `var x : Nat`, not `var x : Nat = 0`). The compiler rejects stable variables that carry an initializing expression.
 - The actor body must be static: top-level effectful expressions and most function calls are rejected. Only calls requiring `<system>` capability (e.g. timer setup, Candid decoding configuration) are permitted.
 - The state after each migration (its output merged with carried-through fields) must be compatible with the input of the next migration in the chain. The compiler rejects the program if this is not the case.
@@ -404,8 +403,7 @@ The first migration in the chain must initialize all required fields. When a can
 ## Usage
 
 ```bash
-moc --enhanced-orthogonal-persistence \
-    --enhanced-migration ./migrations \
+moc --enhanced-migration ./migrations \
     actor.mo -o actor.wasm
 ```
 
