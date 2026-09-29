@@ -2,295 +2,226 @@
 
 ## Next
 
-* Upgrading from `moc` 1.x: the [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
-  lists every breaking change below with its fix (#6417).
+* Upgrading from `moc` 1.x? The [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
+  lists every breaking change below with the message you will see and its fix (#6417).
 
 * motoko (`moc`)
 
-  * feat!: A comparison performed at a type with a single value, such as
-    `Any`, `{}`, `()` or `{x : {}}`, is now error M0276 by default, because
-    its result is constant. Examples are `n == t` with `n : Nat` and
-    `t : Text`, two records that share no field, and `x == y` on type
-    parameters. Comparisons at a common type that still has content, such as
-    the shared fields of two records, an actor, an option or a variant with
-    several tags, remain warning M0062. Pass `-W M0276` to downgrade it to a
-    warning (#6415).
+  * **Persistence**
 
-  * bugfix: Generating Candid no longer crashes with `Not_found`, or silently
-    emits a wrong type, when a suffixed name moc picks for a generic
-    instantiation or a same-named type (e.g. `Foo_1` for `Foo<Text>`) is also
-    the name of a user-written type (#6416).
+    * Breaking change: actors are `persistent` by default. A bare `actor` or
+      `actor class` keeps its fields across upgrades; mark fields that should
+      reset on upgrade `transient`. The `--default-persistent-actors`,
+      `--require-persistent-actors` and `--legacy-actors` flags are removed,
+      so the old transient-by-default behaviour cannot be restored (#6356).
 
-  * feat: Read-only primitives no longer require the `system` capability, so
-    `query` and `composite query` methods can call them:
-    `Prim.getSelfPrincipal`, `Prim.envVarNames`, `Prim.envVar`,
-    `Prim.callerInfoSigner`, `Prim.callerInfoData`, `Prim.getCandidLimits` and
-    `Prim.getCandidTypeLimits`. An explicit `<system>` passed to a function
-    that does not require it, e.g. `Prim.callerInfoSigner<system>()`, is now
-    warning M0196 (with a fix-it deleting it) instead of an error (#6414).
+    * Breaking change: classical (32-bit) persistence is removed. `moc` always
+      targets enhanced orthogonal persistence (EOP) with a persistent 64-bit
+      main memory, and the incremental GC is the only GC. The flags
+      `--legacy-persistence`, `--copying-gc`, `--compacting-gc`,
+      `--generational-gc`, `--rts-stack-pages`,
+      `--skip-gc-deprecation-warning`, `--incremental-gc` and
+      `--experimental-rtti` are rejected as unknown options. Projects that
+      still need a classical module must keep an older `moc` (1.14.x)
+      (#6362, #6380).
 
-  * feat!: An inferred type that collapses to `Any` or `None` is now an error
-    by default: array literals (M0074), `if` branches (M0081) and `switch`
-    branches (M0101) whose only common type is `Any`, and type intersections
-    that are `None` (M0166) or unions that are `Any` (M0167) although neither
-    operand is. Joins into a smaller but useful type, such as two records
-    into their common fields, are unaffected. Annotate the expected type
-    (`let xs : [Any] = ...`) when `Any` is intended, or pass `-W <code>` to
-    downgrade a code to a warning again (#6412).
+    * Existing classical canisters still upgrade. The runtime reads every
+      earlier classical stable-memory format, and a classical canister moves
+      to EOP on its next upgrade. Compile that one upgrade with
+      `--enhanced-orthogonal-persistence` and without `--enhanced-migration`;
+      otherwise it traps with "Detected implicit upgrade from classical
+      orthogonal persistence to enhanced orthogonal persistence" or "Cannot
+      upgrade from classical orthogonal persistence with
+      --enhanced-migration". The migration is irreversible and later upgrades
+      need no flag. `--enhanced-migration` no longer requires
+      `--enhanced-orthogonal-persistence` (#6362).
 
-  * feat!: Diagnostics that flag code which traps or silently does not do what
-    it says are now errors by default: non-exhaustive patterns in `switch`,
-    `let`, `catch`, `for` and function parameters (M0145), `ignore` of an
-    `async*` value (M0222), misplaced parentheticals (M0210), unrecognised
-    parenthetical attributes such as `(with cycle = ...)` (M0212), record or
-    object fields that the expected type drops, such as the typo in
-    `{ user with emial = e }` (M0215), functions named like system methods
-    but declared without `system` (M0128), implicit oneway `public func`s
-    (M0242), and import paths whose letter case differs from the file name
-    (M0005). Use `let ... else`, a `case _` branch, or an explicit `: ()` /
-    `: async ()` annotation to fix them, or pass `-W <code>` to downgrade a
-    code to a warning again (#6410).
+    * Breaking change: the `flexible` keyword is removed. Write `transient`;
+      `flexible` is now an ordinary identifier (#6407).
 
-  * feat!: an imported library that is a bare sequence of declarations, rather
-    than `module { ... }` or a named actor class, is now rejected with error
-    `M0142` instead of a deprecation warning. Wrap its declarations in
-    `module { ... }` and mark the exported ones `public`. `-A`, `-W` and `-E`
-    no longer accept `M0142` (#6407).
+    * Breaking change: `ExperimentalStableMemory` is gone. The
+      `Prim.stableMemory*` primitives, `Prim.stableVarQuery`, the
+      `__motoko_stable_var_info` canister query and the
+      `--experimental-stable-memory` flag are removed, so importing
+      `mo:base/ExperimentalStableMemory` no longer type-checks; `core` is
+      unaffected. Use `Region` instead. The `M0199` diagnostic is retired
+      (#6357, #6378, #6403).
 
-  * feat!: the `flexible` keyword, an alias of `transient`, is removed. Write
-    `transient` instead; `flexible` is now an ordinary identifier (#6407).
+  * **Warnings that are now errors** (`-W <code>` downgrades a code again)
 
-  * feat!: an actor class whose declared return type is not `async T`, as in
-    `actor class C() : actor {} { ... }`, is now rejected with error `M0193`
-    instead of warning `M0135`. Write `: async actor {}`. `-A`, `-W` and `-E`
-    no longer accept `M0135` (#6407).
+    * Breaking change: code that traps or silently does not do what it says
+      is an error. Non-exhaustive patterns in `switch`, `let`, `catch`, `for`
+      and function parameters (M0145), `ignore` of an `async*` value (M0222),
+      misplaced parentheticals (M0210), unknown parenthetical attributes such
+      as `(with cycle = ...)` (M0212), record fields the expected type drops,
+      such as the typo in `{ user with emial = e }` (M0215), functions named
+      like system methods but not declared `system` (M0128), implicit oneway
+      `public func`s (M0242), and import paths whose letter case differs
+      from the file name (M0005). Fix with `let ... else`, a `case _` branch,
+      or an explicit `: ()` / `: async ()` annotation (#6410).
 
-  * chore!: `-g` emits just the DWARF line table, `.debug_line` and
-    `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
-    `.debug_rnglists` sections are gone: they only served a `.debug_info`
-    section that `moc` never emitted (#6406).
+    * Breaking change: an inferred type that collapses to `Any` or `None` is
+      an error. Array literals (M0074), `if` branches (M0081) and `switch`
+      branches (M0101) whose only common type is `Any`, and intersections
+      that are `None` (M0166) or unions that are `Any` (M0167) although
+      neither operand is. Joins into a smaller but useful type, such as the
+      common fields of two records, are unaffected. Annotate the type,
+      `let xs : [Any] = ...`, when `Any` is intended (#6412).
 
-  * fix: contextual dot resolves functions returning `async` when used in an
-    async context, e.g. `await x.asyncFunc()` (#6085).
+    * Breaking change: a comparison whose result is constant is error M0276.
+      It covers comparisons at a type with a single value, such as `Any`,
+      `{}` or `()`: `n == t` with `n : Nat` and `t : Text`, two records that
+      share no field, or `x == y` on type parameters. Comparisons at a common
+      type that still has content stay warning M0062 (#6415).
 
-  * feat!: `moc --check a.mo b.mo ...` checks each file on its own, in a scope
-    holding only its own imports, and checks every imported library once. One
-    call now gives the same diagnostics as one call per file, with duplicates
-    reported once, and an error in one file does not stop the others.
-    Breaking change: `moc` no longer concatenates several files into one
-    program. Compiling (`-c`, `--idl`) and running (`-r`) take exactly one
-    main file, and the REPL (`-i`) preloads at most one. Use imports to split
-    a program across files. moc.js `Motoko.run` no longer preloads files: its
-    first argument must be `[]` (#6397).
+    * Breaking change: an imported library must be a `module { ... }` or a
+      named actor class. A bare sequence of declarations is error M0142
+      instead of a deprecation warning; wrap it in `module { ... }` and mark
+      the exports `public`. `-A`, `-W` and `-E` no longer accept `M0142`
+      (#6407).
 
-  * feat: `do { ... }` and `do ? { ... }` work as operator operands:
-    `1 + do { 2 }`, `do { 1 } + 2`, `-do { ... }`, `debug_show do { ... }`.
-    A postfix form needs parentheses around the block, `(do { ... }).field` (#6395).
+    * Breaking change: an actor class must return `async`.
+      `actor class C() : actor {} { ... }` is error M0193 instead of warning
+      M0135; write `: async actor {}`. `-A`, `-W` and `-E` no longer accept
+      `M0135` (#6407).
 
-  * feat: unparenthesized `case` patterns combine with `or`, `and` and `: T`:
-    `case #less or #equal { ... }`, `case x : Nat { ... }`. `catch` accepts
-    the same patterns, e.g. `catch e : Error { ... }`. A variant payload always
-    takes its own parentheses, `case #tag(p)` (#6394).
+  * **Syntax**
 
-  * feat!: Search nested modules for implicit candidates. When module `M` is in
-    scope, implicit resolution will now consider candidates like `M.N.compare`,
-    up to a nesting depth of 8. Breaking change: code whose implicits previously
-    resolved uniquely may now be ambiguous with candidates from nested modules
-    (#6084).
+    * feat: `if`, `while`, `switch` and `for` heads need no parentheses.
+      `if f(x) { e1 } else { e2 }`, `while n > 0 { n -= 1 }`,
+      `switch p.x { ... }`, `for x in xs.vals() { }`; the branches or body
+      are then blocks. The old forms keep working. A record literal as head
+      needs parentheses, `switch ({ x = 0 }) { ... }` (M0272), and `break l e`
+      takes any expression (#6348, #6388).
 
-  * feat: syntax ergonomics, part 1 of the #6344 batch (#6358):
+    * Breaking change: a bare branch glued to the condition no longer parses.
+      After `if c` or `if (c)`, a glued `(`, `[` or prefix operator continues
+      the condition and a space starts the branch: `if xs[i] { }` indexes,
+      `if (c) [i] else []` branches, `if (c)-1 else 1` is rejected,
+      `if (c) -1 else 1` branches, and an operator spaced on both sides is
+      just an operator, `if n - 1 > 0 { }`. Add the space. A condition that is
+      more than a name or a parenthesized expression requires braced branches
+      (M0275): `if f(x) e1 else e2` is rejected. Outside conditions nothing
+      changes; the style guide has the two rules to follow (#6348, #6388).
 
-    * the semicolon between `switch` cases is now optional:
-      `switch (n) { case 0 { ... } case _ { ... } }`.
+    * Breaking change: `??` is whitespace-sensitive, like `<` and `>`.
+      `a ?? b` is null-coalescing and `??x` is two option introductions,
+      `?(?x)`. `a ??b` no longer parses, and the compatibility hack that read
+      the operator token `?? e` as `?(?e)` in expressions, types and patterns
+      is removed. The right-hand side is now an expression:
+      `opt ?? { x = 0 }` is a record literal, and a block must be written
+      `opt ?? do { ... }` (#6358).
 
-    * `case` patterns with deterministic extent no longer need parentheses:
-      `case null`, `case -1`, `case ?v`, `case #tag`, and `case #tag(pat)`.
-      A variant payload still requires its own parentheses (`case #tag(pat)`,
-      not `case #tag pat`), so that in `case #tag { ... }` the braces are
-      unambiguously the case body.
+    * feat: `switch` cases are lighter. The `;` between cases is optional, and
+      patterns with a deterministic extent need no parentheses: `case null`,
+      `case -1`, `case ?v`, `case #tag`, `case #tag(p)`, combined with `or`,
+      `and` and `: T` as in `case #less or #equal { ... }` or
+      `case x : Nat { ... }`. `catch` accepts the same patterns,
+      `catch e : Error { ... }`. A variant payload always takes its own
+      parentheses, `case #tag(p)`, never `case #tag p` (#6358, #6394).
 
-    * BREAKING: `??` is now whitespace-sensitive, mirroring the existing rule
-      for `<` and `>`: `a ?? b` (followed by whitespace) is the null-coalescing
-      operator, while `??x` (no whitespace) means two option introductions
-      `?(?x)`. Unspaced binary usage `a ??b` no longer parses; the prefix
-      compatibility hack that treated the operator token `?? e` as `?(?e)`
-      (likewise in types and patterns) is removed.
+    * feat: `do { ... }` and `do ? { ... }` work as operator operands:
+      `1 + do { 2 }`, `-do { ... }`, `debug_show do { ... }`. A postfix form
+      needs parentheses around the block, `(do { ... }).field` (#6395).
 
-    * BREAKING: the right-hand side of `??` is now parsed in expression
-      position: `opt ?? { x = 0 }` is a record literal (it previously did
-      not parse), and a block on the right must be written `opt ?? do { ... }`.
+    * feat: targeted parse errors with fix-its replace the generic M0001.
+      M0272 flags a record literal in block position, such as a `case` arm,
+      a function body or a `switch`/`if`/`while` head, and suggests nesting
+      it as the block's result; M0273 flags a block in record-literal
+      position and suggests `do { ... }`; M0274 flags a reserved keyword such
+      as `query` or `implicit` used as an identifier (#6358, #6348).
 
-    * new targeted parse errors with concrete fix-its: `M0272` (record literal
-      in block position, e.g. a `case` arm or function body, suggesting to
-      nest the record as the block's result), `M0273` (block in record-literal
-      position, suggesting `do { ... }`), and `M0274` (reserved keyword such
-      as `query` or `implicit` used as an identifier), replacing the generic
-      `M0001` in these situations.
+  * **Type checking**
 
-  * feat: syntax ergonomics, part 2 — unparenthesized heads (#6348, #6388, target syntax in #6352):
+    * Breaking change: `{ base with ... }` copies the base's `var` fields.
+      The result is the equivalent field-for-field record literal, so
+      mutating the copy does not mutate the base. This was error M0179, or
+      aliasing under the now-removed `--experimental-field-aliasing` flag;
+      code that relied on aliasing must keep the shared state in one object
+      referenced from both records (#6346).
 
-    * The condition of `if`/`while`, the scrutinee of `switch`, and the
-      collection of `for` may be any expression, without parentheses; the
-      branches or body are then blocks: `if f(x) { e1 } else { e2 }`,
-      `while n > 0 { n -= 1 }`, `switch p.x { ... }`, `for x in xs.vals() { }`.
-      The old forms keep working: `if (c) e1 else e2`, `switch (e) { ... }`,
-      `for (x in xs) { }`. A record literal as head needs parentheses,
-      `switch ({ x = 0 }) { ... }` (M0272); `break l e` takes any expression.
+    * Breaking change: implicit arguments are also found in nested modules.
+      When `M` is in scope, candidates such as `M.N.compare` count, up to a
+      nesting depth of 8. A call that resolved uniquely may now be ambiguous
+      (M0231); pass the argument explicitly (#6084).
 
-    * Where the parser sees `if c ...` or `if (c) ...`, spacing decides whether
-      the next token still belongs to the condition or starts a bare branch:
-      glued means condition, a space means branch, and an operator spaced on
-      both sides is just an operator. `if xs[i] { }` indexes,
-      `if (c) [i] else []` branches; `if (c) -1 else 1` branches,
-      `if n - 1 > 0 { }` and `if n-1 > 0 { }` subtract; `if (c) #less` is a
-      variant. Outside conditions nothing changes: `n -1` and `a #b` are the
-      operators they always were. The style guide has the two rules to follow.
+    * feat: read-only primitives no longer require the `system` capability,
+      so `query` and `composite query` methods can call them:
+      `Prim.getSelfPrincipal`, `Prim.envVarNames`, `Prim.envVar`,
+      `Prim.callerInfoSigner`, `Prim.callerInfoData`, `Prim.getCandidLimits`
+      and `Prim.getCandidTypeLimits`. An explicit `<system>` on a function
+      that does not need it is warning M0196, with a fix-it deleting it,
+      instead of an error (#6414).
 
-    * BREAKING: a bare branch glued to the condition no longer parses, since
-      the glued token now extends the condition: `if c[e] else []`,
-      `if (c)(e) else e'`, `if (c)-1 else 1`. Add the space. A condition
-      that is more than a name or a parenthesized expression requires braced
-      branches (M0275): `if f(x) e1 else e2` is rejected, brace or
-      parenthesize.
+    * feat: the dot-notation suggestion (M0236) is on by default. `moc` warns
+      about calls like `Map.filter(map, ...)` that could be
+      `map.filter(...)`; silence it with `-A M0236`. M0223 (redundant type
+      instantiation) and M0237 (redundant explicit arguments) stay off by
+      default (#6361).
 
-    * `M0272` additionally covers a record literal written directly as a
-      `switch`/`if`/`while` head, where the `{` already belongs to the
-      construct's body.
+    * bugfix: contextual dot resolves functions returning `async` in an async
+      context, e.g. `await x.asyncFunc()` (#6085).
 
-  * **Important:** classical (legacy, 32-bit) persistence is removed.
-    `moc` now always targets enhanced orthogonal persistence (EOP) with a
-    persistent 64-bit main memory, and 32-bit (`wasm32`) RTS builds no
-    longer exist. The classical-only flags `--legacy-persistence`,
-    `--copying-gc`, `--compacting-gc`, `--generational-gc`,
-    `--rts-stack-pages` and `--skip-gc-deprecation-warning` are removed and
-    are now rejected as unknown options, as are the inert `--incremental-gc`
-    and `--experimental-rtti`. `--enhanced-orthogonal-persistence` remains
-    accepted: it gates the classical->EOP upgrade (#6362, #6380).
+  * **Command line and tooling**
 
-  * Existing classical canisters are **not** orphaned: the runtime keeps
-    reading all earlier classical stable-memory formats, and a classical
-    canister migrates to enhanced persistence on its next upgrade. That
-    upgrade must be compiled with the explicit
-    `--enhanced-orthogonal-persistence` flag and must not use
-    `--enhanced-migration`: without the flag the new module traps with
-    "Detected implicit upgrade from classical orthogonal persistence to
-    enhanced orthogonal persistence", and with `--enhanced-migration` it
-    traps with "Cannot upgrade from classical orthogonal persistence with
-    --enhanced-migration". The migration is irreversible; later upgrades
-    need no flag. The graph-copy stabilization machinery that performs it
-    is retained.
+    * Breaking change: `moc --check a.mo b.mo` checks each file on its own.
+      Each file sees only its own imports, every imported library is checked
+      once, duplicate diagnostics are reported once, and an error in one file
+      does not stop the others. `moc` no longer concatenates several files
+      into one program: `-c`, `--idl` and `-r` take exactly one main file,
+      and the REPL (`-i`) preloads at most one. Use imports to split a
+      program across files (#6397).
 
-  * Because `--legacy-persistence` is gone, `moc` can no longer *produce*
-    classical canisters; projects that still need a classical module must
-    keep an older `moc` (e.g. 1.14.x). The incremental GC is the only GC;
-    the non-incremental classical GCs (copying, compacting, generational)
-    are removed.
+    * Breaking change: dead flags and primitives are removed.
+      `-no-system-api` (use `-wasi-system-api` to run outside the Internet
+      Computer, e.g. in `wasmtime`), `-ref-system-api` (the default needs no
+      flag), `--trap-on-call-error` (a failed call always throws an
+      `Error`), `--generate-view-queries` and the `__<var>` queries it
+      generated, `--(no-)experimental-multi-value`,
+      `--print-source-on-error`, `-no-link`, `--profile`, `--profile-file`,
+      `--profile-line-prefix` and `--profile-field`. `Prim.createActor` is
+      removed; use actor classes, or the management canister's
+      `create_canister` and `install_code` (#6357, #6403, #6405, #6411, #6417).
 
-  * `--enhanced-migration` no longer requires `--enhanced-orthogonal-persistence`
-    on the command line; the corresponding "flag requires" error is gone
-    because EOP is always in effect.
+    * chore: `-g` emits only the DWARF line table, `.debug_line` and
+      `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
+      `.debug_rnglists` sections only served a `.debug_info` section that
+      `moc` never emitted (#6406).
 
-  * Tests: the classical/32-bit test class and the persistence test markers
-    are removed, and the upgrades exercising the classical→EOP boundary now
-    install committed classical `old.wasm` fixtures built by `moc` 1.14.1
-    (see `test/run-drun/*/note.txt`). The classical-only `upgrade-hooks` and
-    `map-upgrades` tests are dropped; their EOP twins
-    `stabilization-upgrade-hooks` and `map-stabilization` cover the same
-    sequences. (#6362)
-  * breaking: Actors are now `persistent` by default: a bare `actor`/`actor class`
-    declaration makes its fields implicitly `stable`. The former default, in
-    which actor fields were implicitly `transient`, can no longer be restored
-    via a compiler flag — mark fields `transient` explicitly instead. The
-    `--default-persistent-actors`, `--require-persistent-actors` and
-    `--legacy-actors` flags have been removed (#6356). Diagnostics and
-    documentation no longer treat persistence as a choice: they describe actors
-    as persistent by default and only call out `transient` as the explicit
-    exception.
+    * Breaking change: no more Intel-Mac release binaries. The
+      `motoko-Darwin-x86_64` tarball and its CI legs are dropped; on an Intel
+      Mac, build from source. x86_64 Linux, aarch64 Linux and Apple Silicon
+      binaries continue. The `motoko-base-library.tar.gz` artifact is also
+      dropped; `motoko-core.tar.gz` is unaffected (#6355).
 
-  * feat!: Remove the `stableMemory*` primitives that backed the deprecated
-    `ExperimentalStableMemory` library. `Prim.stableMemory*` no longer exists, so
-    importing `mo:base/ExperimentalStableMemory` fails to type-check; use the
-    `Region` library instead. The `M0199` diagnostic is retired with them (#6378).
+  * **Bug fixes**
 
-  * feat!: `{ base with ... }` record-update now shallow-copies a base's
-    mutable (`var`) fields into fresh cells instead of erroring with M0179 or,
-    under the experimental flag, aliasing them to the base's cells. The result
-    is exactly the equivalent field-for-field record literal, so mutating the
-    copy does not mutate the base and vice versa. The now-redundant
-    `--experimental-field-aliasing` flag is removed; aliasing is no longer
-    supported. Breaking change: inherited `var` fields from a base now copy
-    instead of alias, so code relying on the experimental aliasing flag must
-    use explicit `var x = base.x` copies or a shared reference (#6346).
+    * bugfix: generated Candid never reuses a user-written type name. A
+      suffixed name `moc` picks for a generic instantiation or a same-named
+      type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
+      or silently emits a wrong type when a user type has that name (#6416).
 
-  * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
-    queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
-    the `--experimental-stable-memory` flag. Using the deprecated
-    `ExperimentalStableMemory` library (or its primitives) is now an unconditional
-    `M0199` error; use the `Region` library instead (#6357).
+    * bugfix: `--error-format=json` byte offsets are correct in files with
+      CRLF line endings. `byte_start`/`byte_end` were one byte early on every
+      line after a CRLF, and a form feed, NEL, U+2028 or U+2029 in a comment
+      or text literal shifted every later offset, so tools applying edits by
+      offset, such as `mops check --fix`, garbled the file. The M0236
+      suggestion is also no longer dropped after a line ending in a lone CR
+      (#6393).
 
-  * feat: the contextual dot suggestion (`M0236`) is now on by default: `moc`
-    warns about calls like `Map.filter(map, ...)` that could be written with
-    dot notation `map.filter(...)`. Silence with `-A M0236`. The related
-    suggestions `M0223` (redundant type instantiation) and `M0237` (redundant
-    explicit arguments) remain off by default (allow with `-W`). (#6361)
-
-  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
-    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
-    the compiler nor its runtime are built or shipped for Intel Macs anymore.
-    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
-    continue to be produced. Users on Intel Macs should build from source.
-    The `motoko-base-library.tar.gz` release artifact is also dropped;
-    `motoko-core.tar.gz` is unaffected. (#6355)
-
-  * bugfix: the `M0236` and `M0237` edits that remove the last argument of a call now remove its trailing comma too, so `mops check --fix` no longer turns a multi-line call like `f(\n  a,\n  Nat.compare,\n)` into an `M0001` syntax error. Removing a juxtaposed sole argument (`f x`) now leaves `f ()` (#6392).
-
-  * bugfix: `--error-format=json` reports correct `byte_start`/`byte_end` in
-    files with CRLF line endings. On every line after a CRLF they were one
-    byte early, so tools applying the suggested edits by byte offset (e.g.
-    `mops check --fix`) garbled the file. A form feed, NEL, U+2028 or U+2029
-    in a comment or text literal likewise shifted every later offset (#6393).
-
-  * feat!: the `-ref-system-api` flag is removed. It selected the compile
-    mode for `ic-ref`, the retired reference implementation of the Internet
-    Computer, which the compiler had long treated exactly like the default
-    mode. Drop it from build scripts; the default needs no flag (#6405, #6417).
-
-  * chore!: `-g` emits just the DWARF line table, `.debug_line` and
-    `.debug_line_str`. The `.debug_abbrev`, `.debug_addr` and
-    `.debug_rnglists` sections are gone: they only served a `.debug_info`
-    section that `moc` never emitted (#6406).
-
-  * bugfix: the dot-notation suggestion (`M0236`) is no longer silently dropped
-    after a line that ends with a lone CR (#6393).
-
-  * feat!: remove dead flags and primitives (#6403):
-
-    * Canisters no longer export the `__motoko_stable_var_info` query, which
-      always trapped under enhanced orthogonal persistence, and
-      `Prim.stableVarQuery` is gone. `motoko-base` re-exports it as
-      `ExperimentalStableMemory.stableVarQuery`, so `base` no longer
-      typechecks with this `moc`; `core` is unaffected.
-
-    * `Prim.createActor` is removed. Use actor classes, or the management
-      canister's `create_canister` and `install_code`.
-
-    * The `--trap-on-call-error` flag, which emulated moc < 0.8.0, is removed:
-      a failed call now always throws an `Error`.
-
-    * The unused `--print-source-on-error`, `-no-link`, `--profile`,
-      `--profile-file`, `--profile-line-prefix` and `--profile-field` flags
-      are removed.
-
-  * feat!: the `-no-system-api` flag is removed. It compiled to a bare Wasm
-    module with no `ic0` or WASI imports, no printing, and a Wasm start
-    function in place of `canister_init`. Use `-wasi-system-api` to run
-    outside the Internet Computer, e.g. in `wasmtime` (#6411).
+    * bugfix: the M0236 and M0237 fix-its that remove a call's last argument
+      remove its trailing comma too, so `mops check --fix` no longer turns a
+      multi-line call into an M0001 syntax error. Removing a juxtaposed sole
+      argument (`f x`) leaves `f ()` (#6392).
 
 * motoko-js (`moc.js`)
 
-  * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.
-    `"incremental"`, `"enhancedOP"`, `"copying"`, `"marking"`, `"generational"`
-    and `"classicOP"` all raise `Invalid_argument` (#6362, #6380).
+  * Breaking change: `Motoko.run` no longer preloads files. Its first argument
+    must be `[]`; use imports instead (#6397).
+
+  * Breaking change: `gcFlags` accepts only `"force"` and `"scheduling"`.
+    `"incremental"`, `"enhancedOP"`, `"copying"`, `"marking"`,
+    `"generational"` and `"classicOP"` raise `Invalid_argument` (#6362, #6380).
 
 ## 1.16.1 (2026-09-16)
 
