@@ -11,7 +11,7 @@
     operand is. Joins into a smaller but useful type, such as two records
     into their common fields, are unaffected. Annotate the expected type
     (`let xs : [Any] = ...`) when `Any` is intended, or pass `-W <code>` to
-    downgrade a code to a warning again (#PR).
+    downgrade a code to a warning again (#6412).
 
   * feat!: Diagnostics that flag code which traps or silently does not do what
     it says are now errors by default: non-exhaustive patterns in `switch`,
