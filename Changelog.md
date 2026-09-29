@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * bugfix: Generating Candid no longer crashes with `Not_found`, or silently
+    emits a wrong type, when a suffixed name moc picks for a generic
+    instantiation or a same-named type (e.g. `Foo_1` for `Foo<Text>`) is also
+    the name of a user-written type (#PRNUM).
+
   * feat: Read-only primitives no longer require the `system` capability, so
     `query` and `composite query` methods can call them:
     `Prim.getSelfPrincipal`, `Prim.envVarNames`, `Prim.envVar`,

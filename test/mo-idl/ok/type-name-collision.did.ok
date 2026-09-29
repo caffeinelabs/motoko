@@ -1,0 +1,14 @@
+type Rec_2 = record {x: text;};
+type Rec_1 = record {y: Rec_2;};
+type Rec = record {x: nat;};
+type Gen_1_1 = record {y: bool;};
+type Gen_1 = record {x: text;};
+type Gen = record {x: nat;};
+type Dup__1_1 = record {c: bool;};
+type Dup__1 = record {b: text;};
+type Dup = record {a: nat;};
+service : {
+  dup: (_a: Dup, _b: Dup__1, _c: Dup__1_1) -> ();
+  gen: (_a: Gen, _b: Gen_1, _c: Gen_1_1) -> ();
+  rec: (_a: Rec, _b: Rec_1) -> ();
+}

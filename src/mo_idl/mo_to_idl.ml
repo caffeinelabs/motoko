@@ -35,35 +35,42 @@ module MakeState() = struct
         then c else '_'
       ) name
 
+  (* Candid names handed out so far; a suffixed name can equal a
+     user-written one (e.g. `Foo_1`), so each must be checked for reuse. *)
+  let taken = ref Set.empty
+
   let monomorphize_con vs c =
-    let name = normalize_name (Cons.name c) in
     match Cons.kind c with
     | Def _ ->
       let id = (c, vs) in
-      let (k, n) =
-        match TypeMap.find_opt id !type_map with
-        | None ->
-          (match Stamp.find_opt c !stamp with
+      (match TypeMap.find_opt id !type_map with
+       | Some name -> name
+       | None ->
+         let name = normalize_name (Cons.name c) in
+         let (k, n) =
+           match Stamp.find_opt c !stamp with
            | None ->
              let keys = Stamp.keys !stamp in
-             let k = List.length (List.filter (fun d -> Cons.name c = Cons.name d) keys) in
-             stamp := Stamp.add c (k, 0) !stamp;
-             type_map := TypeMap.add id (k, 0) !type_map;
-             (k, 0)
-           | Some (k, n) ->
-             stamp := Stamp.add c (k, n + 1) !stamp;
-             type_map := TypeMap.add id (k, n + 1) !type_map;
-             (k, n + 1))
-        | Some kn -> kn
-      in
-      begin
-        match (k, n) with
-        | _ when k < 0 || n < 0 -> assert false
-        | (0, 0) -> name
-        | (0, n) -> Printf.sprintf "%s_%d" name n
-        | (k, 0) -> Printf.sprintf "%s__%d" name k
-        | (k, n) -> Printf.sprintf "%s__%d_%d" name k n
-      end
+             (List.length (List.filter (fun d -> Cons.name c = Cons.name d) keys), 0)
+           | Some (k, n) -> (k, n + 1)
+         in
+         let rec pick n =
+           let candidate =
+             match (k, n) with
+             | _ when k < 0 || n < 0 -> assert false
+             | (0, 0) -> name
+             | (0, n) -> Printf.sprintf "%s_%d" name n
+             | (k, 0) -> Printf.sprintf "%s__%d" name k
+             | (k, n) -> Printf.sprintf "%s__%d_%d" name k n
+           in
+           if Set.mem candidate !taken then pick (n + 1) else begin
+             stamp := Stamp.add c (k, n) !stamp;
+             type_map := TypeMap.add id candidate !type_map;
+             taken := Set.add candidate !taken;
+             candidate
+           end
+         in
+         pick n)
     | _ -> assert false
 
   let prim = let open I in
