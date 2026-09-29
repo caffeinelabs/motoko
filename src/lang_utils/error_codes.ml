@@ -244,8 +244,8 @@ let warning_codes = [
   "M0146", None, "Pattern is never matched";
   "M0154", Some([%blob "lang_utils/error_codes/M0154.md"]), "Deprecation annotation";
   "M0155", Some([%blob "lang_utils/error_codes/M0155.md"]), "Inferred type Nat for subtraction";
-  "M0166", None, "Type intersection results in abstract type";
-  "M0167", None, "Type union results in bottom type";
+  "M0166", None, "Type intersection results in empty type `None`";
+  "M0167", None, "Type union results in top type `Any`";
   "M0190", None, "Types inconsistent for alternative pattern variables, losing information";
   "M0191", None, "Code requires Wasm features ... to execute";
   "M0194", Some([%blob "lang_utils/error_codes/M0194.md"]), "Unused identifier warning";

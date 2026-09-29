@@ -86,6 +86,12 @@ let default_warning_levels = M.empty
   |> M.add "M0215" (Error : lint_level) (* unexpected record field is dropped, e.g. a typo in `{ r with ... }` *)
   |> M.add "M0222" (Error : lint_level) (* ignored `async*` never runs *)
   |> M.add "M0242" (Error : lint_level) (* implicit oneway hides failures from callers *)
+  (* an inferred join to `Any` or meet to `None` yields an unusable type *)
+  |> M.add "M0074" (Error : lint_level) (* array elements joined into `Any` *)
+  |> M.add "M0081" (Error : lint_level) (* `if` branches joined into `Any` *)
+  |> M.add "M0101" (Error : lint_level) (* `switch` branches joined into `Any` *)
+  |> M.add "M0166" (Error : lint_level) (* type intersection collapses to `None` *)
+  |> M.add "M0167" (Error : lint_level) (* type union collapses to `Any` *)
 
 let warning_levels = ref default_warning_levels
 

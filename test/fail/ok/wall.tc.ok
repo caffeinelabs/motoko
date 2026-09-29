@@ -2,6 +2,6 @@ wall.mo:6.6-6.10: type error [M0145], this pattern of type
   Bool
 does not cover value
   false
-wall.mo:10.9-10.18: warning [M0074], this array has type
+wall.mo:10.9-10.18: type error [M0074], this array has type
   [Any]
 because elements have inconsistent types

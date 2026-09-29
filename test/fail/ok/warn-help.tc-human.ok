@@ -1,17 +1,17 @@
 M0005 (E) Case mismatch between import and filename
 M0061 (W) Comparing abstract type to itself at supertype
 M0062 (W) Comparing incompatible type at common supertype
-M0074 (W) Array elements have inconsistent types
-M0081 (W) If branches have inconsistent types
+M0074 (E) Array elements have inconsistent types
+M0081 (E) If branches have inconsistent types
 M0089 (E) Redundant ignore
-M0101 (W) Switch with inconsistent branch types
+M0101 (E) Switch with inconsistent branch types
 M0128 (E) Function with system function name but wrong visibility
 M0145 (E) Pattern does not cover value
 M0146 (W) Pattern is never matched
 M0154 (W) Deprecation annotation
 M0155 (W) Inferred type Nat for subtraction
-M0166 (W) Type intersection results in abstract type
-M0167 (W) Type union results in bottom type
+M0166 (E) Type intersection results in empty type `None`
+M0167 (E) Type union results in top type `Any`
 M0190 (W) Types inconsistent for alternative pattern variables, losing information
 M0191 (W) Code requires Wasm features ... to execute
 M0194 (E) Unused identifier warning

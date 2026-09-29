@@ -5,7 +5,7 @@ does not cover value
     ┌─ wall.mo:6:6
   6 │   let true = true;
     │       ^^^^ 
-warning[M0074]: this array has type
+error[M0074]: this array has type
   [Any]
 because elements have inconsistent types
     ┌─ wall.mo:10:9

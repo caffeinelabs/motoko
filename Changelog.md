@@ -4,6 +4,15 @@
 
 * motoko (`moc`)
 
+  * feat!: An inferred type that collapses to `Any` or `None` is now an error
+    by default: array literals (M0074), `if` branches (M0081) and `switch`
+    branches (M0101) whose only common type is `Any`, and type intersections
+    that are `None` (M0166) or unions that are `Any` (M0167) although neither
+    operand is. Joins into a smaller but useful type, such as two records
+    into their common fields, are unaffected. Annotate the expected type
+    (`let xs : [Any] = ...`) when `Any` is intended, or pass `-W <code>` to
+    downgrade a code to a warning again (#PR).
+
   * feat!: Diagnostics that flag code which traps or silently does not do what
     it says are now errors by default: non-exhaustive patterns in `switch`,
     `let`, `catch`, `for` and function parameters (M0145), `ignore` of an

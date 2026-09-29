@@ -40,19 +40,19 @@ cannot produce expected type
     ┌─ bounds-mismatch.mo:38:5
  38 │    f(func<A <: Int>() {});  // error
     │      ^^^^^^^^^^^^^^^^^^^ 
-warning[M0074]: this array has type
+error[M0074]: this array has type
   [Any]
 because elements have inconsistent types
     ┌─ bounds-mismatch.mo:50:11
  50 │    let _ = [func() {}, func<A>() {}];  // warn
     │            ^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0074]: this array has type
+error[M0074]: this array has type
   [Any]
 because elements have inconsistent types
     ┌─ bounds-mismatch.mo:54:11
  54 │    let _ = [func<A>() {}, func<A <: Nat>() {}];  // warn
     │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0074]: this array has type
+error[M0074]: this array has type
   [Any]
 because elements have inconsistent types
     ┌─ bounds-mismatch.mo:58:11
@@ -114,7 +114,7 @@ cannot produce expected type
     ┌─ bounds-mismatch.mo:120:21
 120 │  func f(x : A) : B = x;
     │                      ^ 
-warning[M0074]: this array has type
+error[M0074]: this array has type
   [Any]
 because elements have inconsistent types
     ┌─ bounds-mismatch.mo:125:21
