@@ -1,0 +1,9 @@
+struct-eq.mo:6.8-6.20: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+struct-eq.mo:9.8-9.16: warning [M0276], this comparison always has the same result, because it is performed at type
+  {#x}
+which has a single value
+struct-eq.mo:27.33-27.41: warning [M0276], this comparison always has the same result, because it is performed at type
+  ((), T)
+which has a single value

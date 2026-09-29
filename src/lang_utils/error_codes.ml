@@ -276,7 +276,7 @@ let warning_codes = [
   "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
   "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
-  "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison is always `true` or `false`";
+  "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
 ]
 
 let try_find_explanation code =

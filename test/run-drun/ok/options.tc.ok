@@ -1,0 +1,54 @@
+options.mo:24.41-24.47: warning [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+options.mo:36.42-36.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+options.mo:49.43-49.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+options.mo:67.41-67.47: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+options.mo:79.42-79.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+options.mo:92.43-92.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+options.mo:363.41-363.47: warning [M0276], this comparison always has the same result, because it is performed at type
+  {#lab}
+which has a single value
+options.mo:375.42-375.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  {#lab}
+which has a single value
+options.mo:388.43-388.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  {#lab}
+which has a single value
+options.mo:406.41-406.47: warning [M0276], this comparison always has the same result, because it is performed at type
+  {fld : ()}
+which has a single value
+options.mo:418.42-418.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  {fld : ()}
+which has a single value
+options.mo:431.43-431.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  {fld : ()}
+which has a single value
+options.mo:491.41-491.47: warning [M0276], this comparison always has the same result, because it is performed at type
+  ()
+which has a single value
+options.mo:503.42-503.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  ()
+which has a single value
+options.mo:516.43-516.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  ()
+which has a single value
+options.mo:656.41-656.49: warning [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+options.mo:661.44-661.52: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+options.mo:662.40-662.48: warning [M0276], this comparison always has the same result, because it is performed at type
+  ()
+which has a single value

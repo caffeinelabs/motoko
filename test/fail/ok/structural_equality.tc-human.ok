@@ -19,39 +19,25 @@ and
     ┌─ structural_equality.mo:6:1
   6 │  A() == A();
     │  ^^^^^^^^^^ 
-error[M0276]: this comparison is always `true`: the operand types
-  {x : Nat}
-and
-  {var x : Nat}
-have only the common type
+error[M0276]: this comparison always has the same result, because it is performed at type
   {}
 which has a single value
     ┌─ structural_equality.mo:8:9
   8 │  ignore ({ x = 10 } == { var x = 10 });
     │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-error[M0276]: this comparison is always `true`: the operand types
-  Nat
-and
-  Text
-have only the common type
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
 which has a single value
     ┌─ structural_equality.mo:10:8
  10 │  assert(10 == "hi");
     │         ^^^^^^^^^^ 
-error[M0276]: this comparison is always `true`: abstract type
-  A
-is compared at its bound
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
 which has a single value
     ┌─ structural_equality.mo:12:37
  12 │  func myEq<A>(x : A, y : A) : Bool = x == y;
     │                                      ^^^^^^ 
-error[M0276]: this comparison is always `true`: the operand types
-  A
-and
-  B
-have only the common type
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
 which has a single value
     ┌─ structural_equality.mo:13:41

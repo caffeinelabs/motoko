@@ -4,14 +4,14 @@
 
 * motoko (`moc`)
 
-  * feat!: An `==` or `!=` comparison whose operands only have a
-    single-valued type in common, such as `Any`, `{}` or `{x : {}}`, is now
-    error M0276 by default, because it is always `true` or always `false`.
-    Examples are `n == t` with `n : Nat` and `t : Text`, two records that
-    share no field, and `x == y` on type parameters. Comparisons at a common
-    type that still has content, such as the shared fields of two records, an
-    actor, an option or a variant with several tags, remain warning M0062.
-    Pass `-W M0276` to downgrade it to a warning (#6415).
+  * feat!: A comparison performed at a type with a single value, such as
+    `Any`, `{}`, `()` or `{x : {}}`, is now error M0276 by default, because
+    its result is constant. Examples are `n == t` with `n : Nat` and
+    `t : Text`, two records that share no field, and `x == y` on type
+    parameters. Comparisons at a common type that still has content, such as
+    the shared fields of two records, an actor, an option or a variant with
+    several tags, remain warning M0062. Pass `-W M0276` to downgrade it to a
+    warning (#6415).
 
   * feat: Read-only primitives no longer require the `system` capability, so
     `query` and `composite query` methods can call them:
