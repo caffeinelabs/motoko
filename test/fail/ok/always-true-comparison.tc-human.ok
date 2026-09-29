@@ -1,0 +1,78 @@
+error[M0276]: this comparison is always `true`: the operand types
+  Nat
+and
+  Text
+have only the common type
+  Any
+which has a single value
+    ┌─ always-true-comparison.mo:3:37
+  3 │  func f1(n : Nat, t : Text) : Bool = n == t;
+    │                                      ^^^^^^ 
+error[M0276]: this comparison is always `false`: the operand types
+  Nat
+and
+  Text
+have only the common type
+  Any
+which has a single value
+    ┌─ always-true-comparison.mo:4:37
+  4 │  func f2(n : Nat, t : Text) : Bool = n != t;
+    │                                      ^^^^^^ 
+error[M0276]: this comparison is always `true`: the operand types
+  {id : Nat}
+and
+  {userId : Nat}
+have only the common type
+  {}
+which has a single value
+    ┌─ always-true-comparison.mo:5:58
+  5 │  func f3(a : { id : Nat }, b : { userId : Nat }) : Bool = a == b;
+    │                                                           ^^^^^^ 
+error[M0276]: this comparison is always `true`: the operand types
+  {x : {p : Nat}}
+and
+  {x : {q : Nat}}
+have only the common type
+  {x : {}}
+which has a single value
+    ┌─ always-true-comparison.mo:6:68
+  6 │  func f4(a : { x : { p : Nat } }, b : { x : { q : Nat } }) : Bool = a == b;
+    │                                                                     ^^^^^^ 
+error[M0276]: this comparison is always `false`: the operand types
+  ({p : Nat}, {})
+and
+  ({q : Nat}, {r : Text})
+have only the common type
+  ({}, {})
+which has a single value
+    ┌─ always-true-comparison.mo:7:74
+  7 │  func f5(a : ({ p : Nat }, {}), b : ({ q : Nat }, { r : Text })) : Bool = a != b;
+    │                                                                           ^^^^^^ 
+error[M0276]: this comparison is always `true`: the operand types
+  {#a}
+and
+  {#a : Nat}
+have only the common type
+  {#a : Any}
+which has a single value
+    ┌─ always-true-comparison.mo:8:44
+  8 │  func f6(a : {#a}, b : {#a : Nat}) : Bool = a == b;
+    │                                             ^^^^^^ 
+error[M0276]: this comparison is always `true`: the operand types
+  A
+and
+  B
+have only the common type
+  Any
+which has a single value
+    ┌─ always-true-comparison.mo:9:38
+  9 │  func f7<A, B>(a : A, b : B) : Bool = a == b;
+    │                                       ^^^^^^ 
+error[M0276]: this comparison is always `true`: abstract type
+  A
+is compared at its bound
+  Any
+which has a single value
+    ┌─ always-true-comparison.mo:10:35
+ 10 │  func f8<A>(a : A, b : A) : Bool = a == b;
+    │                                    ^^^^^^ 

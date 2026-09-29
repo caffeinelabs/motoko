@@ -92,6 +92,7 @@ let default_warning_levels = M.empty
   |> M.add "M0101" (Error : lint_level) (* `switch` branches joined into `Any` *)
   |> M.add "M0166" (Error : lint_level) (* type intersection collapses to `None` *)
   |> M.add "M0167" (Error : lint_level) (* type union collapses to `Any` *)
+  |> M.add "M0276" (Error : lint_level) (* `==`/`!=` at a single-valued common type is constant *)
 
 let warning_levels = ref default_warning_levels
 

@@ -1,0 +1,21 @@
+always-true-comparison-warn.mo:3.9-3.34: warning [M0276], this comparison is always `true`: the operand types
+  Nat
+and
+  Text
+have only the common type
+  Any
+which has a single value
+always-true-comparison-warn.mo:4.13-4.38: warning [M0276], this comparison is always `false`: the operand types
+  Nat
+and
+  Text
+have only the common type
+  Any
+which has a single value
+always-true-comparison-warn.mo:5.9-5.37: warning [M0276], this comparison is always `true`: the operand types
+  {id : Nat}
+and
+  {userId : Nat}
+have only the common type
+  {}
+which has a single value

@@ -2500,7 +2500,21 @@ and infer_exp'' env exp : T.typ =
       if not (Operator.has_relop op t) then
         error_bin_op env exp.at t1 t2;
       if not (eq env exp1.at t t1 || eq env exp2.at t t2) && not (sub env exp1.at T.nat t1 && sub env exp2.at T.nat t2) then
-        if eq env exp.at t1 t2 then
+        if T.singleton t && (op = Operator.EqOp || op = Operator.NeqOp) then
+          if eq env exp.at t1 t2 then
+            warn env exp.at "M0276"
+              "this comparison is always `%b`: abstract type%a\nis compared at its bound%a\nwhich has a single value"
+              (op = Operator.EqOp)
+              display_typ_expand t1
+              display_typ_expand t
+          else
+            warn env exp.at "M0276"
+              "this comparison is always `%b`: the operand types%a\nand%a\nhave only the common type%a\nwhich has a single value"
+              (op = Operator.EqOp)
+              display_typ_expand t1
+              display_typ_expand t2
+              display_typ_expand t
+        else if eq env exp.at t1 t2 then
           warn env exp.at "M0061"
             "comparing abstract type%a\nto itself at supertype%a"
             display_typ_expand t1
