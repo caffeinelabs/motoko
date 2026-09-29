@@ -2,6 +2,9 @@
 
 ## Next
 
+* Upgrading from `moc` 1.x: the [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
+  lists every breaking change below with its fix (#PRNUM).
+
 * motoko (`moc`)
 
   * bugfix: Generating Candid no longer crashes with `Not_found`, or silently

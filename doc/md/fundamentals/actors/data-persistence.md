@@ -54,14 +54,10 @@ In general, classes are not stable because they can contain local functions. How
 
 For variables that do not have a stable type, there are two options for making them stable:
 
-1. Use a `stable` module for the type, such as:
-
-  - [StableBuffer](https://github.com/canscale/StableBuffer)
-  - [StableHashMap](https://github.com/canscale/StableHashMap)
-  - [StableRBTree](https://github.com/canscale/StableRBTree)
+1. Use a stable data structure. The data structures in [`core`](https://mops.one/core), such as `Map`, `Set`, `List` and `Queue` and their `pure/` counterparts, all have stable types.
 
 :::note
-Unlike stable data structures in the Rust CDK, these modules do not use stable memory but instead rely on orthogonal persistence. The adjective "stable" only denotes a stable type in Motoko.
+Unlike stable data structures in the Rust CDK, these data structures do not use stable memory but instead rely on orthogonal persistence. The adjective "stable" only denotes a stable type in Motoko.
 :::
 
 2. Extract the state in a stable type and wrap it in the non-stable type.
@@ -71,7 +67,7 @@ For example, the stable type `TemperatureSeries` covers the persistent data, whi
 ```motoko no-repl file=<motokoExamples>/WeatherActor.mo
 ```
 
-__Deprecated__: [Pre- and post-upgrade hooks](#preupgrade-and-postupgrade-system-methods) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
+__Deprecated__: [Pre- and post-upgrade hooks](#legacy-features) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
 
 ## Stable type signatures
 
@@ -182,7 +178,7 @@ The pre- and post-upgrade system methods are deprecated (warning M0270) in favor
 :::
 
 Motoko supports user-defined upgrade hooks that run immediately before and after an upgrade. These upgrade hooks allow triggering additional logic on upgrade.
-They are declared as `system` functions with special names, `preugrade` and `postupgrade`. Both functions must have type `: () → ()`.
+They are declared as `system` functions with special names, `preupgrade` and `postupgrade`. Both functions must have type `: () → ()`.
 
 If `preupgrade` raises a trap, hits the instruction limit, or hits another IC computing limit, the upgrade can no longer succeed and the canister is stuck with the existing version.
 
