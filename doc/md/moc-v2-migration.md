@@ -50,7 +50,7 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [`moc --check` per file](#moc---check-checks-each-file-on-its-own) | M0057 unbound variable; `-r expects exactly one source file` | use imports |
 | [New default warnings](#new-default-warnings) | M0217, M0236 | fix them, or `-A` them if you build with `-Werror` |
 | [`moc.js` API](#mocjs) | `Invalid_argument` | `Motoko.run([], ...)`; `gcFlags` `"force"`/`"scheduling"` only |
-| [Release artifacts](#release-artifacts) | no Intel-Mac or `base` tarball | stay on moc 1 on Intel Macs, or use `moc.js` |
+| [Release artifacts](#release-artifacts) | no Intel-Mac or `base` tarball | on Intel Macs build from source, stay on moc 1, or use `moc.js` |
 
 ## Persistence
 
@@ -74,7 +74,7 @@ actor {
 };
 ```
 
-With moc 1.16 defaults, a bare `actor` was already an error (M0220), so your code either says `persistent actor` or marks every field. Both compile under 2.0 without changes.
+With moc 1.16 defaults, an actor without `persistent` was already an error (M0219 on each unmarked field, M0220 on the actor), so your code says `persistent actor` and compiles under 2.0 without changes.
 
 If you built with `--legacy-actors`, unmarked fields used to be transient and are now persistent. Mark every field that should reset on upgrade `transient`. A field whose type cannot be persisted, such as a function or an object with methods, is now error M0131 until you mark it:
 
@@ -222,7 +222,7 @@ A case body is a block, so a record literal in it must be nested: `case null { {
 
 ### `.vals()` is deprecated
 
-The built-in `.vals()` on arrays, `Text` and `Blob` is deprecated with warning M0269. Use `.values()`:
+The built-in `.vals()` on arrays and `Blob` is deprecated with warning M0269. Use `.values()`:
 
 ```motoko no-repl
 for x in xs.values() { total += x };
@@ -382,5 +382,5 @@ Two warnings are new by default. They matter mainly if you build with `-Werror`:
 
 ## Release artifacts
 
-- There is no Intel-Mac build (`motoko-Darwin-x86_64`). On an Intel Mac, stay on `moc` 1, or use `moc.js`. Apple Silicon (`motoko-Darwin-arm64`), `x86_64` Linux and `aarch64` Linux builds are unchanged.
+- There is no Intel-Mac build (`motoko-Darwin-x86_64`). On an Intel Mac, build from source, stay on `moc` 1, or use `moc.js`. Apple Silicon (`motoko-Darwin-arm64`), `x86_64` Linux and `aarch64` Linux builds are unchanged.
 - The `motoko-base-library.tar.gz` artifact is gone. Get `base` from [mops](https://mops.one/base); `motoko-core.tar.gz` is unchanged.
