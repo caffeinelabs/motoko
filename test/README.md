@@ -26,8 +26,24 @@ to run and
 
     run-test -a run/fac.mo
 
-to accept. Check `run-test --help` for other flags (e.g. drun-mode), and see
-`Makefile` in each subdirectory for the right flags for that directory.
+to accept. `run-test` takes the flags `-a` (accept), `-d` (drun), `-p` (perf),
+`-t` (typecheck only), `-i` (IDL) and `-s` (silent); see the `Makefile` in each
+subdirectory for the right flags for that directory.
+
+For anything more than a single file, use `test-runner` instead: it runs tests
+in parallel and infers the per-directory `run-test` flags from the path, so the
+`Makefile` flags above are not needed. Pass a path that still contains the
+directory's name (`test/fail`), because that is what the flag inference matches
+on — `cd`ing into the directory and passing `.` silently loses the `-d`/`-t`
+flags. From the repo root:
+
+    test-runner -b test/fail           # a directory
+    test-runner -b -a test/fail        # ...and accept/regenerate ok/
+    test-runner -b -j 10 test/run-drun # cap the parallelism
+
+Only `run/`, `run-drun/`, `fail/` and `trap/` are covered. Elsewhere it would
+find the tests but run them with the wrong flags — `mo-idl/` needs `-i`, and
+`perf/` and `bench/` need `-p` — so use `make` in those directories.
 
 Adding a new test
 -----------------
@@ -38,7 +54,8 @@ Adding a new test
 
 `run-test` takes various flags, e.g. `-d` to compile actors instead of program,
 `-p` for performance measurements. Each subdirectory has a `Makefile` specifying
-these flags.
+these flags. For the four directories `test-runner` knows about, `make all` and
+`make accept` run the tests in parallel instead of one at a time.
 
 Kinds of tests
 --------------
