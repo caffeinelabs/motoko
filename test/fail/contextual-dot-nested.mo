@@ -1,7 +1,7 @@
-import Vec "../run/contextual-dot/Vec";
-import _Vec2 "../run/contextual-dot/Vec";
-import Facade "../run/contextual-dot/Facade";
-import Facade2 "../run/contextual-dot/Facade2";
+import Vec "contextual-dot/Vec";
+import _Vec2 "contextual-dot/Vec";
+import Facade "contextual-dot/Facade";
+import Facade2 "contextual-dot/Facade2";
 
 // One library imported twice, or reached through two facades and not
 // imported itself, is ambiguous for both features, since the search does not
