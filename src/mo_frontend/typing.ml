@@ -1591,15 +1591,6 @@ let is_module_typ (n, t) =
 
 let is_lib_module (n, (info : lib_info)) = is_module_typ (n, info.lib_typ)
 
-let is_val_module (n, ((t, _, _, _) : val_info)) =
-  is_module_typ (n, t)
-
-let module_exp in_libs module_ref =
-  if not in_libs then
-    VarE (module_ref @~ no_region)
-  else
-    ImplicitLibE module_ref
-
 let dot_module_exp module_exp name =
   DotE(module_exp @? name.at, name, ref None)
 
@@ -1665,6 +1656,73 @@ let render_derivation_leaves env = function
   if leaves = [] then [] else
   let lines = List.map (fun l -> "\n  " ^ l) leaves in
   ["Implicit derivation failed:" ^ String.concat "" lines]
+
+(* Implicit arguments and contextual dot both search the modules in scope and
+   their nested modules for candidate fields *)
+
+(* Modules can be defined recursively, so we set a conservative limit for search depth *)
+let max_search_depth = 8
+
+module type CandidateSource = sig
+  type entry
+  val entries : env -> entry T.Env.t
+  val get_typ : entry -> T.typ
+  val make_ref_exp : string -> exp'
+  val search_depth : env -> T.lab -> int
+end
+
+module ValCandidateSource : CandidateSource with type entry = val_info = struct
+  type entry = val_info
+  let entries env = env.vals
+  let get_typ ((t, _, _, _) : val_info) = t
+  let make_ref_exp r = VarE (r @~ no_region)
+  (* Inside `module M`, its nested modules are in scope by themselves; only
+     keep the direct fields of M, as before nested search existed *)
+  let search_depth env lab =
+    if List.mem lab env.enclosing_modules then 1 else max_search_depth
+end
+
+module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
+  type entry = Scope.lib_info
+  let entries env = env.libs
+  let get_typ info = info.lib_typ
+  let make_ref_exp r = ImplicitLibE r
+  let search_depth _ _ = max_search_depth
+end
+
+(* Searches nested modules up to a given depth to find fields named [name] *)
+let rec find_candidates depth path desc t name = match T.normalize t with
+  | T.Obj (T.Module, fs, _) when depth > 0 ->
+    let direct = match T.find_val_field_opt name fs with
+    | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f)
+    | _ -> Seq.empty in
+    let nested = Seq.concat_map (fun f ->
+      let path = dot_module_exp path (f.T.lab @@ no_region) in
+      let desc = desc ^ "." ^ f.T.lab in
+      find_candidates (depth - 1) path desc f.T.typ name) (List.to_seq fs) in
+    Seq.append direct nested
+  | _ -> Seq.empty
+
+(* Number of module projections from the searched module to a field's container *)
+let rec path_hops = function
+  | DotE (e, _, _) -> 1 + path_hops e.it
+  | _ -> 0
+
+module FieldSites (M : CandidateSource) = struct
+  (* Fields named [name] in the modules of [M] and their nested modules, as
+     ((searched module, container path, dotted container path), field);
+     [~nested:false] keeps only the direct fields *)
+  let find ~nested env name =
+    T.Env.to_seq (M.entries env)
+    |> Seq.concat_map (fun (lab, entry) ->
+      let depth = if nested then M.search_depth env lab else 1 in
+      find_candidates depth (M.make_ref_exp lab) lab (M.get_typ entry) name
+      |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
+    |> List.of_seq
+end
+
+module ValFieldSites = FieldSites(ValCandidateSource)
+module LibFieldSites = FieldSites(LibCandidateSource)
 
 module SynthesizeWrapper = struct
   (* Fresh AST nodes are required at each use site — type-checking annotates in
@@ -1888,36 +1946,6 @@ module ImplicitHoles = struct
        | _ -> None)
     | _ -> None
 
-  (* Modules can be defined recursively, so we set a conservative limit for search depth *)
-  let max_search_depth = 8
-
-  module type CandidateSource = sig
-    type entry
-    val entries : env -> entry T.Env.t
-    val get_typ : entry -> T.typ
-    val make_ref_exp : string -> exp'
-    val search_depth : env -> T.lab -> int
-  end
-
-  module ValCandidateSource : CandidateSource with type entry = val_info = struct
-    type entry = val_info
-    let entries env = env.vals
-    let get_typ ((t, _, _, _) : val_info) = t
-    let make_ref_exp r = VarE (r @~ no_region)
-    (* Inside `module M`, its nested modules are in scope by themselves; only
-       keep the direct fields of M, as before nested search existed *)
-    let search_depth env lab =
-      if List.mem lab env.enclosing_modules then 1 else max_search_depth
-  end
-
-  module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
-    type entry = Scope.lib_info
-    let entries env = env.libs
-    let get_typ info = info.lib_typ
-    let make_ref_exp r = ImplicitLibE r
-    let search_depth _ _ = max_search_depth
-  end
-
   open Lib.Option.Syntax
 
   module MakeFromModule (M : CandidateSource) = struct
@@ -1925,26 +1953,10 @@ module ImplicitHoles = struct
       let path = dot_module_exp path (lab @@ no_region) @? no_region in
       ({ path; typ; module_ref_opt = Some module_ref; desc = desc ^ "." ^ lab; id = lab} : hole_candidate)
 
-    (* Searches nested modules up to a given depth to find fields named [name] *)
-    let rec find_candidates depth path desc t name = match T.normalize t with
-      | T.Obj (T.Module, fs, _) when depth > 0 ->
-        let direct = match T.find_val_field_opt name fs with
-        | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f)
-        | _ -> Seq.empty in
-        let nested = Seq.concat_map (fun f ->
-          let path = dot_module_exp path (f.T.lab @@ no_region) in
-          let desc = desc ^ "." ^ f.T.lab in
-          find_candidates (depth - 1) path desc f.T.typ name) (List.to_seq fs) in
-        Seq.append direct nested
-      | _ -> Seq.empty
+    module Sites = FieldSites(M)
 
     let filter_fields env hole on_field =
-      T.Env.to_seq (M.entries env)
-      |> Seq.concat_map (fun (lab, entry) ->
-        find_candidates (M.search_depth env lab) (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
-        |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
-      |> Seq.filter_map on_field
-      |> List.of_seq
+      Sites.find ~nested:true env hole.hole_name |> List.filter_map on_field
 
     let matching_fields env hole = filter_fields env hole (fun (site, field) ->
       if not (is_matching_typ hole field.T.typ) then None else
@@ -2179,6 +2191,7 @@ let mk_recursive_block at bindings outermost_path hole_typ =
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
+    desc : T.lab; (* dotted path of the containing module for display, e.g. `M.Nested` *)
     path : exp;
     arg_ty : T.typ;
     func_ty : T.typ;
@@ -2220,47 +2233,65 @@ end
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
   let open Lib.Option.Syntax in
 
-  let find_candidate in_libs (module_ref, fs) =
-    let* field = T.find_val_field_opt name.it fs in
-    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func (scope_of_env env) field.T.typ receiver_ty in
-    let path = dot_module_exp (module_exp in_libs module_ref) name @? name.at in
-    Some { module_ref = Some module_ref; path; func_ty; arg_ty; inst } in
-
   let local_candidate =
     let* (t, _, _, _) = T.Env.find_opt name.it env.vals in
     let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func (scope_of_env env) t receiver_ty in
     let path = VarE (name.it @~ name.at) @? name.at in
-    Some { module_ref = None; path; func_ty; arg_ty; inst } in
+    Some { module_ref = None; desc = name.it; path; func_ty; arg_ty; inst } in
 
-  let candidates in_libs xs f =
-    T.Env.to_seq xs |>
-      Seq.filter_map f |>
-      Seq.filter_map (find_candidate in_libs) |>
-      List.of_seq in
+  let candidates sites =
+    sites |> List.filter_map (fun ((module_ref, container, desc), field) ->
+      let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func (scope_of_env env) field.T.typ receiver_ty in
+      let path = dot_module_exp container name @? name.at in
+      Some { module_ref = Some module_ref; desc; path; func_ty; arg_ty; inst }) in
+  (* Nested candidates only come into play when no direct field matches, so
+     reaching a module through a facade never overrides or clashes with the
+     module in scope itself *)
+  let direct_and_nested find =
+    let direct = candidates (find ~nested:false env name.it) in
+    let nested () = find ~nested:true env name.it
+      |> List.filter (fun ((_, container, _), _) -> path_hops container > 0)
+      |> candidates in
+    direct, nested in
   (* All candidate functions accept supertypes of the required type as their first arguments.
      The "smallest" of these types is the closest to the required type. *)
   let disambiguate_candidates = disambiguate_resolutions (fun c1 c2 -> T.sub c2.arg_ty c1.arg_ty) in
+  let ambiguous cs = Error (DotAmbiguous (fun env ->
+    let modules = String.concat ", " (List.map (fun (c : ctx_dot_candidate) -> c.desc) cs) in
+    error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules)) in
   match local_candidate with
   | Some c -> Ok c
   | None ->
-    match disambiguate_candidates (candidates false env.vals is_val_module) with
+    let direct, nested = direct_and_nested ValFieldSites.find in
+    match disambiguate_candidates direct with
     | `Single c -> Ok c
-    | `Many cs -> Error (DotAmbiguous (fun env ->
-      let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
-      error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules))
+    | `Many cs -> ambiguous cs
+    | `Empty ->
+    match disambiguate_candidates (nested ()) with
+    | `Single c -> Ok c
+    | `Many cs -> ambiguous cs
     | `Empty ->
       (* Resolve only implicit-package libs; error suggestions may still list others. *)
-      let lib_candidates = candidates true env.libs is_lib_module in
-      let lib_resolution =
+      let lib_direct, lib_nested = direct_and_nested LibFieldSites.find in
+      let lib_nested = lib_nested () in
+      let resolve cs =
         if Option.is_some !Flags.implicit_package then
-          lib_candidates
+          cs
           |> List.filter (fun c -> Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref)
           |> disambiguate_candidates
         else `Empty
       in
+      let lib_resolution = match resolve lib_direct with
+        | `Empty -> resolve lib_nested
+        | r -> r
+      in
       match lib_resolution with
       | `Single c -> Ok c
-      | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
+      | `Many _ | `Empty -> Error (DotSuggestions (fun env ->
+        (* Nested candidates within one lib share an import; dedupe the suggestions *)
+        List.filter_map (fun c -> Option.map Suggest.module_name_as_url c.module_ref) (lib_direct @ lib_nested)
+        |> List.fold_left (fun urls url -> if List.mem url urls then urls else url :: urls) []
+        |> List.rev))
 
 type contextual_dot_suggestion =
   { module_url : T.lab;

@@ -4,3 +4,9 @@ error[M0230]: Cannot determine implicit argument `nestedDouble` of type
  11 │  ignore apply(3);
     │         ^^^^^^^^ 
     = note: Did you mean to import mo:core/Nested?
+error[M0070]: expected object type, but expression produces type
+  Nat
+Hint: Did you mean to import mo:core/Nested?
+    ┌─ implicit-nested-import-hint.mo:14:9
+ 14 │  ignore (3 : Nat).nestedTriple();
+    │          ^^^^^^^ 

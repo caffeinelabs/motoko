@@ -1,0 +1,9 @@
+error[M0224]: overlapping resolution for `twice` in scope from these modules: Top.A, Top.B
+    ┌─ contextual-dot-nested.mo:7:18
+  7 │  ignore (1 : Nat).twice();
+    │                   ^^^^^ 
+error[M0070]: expected object type, but expression produces type
+  Nat
+    ┌─ contextual-dot-nested.mo:20:9
+ 20 │  ignore (1 : Nat).tooDeep();
+    │          ^^^^^^^ 
