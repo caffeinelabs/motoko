@@ -281,7 +281,6 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.exp * bool> exp_arg
 %type<Mo_def.Syntax.typ_item> typ_item
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
-%type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
@@ -299,7 +298,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.exp list> seplist(exp_nonvar(ob),COMMA) seplist(exp(ob),COMMA)
 %type<Mo_def.Syntax.exp_field list> seplist1(exp_field,semicolon) seplist(exp_field,semicolon)
 %type<Mo_def.Syntax.exp list> separated_nonempty_list(AND, exp_post(ob))
-%type<Mo_def.Syntax.dec_field list> seplist(dec_field,semicolon) obj_body
+%type<Mo_def.Syntax.dec_field list> seplist(dec_field(no_attr,dec),semicolon) seplist(dec_field(par_attr,dec_pub),semicolon) obj_body(no_attr,dec) obj_body(par_attr,dec_pub)
 %type<Mo_def.Syntax.case list> seplist(case,semicolon)
 %type<Mo_def.Syntax.typ option> annot_opt
 %type<Mo_def.Syntax.path> path
@@ -313,11 +312,10 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.lit> lit
 %type<Mo_def.Syntax.dec> dec imp dec_var dec_nonvar
 %type<Mo_def.Syntax.exp_field> exp_field
-%type<Mo_def.Syntax.dec_field> dec_field
-%type<Mo_def.Syntax.dec_field> dec_field_ac
+%type<Mo_def.Syntax.dec_field> dec_field(no_attr,dec) dec_field(par_attr,dec_pub)
 %type<Mo_def.Syntax.dec> dec_pub
-%type<Mo_def.Syntax.dec_field list> obj_body_ac
-%type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body
+%type<Mo_def.Syntax.exp option> no_attr par_attr
+%type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body(no_attr,dec) class_body(par_attr,dec_pub)
 %type<Mo_def.Syntax.case> catch case
 %type<Mo_def.Syntax.exp> bl ob
 %type<Mo_def.Syntax.dec list> import_list
@@ -390,13 +388,20 @@ seplist1(X, SEP) :
   | ACTOR { Type.Actor @@ at $sloc }
   | MODULE {Type.Module @@ at $sloc }
 
-%inline obj_sort :
-  | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
+(* Split so the *body* nonterminal can differ per sort: an actor body admits
+   the codec parenthetical after `public`, a module/object body does not. The
+   sort is a semantic value and so cannot select a body -- only separate
+   productions can, hence the split. Not %inline: menhir cannot pass an
+   %inline symbol as a parameter. *)
+obj_sort_ac :
   | po=persistent ACTOR { (po, Type.Actor @@ at $sloc) }
+
+obj_sort_lo :
+  | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
   | MODULE { (persistent false no_region, Type.Module @@ at $sloc) }
 
-%inline obj_sort_opt :
-  | os=obj_sort { os }
+obj_sort_lo_opt :
+  | os=obj_sort_lo { os }
   | (* empty *) {
       (persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region, Type.Object @@ no_region)
     }
@@ -880,24 +885,22 @@ exp_field :
   | m=var_opt x=id t=annot_opt EQ e=exp(ob)
     { { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
 
-dec_field :
-  | v=vis s=stab d=dec
-    { {dec = d; vis = v; stab = s} @@ at $sloc }
+(* The attribute slot between `public` and the member. Two instantiations:
+   `par_attr` (actor context: a codec parenthetical may appear) and `no_attr`
+   (module/object/class: it may not). Both yield `exp option`, so the shared
+   action below can consume the attribute uniformly. *)
+par_attr :
+  | p=parenthetical { p }
+  | (* empty *) { None }
 
-vis :
-  | (* empty *) { Private @@ no_region }
-  | PRIVATE { Private @@ at $sloc }
-  | PUBLIC {
-    let at = at $sloc in
-    let trivia = Trivia.find_trivia !triv_table at in
-    let depr = Trivia.deprecated_of_trivia_info trivia in
-    Public depr @@ at }
-  | SYSTEM { System @@ at $sloc }
+no_attr :
+  | (* empty *) { None }
 
-(* PROTOTYPE: actor-context field. `vis` owns the continuation: a *public*
-   member is a manifest function / let / type (dec_pub) -- never a bare
-   expression -- so it can't begin with LPAR, and `public (` is unambiguously
-   the encoder parenthetical (no bare-LPAR dec to reduce into). *)
+(* PROTOTYPE: `vis` owns the continuation, parameterized over the attribute
+   slot (attr) and the permitted public member (d). In the actor context a
+   *public* member is a manifest function / let / type (dec_pub) -- never a
+   bare expression -- so it can't begin with LPAR, and `public (` is
+   unambiguously the codec parenthetical (no bare-LPAR dec to reduce into). *)
 dec_pub :
   | LET p=pat EQ e=exp(ob)
     { let p', e' = normalize_let p e in LetD (p', e', None) @? at $sloc }
@@ -913,20 +916,24 @@ dec_pub :
       let is_sugar, e = desugar_func_body sp x t fb in
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
 
-dec_field_ac :
-  | s=stab d=dec
-    { {dec = d; vis = Private @@ no_region; stab = s} @@ at $sloc }
-  | PRIVATE s=stab d=dec
-    { {dec = d; vis = Private @@ at $sloc; stab = s} @@ at $sloc }
-  | SYSTEM s=stab d=dec
-    { {dec = d; vis = System @@ at $sloc; stab = s} @@ at $sloc }
-  | PUBLIC parenthetical? s=stab d=dec_pub
-    { let trivia = Trivia.find_trivia !triv_table (at $sloc) in
+(* Only the PUBLIC arm varies. The private/implicit/system arms keep the full
+   `dec` in every instantiation -- a private field may still be a `var`, a bare
+   expression, a nested object, etc. Parameterizing the continuation for all
+   four arms would wrongly restrict those too. *)
+dec_field(attr, dpub) :
+  | s=stab dd=dec
+    { {dec = dd; vis = Private @@ no_region; stab = s} @@ at $sloc }
+  | PRIVATE s=stab dd=dec
+    { {dec = dd; vis = Private @@ at $loc($1); stab = s} @@ at $sloc }
+  | SYSTEM s=stab dd=dec
+    { {dec = dd; vis = System @@ at $loc($1); stab = s} @@ at $sloc }
+  | PUBLIC eo=attr s=stab dd=dpub
+    { (* forces both instantiations to agree on the attribute's type *)
+      let _codec : Mo_def.Syntax.exp option = eo in
+      let at_pub = at $loc($1) in
+      let trivia = Trivia.find_trivia !triv_table at_pub in
       let depr = Trivia.deprecated_of_trivia_info trivia in
-      {dec = d; vis = Public depr @@ at $sloc; stab = s} @@ at $sloc }
-
-obj_body_ac :
-  | LCURLY dfs=seplist(dec_field_ac, semicolon) RCURLY { dfs }
+      {dec = dd; vis = Public depr @@ at_pub; stab = s} @@ at $sloc }
 
 stab :
   | (* empty *) { None }
@@ -1038,15 +1045,18 @@ dec_nonvar :
       let named, x = xf "func" $sloc in
       let is_sugar, e = desugar_func_body sp x t fb in
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
-  | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
-  | MIXIN system=system_opt p=pat_plain dfs=obj_body_ac {
+  | eo=parenthetical_opt mk_d=obj_or_class_dec(obj_sort_ac, obj_sort_ac, par_attr, dec_pub)
+    { mk_d eo }
+  | eo=parenthetical_opt mk_d=obj_or_class_dec(obj_sort_lo, obj_sort_lo_opt, no_attr, dec)
+    { mk_d eo }
+  | MIXIN system=system_opt p=pat_plain dfs=obj_body(par_attr, dec_pub) {
      let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
   | INCLUDE x=id system=system_opt e=exp(ob) { IncludeD(x, system, e, ref None) @? at $sloc }
 
-obj_or_class_dec :
-  | ds=obj_sort xf=id_opt t=annot_opt EQ? efs=obj_body
+obj_or_class_dec(sort, sort_opt, attr, dpub) :
+  | ds=sort xf=id_opt t=annot_opt EQ? efs=obj_body(attr, dpub)
     { fun eo ->
       let (persistent, s) = ds in
       let sort = Type.(match s.it with
@@ -1065,8 +1075,8 @@ obj_or_class_dec :
         else objblock eo { s with note = persistent } None t efs @? at $sloc
       in
       let_or_exp named x e.it e.at }
-  | sp=shared_pat_opt ds=obj_sort_opt CLASS
-      xf_tps_p=func_pat t=annot_opt  cb=class_body
+  | sp=shared_pat_opt ds=sort_opt CLASS
+      xf_tps_p=func_pat t=annot_opt  cb=class_body(attr, dpub)
     { fun eo ->
       let (persistent, s) = ds in
       let xf, tps, p = xf_tps_p in
@@ -1099,12 +1109,12 @@ func_body :
   | EQ e=exp(ob) { (false, e) }
   | e=block { (true, e) }
 
-obj_body :
-  | LCURLY dfs=seplist(dec_field, semicolon) RCURLY { dfs }
+obj_body(attr, dpub) :
+  | LCURLY dfs=seplist(dec_field(attr, dpub), semicolon) RCURLY { dfs }
 
-class_body :
-  | EQ xf=id_opt dfs=obj_body { snd (xf "object" $sloc), dfs }
-  | dfs=obj_body { anon_id "object" (at $sloc) @@ at $sloc, dfs }
+class_body(attr, dpub) :
+  | EQ xf=id_opt dfs=obj_body(attr, dpub) { snd (xf "object" $sloc), dfs }
+  | dfs=obj_body(attr, dpub) { anon_id "object" (at $sloc) @@ at $sloc, dfs }
 
 
 (* Programs *)
