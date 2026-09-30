@@ -2295,7 +2295,11 @@ Within a tier:
 
 * Every matching candidate counts, even when several of them are the same function reached through several paths, such as `M.f` from an imported library `M` and `Facade.M.f` through a facade that re-exports it. Importing the library directly makes it a direct field and lets it win.
 
-* The set of matching candidates Cs is filtered to the set Ds of the candidates closest to the call. A candidate is dropped when another candidate is strictly closer; candidates that are equally close or unrelated are all kept. For a dotted call with receiver type `R`, a candidate whose `self` parameter has type `V` is closer than one with `W` when `R <: V <: W`. For an implicit argument of type `U`, a candidate of type `V` is closer than one of type `W` when `W <: V <: U`.
+* The set of matching candidates Cs is filtered to the set Ds of the candidates closest to the call. A candidate is dropped when another candidate is strictly closer; candidates that are equally close or unrelated are all kept. In both cases a candidate of exactly the required type, when there is one, wins.
+
+  For a dotted call, a candidate matches when the receiver type is a subtype of its `self` parameter type, and the closest candidate is the one with the smallest `self` type. For a receiver `n : Nat` and candidates `f(self : Nat)` and `f(self : Int)`, both match, since `Nat <: Int`, and `f(self : Nat)` wins.
+
+  For an implicit argument, a candidate matches when its type is a subtype of the required type, and the closest candidate is the one with the greatest type. For a required `n : Int` and candidates `n : Int` and `n : Nat`, both match, since `Nat <: Int`, and `n : Int` wins. Function types compare through their parameters, so for a required `toText : Int -> Text` and candidates `toText : Int -> Text` and `toText : Any -> Text`, both match, since `Any -> Text <: Int -> Text`, and `toText : Int -> Text` wins.
 
 * If Ds is a singleton, its element is the resolution. Otherwise the call is ambiguous and rejected, with M0224 for a dotted call and M0231 for an implicit argument; the error names the candidates by their module paths. Writing the qualified function, or passing the implicit argument explicitly, resolves the ambiguity.
 
