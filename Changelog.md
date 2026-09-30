@@ -143,7 +143,10 @@
     * Breaking change: implicit arguments are also found in nested modules.
       When `M` is in scope, candidates such as `M.N.compare` count, up to a
       nesting depth of 8. A call that resolved uniquely may now be ambiguous
-      (M0231); pass the argument explicitly (#6084).
+      (M0231); pass the argument explicitly. Paths that reach the same
+      library field through re-exports or aliases, such as `Lib.Show.show`
+      and `Show.show` after `public let Show = _Show;` in `Lib`, count as one
+      candidate (#6084, #PRNUM).
 
     * feat: read-only primitives no longer require the `system` capability,
       so `query` and `composite query` methods can call them:

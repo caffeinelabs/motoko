@@ -1,0 +1,6 @@
+error[M0231]: ambiguous implicit argument named `show` of type 
+  Nat -> Text.
+    ┌─ implicit-nested-reexport.mo:11:8
+ 11 │  ignore render(5); // Error, `Impl.show` and `Impl1.show` differ
+    │         ^^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `Impl.show`, `Impl1.show`.

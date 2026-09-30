@@ -7,7 +7,16 @@ module S = Mo_def.Syntax
 type val_kind = Declaration | FieldReference | MixinIncluded | MutableNotAssigned
 
 type val_env = (T.typ * Source.region * val_kind) T.Env.t
-type lib_info = { lib_typ : T.typ; lib_package : string option }
+(* A value statically known to sit at [path] inside library [lib]. Libraries are
+   evaluated once and module fields are immutable, so equal paths denote the
+   same value *)
+type static_path = { lib : string; path : string list }
+(* [lib_aliases] maps a field path of the library to the static path it is bound to *)
+type lib_info = {
+  lib_typ : T.typ;
+  lib_package : string option;
+  lib_aliases : (string list * static_path) list;
+}
 type lib_env = lib_info T.Env.t
 type typ_env = T.con T.Env.t
 type con_env = T.ConSet.t
@@ -56,8 +65,8 @@ let adjoin scope1 scope2 =
 
 let adjoin_val_env scope ve = {scope with val_env = T.Env.adjoin scope.val_env ve}
 
-let lib ~package path typ =
-  { empty with lib_env = T.Env.singleton path { lib_typ = typ; lib_package = package } }
+let lib ?(aliases = []) ~package path typ =
+  { empty with lib_env = T.Env.singleton path { lib_typ = typ; lib_package = package; lib_aliases = aliases } }
 
 let mixin f t =
   { empty with mixin_env = T.Env.singleton f t }

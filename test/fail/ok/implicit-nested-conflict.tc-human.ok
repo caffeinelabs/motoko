@@ -4,3 +4,9 @@ error[M0231]: ambiguous implicit argument named `zero` of type
  21 │  ignore f(); // Error, candidates from nested modules conflict with candidates from top-level modules
     │          ^^ 
     = note: The ambiguous implicit candidates are: `Top.zero`, `Top.Nested.zero`.
+error[M0231]: ambiguous implicit argument named `show` of type 
+  Nat -> Text.
+    ┌─ implicit-nested-conflict.mo:32:8
+ 32 │  ignore render(5); // Error, `A.show` and `B.show` differ
+    │         ^^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `A.show`, `B.show`.

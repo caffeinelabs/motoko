@@ -306,6 +306,8 @@ show(5);                 // M0231: `Money.toText` or `Money.Cents.toText`
 show(5, Money.toText);   // pass it explicitly
 ```
 
+Two paths to the same library field are one candidate: a library that re-exports a module (`public let Show = _Show;`) does not make its implicits ambiguous with a direct import of that module, or with aliases such as `let S = Lib.Show` and `import { Show } "mo:lib"`.
+
 ### Removed primitives and `ExperimentalStableMemory`
 
 - The `stableMemory*` primitives are gone, so importing `mo:base/ExperimentalStableMemory` fails to type-check. Use `Region` from `mo:core` (or `mo:base`) instead. The rest of `base` still compiles; for new code use [`core`](base-core-migration.md).

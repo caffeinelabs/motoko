@@ -82,6 +82,9 @@ type env =
        Their fields are all directly in scope there, so nested implicit search
        must not reach the same bindings again through `M.` *)
     enclosing_modules : string list;
+    (* Static paths of `let`-bound aliases, keyed by binder so that shadowing
+       cannot leave a stale entry behind *)
+    static_paths : (string * region, Scope.static_path) Hashtbl.t;
   }
 and ret_env =
   | NoRet
@@ -118,6 +121,7 @@ let env_of_scope msgs scope =
     stable_baseline_sig = None;
     enclosing_removal = false;
     enclosing_modules = [];
+    static_paths = Hashtbl.create 16;
   }
 
 let is_implicit_package pkg =
@@ -635,6 +639,72 @@ let check_import env at f ri =
     match T.Env.find_opt full_path env.mixins with
     | Some mix -> mix.Scope.typ
     | None -> error env at "M0022" "imported file %s not loaded" full_path
+
+
+(* Static paths: which library field a value is, seen through aliases *)
+
+let static_path_step env (sp : Scope.static_path) lab : Scope.static_path =
+  let path = sp.path @ [lab] in
+  let aliases = match T.Env.find_opt sp.lib env.libs with
+    | Some info -> info.lib_aliases
+    | None -> [] in
+  match List.assoc_opt path aliases with
+  | Some target -> target
+  | None -> {sp with path}
+
+(* Only module fields are followed: they are immutable, unlike object fields *)
+let module_field_typ t lab =
+  match T.promote t with
+  | T.Obj (T.Module, fs, _) ->
+    Option.bind (T.find_val_field_opt lab fs) (fun f ->
+      if T.is_mut f.T.typ then None else Some f.T.typ)
+  | _ -> None
+
+let rec static_path_of_exp env exp : (Scope.static_path * T.typ) option =
+  let open Lib.Option.Syntax in
+  let lib_root lib =
+    let* info = T.Env.find_opt lib env.libs in
+    Some ({lib; path = []}, info.lib_typ) in
+  match exp.it with
+  | ImportE (_, {contents = LibPath {path; _}}) -> lib_root path
+  | ImplicitLibE lib -> lib_root lib
+  | VarE id ->
+    let* (t, at, _, _) = T.Env.find_opt id.it env.vals in
+    let* sp = Hashtbl.find_opt env.static_paths (id.it, at) in
+    Some (sp, t)
+  | DotE (exp1, id, _) ->
+    let* (sp, t) = static_path_of_exp env exp1 in
+    let* t1 = module_field_typ t id.it in
+    Some (static_path_step env sp id.it, t1)
+  | AnnotE (exp1, _) -> static_path_of_exp env exp1
+  | _ -> None
+
+let rec record_static_paths env pat (sp, t) =
+  match pat.it with
+  | VarP id -> Hashtbl.replace env.static_paths (id.it, id.at) sp
+  | ObjP pfs ->
+    pfs |> List.iter (fun pf -> match pf.it with
+      | ValPF (id, pat1) ->
+        module_field_typ t id.it |> Option.iter (fun t1 ->
+          record_static_paths env pat1 (static_path_step env sp id.it, t1))
+      | TypPF _ -> ())
+  | AnnotP (pat1, _) | ParP pat1 -> record_static_paths env pat1 (sp, t)
+  | _ -> ()
+
+let record_let_static_paths env pat exp =
+  Option.iter (record_static_paths env pat) (static_path_of_exp env exp)
+
+(* The public fields of a library module that alias another static path *)
+let rec lib_aliases env prefix dec_fields =
+  dec_fields |> List.concat_map (fun {it = {vis; dec; _}; _} ->
+    match vis.it, dec.it with
+    | Public _, LetD ({it = VarP id; _}, {it = ObjBlockE (_, {it = T.Module; _}, _, dfs); _}, None) ->
+      lib_aliases env (prefix @ [id.it]) dfs
+    | Public _, LetD ({it = VarP id; _}, _, None) ->
+      Hashtbl.find_opt env.static_paths (id.it, id.at)
+      |> Option.to_list
+      |> List.map (fun sp -> (prefix @ [id.it], sp))
+    | _ -> [])
 
 
 (* Paths *)
@@ -1897,6 +1967,7 @@ module ImplicitHoles = struct
     val get_typ : entry -> T.typ
     val make_ref_exp : string -> exp'
     val search_depth : env -> T.lab -> int
+    val static_path : env -> T.lab -> entry -> Scope.static_path option
   end
 
   module ValCandidateSource : CandidateSource with type entry = val_info = struct
@@ -1908,6 +1979,7 @@ module ImplicitHoles = struct
        keep the direct fields of M, as before nested search existed *)
     let search_depth env lab =
       if List.mem lab env.enclosing_modules then 1 else max_search_depth
+    let static_path env lab ((_, at, _, _) : val_info) = Hashtbl.find_opt env.static_paths (lab, at)
   end
 
   module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
@@ -1916,6 +1988,7 @@ module ImplicitHoles = struct
     let get_typ info = info.lib_typ
     let make_ref_exp r = ImplicitLibE r
     let search_depth _ _ = max_search_depth
+    let static_path _ lab _ = Some Scope.{lib = lab; path = []}
   end
 
   open Lib.Option.Syntax
@@ -1925,26 +1998,48 @@ module ImplicitHoles = struct
       let path = dot_module_exp path (lab @@ no_region) @? no_region in
       ({ path; typ; module_ref_opt = Some module_ref; desc = desc ^ "." ^ lab; id = lab} : hole_candidate)
 
-    (* Searches nested modules up to a given depth to find fields named [name] *)
-    let rec find_candidates depth path desc t name = match T.normalize t with
+    (* Searches nested modules up to a given depth to find fields named [name].
+       [sp] is the static path of the module, forced only for matching fields *)
+    let rec find_candidates env depth path desc sp t name = match T.normalize t with
       | T.Obj (T.Module, fs, _) when depth > 0 ->
+        let field_sp lab = lazy (Option.map (fun sp -> static_path_step env sp lab) (Lazy.force sp)) in
         let direct = match T.find_val_field_opt name fs with
-        | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f)
+        | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f, field_sp name)
         | _ -> Seq.empty in
         let nested = Seq.concat_map (fun f ->
           let path = dot_module_exp path (f.T.lab @@ no_region) in
           let desc = desc ^ "." ^ f.T.lab in
-          find_candidates (depth - 1) path desc f.T.typ name) (List.to_seq fs) in
+          find_candidates env (depth - 1) path desc (field_sp f.T.lab) f.T.typ name) (List.to_seq fs) in
         Seq.append direct nested
       | _ -> Seq.empty
+
+    (* Paths through aliases of one value give the same candidate, so keep only
+       the most direct of them *)
+    let dedup_static_paths cands =
+      let hops desc = List.length (String.split_on_char '.' desc) in
+      let best = Hashtbl.create 8 in
+      cands |> List.iteri (fun i (_, desc, sp) ->
+        Option.iter (fun sp ->
+          match Hashtbl.find_opt best sp with
+          | Some (_, h) when h <= hops desc -> ()
+          | _ -> Hashtbl.replace best sp (i, hops desc)) (Lazy.force sp));
+      cands
+      |> List.filteri (fun i (_, _, sp) ->
+        match Lazy.force sp with
+        | Some sp -> fst (Hashtbl.find best sp) = i
+        | None -> true)
+      |> List.map (fun (c, _, _) -> c)
 
     let filter_fields env hole on_field =
       T.Env.to_seq (M.entries env)
       |> Seq.concat_map (fun (lab, entry) ->
-        find_candidates (M.search_depth env lab) (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
-        |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
-      |> Seq.filter_map on_field
+        let sp = lazy (M.static_path env lab entry) in
+        find_candidates env (M.search_depth env lab) (M.make_ref_exp lab) lab sp (M.get_typ entry) hole.hole_name
+        |> Seq.map (fun (path, desc, field, sp) -> ((lab, path, desc), field, sp)))
+      |> Seq.filter_map (fun (((_, _, desc) as site), field, sp) ->
+        on_field (site, field) |> Option.map (fun c -> (c, desc, sp)))
       |> List.of_seq
+      |> dedup_static_paths
 
     let matching_fields env hole = filter_fields env hole (fun (site, field) ->
       if not (is_matching_typ hole field.T.typ) then None else
@@ -5166,6 +5261,7 @@ and infer_dec env dec : T.typ =
       if not env.pre then
         check_exp env T.Non fail
     );
+    record_let_static_paths env pat exp;
     let env' = match pat.it, exp.it with
       | VarP id, ObjBlockE (_, {it = T.Module; _}, _, _) ->
         {env with enclosing_modules = id.it :: env.enclosing_modules}
@@ -5662,6 +5758,7 @@ let infer_import env dec = match dec.it with
         | _ -> error env pat.at "M0229" "mixins may only be imported by binding to a name")
       | None ->
         let t = check_import env at s ri in
+        record_let_static_paths env pat exp;
         let te = check_pat_typ_dec { env with pre = true } t pat in
         let ve = check_pat_exhaustive local_error env t pat in
         t, Scope.{ empty with typ_env = te; val_env = ve }
@@ -5788,8 +5885,9 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
           cub.note <- {empty_typ_note with note_typ = typ};
           let imp_scope = match cub.it with
-            | ModuleU _ ->
-              Scope.lib ~package:pkg_opt lib.note.filename typ
+            | ModuleU (_, fields) ->
+              let aliases = lib_aliases env [] fields in
+              Scope.lib ~aliases ~package:pkg_opt lib.note.filename typ
             | ActorClassU (_persistence, sp, exp_opt, id, tbs, p, _, self_id, dec_fields) ->
               if is_anon_id id then
                 error env cub.at "M0143" "bad import: imported actor class cannot be anonymous";
