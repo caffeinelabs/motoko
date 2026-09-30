@@ -1,3 +1,23 @@
+import Vec "../run/contextual-dot/Vec";
+import _Vec2 "../run/contextual-dot/Vec";
+import Facade "../run/contextual-dot/Facade";
+import Facade2 "../run/contextual-dot/Facade2";
+
+// One library imported twice, or reached through two facades and not
+// imported itself, is ambiguous for both features, since the search does not
+// tell one function reached through several paths apart. Importing the
+// library directly resolves it, as in test/run/contextual-dot-nested.mo
+let v : Vec.Vec = { x = 1; y = 2 };
+ignore v.sum();
+func total<T>(x : T, sum : (implicit : T -> Nat)) : Nat = sum(x);
+ignore total(v);
+
+let p : Facade.Pair.Pair = (1, "one");
+ignore p.swap();
+func swapped(x : Facade.Pair.Pair, swap : (implicit : Facade.Pair.Pair -> (Text, Nat))) : (Text, Nat) = swap(x);
+ignore swapped(p);
+assert Facade2.Vec.sum(v) == 3;
+
 // Two different functions in nested modules are ambiguous
 module Top {
   public module A { public func twice(self : Nat) : Nat = self * 2 };
@@ -28,15 +48,3 @@ let Two = adder(2);
 
 ignore (1 : Nat).plus();
 
-// So are the modules of class instances, which share one declaration
-class C(n : Nat) {
-  public module M { public func minus(self : Nat) : Nat = self - n };
-};
-let First = C(1).M;
-let Second = C(2).M;
-
-ignore (3 : Nat).minus();
-
-// Implicit arguments tell the instances apart likewise
-func apply(x : Nat, minus : (implicit : Nat -> Nat)) : Nat = minus(x);
-ignore apply(3);

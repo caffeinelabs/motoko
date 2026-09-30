@@ -1,20 +1,34 @@
 import Vec "contextual-dot/Vec";
-import _Vec2 "contextual-dot/Vec";
+import Pair "contextual-dot/Pair";
 import Facade "contextual-dot/Facade";
 import Facade2 "contextual-dot/Facade2";
 
-// Contextual dot also finds functions in the nested modules of the modules in
-// scope, so importing a facade is enough. The same function reached through
-// several paths, like Facade.Pair.swap and Facade2.Pair.swap, is no ambiguity
+// Contextual dot and implicit arguments search the scope in the same tiers:
+// a local value, then the direct fields of the modules in scope, then the
+// fields of their nested modules. Importing a facade is enough to reach its
+// modules, and a direct field always wins over one reached through a facade.
 
-let p : Facade.Pair.Pair = (1, "one");
-assert p.swap() == ("one", 1); // Facade.Pair.swap
+func tripled<T>(x : T, triple : (implicit : T -> T)) : T = triple(x);
+func swapped(x : Pair.Pair, swap : (implicit : Pair.Pair -> (Text, Nat))) : (Text, Nat) = swap(x);
+func total<T>(x : T, sum : (implicit : T -> Nat)) : Nat = sum(x);
+func picked<T>(x : T, pick : (implicit : T -> Int)) : Int = pick(x);
+func bump<T>(x : T, inc : (implicit : T -> T)) : T = inc(x);
+
+// Reached only through the facade
 assert (2 : Nat).triple() == 6; // Facade.Deep.Deeper.triple
+assert tripled(2 : Nat) == 6;
 assert Facade.nine() == 9;
 
-// Vec.sum is also _Vec2.sum, and Facade.Vec.sum; the direct field wins
+// Pair.swap is also Facade.Pair.swap and Facade2.Pair.swap; the direct field wins
+let p : Pair.Pair = (1, "one");
+assert p.swap() == ("one", 1);
+assert swapped(p) == ("one", 1);
+
+// Likewise Vec.sum
 let v : Vec.Vec = { x = 1; y = 2 };
 assert v.sum() == 3;
+assert total(v) == 3;
+assert Facade2.Vec.sum(v) == 3;
 
 // A direct field wins over a nested one, even when the nested one is closer
 module Direct {
@@ -29,14 +43,12 @@ module Outer {
 
   // Inside Outer, Inner is in scope by itself
   public func two() : Nat = (1 : Nat).inc();
+  public func three() : Nat = bump(2 : Nat);
 };
 
-assert (1 : Nat).pick() == 1;
-assert (1 : Nat).inc() == 2;
+assert (1 : Nat).pick() == 1; // Direct.pick
+assert picked(1 : Nat) == 1;
+assert (1 : Nat).inc() == 2; // Outer.Inner.inc
+assert bump(1 : Nat) == 2;
 assert Outer.two() == 2;
-
-assert Facade2.Vec.sum(v) == 3;
-
-// Implicit arguments merge the paths to one function likewise
-func total<T>(x : T, sum : (implicit : T -> Nat)) : Nat = sum(x);
-assert total(v) == 3;
+assert Outer.three() == 3;
