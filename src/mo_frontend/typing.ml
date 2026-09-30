@@ -1657,13 +1657,11 @@ let render_derivation_leaves env = function
   let lines = List.map (fun l -> "\n  " ^ l) leaves in
   ["Implicit derivation failed:" ^ String.concat "" lines]
 
-(* Contextual dot and implicit arguments search the scope for values named
-   [name] with one search, in tiers from the closest: the local value, the
-   direct fields of the modules in scope, the fields of the modules nested in
-   them, then the same two tiers for the libraries of the implicit package
-   that are not imported. The first tier with a matching candidate decides,
-   so a closer candidate hides farther ones and a module reached through a
-   facade never competes with a module in scope, as in Kotlin, C# and Scala 3. *)
+(* One scope search for contextual dot and implicit arguments, in tiers from the closest.
+   The tiers are the local value, the direct fields of the modules in scope, the fields of their nested modules,
+   then the same two tiers for the libraries of the implicit package that are not imported.
+   The first tier with a matching candidate decides, so a closer candidate hides farther ones
+   and a module reached through a facade never competes with a module in scope, as in Kotlin, C# and Scala 3. *)
 module Search = struct
   type site =
     { module_ref : T.lab option; (* root module: a name from `vals` or a path from `libs`; None for the local value *)
@@ -1674,8 +1672,7 @@ module Search = struct
   (* Modules can be defined recursively, so we set a conservative limit for search depth *)
   let max_depth = 8
 
-  (* Fields named [name] of the module of type [t] at [path], and of the
-     modules nested in it up to [depth] *)
+  (* Fields named [name] of the module of type [t] at [path], and of the modules nested in it up to [depth] *)
   let rec find_fields depth path desc t name = match T.normalize t with
     | T.Obj (T.Module, fs, _) when depth > 0 ->
       let direct = match T.find_val_field_opt name fs with
@@ -1694,8 +1691,7 @@ module Search = struct
       [{ module_ref = None; container = None; desc = name; typ = t }]
     | _ -> []
 
-  (* The direct fields of the given root modules, or with [~nested] the
-     fields of their nested modules only *)
+  (* The direct fields of the given root modules, or with [~nested] the fields of their nested modules only *)
   let fields ~nested name roots =
     roots |> Seq.concat_map (fun (lab, root, depth, t) ->
       find_fields (if nested then depth else 1) root lab t name
@@ -1706,8 +1702,7 @@ module Search = struct
 
   let in_modules ~nested env name =
     T.Env.to_seq env.vals |> Seq.map (fun (lab, (t, _, _, _)) ->
-      (* Inside `module M`, its nested modules are in scope by themselves; only
-         keep the direct fields of M, as before nested search existed *)
+      (* Inside `module M`, its nested modules are in scope by themselves, so M contributes only its direct fields *)
       let depth = if List.mem lab env.enclosing_modules then 1 else max_depth in
       (lab, VarE (lab @~ no_region), depth, t))
     |> fields ~nested name
@@ -1725,11 +1720,9 @@ module Search = struct
 
   let in_all_libs env name = in_libs ~nested:false env name @ in_libs ~nested:true env name
 
-  (* Resolves [name] tier by tier with [tier], which resolves within one tier
-     and answers [None] to move on. Returns the first answer and whether it
-     came from a library tier, where an ambiguity is no resolution rather
-     than an error. Sites are built afresh for each call, so a resolution
-     never shares AST nodes with another. *)
+  (* Resolves [name] tier by tier with [tier], which resolves within one tier and answers [None] to move on.
+     Returns the first answer and whether it came from a library tier, where an ambiguity is no resolution rather than an error.
+     Sites are built afresh for each call, so a resolution never shares AST nodes with another. *)
   let resolve env name tier =
     let rec go from_lib = function
       | [] -> None
@@ -2051,13 +2044,11 @@ module ImplicitHoles = struct
     let wrapper (h, _) = SynthesizeWrapper.derived_wrapper h.cand_args in
     let try_derive candidates = try_derive_with holes wrapper (disambiguate_func_with_holes candidates) in
 
-    (* Import hints list the libraries with a candidate, imported or not, and
-       grow as the stages are tried *)
+    (* Import hints list the libraries with a candidate, imported or not, and grow as the stages are tried *)
     let lib_sites = lazy (Search.in_all_libs env hole_name) in
     let lib_fields = lazy (matching hole (Lazy.force lib_sites)) in
     let suggest lib_fields note = Error (HoleSuggestions (Lazy.force lib_fields, note)) in
 
-    (* Direct candidates *)
     let direct sites =
       let candidates = matching hole sites in
       match disambiguate_holes candidates with
