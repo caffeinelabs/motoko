@@ -1980,7 +1980,9 @@ module ImplicitHoles = struct
     module Sites = FieldSites(M)
 
     let filter_fields env hole on_field =
-      Sites.find ~nested:true env hole.hole_name |> List.filter_map on_field
+      Sites.find ~nested:true env hole.hole_name
+      |> Sites.dedupe env
+      |> List.filter_map on_field
 
     let matching_fields env hole = filter_fields env hole (fun (site, field) ->
       if not (is_matching_typ hole field.T.typ) then None else

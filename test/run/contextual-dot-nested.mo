@@ -36,3 +36,7 @@ assert (1 : Nat).inc() == 2;
 assert Outer.two() == 2;
 
 assert Facade2.Vec.sum(v) == 3;
+
+// Implicit arguments merge the paths to one function likewise
+func total<T>(x : T, sum : (implicit : T -> Nat)) : Nat = sum(x);
+assert total(v) == 3;
