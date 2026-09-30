@@ -1724,22 +1724,21 @@ module Search = struct
      Returns the first answer and whether it came from a library tier, where an ambiguity is no resolution rather than an error.
      Sites are built afresh for each call, so a resolution never shares AST nodes with another. *)
   let resolve env name tier =
-    let rec go from_lib = function
-      | [] -> None
-      | sites :: rest ->
-        match tier (sites ()) with
-        | None -> go from_lib rest
-        | Some r -> Some (r, from_lib) in
-    let scope = [
-      (fun () -> local env name);
-      (fun () -> in_modules ~nested:false env name);
-      (fun () -> in_modules ~nested:true env name) ] in
-    let libs = [
-      (fun () -> in_implicit_libs ~nested:false env name);
-      (fun () -> in_implicit_libs ~nested:true env name) ] in
-    match go false scope with
-    | Some r -> Some r
-    | None -> go true libs
+    match tier (local env name) with
+    | Some r -> Some (r, false)
+    | None ->
+    match tier (in_modules ~nested:false env name) with
+    | Some r -> Some (r, false)
+    | None ->
+    match tier (in_modules ~nested:true env name) with
+    | Some r -> Some (r, false)
+    | None ->
+    match tier (in_implicit_libs ~nested:false env name) with
+    | Some r -> Some (r, true)
+    | None ->
+    match tier (in_implicit_libs ~nested:true env name) with
+    | Some r -> Some (r, true)
+    | None -> None
 
   let found = function
     | `Empty -> None
