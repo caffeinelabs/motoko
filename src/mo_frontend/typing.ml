@@ -2407,30 +2407,34 @@ let resolve_dot_callee env id receiver_at t0 t1 =
             [] (dot_field_suggestions env id fs) []
         | None -> dot_error_missing_field env id t0 fs)
 
+(* The names along a path `M.N.f`, last first; [~const] requires an immutable root *)
+let rec path_names ~const e =
+  match e.it with
+  | VarE {it; note = (mut, _); _} when not const || mut = Const -> Some [it]
+  | DotE (e1, id, _) -> Option.map (fun names -> id.it :: names) (path_names ~const e1)
+  | _ -> None
+
 let check_can_dot env m0236_prep tys exp at =
   match m0236_prep, tys with
   | Some (id, e, es_rest, Some inferred), receiver_ty :: _ ->
-    (match exp.it with
-     | DotE ({ it = VarE {it = mod_id; note = (Const, _); _};_ } as old_receiver, _, _) ->
+    (match exp.it, path_names ~const:true exp with
+     | DotE (old_receiver, _, _), Some written ->
        (* Suggest `M.f(e, ...)` -> `e.f(...)` only when `e` infers to the SAME receiver type —
           a mere subtype could change the chosen instantiation... *)
        if not (T.eq ~src_fields:env.srcs inferred receiver_ty) then () else
-       (* ...and when `e.f` still resolves to the same `M.f` — a same-named function field on the receiver would shadow it. *)
+       (* ...and when `e.f` still resolves to the same `M.f` (or `M.N.f`) — a same-named function field on the receiver would shadow it. *)
        (match resolve_dot_callee env id e.at inferred (T.promote inferred) with
         | DotField _ -> ()
         | DotCtxDot (Error _, _) -> ()
         | DotCtxDot (Ok {path; _}, _) ->
-          match path.it with
-          | DotE ({ it = VarE {it = mod_id0; _};_ }, { it = id0; _}, _)
-            when mod_id0 = mod_id && id0 = id.it ->
+          if path_names ~const:false path = Some written then
             (match Source_cache.read_region e.at with
              | None -> ()
              | Some receiver_text ->
                warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
                  ~edits:[edit old_receiver.at receiver_text; remove_arg_edit at e (Lib.List.hd_opt es_rest)]
                  receiver_text
-                 id.it)
-          | _ -> ())
+                 id.it))
      | _ -> ())
   | _ -> ()
 

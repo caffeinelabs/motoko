@@ -111,4 +111,19 @@ actor {
   ignore Int.abs(-1);       // no-warn
   ignore Int.abs(0xff);     // no-warn — `0xff.abs` lexes as a hex float
   ignore Float.isNaN(1.1);  // no-warn — even safe-looking literals skipped
+
+  // Calls through nested modules
+  module Outer {
+    public module Inner {
+      public func bump(self : Nat) : Nat { self + 1 };
+      public func shadowed(self : Nat) : Nat { self };
+    };
+  };
+  module Direct {
+    public func shadowed(self : Nat) : Nat { self };
+  };
+  func _nested(n : Nat) {
+    ignore Outer.Inner.bump(n); // warn
+    ignore Outer.Inner.shadowed(n); // no-warn — `n.shadowed()` resolves to Direct.shadowed
+  };
 }
