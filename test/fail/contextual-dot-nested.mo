@@ -18,3 +18,12 @@ module L1 { public module L2 { public module L3 { public module L4 {
 
 ignore (1 : Nat).deepest(); // Resolves fine
 ignore (1 : Nat).tooDeep();
+
+// Instances of one module declaration are different modules
+func adder(n : Nat) : module { plus : (self : Nat) -> Nat } {
+  module { public func plus(self : Nat) : Nat = self + n }
+};
+let One = adder(1);
+let Two = adder(2);
+
+ignore (1 : Nat).plus();

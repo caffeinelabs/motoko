@@ -7,3 +7,7 @@ error[M0070]: expected object type, but expression produces type
     ┌─ contextual-dot-nested.mo:20:9
  20 │  ignore (1 : Nat).tooDeep();
     │          ^^^^^^^ 
+error[M0224]: overlapping resolution for `plus` in scope from these modules: One, Two
+    ┌─ contextual-dot-nested.mo:29:18
+ 29 │  ignore (1 : Nat).plus();
+    │                   ^^^^ 

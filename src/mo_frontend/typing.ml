@@ -82,6 +82,8 @@ type env =
        Their fields are all directly in scope there, so nested implicit search
        must not reach the same bindings again through `M.` *)
     enclosing_modules : string list;
+    (* Binding sites of the names bound by imports, whose values are libraries *)
+    import_bindings : region list;
   }
 and ret_env =
   | NoRet
@@ -118,6 +120,7 @@ let env_of_scope msgs scope =
     stable_baseline_sig = None;
     enclosing_removal = false;
     enclosing_modules = [];
+    import_bindings = [];
   }
 
 let is_implicit_package pkg =
@@ -1669,6 +1672,8 @@ module type CandidateSource = sig
   val get_typ : entry -> T.typ
   val make_ref_exp : string -> exp'
   val search_depth : env -> T.lab -> int
+  (* Whether the module named [lab] is a library *)
+  val is_lib : env -> T.lab -> bool
 end
 
 module ValCandidateSource : CandidateSource with type entry = val_info = struct
@@ -1680,6 +1685,10 @@ module ValCandidateSource : CandidateSource with type entry = val_info = struct
      keep the direct fields of M, as before nested search existed *)
   let search_depth env lab =
     if List.mem lab env.enclosing_modules then 1 else max_search_depth
+  let is_lib env lab =
+    match T.Env.find_opt lab env.vals with
+    | Some (_, at, _, _) -> at <> no_region && List.mem at env.import_bindings
+    | None -> false
 end
 
 module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
@@ -1688,6 +1697,7 @@ module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = s
   let get_typ info = info.lib_typ
   let make_ref_exp r = ImplicitLibE r
   let search_depth _ _ = max_search_depth
+  let is_lib _ _ = true
 end
 
 (* Searches nested modules up to a given depth to find fields named [name] *)
@@ -1719,6 +1729,20 @@ module FieldSites (M : CandidateSource) = struct
       find_candidates depth (M.make_ref_exp lab) lab (M.get_typ entry) name
       |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
     |> List.of_seq
+
+  (* Library bodies are static, so a field reached from a library through
+     module fields is the one value its declaration defines: finding the same
+     declaration twice, as in `M.f` and `Facade.M.f`, is one function reached
+     through two paths rather than an ambiguity. Keeps the shortest path.
+     Other modules can have several instances of one declaration, e.g. when a
+     function returns a module, so their fields are never merged. *)
+  let dedupe env sites =
+    let decl ((lab, _, _), f) =
+      if M.is_lib env lab && f.T.src.T.region <> no_region then Some f.T.src.T.region else None in
+    let keyed = List.mapi (fun i (((_, path, _), _) as site) -> ((path_hops path, i), decl site), site) sites in
+    keyed |> List.filter_map (fun ((k, d), site) ->
+      if Option.is_some d && List.exists (fun ((k', d'), _) -> d' = d && k' < k) keyed then None
+      else Some site)
 end
 
 module ValFieldSites = FieldSites(ValCandidateSource)
@@ -2247,10 +2271,11 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
   (* Nested candidates only come into play when no direct field matches, so
      reaching a module through a facade never overrides or clashes with the
      module in scope itself *)
-  let direct_and_nested find =
-    let direct = candidates (find ~nested:false env name.it) in
+  let direct_and_nested find dedupe =
+    let direct = candidates (dedupe env (find ~nested:false env name.it)) in
     let nested () = find ~nested:true env name.it
       |> List.filter (fun ((_, container, _), _) -> path_hops container > 0)
+      |> dedupe env
       |> candidates in
     direct, nested in
   (* All candidate functions accept supertypes of the required type as their first arguments.
@@ -2262,7 +2287,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
   match local_candidate with
   | Some c -> Ok c
   | None ->
-    let direct, nested = direct_and_nested ValFieldSites.find in
+    let direct, nested = direct_and_nested ValFieldSites.find ValFieldSites.dedupe in
     match disambiguate_candidates direct with
     | `Single c -> Ok c
     | `Many cs -> ambiguous cs
@@ -2272,7 +2297,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
     | `Many cs -> ambiguous cs
     | `Empty ->
       (* Resolve only implicit-package libs; error suggestions may still list others. *)
-      let lib_direct, lib_nested = direct_and_nested LibFieldSites.find in
+      let lib_direct, lib_nested = direct_and_nested LibFieldSites.find LibFieldSites.dedupe in
       let lib_nested = lib_nested () in
       let resolve cs =
         if Option.is_some !Flags.implicit_package then
@@ -5717,6 +5742,8 @@ let infer_imports env ds =
 let infer_split_prog env at check_unused imports decls =
   let iscope = infer_imports env imports in
   let env = adjoin env iscope in
+  let import_bindings = T.Env.fold (fun _ (_, at, _) ats -> at :: ats) iscope.Scope.val_env env.import_bindings in
+  let env = {env with import_bindings} in
   let t, sscope = infer_block env decls at check_unused in
   if check_unused then leave_scope env iscope.Scope.val_env T.Env.empty;
   t, Scope.adjoin iscope sscope
