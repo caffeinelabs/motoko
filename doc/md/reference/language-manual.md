@@ -2282,26 +2282,24 @@ Otherwise,
 
 ### Resolution of dotted calls and implicit arguments
 
-A [dotted function call](#dotted-function-calls) `<exp1>.<id> <exp2>` whose receiver has no function field `<id>`, and an omitted [implicit argument](#function-calls) named `<id>`, are both resolved by searching the scope for values named `<id>`. The search is the same for both; they differ in how a candidate is matched against the call and in whether nested modules compete with the modules in scope.
+A [dotted function call](#dotted-function-calls) `<exp1>.<id> <exp2>` whose receiver has no function field `<id>`, and an omitted [implicit argument](#function-calls) named `<id>`, are both resolved by searching the scope for values named `<id>`. The search is the same for both; they differ only in how a candidate is matched against the call and in which of two matching candidates is the closer one.
 
-The values named `<id>` are searched in tiers. The first tier that has a matching candidate decides the resolution:
+The values named `<id>` are searched in tiers. The first tier that has a matching candidate decides the resolution, so a closer candidate hides farther ones, and a module reached through another module never competes with a module in scope:
 
 1. The value `<id>` bound in the local scope, provided it is immutable.
 2. The immutable fields `<mid>.<id>` of the modules `<mid>` in scope.
 3. The immutable fields `<mid>.<id1>.….<idn>.<id>` of the modules nested inside the modules in scope, reached through module-typed fields only, up to a depth of 8. In the body of `module M`, the modules nested in `M` are in scope by themselves, so `M` contributes only its direct fields.
 4. When the compiler runs with `--implicit-package <pkg>`, the libraries of package `<pkg>` that the program does not import, searched like tiers 2 and 3 with the library in place of `<mid>`.
 
-For a dotted call, tier 3 is consulted only when tier 2 has no matching candidate, and likewise for the nested modules of the libraries in tier 4. A module reached through another module therefore never overrides, or clashes with, a module in scope. For an implicit argument, tiers 2 and 3 form one tier and their candidates compete, and likewise within tier 4.
-
 Within a tier:
 
-* Candidates that reach the same declaration from a library are one candidate. Library and module bodies are static, so a field declaration in a library defines exactly one value: with `module Facade { public let M = _M; ... }` re-exporting the imported library `_M`, the candidates `M.f` and `Facade.M.f` count once. Modules that are not libraries, such as the module of a class instance, are never merged.
+* Every matching candidate counts, even when several of them are the same function reached through several paths, such as `M.f` from an imported library `M` and `Facade.M.f` through a facade that re-exports it. Importing the library directly makes it a direct field and lets it win.
 
 * The set of matching candidates Cs is filtered to the set Ds of the candidates closest to the call. A candidate is dropped when another candidate is strictly closer; candidates that are equally close or unrelated are all kept. For a dotted call with receiver type `R`, a candidate whose `self` parameter has type `V` is closer than one with `W` when `R <: V <: W`. For an implicit argument of type `U`, a candidate of type `V` is closer than one of type `W` when `W <: V <: U`.
 
 * If Ds is a singleton, its element is the resolution. Otherwise the call is ambiguous and rejected, with M0224 for a dotted call and M0231 for an implicit argument; the error names the candidates by their module paths. Writing the qualified function, or passing the implicit argument explicitly, resolves the ambiguity.
 
-If no tier has a matching candidate, the call is rejected, with M0072 for a dotted call and M0230 for an implicit argument. The error suggests importing a library when one of the libraries the program loads, imported or not and from any package, has a matching field named `<id>` directly or in a nested module. For implicit arguments, [implicit derivation](#function-calls) is attempted before the call is rejected.
+If no tier has a matching candidate, the call is rejected, with M0072 for a dotted call and M0230 for an implicit argument. The error suggests importing a library when one of the libraries the program loads, imported or not and from any package, has a matching field named `<id>` directly or in a nested module. For implicit arguments, [implicit derivation](#function-calls) is attempted before the call is rejected, walking the same tiers.
 
 ### Dotted function calls
 
@@ -2401,7 +2399,7 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
 
     * `hole(i, <idi>, Ui)` is the description of the `ith` hole, a placeholder for an expression `<idi>` or `<mid>.<idi>`.
     *  `<idi>` is the resolution of the hole from the local context, if any; it must be immutable and have a type `V <: [T0/X0, …​, Tn/Xn]Ui`.
-    *  Cs is the set of candidate fields `<mid>.<idi>` of the modules in scope and of the modules nested in them, and, failing those, of the libraries of the implicit package, as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments). `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
+    *  Cs is the set of candidate fields `<mid>.<idi>` from the first tier of the search that has one: the modules in scope, then the modules nested in them, then the libraries of the implicit package, as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments). `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
     *  Ds is the disambiguated set of candidates, filtered by generality.
     * `<path>` is the unique disambiguation, if one exists (that is, when Ds is a singleton set).
 

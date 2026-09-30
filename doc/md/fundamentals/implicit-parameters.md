@@ -64,8 +64,12 @@ The available candidates are:
 * Any value named `compare` whose type matches the parameter type.
 
 If there is no such value,
-* Any field named `M.compare` declared in some module available `M`, or in a module nested inside it, such as `M.N.compare` (up to a depth of 8).
-* If there is more than one such field, none of which is more specific than all the others, the call is ambiguous. One function reached through several library paths, such as `N.compare` and `M.N.compare`, counts once.
+* Any field named `M.compare` declared in some module available `M`.
+
+If there is no such field either,
+* Any field named `compare` of a module nested inside a module available `M`, such as `M.N.compare` (up to a depth of 8).
+
+If there is more than one candidate at the first step that has one, none of which is more general than all the others, the call is ambiguous.
 
 An ambiguous call can always be disambiguated by supplying the explicit arguments for all implicit parameters.
 
