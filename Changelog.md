@@ -145,6 +145,15 @@
       nesting depth of 8. A call that resolved uniquely may now be ambiguous
       (M0231); pass the argument explicitly (#6084).
 
+    * feat: contextual dot also finds functions in nested modules, so
+      importing a facade that re-exports its package's modules is enough for
+      both `e.f(...)` and implicits. Nested candidates only count when no
+      module in scope has a matching direct field, so existing calls keep
+      their meaning. One function reached through several library paths,
+      such as `RecordValue._toRow` and `OQL.RecordValue._toRow`, is no longer
+      ambiguous (M0224, M0231), and M0236 also suggests `e.f(...)` for
+      `M.N.f(e, ...)` (#6419).
+
     * feat: read-only primitives no longer require the `system` capability,
       so `query` and `composite query` methods can call them:
       `Prim.getSelfPrincipal`, `Prim.envVarNames`, `Prim.envVar`,

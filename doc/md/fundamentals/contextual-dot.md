@@ -156,8 +156,9 @@ This helps you maintain consistent coding style across your project.
 Contextual dot notation has some intentional limitations:
 
 - It requires the receiving value to be the first parameter, named `self`.
-- Any function must be declared in a module that is imported or otherwise in scope: function in object, actors or nested modules are not considered.
-- If there is more than one available module function, and none is more general than all the others, the call is considered ambigious and rejected at compile-time.
+- Any function must be declared in a module that is imported or otherwise in scope, or in a module nested inside one (up to a depth of 8): functions in objects or actors are not considered.
+- Nested modules are only searched when no module in scope has a matching function itself. Importing a facade module that re-exports other modules, e.g. `public let Map = _Map;`, is enough to use their functions with dot notation.
+- If there is more than one available module function, and none is more general than all the others, the call is considered ambiguous and rejected at compile-time. One function reached through several library paths, such as `M.f` and `Facade.M.f`, counts once.
 - The feature is purely syntactic - there is no runtime overhead
 
 

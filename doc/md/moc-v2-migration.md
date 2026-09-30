@@ -24,7 +24,7 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 4. Run `mops check` (or `mops build`) and fix what it reports, in this order:
    1. syntax errors: [`??`](#-is-whitespace-sensitive), [glued branches](#if-while-for-and-switch-heads), [`flexible`](#flexible-is-removed);
    2. [errors that used to be warnings](#warnings-that-are-now-errors);
-   3. library and module errors: [M0142](#libraries-must-be-modules-m0142), [M0193](#actor-class-return-type-m0193), [ambiguous implicits](#implicits-are-also-found-in-nested-modules);
+   3. library and module errors: [M0142](#libraries-must-be-modules-m0142), [M0193](#actor-class-return-type-m0193), [ambiguous implicits](#implicits-and-dot-notation-search-nested-modules);
    4. persistence errors such as M0131, which only appear if you used [`--legacy-actors`](#actors-are-persistent-by-default).
 5. Check upgrade compatibility against the deployed version (`mops check-stable`, or `moc --stable-compatible old.most new.most`) before you upgrade a live canister.
 
@@ -43,7 +43,7 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [Inferred `Any`/`None`](#inferred-any-or-none) | M0074, M0081, M0101, M0166, M0167 | fix the code, or annotate `Any` |
 | [Bare-declaration libraries](#libraries-must-be-modules-m0142) | error M0142 | wrap in `module { ... }` |
 | [Actor class return type](#actor-class-return-type-m0193) | error M0193 | `: async actor { ... }` |
-| [Nested-module implicits](#implicits-are-also-found-in-nested-modules) | error M0231 (ambiguous implicit) | pass the argument explicitly |
+| [Nested-module implicits and dot notation](#implicits-and-dot-notation-search-nested-modules) | error M0231 (ambiguous implicit) | pass the argument explicitly |
 | [Removed primitives](#removed-primitives-and-experimentalstablememory) | M0072 in `ExperimentalStableMemory` | use `Region` |
 | [Read-only primitives drop `<system>`](#read-only-primitives-no-longer-take-system) | warning M0196 | delete `<system>` |
 | [Removed flags](#removed-flags) | `unknown option` | see the table |
@@ -289,9 +289,11 @@ actor class C() : actor {} { };        // M0193
 actor class C() : async actor {} { };
 ```
 
-### Implicits are also found in nested modules
+### Implicits and dot notation search nested modules
 
-Implicit arguments are also resolved from modules nested inside the modules in scope, up to a depth of 8. A call that resolved uniquely in moc 1 can become ambiguous (M0231):
+Implicit arguments and contextual dot (`e.f(...)`) are also resolved from modules nested inside the modules in scope, up to a depth of 8. Importing a facade that re-exports its package's modules, such as `public let Map = _Map;`, is therefore enough for both. One function reached through several library paths, say `RecordValue._toRow` and `OQL.RecordValue._toRow` when both are imported, counts once.
+
+For implicits, nested candidates compete with the direct fields of modules in scope, so a call that resolved uniquely in moc 1 can become ambiguous (M0231):
 
 ```motoko no-repl
 module Money {
@@ -305,6 +307,8 @@ func show(n : Nat, toText : (implicit : Nat -> Text)) : Text { toText(n) };
 show(5);                 // M0231: `Money.toText` or `Money.Cents.toText`
 show(5, Money.toText);   // pass it explicitly
 ```
+
+Dot notation only searches nested modules when no module in scope has a matching direct field, so existing `e.f(...)` calls keep their meaning. Two different matching functions in nested modules are ambiguous (M0224). M0236 now also suggests `e.f(...)` for a call written `M.N.f(e, ...)`.
 
 ### Removed primitives and `ExperimentalStableMemory`
 

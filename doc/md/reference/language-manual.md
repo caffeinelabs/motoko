@@ -2302,6 +2302,8 @@ where
 
     * `R` is the type of the receiver expression `<exp1>`.
     *  Cs is the set of candidate functions `<mid>.<id>` in modules named `<mid>`, with explicitly name `self` parameter that matches the receiver type `R`.
+       If no module in scope has such a field, `<mid>` ranges over paths `<mid1>.<id1>.….<idn>` to modules nested inside the modules in scope instead, up to a depth of 8.
+       Candidates that are one function reached through several library paths count once.
     *  Ds is the disambiguated set of candidates, filtered by specifity.
     * `<mid>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
     *  Finally `extend_args` is the following auxilliary function that inserts the receiver into arguments `<exp2>`, using the candidate's arity `a`:
