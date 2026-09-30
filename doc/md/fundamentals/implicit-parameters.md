@@ -69,6 +69,8 @@ If there is no such value,
 
 An ambiguous call can always be disambiguated by supplying the explicit arguments for all implicit parameters.
 
+The exact search order and disambiguation, shared with contextual dot notation, are specified in the [language manual](../reference/language-manual.md#resolution-of-dotted-calls-and-implicit-arguments).
+
 ### Contextual dot notation
 
 Implicit parameters dovetail nicely with [contextual dot notation](contextual-dot.md).

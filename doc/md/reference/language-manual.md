@@ -2280,33 +2280,54 @@ Otherwise,
 -   Otherwise, `v` is `vi`, the value currently stored in the `i`-th location of the array.
 
 
+### Resolution of dotted calls and implicit arguments
+
+A [dotted function call](#dotted-function-calls) `<exp1>.<id> <exp2>` whose receiver has no function field `<id>`, and an omitted [implicit argument](#function-calls) named `<id>`, are both resolved by searching the scope for values named `<id>`. The search is the same for both; they differ in how a candidate is matched against the call and in whether nested modules compete with the modules in scope.
+
+The values named `<id>` are searched in tiers. The first tier that has a matching candidate decides the resolution:
+
+1. The value `<id>` bound in the local scope, provided it is immutable.
+2. The immutable fields `<mid>.<id>` of the modules `<mid>` in scope.
+3. The immutable fields `<mid>.<id1>.….<idn>.<id>` of the modules nested inside the modules in scope, reached through module-typed fields only, up to a depth of 8. In the body of `module M`, the modules nested in `M` are in scope by themselves, so `M` contributes only its direct fields.
+4. When the compiler runs with `--implicit-package <pkg>`, the libraries of package `<pkg>` that the program does not import, searched like tiers 2 and 3 with the library in place of `<mid>`.
+
+For a dotted call, tier 3 is consulted only when tier 2 has no matching candidate, and likewise for the nested modules of the libraries in tier 4. A module reached through another module therefore never overrides, or clashes with, a module in scope. For an implicit argument, tiers 2 and 3 form one tier and their candidates compete, and likewise within tier 4.
+
+Within a tier:
+
+* Candidates that reach the same declaration from a library are one candidate. Library and module bodies are static, so a field declaration in a library defines exactly one value: with `module Facade { public let M = _M; ... }` re-exporting the imported library `_M`, the candidates `M.f` and `Facade.M.f` count once. Modules that are not libraries, such as the module of a class instance, are never merged.
+
+* The set of matching candidates Cs is filtered to the set Ds of the candidates closest to the call. A candidate is dropped when another candidate is strictly closer; candidates that are equally close or unrelated are all kept. For a dotted call with receiver type `R`, a candidate whose `self` parameter has type `V` is closer than one with `W` when `R <: V <: W`. For an implicit argument of type `U`, a candidate of type `V` is closer than one of type `W` when `W <: V <: U`.
+
+* If Ds is a singleton, its element is the resolution. Otherwise the call is ambiguous and rejected, with M0224 for a dotted call and M0231 for an implicit argument; the error names the candidates by their module paths. Writing the qualified function, or passing the implicit argument explicitly, resolves the ambiguity.
+
+If no tier has a matching candidate, the call is rejected, with M0072 for a dotted call and M0230 for an implicit argument. The error suggests importing a library when one of the libraries the program loads, imported or not and from any package, has a matching field named `<id>` directly or in a nested module. For implicit arguments, [implicit derivation](#function-calls) is attempted before the call is rejected.
+
 ### Dotted function calls
 
 The dotted function call expression `<parenthetical>? <exp1>.<id> <T0,…​,Tn>? <exp2>` has type `T` provided
 the expanded function call expression `<parenthetical>? <exp3> <T0,…​,Tn>? <exp4>` has type `T`,
 where
 
-  * If the projection `<exp0>.<id>` has some function type then `<exp3> = <exp0>.<id>` and `<exp4> = <exp2>`.
+  * If the receiver `<exp1>` has an object type with a function-typed field `<id>` then `<exp3> = <exp1>.<id>` and `<exp4> = <exp2>`.
 
-  * Otherwise, the module environment is used to determine an appropriate function `<exp3>` and argument `<exp4>` by
+  * Otherwise, the scope is searched for a function named `<id>` as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments),
     constructing a set of candidates Cs and disambiguation Ds:
 
       * If the receiver `<exp1>` has type `R` and
-      * Cs = { `(<mid>, V1[Ts/Xs], a)` | `<mid>` has type `module {}` and `<mid>.<id>` has type `<Xs <: Vs>(self : V1, ..., Va) -> V` and `R <: V1[Ts/Xs]` for `Ts` } and
-      * Ds = { `(<mid>, V, a)`  in Cs | for all `(_, W, _)` in Cs, `V <: W` } and
-      * { `(<mid>, _, _)` } = Ds and
+      * Cs = { `(<path>, V1[Ts/Xs], a)` | `<path>` is the local value `<id>` or a field `<mid>.<id>` found by the search, `<path>` has type `<Xs <: Vs>(self : V1, ..., Va) -> V` and `R <: V1[Ts/Xs]` for some `Ts` } and
+      * Ds = { `(<path>, V, a)`  in Cs | for all `(_, W, _)` in Cs, `V <: W` } and
+      * { `(<path>, _, _)` } = Ds and
 
-    Then `<exp3> = <mid>.<id>` and `<exp4> = extend_args(<exp1>, <exp2>, a)`.
+    Then `<exp3> = <path>` and `<exp4> = extend_args(<exp1>, <exp2>, a)`.
 
     Here:
 
     * `R` is the type of the receiver expression `<exp1>`.
-    *  Cs is the set of candidate functions `<mid>.<id>` in modules named `<mid>`, with explicitly name `self` parameter that matches the receiver type `R`.
-       If no module in scope has such a field, `<mid>` ranges over paths `<mid1>.<id1>.….<idn>` to modules nested inside the modules in scope instead, up to a depth of 8.
-       Candidates that are one function reached through several library paths count once.
-    *  Ds is the disambiguated set of candidates, filtered by specifity.
-    * `<mid>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
-    *  Finally `extend_args` is the following auxilliary function that inserts the receiver into arguments `<exp2>`, using the candidate's arity `a`:
+    *  Cs is the set of candidate functions with an explicitly named `self` parameter that matches the receiver type `R`, from the first tier of the search that has one: the local value `<id>`, then the modules in scope, then the modules nested in them, then the libraries of the implicit package. `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
+    *  Ds is the disambiguated set of candidates, filtered by specificity of the `self` parameter.
+    * `<path>` is the unique disambiguation, if one exists (that is, when Ds is a singleton set).
+    *  Finally `extend_args` is the following auxiliary function that inserts the receiver into arguments `<exp2>`, using the candidate's arity `a`:
 
     ```
     extend_args(<exp1> : exp, <exp2> : exp, arity : Nat) : exp
@@ -2371,20 +2392,20 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
 
       Otherwise:
 
-      * Cs = { `(<mid>, V)` | `<mid>` has type `module {}` and `<mid>.<idi>` has type `V` and `V <: [T0/X0, …​, Tn/Xn]U1` }; and
-      * Ds = { `(<mid>, V)`  in Cs | for all `(_, W)` in Cs, `W <: V` }; and
-      * { `(<mid>, _)` } = Ds; and
-      * `hole(i, <idi>, Ui) = <mid>.<idi>`.
+      * Cs = { `(<path>, V)` | `<path>` is a field `<mid>.<idi>` found by the scope search and has type `V` with `V <: [T0/X0, …​, Tn/Xn]Ui` }; and
+      * Ds = { `(<path>, V)`  in Cs | for all `(_, W)` in Cs, `W <: V` }; and
+      * { `(<path>, _)` } = Ds; and
+      * `hole(i, <idi>, Ui) = <path>`.
 
     Here:
 
     * `hole(i, <idi>, Ui)` is the description of the `ith` hole, a placeholder for an expression `<idi>` or `<mid>.<idi>`.
-    *  `<idi>` is the resolution of the hole from the local context, if any;
-    *  Cs is the set of candidate module `<mid>` named `<mid>`, with type `V` whose field `<mid>.<idi>` matches hole type `Ui` (after type instantiation).
+    *  `<idi>` is the resolution of the hole from the local context, if any; it must be immutable and have a type `V <: [T0/X0, …​, Tn/Xn]Ui`.
+    *  Cs is the set of candidate fields `<mid>.<idi>` of the modules in scope and of the modules nested in them, and, failing those, of the libraries of the implicit package, as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments). `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
     *  Ds is the disambiguated set of candidates, filtered by generality.
-    * `<mid>.<idi>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
+    * `<path>` is the unique disambiguation, if one exists (that is, when Ds is a singleton set).
 
-    **Implicit derivation**: When no direct candidate is found (neither from local values, module fields, nor library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates, starting with local values, then among module fields, then among library fields.
+    **Implicit derivation**: When no direct candidate is found (neither from the local value, nor the fields of the modules in scope and their nested modules, nor the library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates, in the same order: the local value, then module fields, then library fields.
     A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.

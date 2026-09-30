@@ -161,6 +161,8 @@ Contextual dot notation has some intentional limitations:
 - If there is more than one available module function, and none is more general than all the others, the call is considered ambiguous and rejected at compile-time. One function reached through several library paths, such as `M.f` and `Facade.M.f`, counts once.
 - The feature is purely syntactic - there is no runtime overhead
 
+The exact search order and disambiguation, shared with implicit arguments, are specified in the [language manual](../reference/language-manual.md#resolution-of-dotted-calls-and-implicit-arguments).
+
 
 ## See also
 
