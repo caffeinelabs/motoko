@@ -11,3 +11,13 @@ error[M0224]: overlapping resolution for `plus` in scope from these modules: One
     ┌─ contextual-dot-nested.mo:29:18
  29 │  ignore (1 : Nat).plus();
     │                   ^^^^ 
+error[M0224]: overlapping resolution for `minus` in scope from these modules: First, Second
+    ┌─ contextual-dot-nested.mo:38:18
+ 38 │  ignore (3 : Nat).minus();
+    │                   ^^^^^ 
+error[M0231]: ambiguous implicit argument named `minus` of type 
+  Nat -> Nat.
+    ┌─ contextual-dot-nested.mo:42:8
+ 42 │  ignore apply(3);
+    │         ^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `First.minus`, `Second.minus`.

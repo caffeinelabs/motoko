@@ -27,3 +27,16 @@ let One = adder(1);
 let Two = adder(2);
 
 ignore (1 : Nat).plus();
+
+// So are the modules of class instances, which share one declaration
+class C(n : Nat) {
+  public module M { public func minus(self : Nat) : Nat = self - n };
+};
+let First = C(1).M;
+let Second = C(2).M;
+
+ignore (3 : Nat).minus();
+
+// Implicit arguments tell the instances apart likewise
+func apply(x : Nat, minus : (implicit : Nat -> Nat)) : Nat = minus(x);
+ignore apply(3);

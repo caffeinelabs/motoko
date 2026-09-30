@@ -1734,8 +1734,8 @@ module FieldSites (M : CandidateSource) = struct
      module fields is the one value its declaration defines: finding the same
      declaration twice, as in `M.f` and `Facade.M.f`, is one function reached
      through two paths rather than an ambiguity. Keeps the shortest path.
-     Other modules can have several instances of one declaration, e.g. when a
-     function returns a module, so their fields are never merged. *)
+     Other modules can have several instances of one declaration, e.g. the
+     module of a class field, so their fields are never merged. *)
   let dedupe env sites =
     let decl ((lab, _, _), f) =
       if M.is_lib env lab && f.T.src.T.region <> no_region then Some f.T.src.T.region else None in

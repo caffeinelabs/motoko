@@ -2,3 +2,7 @@ contextual-dot-nested.mo:7.18-7.23: type error [M0224], overlapping resolution f
 contextual-dot-nested.mo:20.9-20.16: type error [M0070], expected object type, but expression produces type
   Nat
 contextual-dot-nested.mo:29.18-29.22: type error [M0224], overlapping resolution for `plus` in scope from these modules: One, Two
+contextual-dot-nested.mo:38.18-38.23: type error [M0224], overlapping resolution for `minus` in scope from these modules: First, Second
+contextual-dot-nested.mo:42.8-42.16: type error [M0231], ambiguous implicit argument named `minus` of type 
+  Nat -> Nat.
+note: The ambiguous implicit candidates are: `First.minus`, `Second.minus`.
