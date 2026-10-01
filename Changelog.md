@@ -221,6 +221,11 @@
 
   * **Bug fixes**
 
+    * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
+      `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
+      second case without its tag test. Passing the other leg bound that
+      leg's payload at the first case's type instead of trapping (#6427).
+
     * bugfix: a class method returning `async*` with an `= e` body, such as
       `public func next() : async* Nat = v`, no longer fails with M0137 when
       the class is used at a record type: the method binds its own async
