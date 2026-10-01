@@ -7,6 +7,11 @@ actor a {
   func apply(f : Nat -> async Nat) : async Nat { await f(20) };
   func forEach<A>(xs : [A], f : A -> async ()) : async () { for x in xs.values() { await f(x) } };
 
+  type Counter = { next : () -> async* Nat };
+  class ValueCounter(v : Nat) {
+    public func next() : async* Nat = v; // its own scope, so the class type mentions no outer one
+  };
+
   var log = "";
 
   public func go() : async () {
@@ -21,6 +26,8 @@ actor a {
     func four() : async Nat = 4;
     func five() : async Nat { 5 };
     assert (await four()) + (await five()) == 9;
+    let c : Counter = ValueCounter(6);
+    assert (await* c.next()) == 6;
 
     // The body runs asynchronously, after the caller continues
     let fut = run(func() { log #= "!"; 0 });

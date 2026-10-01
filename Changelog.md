@@ -221,6 +221,11 @@
 
   * **Bug fixes**
 
+    * bugfix: a class method returning `async*` with an `= e` body, such as
+      `public func next() : async* Nat = v`, no longer fails with M0137 when
+      the class is used at a record type: the method binds its own async
+      scope, like a block body always did (#XXXX).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
