@@ -220,9 +220,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_obj_body_no_attr_dec_) -> "<obj_body>", "{}"
   | X (N N_obj_body_par_attr_dec_pub_) -> "<obj_body>", "{}"
   | X (N N_dec_pub) -> "<dec_pub>", eg_dec
-  | X (N N_obj_sort_ac) -> "<obj_sort>", "actor"
-  | X (N N_obj_sort_lo) -> "<obj_sort>", "object"
-  | X (N N_obj_sort_lo_opt) -> "<obj_sort>?", "object"
   | X (N N_no_attr) -> "", ""
   | X (N N_par_attr) -> "<parenthetical>?", "(with encoder)"
   | X (N N_seplist_dec_field_par_attr_dec_pub__semicolon_) -> seplist ("<dec_field>", eg_dec_field) semi

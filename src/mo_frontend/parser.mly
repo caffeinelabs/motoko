@@ -426,14 +426,14 @@ seplist1(X, SEP) :
    sort is a semantic value and so cannot select a body -- only separate
    productions can, hence the split. Not %inline: menhir cannot pass an
    %inline symbol as a parameter. *)
-obj_sort_ac :
+%inline obj_sort_ac :
   | po=persistent ACTOR { (po, Type.Actor @@ at $sloc) }
 
-obj_sort_lo :
+%inline obj_sort_lo :
   | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
   | MODULE { (persistent false no_region, Type.Module @@ at $sloc) }
 
-obj_sort_lo_opt :
+%inline obj_sort_lo_opt :
   | os=obj_sort_lo { os }
   | (* empty *) {
       (persistent true no_region, Type.Object @@ no_region)
