@@ -204,6 +204,13 @@
 
   * **Bug fixes**
 
+    * bugfix: clearer diagnostics. Calling a local `async` or `async*`
+      function from a `query` (M0188) or `composite query` (M0187) says so
+      instead of claiming a `shared` function was called, and the M0185
+      warning on importing a Candid service constructor explains that its
+      initialization arguments are ignored; `moc --explain M0185` has the
+      details (#6425).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
