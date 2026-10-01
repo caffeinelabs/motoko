@@ -377,17 +377,30 @@ and fail ctxt desc sets : bool =
 type uncovered = string
 type unreached = region
 
+let within at outer =
+  Pos_ord.compare outer.left at.left <= 0 && Pos_ord.compare at.right outer.right <= 0
+
 let check_cases cases t =
   let sets = make_sets () in
   let _exhaustive = fail (InCase (no_region, cases, t)) Any sets in
   let uncovered = List.map (string_of_desc t) (List.rev sets.missing) in
   let unreached_cases = AtSet.diff sets.cases sets.reached_cases in
   let unreached_alts = AtSet.diff sets.alts sets.reached_alts in
-  uncovered, AtSet.elements (AtSet.union unreached_cases unreached_alts)
+  let unreached = AtSet.union unreached_cases unreached_alts in
+  (* report only the outermost of nested unreached patterns *)
+  let nested at = AtSet.exists (fun outer -> outer <> at && within at outer) unreached in
+  uncovered, AtSet.elements (AtSet.filter (fun at -> not (nested at)) unreached)
 
 let (@?) it at = {it; at; note = empty_typ_note}
 
+let check_single pat t =
+  check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
+
 let check_pat pat t =
-  let uncovered, unreached =
-    check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
-  in uncovered, List.filter ((<>) pat.at) unreached
+  let uncovered, unreached = check_single pat t in
+  uncovered, List.filter ((<>) pat.at) unreached
+
+(* unlike in a plain `let`, a pattern that matches no value is reported: it always takes the `else` *)
+let check_let_else pat t =
+  let uncovered, unreached = check_single pat t in
+  uncovered, if T.inhabited t then unreached else List.filter ((<>) pat.at) unreached

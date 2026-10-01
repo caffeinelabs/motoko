@@ -74,6 +74,11 @@
       share no field, or `x == y` on type parameters. Comparisons at a common
       type that still has content stay warning M0062 (#6415).
 
+    * Breaking change: a file in the `--enhanced-migration` directory that
+      does not export a public `migration` function is error M0278 instead of
+      warning M0251. The file was skipped, so the build succeeded and the
+      migration never ran (#NNNN).
+
     * Breaking change: an imported library must be a `module { ... }` or a
       named actor class. A bare sequence of declarations is error M0142
       instead of a deprecation warning; wrap it in `module { ... }` and mark
@@ -169,6 +174,19 @@
 
     * bugfix: contextual dot resolves functions returning `async` in an async
       context, e.g. `await x.asyncFunc()` (#6085).
+
+    * Breaking change: a variant pattern whose tag is not in the expected
+      type is error M0279, with a suggestion for a misspelled tag:
+      `case (#suspnded)` on `{#active; #suspended}`. It was warning M0146, or
+      no diagnostic at all in `let ... else`. A tag that is in the type but
+      unreachable, such as a duplicate case, stays warning M0146. To match at
+      a larger variant type, annotate the pattern:
+      `case (#c : {#a; #b; #c})` (#NNNN).
+
+    * bugfix: a `let ... else` pattern that can never match, such as
+      `let -1 = n else { ... }` with `n : Nat`, is warning M0146 instead of
+      silently always taking the `else`. A pattern nested inside another
+      never-matched pattern is no longer reported a second time (#NNNN).
 
   * **Command line and tooling**
 

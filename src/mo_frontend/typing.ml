@@ -547,9 +547,12 @@ let eq_kind env at k1 k2 =
 
 (* Coverage *)
 
+let warn_unreached env unreached =
+  List.iter (fun at -> warn env at "M0146" "this pattern is never matched") unreached
+
 let coverage' warnOrError category env f x t at =
   let uncovered, unreached = f x t in
-  List.iter (fun at -> warn env at "M0146" "this pattern is never matched") unreached;
+  warn_unreached env unreached;
   if uncovered <> [] then
     warnOrError ?notes:None ?spans:None ?edits:None env at "M0145"
       ("this %s of type%a\ndoes not cover value\n  %s" : (_, _, _, _) format4 )
@@ -563,9 +566,11 @@ let coverage_cases category env cases t at =
 let coverage_pat warnOrError env pat t =
   coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
 
-let coverage_pat_is_exhaustive pat t =
-  let uncovered, _ = Coverage.check_pat pat t in
-  uncovered = []
+let coverage_let_else env pat t =
+  let uncovered, unreached = Coverage.check_let_else pat t in
+  warn_unreached env unreached;
+  if uncovered = [] then
+    warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause"
 
 (* Types *)
 
@@ -4121,14 +4126,19 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
-    let t1 =
-      try
-        match T.lookup_val_field_opt id.it (T.as_variant_sub id.it t) with
-        | Some t1 -> t1
-        | None -> T.Non
-      with Invalid_argument _ ->
-        let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
-        error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
+    let tfs = try T.as_variant_sub id.it t with Invalid_argument _ ->
+      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
+      error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
+    in
+    let t1 = match T.lookup_val_field_opt id.it tfs with
+      | Some t1 -> t1
+      | None ->
+        let tags = List.map (fun tf -> "#" ^ tf.T.lab) tfs in
+        error env pat.at "M0279"
+          ~spans:(suggest_span env id.at (Suggest.suggest_id "tag" ("#" ^ id.it) tags))
+          "variant tag #%s is not contained in expected type%a"
+          id.it
+          display_typ_expand t
     in check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in
@@ -4640,12 +4650,12 @@ and infer_migration_chain env at =
                 match Type.lookup_val_field_opt "migration" fields with
                 | Some run_typ -> (lib, mod_typ, run_typ) :: acc
                 | None ->
-                   warn env (region_of_file lib) "M0251"
-                     "migration module does not export a `migration` function, skipping";
+                   warn env (region_of_file lib) "M0278"
+                     "this file does not export a public `migration` function, so it is not part of the migration chain";
                     acc
                end
              | _ ->
-               warn env (region_of_file lib) "M0251" "not a module, skipping";
+               warn env (region_of_file lib) "M0278" "this file is not a module, so it is not part of the migration chain";
                acc) env.libs []
        |> List.rev
      in
@@ -5558,8 +5568,7 @@ and infer_dec_valdecs env dec : Scope.t =
        | None -> check_pat_exhaustive warn env' t pat
        | Some _ ->
           let ve = check_pat env' t pat in
-          if not env.pre && coverage_pat_is_exhaustive pat t then
-            warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause";
+          if not env.pre then coverage_let_else env pat t;
           ve
      in
      Scope.{empty with val_env = ve'}

@@ -154,10 +154,6 @@ do {
   };
 
   switch (#a) {
-    case (#b) {};
-    case (#a) {};
-  };
-  switch (#a) {
     case (#b : {#a; #b}) {};
     case (#a) {};
   };
@@ -165,29 +161,19 @@ do {
     case (#b : {#a; #b} : {#a}) {};
     case (#a) {};
   };
-  switch (#a) {
-    case (#b : {#a}) {};
-    case (#a) {};
-  };
 
   let (-1 or _) = 0;
   let (?_ or _) = null;
-  let (#a or _) = #b;
+  let ((#a : {#a; #b}) or _) = #b;
 };
 
 
 func h(e : {#}) {
   switch e {
-    case (#a) {};
-  };
-  switch e {
     case (#a : {#a}) {};
   };
   switch e {
     case (#a : {#a} : {#}) {};
-  };
-  switch e {
-    case (#a : {#}) {};
   };
 
   // Same as above but non-exhaustive
@@ -218,19 +204,13 @@ func h(e : {#}) {
   };
 
   switch (#a) {
-    case (#b) {};
-  };
-  switch (#a) {
     case (#b : {#a; #b}) {};
   };
   switch (#a) {
     case (#b : {#a; #b} : {#a}) {};
   };
-  switch (#a) {
-    case (#b : {#a}) {};
-  };
 
   let -1 = 0;
   let ?_ = null;
-  let #a = #b;
+  let (#a : {#a; #b}) = #b;
 };

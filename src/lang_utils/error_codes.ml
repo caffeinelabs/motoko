@@ -227,6 +227,7 @@ let error_codes : (string * string option) list =
     "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
+    "M0279", None; (* Variant pattern tag not contained in expected type *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -277,6 +278,7 @@ let warning_codes = [
   "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
   "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
+  "M0278", None, "File in the migration directory is not a migration module";
 ]
 
 let try_find_explanation code =

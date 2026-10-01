@@ -71,3 +71,14 @@ func bad_pat() {
 func nested_bad_pat() {
   let ((_, _), _) = (10, 20);
 };
+
+// Misspelled tags
+switch (#sparrows : { #sparrows; #geese }) {
+  case (#sparows) {};
+  case _ {};
+};
+
+func count(r : { #ok : Nat; #err : Text }) : Nat {
+  let #okk(n) = r else { return 0 };
+  n
+};

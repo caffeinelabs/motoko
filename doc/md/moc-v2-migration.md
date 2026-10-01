@@ -39,15 +39,16 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [Glued `if` branches](#if-while-for-and-switch-heads) | M0275 | put a space before the branch |
 | [`.vals()` deprecated](#vals-is-deprecated) | warning M0269 | `.values()` |
 | [Record update copies `var` fields](#record-update-copies-var-fields) | nothing (was error M0179) | none, unless you relied on `--experimental-field-aliasing` |
-| [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005 | per code, below |
+| [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005, M0276, M0278 | per code, below |
 | [Inferred `Any`/`None`](#inferred-any-or-none) | M0074, M0081, M0101, M0166, M0167 | fix the code, or annotate `Any` |
+| [Unknown tags in patterns](#unknown-tags-in-patterns-m0279) | error M0279 | fix the tag, or annotate a larger variant type |
 | [Bare-declaration libraries](#libraries-must-be-modules-m0142) | error M0142 | wrap in `module { ... }` |
 | [Actor class return type](#actor-class-return-type-m0193) | error M0193 | `: async actor { ... }` |
 | [Removed primitives](#removed-primitives-and-experimentalstablememory) | M0072 in `ExperimentalStableMemory` | use `Region` |
 | [Read-only primitives drop `<system>`](#read-only-primitives-no-longer-take-system) | warning M0196 | delete `<system>` |
 | [Removed flags](#removed-flags) | `unknown option` | see the table |
 | [`moc --check` per file](#moc---check-checks-each-file-on-its-own) | M0057 unbound variable; `-r expects exactly one source file` | use imports |
-| [New default warnings](#new-default-warnings) | M0217, M0236 | fix them, or `-A` them if you build with `-Werror` |
+| [New default warnings](#new-default-warnings) | M0146, M0217, M0236 | fix them, or `-A` them if you build with `-Werror` |
 | [`moc.js` API](#mocjs) | `Invalid_argument` | `Motoko.run([], ...)`; `gcFlags` `"force"`/`"scheduling"` only |
 | [Release artifacts](#release-artifacts) | no Intel-Mac or `base` tarball | on Intel Macs build from source, stay on moc 1, or use `moc.js` |
 
@@ -253,6 +254,8 @@ These diagnostics flag code that traps, or silently does something other than wh
 | M0128 | a function named like a system method, but not declared `system` | `func heartbeat() : async () { ... }` | `system func heartbeat() : async () { ... }`, or rename it |
 | M0242 | a `public func` without a return type, which is implicitly oneway | `public func log(t : Text) { ... }` | `public func log(t : Text) : () { ... }`, or `: async ()` |
 | M0005 | an import path whose letter case differs from the file name | `import L "lib";` for `Lib.mo` | `import L "Lib";` |
+| M0276 | a comparison at a type with a single value, such as `Any` or `{}`, whose result is constant | `user == order` for records that share no field | compare the fields you mean: `user.id == order.userId` |
+| M0278 | a file in the `--enhanced-migration` directory that does not export a public `migration` function, which never runs (was warning M0251) | `public func migrate(old : { ... }) : { ... }` | `public func migration(old : { ... }) : { ... }`, or move helper modules out of the directory |
 
 ### Inferred `Any` or `None`
 
@@ -265,6 +268,20 @@ When the type `moc` infers collapses to `Any` or `None`, the value is useless an
 | M0101 | `switch o { case null { "none" } case ?n { n } }` | `case ?n { debug_show n }` |
 | M0166 | `type U = Nat and Text;` (`None`) | write the intended type |
 | M0167 | `type V = Nat or Text;` (`Any`) | write `Any`, or the intended type |
+
+### Unknown tags in patterns (M0279)
+
+A variant pattern whose tag is not in the type being matched is now error M0279, usually with a suggestion for the misspelled tag. It was warning M0146, and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
+
+```motoko no-repl
+type Status = { #active; #suspended };
+switch s {
+  case (#suspnded) { ... };   // M0279: did you mean tag #suspended?
+  case _ { ... };
+};
+```
+
+To match at a larger variant type on purpose, annotate the pattern: `case (#c : {#a; #b; #c}) { ... }`. A tag that is in the type but can never be reached, such as a duplicate case, stays warning M0146.
 
 ## Libraries and modules
 
@@ -357,8 +374,9 @@ let n = Helper.helper();
 
 ### New default warnings
 
-Two warnings are new by default. They matter mainly if you build with `-Werror`:
+These warnings are new by default. They matter mainly if you build with `-Werror`:
 
+- M0146: a `let ... else` whose pattern can never match, such as `let ?x = null else { ... }`, so the `else` always runs. Fix the pattern.
 - M0217: redundant `persistent` keyword. Delete it.
 - M0236: a call that could use dot notation, such as `Map.size(map)` for `map.size()`. Apply the suggestion (`mops check --fix`), or silence it with `-A M0236`.
 

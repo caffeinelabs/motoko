@@ -94,9 +94,9 @@ coverage.mo:75.3-79.4: warning [M0145], this switch of type
 does not cover value
   #leaf(0 or 1 or _)
 coverage.mo:110.8-110.47: warning [M0146], this pattern is never matched
-coverage.mo:173.8-173.10: warning [M0146], this pattern is never matched
-coverage.mo:174.8-174.10: warning [M0146], this pattern is never matched
-coverage.mo:175.8-175.10: warning [M0146], this pattern is never matched
+coverage.mo:165.8-165.10: warning [M0146], this pattern is never matched
+coverage.mo:166.8-166.10: warning [M0146], this pattern is never matched
+coverage.mo:167.8-167.23: warning [M0146], this pattern is never matched
 coverage.mo:123.11-123.13: warning [M0146], this pattern is never matched
 coverage.mo:127.11-127.13: warning [M0146], this pattern is never matched
 coverage.mo:131.11-131.13: warning [M0146], this pattern is never matched
@@ -107,81 +107,67 @@ coverage.mo:148.11-148.13: warning [M0146], this pattern is never matched
 coverage.mo:152.11-152.13: warning [M0146], this pattern is never matched
 coverage.mo:157.11-157.13: warning [M0146], this pattern is never matched
 coverage.mo:161.11-161.13: warning [M0146], this pattern is never matched
-coverage.mo:165.11-165.13: warning [M0146], this pattern is never matched
-coverage.mo:169.11-169.13: warning [M0146], this pattern is never matched
-coverage.mo:233.7-233.9: warning [M0145], this pattern of type
+coverage.mo:213.7-213.9: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:234.7-234.9: warning [M0145], this pattern of type
+coverage.mo:214.7-214.9: warning [M0145], this pattern of type
   Null
 does not cover value
   null
-coverage.mo:235.7-235.9: warning [M0145], this pattern of type
-  {#b}
+coverage.mo:215.8-215.10: warning [M0145], this pattern of type
+  {#a; #b}
 does not cover value
   #b
-coverage.mo:181.10-181.14: warning [M0146], this pattern is never matched
-coverage.mo:184.10-184.21: warning [M0146], this pattern is never matched
-coverage.mo:187.10-187.27: warning [M0146], this pattern is never matched
-coverage.mo:190.10-190.20: warning [M0146], this pattern is never matched
-coverage.mo:195.11-195.13: warning [M0146], this pattern is never matched
-coverage.mo:194.3-196.4: warning [M0145], this switch of type
+coverage.mo:173.10-173.21: warning [M0146], this pattern is never matched
+coverage.mo:176.10-176.27: warning [M0146], this pattern is never matched
+coverage.mo:181.11-181.13: warning [M0146], this pattern is never matched
+coverage.mo:180.3-182.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:198.11-198.13: warning [M0146], this pattern is never matched
-coverage.mo:197.3-199.4: warning [M0145], this switch of type
+coverage.mo:184.11-184.13: warning [M0146], this pattern is never matched
+coverage.mo:183.3-185.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:201.11-201.13: warning [M0146], this pattern is never matched
-coverage.mo:200.3-202.4: warning [M0145], this switch of type
+coverage.mo:187.11-187.13: warning [M0146], this pattern is never matched
+coverage.mo:186.3-188.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:204.11-204.13: warning [M0146], this pattern is never matched
-coverage.mo:203.3-205.4: warning [M0145], this switch of type
+coverage.mo:190.11-190.13: warning [M0146], this pattern is never matched
+coverage.mo:189.3-191.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:208.11-208.13: warning [M0146], this pattern is never matched
-coverage.mo:207.3-209.4: warning [M0145], this switch of type
+coverage.mo:194.11-194.13: warning [M0146], this pattern is never matched
+coverage.mo:193.3-195.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:211.11-211.13: warning [M0146], this pattern is never matched
-coverage.mo:210.3-212.4: warning [M0145], this switch of type
+coverage.mo:197.11-197.13: warning [M0146], this pattern is never matched
+coverage.mo:196.3-198.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:214.11-214.13: warning [M0146], this pattern is never matched
-coverage.mo:213.3-215.4: warning [M0145], this switch of type
+coverage.mo:200.11-200.13: warning [M0146], this pattern is never matched
+coverage.mo:199.3-201.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:217.11-217.13: warning [M0146], this pattern is never matched
-coverage.mo:216.3-218.4: warning [M0145], this switch of type
+coverage.mo:203.11-203.13: warning [M0146], this pattern is never matched
+coverage.mo:202.3-204.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:221.11-221.13: warning [M0146], this pattern is never matched
-coverage.mo:220.3-222.4: warning [M0145], this switch of type
+coverage.mo:207.11-207.13: warning [M0146], this pattern is never matched
+coverage.mo:206.3-208.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
-coverage.mo:224.11-224.13: warning [M0146], this pattern is never matched
-coverage.mo:223.3-225.4: warning [M0145], this switch of type
-  {#a}
-does not cover value
-  #a
-coverage.mo:227.11-227.13: warning [M0146], this pattern is never matched
-coverage.mo:226.3-228.4: warning [M0145], this switch of type
-  {#a}
-does not cover value
-  #a
-coverage.mo:230.11-230.13: warning [M0146], this pattern is never matched
-coverage.mo:229.3-231.4: warning [M0145], this switch of type
+coverage.mo:210.11-210.13: warning [M0146], this pattern is never matched
+coverage.mo:209.3-211.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
