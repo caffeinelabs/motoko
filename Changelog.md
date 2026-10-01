@@ -204,6 +204,12 @@
 
   * **Bug fixes**
 
+    * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
+      value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
+      result too large" when the result would have 2^31 or more bits, instead
+      of returning a wrong value. The interpreter agrees and no longer hangs
+      on large shift amounts (#6423).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`

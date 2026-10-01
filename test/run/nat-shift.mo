@@ -41,4 +41,16 @@ assert 0 == shiftRight(shiftRight(huge, 189), 33);
 for (i in range(0, 200)) { assert 1 == shiftRight(shiftLeft(1, i), i) };
 for (i in range(0, 200)) { assert 42 == shiftRight(shiftLeft(42, i), i) };
 for (i in range(0, 200)) { assert huge == shiftRight(shiftLeft(huge, i), i) };
-for (i in range(0, 200)) { assert huge - 1 == shiftRight(shiftLeft(huge - 1, i), i) }
+for (i in range(0, 200)) { assert huge - 1 == shiftRight(shiftLeft(huge - 1, i), i) };
+
+// large amounts
+let maxNat32 : Nat32 = 4_294_967_295;
+assert 0 == shiftRight(huge, 2_147_483_647);
+assert 0 == shiftRight(huge, 2_147_483_648);
+assert 0 == shiftRight(huge, maxNat32);
+assert 0 == shiftRight(1, 2_147_483_648);
+assert 0 == shiftRight(0, maxNat32);
+assert 0 == shiftLeft(0, 2_147_483_647);
+assert 0 == shiftLeft(0, 2_147_483_648);
+assert 0 == shiftLeft(0, maxNat32);
+assert huge == shiftRight(shiftLeft(huge, 1_000_000), 1_000_000);
