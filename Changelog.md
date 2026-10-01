@@ -208,6 +208,11 @@
       crash `moc`. Hex ids such as `0x7f` parse, and an id that does not fit
       in 32 bits is a syntax error (#6421).
 
+    * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
+      `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
+      second case without its tag test. Passing the other leg bound that
+      leg's payload at the first case's type instead of trapping (#6427).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
