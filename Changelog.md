@@ -204,6 +204,10 @@
 
   * **Bug fixes**
 
+    * bugfix: checking time with `--error-recovery`, which `moc.js` always
+      enables, no longer grows cubically with the number of syntax errors. A
+      file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
