@@ -130,12 +130,14 @@ let error_codes : (string * string option) list =
     "M0132", None; (* Misplaced stability declaration *)
     "M0133", None; (* Misplaced stability modifier *)
     "M0134", None; (* Class body type mismatch *)
+    "M0135", None; (* Actor class has non-async return type. Retired: such classes are now rejected with M0193 *)
     "M0136", None; (* Empty block type mismatch *)
     "M0137", Some([%blob "lang_utils/error_codes/M0137.md"]); (* Type definition references type parameter from outer scope *)
     "M0138", None; (* Actor classes are not supported *)
     "M0139", None; (* Inner actor classes are not supported *)
     "M0140", None; (* Actor classes with type parameters are not supported *)
     "M0141", Some([%blob "lang_utils/error_codes/M0141.md"]); (* An actor or actor class must be the only non-imported declaration in a program *)
+    "M0142", None; (* An imported library should be a module or named actor class *)
     "M0143", None; (* Imported actor class cannot be anonymous *)
     "M0144", None; (* Expected a module or actor class *)
     (* "M0147" DEFUNCT Object syntax is deprecated in this position *)
@@ -166,7 +168,7 @@ let error_codes : (string * string option) list =
     "M0176", None; (* from_candid requires known type from context *)
     "M0177", None; (* Bases of record extensions must not have common fields that are not overwritten *)
     "M0178", None; (* Bases of record extensions must be either objects or modules *)
-    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly *)
+    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly. DEFUNCT: record-update now shallow-copies var fields, so this is never emitted. It must stay registered while test/check-error-codes.py lists it in known_untested_codes, which requires the code to be present. *)
     "M0180", None; (* Shared function has unexpected type parameters *)
     "M0181", None; (* Verification mode assertions not allowed *)
     "M0182", None; (* Timer defined by user when -no-timer flag is specified *)
@@ -178,9 +180,9 @@ let error_codes : (string * string option) list =
     "M0188", None; (* Send capability required (calling shared from query) *)
     "M0189", None; (* Different set of bindings in pattern alternatives *)
     "M0192", None; (* Object/Actor/Module body type mismatch *)
-    "M0193", None; (* Can't declare actor class to have `async*` result *)
-    "M0196", None; (* `system` capability supplied but not required *)
+    "M0193", None; (* Actor class result type is not `async` *)
     "M0197", Some([%blob "lang_utils/error_codes/M0197.md"]); (* `system` capability required *)
+    "M0199", None; (* Deprecated experimental stable memory *)
     "M0200", Some([%blob "lang_utils/error_codes/M0200.md"]); (* Cannot determine subtyping or equality *)
     "M0201", None; (* Migration produces/consumes non-stable object *)
     "M0202", None; (* Migration produces/consume non-object type *)
@@ -192,8 +194,6 @@ let error_codes : (string * string option) list =
     "M0213", None; (* Parenthetical note on shared functions is disallowed *)
     "M0214", None; (* Expected type of field in parenthetical note differs from inferred *)
     "M0216", None; (* Stable variable must stable subtype *)
-    "M0219", None; (* Missing `transient` *)
-    "M0220", None; (* Missing `persistent` *)
     "M0221", None; (* Failed to determine type for type pattern field *)
     "M0224", None; (* Overlapping dot resolution *)
     "M0225", None; (* A mixin cannot be used as an entry point *)
@@ -223,6 +223,10 @@ let error_codes : (string * string option) list =
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
     "M0264", None; (* mixin include requires system capability *)
     "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
+    "M0272", Some([%blob "lang_utils/error_codes/M0272.md"]); (* Record literal in block position *)
+    "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
+    "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
+    "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -235,20 +239,18 @@ let warning_codes = [
   "M0089", None, "Redundant ignore";
   "M0101", None, "Switch with inconsistent branch types";
   "M0128", None, "Function with system function name but wrong visibility";
-  "M0135", None, "Actor class has non-async return type";
-  "M0142", None, "An imported library should be a module or named actor class";
   "M0145", None, "Pattern does not cover value"; (* Warn or Error *)
   "M0146", None, "Pattern is never matched";
   "M0154", Some([%blob "lang_utils/error_codes/M0154.md"]), "Deprecation annotation";
   "M0155", Some([%blob "lang_utils/error_codes/M0155.md"]), "Inferred type Nat for subtraction";
-  "M0166", None, "Type intersection results in abstract type";
-  "M0167", None, "Type union results in bottom type";
+  "M0166", None, "Type intersection results in empty type `None`";
+  "M0167", None, "Type union results in top type `Any`";
   "M0190", None, "Types inconsistent for alternative pattern variables, losing information";
   "M0191", None, "Code requires Wasm features ... to execute";
   "M0194", Some([%blob "lang_utils/error_codes/M0194.md"]), "Unused identifier warning";
   "M0195", Some([%blob "lang_utils/error_codes/M0195.md"]), "warn that `system` capability is implicitly supplied";
+  "M0196", Some([%blob "lang_utils/error_codes/M0196.md"]), "The `system` capability is not required by this function";
   "M0198", Some([%blob "lang_utils/error_codes/M0198.md"]), "Unused field pattern warning";
-  "M0199", Some([%blob "lang_utils/error_codes/M0199.md"]), "Deprecate experimental stable memory"; (* Warn or Error *)
   "M0206", None, "Migration consumes, but does not produce, a declared field";
   "M0207", None, "Migration consumes, but does not produce, an un-declared field";
   "M0210", None, "Parenthetical note must be applied to a message send";
@@ -274,6 +276,7 @@ let warning_codes = [
   "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
   "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
+  "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
 ]
 
 let try_find_explanation code =

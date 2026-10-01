@@ -12,27 +12,17 @@ type t = (string, entry option) Hashtbl.t
 
 let create () : t = Hashtbl.create 16
 
-(* Walk the file once with Uutf to record line offsets. [`ASCII] newline
-   normalization recognises CR, LF and CRLF — matching the Motoko lexer
-   (see [source_lexer.mll]). *)
+(* CR, LF and CRLF each end a line, matching the Motoko lexer (see [source_lexer.mll]).
+   A byte scan: Uutf's newline normalization puts a CRLF's break at the CR, and also breaks at FF, NEL, LS and PS. *)
 let build_entry content =
-  let dec = Uutf.decoder
-    ~encoding:`UTF_8
-    ~nln:(`ASCII (Uchar.of_int 0x0A))
-    (`String content)
-  in
+  let len = String.length content in
   let starts = ref [0] in
-  let rec loop prev_line =
-    match Uutf.decode dec with
-    | `End -> ()
-    | `Uchar _ | `Malformed _ ->
-      let cur_line = Uutf.decoder_line dec in
-      if cur_line > prev_line then
-        starts := Uutf.decoder_byte_count dec :: !starts;
-      loop cur_line
-    | `Await -> assert false
-  in
-  loop 1;
+  content |> String.iteri (fun i c ->
+    match c with
+    | '\n' -> starts := (i + 1) :: !starts
+    | '\r' when i + 1 >= len || content.[i + 1] <> '\n' ->
+      starts := (i + 1) :: !starts
+    | _ -> ());
   { content; line_starts = Array.of_list (List.rev !starts) }
 
 let load (cache : t) path : entry option =
@@ -80,3 +70,30 @@ let codepoint_column cache (pos : pos) : int =
 
 let content cache path = Option.map (fun e -> e.content) (load cache path)
 
+
+(* Fresh cache per call: the file may change between calls (moc.js, VSCode). *)
+let read_region_with process (r : region) =
+  if r.left.line <= 0 then None
+  else
+    match load (create ()) r.left.file with
+    | None -> None
+    | Some e ->
+      match resolve_in e r.left, resolve_in e r.right with
+      | Some (_, start), Some (_, stop) when start <= stop ->
+        Some (process e.content start stop)
+      | _ -> None
+
+let read_region = read_region_with (fun content start stop ->
+  String.sub content start (stop - start))
+
+let read_region_with_markers = read_region_with (fun content start stop ->
+  let is_break c = c = '\n' || c = '\r' in
+  let rec line_start i =
+    if i > 0 && not (is_break content.[i - 1]) then line_start (i - 1) else i in
+  let rec line_end i =
+    if i < String.length content && not (is_break content.[i]) then line_end (i + 1) else i in
+  let ls = line_start start and le = line_end stop in
+  String.concat "**" [
+    String.sub content ls (start - ls);
+    String.sub content start (stop - start);
+    String.sub content stop (le - stop)])

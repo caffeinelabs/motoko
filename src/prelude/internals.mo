@@ -411,7 +411,6 @@ func @install_actor_helper(
       canister : actor {};
     };
   },
-  enhanced_orthogonal_persistence : Bool,
   wasm_module : Blob,
   arg : Blob,
 ) : async* Principal = async* {
@@ -431,13 +430,8 @@ func @install_actor_helper(
       (#reinstall, (prim "principalOfActor" : (actor {}) -> Principal) actor1);
     };
     case (#upgrade actor2) {
-      let wasm_memory_persistence = if enhanced_orthogonal_persistence {
-        ?(#keep);
-      } else {
-        null;
-      };
       let upgradeOptions = {
-        wasm_memory_persistence;
+        wasm_memory_persistence = ?(#keep);
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) actor2);
     };
@@ -450,29 +444,6 @@ func @install_actor_helper(
   };
   await @ic00.install_code {
     mode;
-    canister_id;
-    wasm_module;
-    arg;
-    sender_canister_version = ?(prim "canister_version" : () -> Nat64)();
-  };
-  return canister_id;
-};
-
-// It would be desirable if create_actor_helper can be defined
-// without paying the extra self-remote-call-cost
-// TODO: This helper is now only used by Prim.createActor and could be removed, except
-// that Prim.createActor was mentioned on the forum and might be in use. (#3420)
-func @create_actor_helper(wasm_module : Blob, arg : Blob) : async Principal = async {
-  let available = (prim "cyclesAvailable" : () -> Nat)();
-  let accepted = (prim "cyclesAccept" : Nat -> Nat)(available);
-  let sender_canister_version = ?(prim "canister_version" : () -> Nat64)();
-  @cycles += accepted;
-  let { canister_id } = await @ic00.create_canister {
-    settings = null;
-    sender_canister_version;
-  };
-  await @ic00.install_code {
-    mode = #install;
     canister_id;
     wasm_module;
     arg;
@@ -507,9 +478,10 @@ func @call_error() : Error {
 // corollary: if expire == 0 then the pre is completely expired
 //
 // Note: Below the `expire` field is an encoding of an aliased mutable field with
-//       a single-element mutable array. It eliminates `--experimental-field-aliasing`
-//       while compiling this file at the cost of slightly higher syntactic noise
-//       as well as increased allocation and runtime cost accessing the data. Oh well.
+//       a single-element mutable array. It gives the timer mechanism a shared
+//       mutable cell without relying on var-field aliasing, at the cost of
+//       slightly higher syntactic noise as well as increased allocation and
+//       runtime cost accessing the data. Oh well.
 //
 type @Node = {
   expire : [var Nat64];

@@ -1,4 +1,6 @@
-// Uses classical persistence, see `migrate-stabilization.drun`.
+// Provides provenance for the committed classical `old.wasm` fixture used by
+// `migrate-stabilization.drun` (built from this file by moc 1.14.1, see note.txt).
+// Not compiled by the test runner.
 import Prim "mo:prim";
 
 actor {
@@ -7,11 +9,11 @@ actor {
       var first : Node<K, V>;
       var last : Node<K, V>;
    };
-   stable let list : List<Nat, Text> = {
+   let list : List<Nat, Text> = {
       var first = null;
       var last = null;
    };
-   stable var counter = 0;
+   var counter = 0;
 
    Prim.debugPrint("INITIALIZED: " # debug_show(counter));
 

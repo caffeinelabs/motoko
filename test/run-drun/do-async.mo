@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0222
 import P "mo:prim";
 
 actor a {

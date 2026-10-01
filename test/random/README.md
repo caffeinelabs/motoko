@@ -7,7 +7,7 @@ implementation.
 In order to compile and test it expects following tools to be in the
 `PATH`:
 - `moc` (the Motoko compiler)
-- `wasm-interp` (part of `nixpkgs.wabt`)
+- `wasmtime`
 
 ## How to spot failures
 
@@ -31,21 +31,21 @@ will appear in the CI log. The relevant recipe for reliable reproduction is the
 
 ## How to run locally
 
-With this piece of information you can run the identical test locally,
-using the following `nix-build` invocation from your `motoko`
+With this piece of information you can run the identical test locally:
+set `replay = 232458;` in `nix/tests.nix`, then run from your `motoko`
 directory:
 ``` shell
-$ nix-build -A tests.qc --arg replay 232458
+$ nix build -L .#tests.qc
 ```
 
-## Running in `moc` and `wasm-interp`
+## Running in `moc` and `wasmtime`
 
 Of course you can dump the failing test case into a file, compile it
-to WASM, and execute it in (e.g.) `wasm-interp`:
+to WASM, and execute it in `wasmtime`:
 
 ``` shell
-$ moc -no-system-api snippet.mo
-$ wasm-interp snippet.wasm
+$ moc -wasi-system-api snippet.mo
+$ wasmtime -W memory64 -W multi-memory -W bulk-memory snippet.wasm
 ```
 
 In tests under category *expected failures*, this should trap.

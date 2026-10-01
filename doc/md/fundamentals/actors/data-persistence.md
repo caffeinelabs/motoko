@@ -7,36 +7,33 @@ sidebar:
 
 One key feature of Motoko is its ability to automatically persist the program's state without explicit user instruction. This is called **orthogonal persistence**. Data persists across transactions and canister upgrades.
 
-Motoko data persistence is not simple, but it prevents data corruption or loss while being efficient at the same time. No database, stable memory API, or stable data structure is required to retain state across upgrades. Instead, a simple `stable` keyword is sufficient to declare a data structure of arbitrary shape persistent, even if the structure uses sharing, has a deep complexity, or contains cycles transfers.
+Motoko data persistence is not simple, but it prevents data corruption or loss while being efficient at the same time. No database, stable memory API, or stable data structure is required to retain state across upgrades. Because actors are persistent by default, every actor field is automatically carried across upgrades — even if the data structure uses sharing, has a deep complexity, or contains cycle transfers, its value survives with no declaration needed.
 
 In comparison to other supported languages for building canisters, such as Rust, data persistence must be achieved through explicit use of stable data structures and stable memory, as other languages are not designed for orthogonal persistence and instead rearranges memory structures in an uncontrolled manner on re-compilation or at runtime.
 
-## Declaring stable variables
+## State persistence
 
-Within an actor, you can configure which part of the program is considered to be persistent (retained across upgrades) and which part is ephemeral (reset on upgrades).
-
-More precisely, each `let` and `var` variable declaration in an actor can specify whether the variable is `stable` or `transient`. If you don’t provide a modifier, the variable is assumed to be `transient` by default.
-
-* `stable` means that all values directly or indirectly reachable from that stable variable are considered persistent and are automatically retained across upgrades. This is the primary choice for most of the program's state.
-
-* `transient` means that the variable is re-initialized on upgrade such that the values referenced by the transient variable are discarded, unless the values are transitively reachable by other variables that are stable. `transient` is only used for temporary state or references to high-order types, such as local function references.
-
-:::note
-
-You can only use the `stable`, `transient` (or legacy `flexible`) modifier on `let` and `var` declarations that are **actor fields**. You cannot use these modifiers anywhere else in your program.
-
-:::
-
-The following is a simple example of how to declare a stable counter that can be upgraded while preserving the counter’s value:
+Every actor persists its state across canister upgrades. You don't need to declare anything: a `let` or `var` actor field is kept, with its value, for the lifetime of the canister.
 
 ```motoko file=<motokoExamples>/StableCounter.mo
 ```
 
-When you compile and deploy a canister for the first time, all transient and stable variables in the actor are initialized in sequence. When a canister is upgraded, all stable variables that existed in the previous version of the actor are pre-initialized with their old values and the remaining transient and any newly-added stable variables are initialized in sequence.
+When you compile and deploy a canister for the first time, all actor fields are initialized in sequence. When a canister is upgraded, fields that existed in the previous version are pre-initialized with their old values, and any newly-added fields are initialized in sequence.
 
-Starting with Motoko v0.13.5, if you prefix the `actor` keyword with the keyword `persistent`, then all `let` and `var` declarations of the actor or actor class are implicitly declared `stable`. Only `transient` variables will need an explicit `transient` declaration.
+## Opting a field out of persistence
 
-Using a `persistent` actor can help avoid unintended data loss. It is the recommended declaration syntax for actors and actor classes. The non-`persistent` declaration is provided for backwards compatibility.
+Most of the time, persistence is exactly what you want: it is why the actor's counter, registry, or wallet balance survives an upgrade. Occasionally you want a field to restart fresh on every upgrade — a cache, a one-time initialization, or a value whose type cannot be persisted (for example, an object with methods). Fields like these are the exception, not the rule, so declaring them is explicit:
+
+* `stable` fields are persisted across upgrades. This is the default; you generally don't need to write it.
+* `transient` fields are not. They are re-initialized on upgrade, unless they are transitively reachable from a persisted field. Use `transient` only for temporary state or references to higher-order types, such as local function references.
+
+Only `transient` fields need an explicit `transient` declaration. The `stable` and `transient` modifiers are only allowed on `let` and `var` declarations that are **actor fields**; you cannot use them anywhere else in your program.
+
+:::note
+
+The `persistent` keyword is redundant for actors, since actors are `persistent` by default. If you see it in code, it can be removed. Older code written against the pre-v2 default used `persistent` (and `stable`) to opt into persistence — now that persistence is the default, these keywords are optional.
+
+:::
 
 ```motoko file=<motokoExamples>/PersistentCounter.mo
 ```
@@ -57,14 +54,10 @@ In general, classes are not stable because they can contain local functions. How
 
 For variables that do not have a stable type, there are two options for making them stable:
 
-1. Use a `stable` module for the type, such as:
-
-  - [StableBuffer](https://github.com/canscale/StableBuffer)
-  - [StableHashMap](https://github.com/canscale/StableHashMap)
-  - [StableRBTree](https://github.com/canscale/StableRBTree)
+1. Use a stable data structure. The data structures in [`core`](https://mops.one/core), such as `Map`, `Set`, `List` and `Queue` and their `pure/` counterparts, all have stable types.
 
 :::note
-Unlike stable data structures in the Rust CDK, these modules do not use stable memory but instead rely on orthogonal persistence. The adjective "stable" only denotes a stable type in Motoko.
+Unlike stable data structures in the Rust CDK, these data structures do not use stable memory but instead rely on orthogonal persistence. The adjective "stable" only denotes a stable type in Motoko.
 :::
 
 2. Extract the state in a stable type and wrap it in the non-stable type.
@@ -74,7 +67,7 @@ For example, the stable type `TemperatureSeries` covers the persistent data, whi
 ```motoko no-repl file=<motokoExamples>/WeatherActor.mo
 ```
 
-__Discouraged and not recommended__: [Pre- and post-upgrade hooks](#preupgrade-and-postupgrade-system-methods) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
+__Deprecated__: [Pre- and post-upgrade hooks](#legacy-features) allow copying non-stable types to stable types during upgrades. This approach is error-prone and does not scale for large data. **Per best practices, using these methods should be avoided if possible.** Conceptually, it also does not align well with the idea of orthogonal persistence.
 
 ## Stable type signatures
 
@@ -121,17 +114,13 @@ When upgrading a canister, it is important to verify that the upgrade can procee
 -   Introducing an incompatible change in stable declarations.
 -   Breaking clients due to a Candid interface change.
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations during an upgrade attempt.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations during an upgrade attempt.
 Moreover, `dfx` checks the two conditions before attempting the upgrade and warns users as necessary.
 
 A Motoko canister upgrade is safe provided:
 
 -  The canister’s Candid interface evolves to a Candid subtype. You can check valid Candid subtyping between two services described in `.did` files using the [`didc` tool](https://github.com/dfinity/candid) with argument `check file1.did file2.did`.
 -  The canister’s Motoko stable signature evolves to a stable-compatible one.
-
-:::danger
-With [classical orthogonal persistence](./orthogonal-persistence/classical.md), the upgrade can still fail due to resource constraints. This is problematic as the canister can then not be upgraded. It is therefore strongly advised to test the scalability of upgrades extensively. This does not apply to enhanced orthogonal persistence.
-:::
 
 
 ## Upgrading a canister
@@ -142,7 +131,7 @@ If you have a Motoko canister that has already been deployed, then you make chan
 You are making a BREAKING change. Other canisters or frontend clients relying on your canister may stop working.
 ```
 
-Motoko canisters using enhanced orthogonal persistence implement an extra safeguard in the runtime system to ensure that the stable data is compatible to exclude any data corruption or misinterpretation. Moreover, `dfx` also warns about incompatibility and dropping stable variables.
+Motoko canisters implement an extra safeguard in the runtime system to ensure that the stable data is compatible to exclude any data corruption or misinterpretation. Moreover, `dfx` also warns about incompatibility and dropping stable variables.
 
 ## Data migration
 
@@ -185,11 +174,11 @@ reference material on [migration expressions](../../reference/language-manual.md
 ## Legacy features
 
 :::danger
-Using the pre- and post-upgrade system methods is discouraged. It is error-prone and can render a canister unusable. In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded. Per best practices, using these methods should be avoided if possible.
+The pre- and post-upgrade system methods are deprecated (warning M0270) in favor of [migration functions](#explicit-migration). They are error-prone and can render a canister unusable. In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded. Per best practices, using these methods should be avoided if possible.
 :::
 
 Motoko supports user-defined upgrade hooks that run immediately before and after an upgrade. These upgrade hooks allow triggering additional logic on upgrade.
-They are declared as `system` functions with special names, `preugrade` and `postupgrade`. Both functions must have type `: () → ()`.
+They are declared as `system` functions with special names, `preupgrade` and `postupgrade`. Both functions must have type `: () → ()`.
 
 If `preupgrade` raises a trap, hits the instruction limit, or hits another IC computing limit, the upgrade can no longer succeed and the canister is stuck with the existing version.
 

@@ -7,13 +7,14 @@ import P "mo:⛔";
 // NB: the oom would not be detected pre 0.6.21
 actor {
 
-  ignore P.stableMemoryGrow(1);
+  let r = P.regionNew();
+  ignore P.regionGrow(r, 1);
 
   system func preupgrade() {
    // allocate up to last page
    P.debugPrint("(pre");
    while (P.rts_memory_size() / 65536 < 65534) {
-     ignore P.stableMemoryLoadBlob(0, 65536);
+     ignore P.regionLoadBlob(r, 0, 65536);
    };
    P.debugPrint("filled");
 
@@ -23,7 +24,7 @@ actor {
    do {
      var i = 32768;
      while (i > 0) {
-       ignore P.stableMemoryLoadBlob(0, i);
+       ignore P.regionLoadBlob(r, 0, i);
        i /= 2;
      };
    };

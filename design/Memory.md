@@ -104,6 +104,4 @@ All data structures are represented as Wasm GCed objects.
 
 ## Persistence
 
-Different * [persistence modes](OrthogonalPersistence.md):
-* [Enhanced orthogonal persistence](OrthogonalPersistence.md).
-* [Classical persistence](OldStableMemory.md).
+See [enhanced orthogonal persistence](OrthogonalPersistence.md).

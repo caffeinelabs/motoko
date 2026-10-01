@@ -1,5 +1,0 @@
-//MOC-FLAG --default-persistent-actors
-//MOC-FLAG -A=M0194
-import Actor "issue-5336a/actor";
-
-persistent actor class Main() {};

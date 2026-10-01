@@ -1,0 +1,2 @@
+par-bad-nocall.mo:3.9-3.29: syntax error [M0210], misplaced parenthetical note: it must precede a function call
+par-bad-nocall.mo:4.9-4.33: syntax error [M0210], misplaced parenthetical note: it must precede a function call

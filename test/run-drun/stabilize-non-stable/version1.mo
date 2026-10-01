@@ -1,20 +1,20 @@
 import Prim "mo:prim";
 
 actor {
-  stable let value : {
+  let value : {
     stableField : Text;
   } = {
     stableField = "Version 1";
   };
 
-  stable let any : Any = null;
-  stable let tuple : (Int, Any) = (0, null);
-  stable let variant : { #tag : Any } = #tag null;
-  stable let record : { lab : Any } = { lab = null };
-  stable let vector : [Any] = [null];
-  stable let array : [var Any] = [var null];
-  stable let opt : ?Any = null;
-  stable let new : () = (); // to prevent downgrade
+  let any : Any = null;
+  let tuple : (Int, Any) = (0, null);
+  let variant : { #tag : Any } = #tag null;
+  let record : { lab : Any } = { lab = null };
+  let vector : [Any] = [null];
+  let array : [var Any] = [var null];
+  let opt : ?Any = null;
+  let new : () = (); // to prevent downgrade
 
   public func print() : async () {
     Prim.debugPrint(debug_show (value));

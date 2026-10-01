@@ -1,1 +1,3 @@
-type List<T> = ?{head : T; var tail : List<T>};
+module {
+  public type List<T> = ?{head : T; var tail : List<T>};
+};

@@ -21,7 +21,7 @@ error[M0151]: missing field 'a' from expected type
     ┌─ check-record.mo:14:9
  14 │  ignore ({} : { a : Nat }); // reject
     │          ^^ 
-warning[M0215]: field `b` is provided but not expected in record of type
+error[M0215]: field `b` is provided but not expected in record of type
   {a : Nat}
     ┌─ check-record.mo:16:18
  16 │  ignore ({ a = 0; b = 1} : { a : Nat }); // accept (but warn in the future?)

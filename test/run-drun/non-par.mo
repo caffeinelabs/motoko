@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0212
 import { call_raw; debugPrint; principalOfActor; replyDeadline; errorMessage; errorCode } = "mo:⛔";
 import Cycles = "cycles/cycles";
 // This is a copy of `par.mo`, but with legacy `Cycles.add`. It should output equivalent results.

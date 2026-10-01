@@ -9,7 +9,3 @@ do-async-poly.mo:22.42-22.43: type error [M0033], async has non-shared content t
 do-async-poly.mo:26.43-26.44: type error [M0033], async has non-shared content type
   T
 do-async-poly.mo:31.5-31.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-do-async-poly.mo:32.5-32.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-do-async-poly.mo:33.5-33.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-do-async-poly.mo:34.5-34.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-do-async-poly.mo:36.7-36.19: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

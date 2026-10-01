@@ -2,10 +2,10 @@ import { debugPrint; floatToFloat32; float32ToFloat } = "mo:⛔";
 
 actor {
   // scalar: exactly representable in f32
-  stable var x : Float32 = 1.5;
+  var x : Float32 = 1.5;
 
   // array: mutable, elements inline in I64 slots
-  stable var arr : [var Float32] = [var (1.0 : Float32), (2.0 : Float32), (4.0 : Float32)];
+  var arr : [var Float32] = [var (1.0 : Float32), (2.0 : Float32), (4.0 : Float32)];
 
   public func show() : async () {
     debugPrint (debug_show (float32ToFloat x));

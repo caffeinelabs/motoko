@@ -1,1 +1,1 @@
-lib/decs.mo:0.1: warning [M0142], deprecated syntax: an imported library should be a module or named actor class
+lib/decs.mo:0.1: type error [M0142], bad import: an imported library should be a module or named actor class

@@ -127,7 +127,7 @@ let run_get_sources_test source =
     ~finally:(fun () -> Mo_config.Flags.typechecker_combine_srcs := false)
 
 let%expect_test "" =
-  let s = {|persistent actor {
+  let s = {|actor {
   class Class1() = self {
     public func meth(_ : Int) : Nat {
       return 1
@@ -161,7 +161,7 @@ let%expect_test "" =
 let run_compare_typed_asts_test filename =
   let open Diag.Syntax in
   let load_prog () =
-    let* _libs, progs, _sscope, _cache =
+    let* _libs, progs, _cache =
       Mo_types.Cons.session ~scope:filename (fun () ->
         Pipeline.load_progs_cached
           ~check_actors:false
@@ -170,7 +170,7 @@ let run_compare_typed_asts_test filename =
           Pipeline.initial_stat_env
           Mo_types.Type.Env.empty)
     in
-    let prog, _deps, sscope = List.hd progs in
+    let prog, _deps, sscope, _senv = List.hd progs in
     Diag.return (prog, sscope.fld_src_env)
   in
   (* Ensure turning sources on will not change the AST. *)

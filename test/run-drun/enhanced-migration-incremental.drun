@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID enhanced-migration-incremental/version1.mo ""
 ingress $ID check "DIDL\x00\x00"
 

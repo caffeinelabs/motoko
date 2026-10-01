@@ -85,12 +85,8 @@ let
 
     installPhase = ''
       mkdir -p $out/rts
-      cp mo-rts-non-incremental.wasm $out/rts
-      cp mo-rts-non-incremental-debug.wasm $out/rts
-      cp mo-rts-incremental.wasm $out/rts
-      cp mo-rts-incremental-debug.wasm $out/rts
-      cp mo-rts-eop.wasm $out/rts
-      cp mo-rts-eop-debug.wasm $out/rts
+      cp mo-rts.wasm $out/rts
+      cp mo-rts-debug.wasm $out/rts
     '';
 
     # This needs to be self-contained. Remove mention of nix path in debug
@@ -98,22 +94,14 @@ let
     preFixup = ''
       remove-references-to \
         -t ${pkgs.rust-nightly} \
-        $out/rts/mo-rts-non-incremental.wasm \
-        $out/rts/mo-rts-non-incremental-debug.wasm \
-        $out/rts/mo-rts-incremental.wasm \
-        $out/rts/mo-rts-incremental-debug.wasm \
-        $out/rts/mo-rts-eop.wasm \
-        $out/rts/mo-rts-eop-debug.wasm
+        $out/rts/mo-rts.wasm \
+        $out/rts/mo-rts-debug.wasm
 
       for rtsDep in $(find ${rtsDeps} -type l -exec readlink {} +); do
         remove-references-to \
           -t "$rtsDep" \
-          $out/rts/mo-rts-non-incremental.wasm \
-          $out/rts/mo-rts-non-incremental-debug.wasm \
-          $out/rts/mo-rts-incremental.wasm \
-          $out/rts/mo-rts-incremental-debug.wasm \
-          $out/rts/mo-rts-eop.wasm \
-          $out/rts/mo-rts-eop-debug.wasm
+          $out/rts/mo-rts.wasm \
+          $out/rts/mo-rts-debug.wasm
       done
     '';
 

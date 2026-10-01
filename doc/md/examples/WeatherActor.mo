@@ -1,4 +1,4 @@
-persistent actor {
+actor {
   type TemperatureSeries = [Float];
 
   class Weather(temperatures : TemperatureSeries) {

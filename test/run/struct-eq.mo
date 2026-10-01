@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W M0276
 assert({ x = 10 } == { x = 10 });
 assert({ x = 10 } != { x = 9 });
 
@@ -25,3 +25,12 @@ assert(xs != ys);
 
 type T = ((), T);
 func e(t1 : T, t2 : T) : Bool = t1 == t2;
+
+// compared at a common type with content, only a warning
+assert({ id = 1; name = "a" } != { id = 2; email = "b" });
+assert((1, { p = 1 }) == (1, { q = 2 }));
+assert((null : ?{ p : Nat }) != (?{ q = 1 } : ?{ q : Nat }));
+assert((#a : { #a; #b }) != (#c : { #a; #c }));
+func f<A <: { id : Nat }>(a : A, b : A) : Bool = a == b;
+assert(not f({ id = 1; name = "a" }, { id = 2; name = "a" }));
+func g(a : actor { f : () -> async () }, b : actor { g : () -> async () }) : Bool = a == b;

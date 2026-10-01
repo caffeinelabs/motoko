@@ -1,0 +1,6 @@
+error[M0230]: Cannot determine implicit argument `Monoid` of type
+  module {combine : (Int, Int) -> Int; empty : () -> Int}
+    ┌─ implicit-nested-too-deep.mo:48:9
+ 48 │  let i = fold([-1, 2, 3]); // Nested too deeply
+    │          ^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `Monoid` you need to have a matching declaration named `Monoid` in scope.

@@ -31,7 +31,7 @@ error[M0037]: misplaced async expression; a composite query cannot contain an as
     ┌─ composite-query-fail.mo:52:13
  52 │       ignore async* {};
     │              ^^^^^^^^^ 
-warning[M0222]: ignored argument of `async*` type has no effect
+error[M0222]: ignored argument of `async*` type has no effect
     ┌─ composite-query-fail.mo:52:6
  52 │       ignore async* {};
     │       ^^^^^^^^^^^^^^^^ 

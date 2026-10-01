@@ -460,7 +460,22 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
     ```
 
-    Rationale: Omitting both at the same time makes the code harder to read, since there is less visual clue how it groups.
+    Rationale: Omitting both at the same time makes the code harder to read, since there is less visual clue how it groups. The compiler agrees: a condition that is more than a name or a parenthesized expression requires braced branches.
+
+-   Keep the condition of an `if`/`while` and the head of a `switch`/`for` tight: `f(x)`, `xs[i]`, `n - 1`, never `f (x)`, `xs [i]`, `n -1`.
+
+    After a name or a parenthesized condition, a space before `(`, `[`, `-`, `+`, `^`, `#` means "here the branch starts", so `if (c) -1 else 1` and `if (c) [x] else []` keep their meaning, and a stray space in a condition silently ends it.
+
+    ``` motoko no-repl
+    if xs[i] { f() };         // index
+    if (c) [i] else [];       // branch
+    if n - 1 > 0 { f() };     // subtraction
+    if (c) -1 else 1;         // branch
+
+    // COUNTER EXAMPLES!
+    if xs [i] { f() };        // DO NOT DO THIS: `xs` is the condition, `[i] { f() }` the branch
+    if n -1 > 0 { f() };      // OR THIS: `n` is the condition, `-1 > 0 { f() }` the branch
+    ```
 
 -   Similarly, do not omit parentheses around function parameters if the function also has type parameters.
 

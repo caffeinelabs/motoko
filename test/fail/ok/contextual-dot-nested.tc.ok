@@ -1,0 +1,12 @@
+contextual-dot-nested.mo:11.10-11.13: type error [M0224], overlapping resolution for `sum` in scope from these modules: Vec, _Vec2
+contextual-dot-nested.mo:13.8-13.16: type error [M0231], ambiguous implicit argument named `sum` of type 
+  Vec.Vec -> Nat.
+note: The ambiguous implicit candidates are: `Vec.sum`, `_Vec2.sum`.
+contextual-dot-nested.mo:16.10-16.14: type error [M0224], overlapping resolution for `swap` in scope from these modules: Facade.Pair, Facade2.Pair
+contextual-dot-nested.mo:18.8-18.18: type error [M0231], ambiguous implicit argument named `swap` of type 
+  Facade.Pair.Pair -> (Text, Nat).
+note: The ambiguous implicit candidates are: `Facade.Pair.swap`, `Facade2.Pair.swap`.
+contextual-dot-nested.mo:27.18-27.23: type error [M0224], overlapping resolution for `twice` in scope from these modules: Top.A, Top.B
+contextual-dot-nested.mo:40.9-40.16: type error [M0070], expected object type, but expression produces type
+  Nat
+contextual-dot-nested.mo:49.18-49.22: type error [M0224], overlapping resolution for `plus` in scope from these modules: One, Two

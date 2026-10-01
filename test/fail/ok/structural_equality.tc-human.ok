@@ -19,37 +19,39 @@ and
     ┌─ structural_equality.mo:6:1
   6 │  A() == A();
     │  ^^^^^^^^^^ 
-warning[M0062]: comparing incompatible types
-  {x : Nat}
-and
-  {var x : Nat}
-at common supertype
+error[M0276]: this comparison always has the same result, because it is performed at type
   {}
+which has a single value
     ┌─ structural_equality.mo:8:9
   8 │  ignore ({ x = 10 } == { var x = 10 });
     │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0062]: comparing incompatible types
-  Nat
-and
-  Text
-at common supertype
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
+which has a single value
     ┌─ structural_equality.mo:10:8
  10 │  assert(10 == "hi");
     │         ^^^^^^^^^^ 
-warning[M0061]: comparing abstract type
-  A
-to itself at supertype
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
+which has a single value
     ┌─ structural_equality.mo:12:37
  12 │  func myEq<A>(x : A, y : A) : Bool = x == y;
     │                                      ^^^^^^ 
-warning[M0062]: comparing incompatible types
-  A
-and
-  B
-at common supertype
+error[M0276]: this comparison always has the same result, because it is performed at type
   Any
+which has a single value
     ┌─ structural_equality.mo:13:41
  13 │  func myEq2<A, B>(x : A, y : B) : Bool = x == y;
     │                                          ^^^^^^ 
+error[M0276]: this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+    ┌─ structural_equality.mo:15:9
+ 15 │  ignore (10 != "hi");
+    │          ^^^^^^^^^^ 
+error[M0276]: this comparison always has the same result, because it is performed at type
+  {x : {}}
+which has a single value
+    ┌─ structural_equality.mo:16:9
+ 16 │  ignore ({ x = { p = 1 } } == { x = { q = 1 } });
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

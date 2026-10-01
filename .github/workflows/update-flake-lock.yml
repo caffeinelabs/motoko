@@ -31,7 +31,7 @@ jobs:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
       - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@daaf842c7377c22fe4dec85d511edcf4d889844a # main
+        uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # main
         with:
           branch: "update_flake_lock_action_daily"
           inputs: |

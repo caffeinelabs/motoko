@@ -46,7 +46,7 @@ module Covariant {
   func default<T>(default : (implicit : T)) : T = default;
 
   public func test() {
-    assert default<A>() == a;
+    let _ : A = default<A>();
     assert default<B>().a == 0;
     assert default<C>().b == "";
   };

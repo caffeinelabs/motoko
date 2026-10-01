@@ -1,0 +1,43 @@
+struct-eq.mo:6.8-6.20: warning [M0276], this comparison always has the same result, because it is performed at type
+  Null
+which has a single value
+struct-eq.mo:9.8-9.16: warning [M0276], this comparison always has the same result, because it is performed at type
+  {#x}
+which has a single value
+struct-eq.mo:27.33-27.41: warning [M0276], this comparison always has the same result, because it is performed at type
+  ((), T)
+which has a single value
+struct-eq.mo:30.8-30.57: warning [M0062], comparing incompatible types
+  {id : Nat; name : Text}
+and
+  {email : Text; id : Nat}
+at common supertype
+  {id : Nat}
+struct-eq.mo:31.8-31.40: warning [M0062], comparing incompatible types
+  (Nat, {p : Nat})
+and
+  (Nat, {q : Nat})
+at common supertype
+  (Nat, {})
+struct-eq.mo:32.8-32.60: warning [M0062], comparing incompatible types
+  ?{p : Nat}
+and
+  ?{q : Nat}
+at common supertype
+  ?{}
+struct-eq.mo:33.8-33.46: warning [M0062], comparing incompatible types
+  {#a; #b}
+and
+  {#a; #c}
+at common supertype
+  {#a; #b; #c}
+struct-eq.mo:34.50-34.56: warning [M0061], comparing abstract type
+  A
+to itself at supertype
+  {id : Nat}
+struct-eq.mo:36.85-36.91: warning [M0062], comparing incompatible types
+  actor {f : shared () -> async ()}
+and
+  actor {g : shared () -> async ()}
+at common supertype
+  actor {}

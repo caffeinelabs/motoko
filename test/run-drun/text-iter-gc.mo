@@ -6,7 +6,7 @@ actor a {
    // Allocate enough memory to regularly schedule GC run.
    let array = Prim.Array_init<Nat>(32 * 1024 * 1024, 0);
    
-   var text = "";
+   let text = "";
    let iterator = text.chars();
    await async {}; // Trigger GC.
    ignore iterator.next();

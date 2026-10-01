@@ -6,8 +6,8 @@ actor {
         #Option2;
     };
 
-    stable let instance = [ var #Option1: OriginalVariant ];
-    stable let alias = instance;
+    let instance = [ var #Option1: OriginalVariant ];
+    let alias = instance;
 
     public func test() : async () {
         Prim.debugPrint("instance=" # debug_show (instance));

@@ -8,7 +8,7 @@ module {
    transient var name : Text = "";
    transient var server : ?S.Server  = null;
 
-   public func go(n : Text, s : S.Server) {
+   public func go(n : Text, s : S.Server) : () {
      name := n;
      server := ?s;
      ignore(async {
@@ -19,7 +19,7 @@ module {
      })
    };
 
-   public func send(msg : Text) {
+   public func send(msg : Text) : () {
      Prim.debugPrint(name # " received " # msg # "\n");
    };
  };

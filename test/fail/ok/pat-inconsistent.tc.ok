@@ -7,7 +7,7 @@ does not have expected type
 pat-inconsistent.mo:54.9-54.15: type error [M0116], variant pattern cannot consume expected type
 expected `Bool`, got `{#geese : _}`
 pat-inconsistent.mo:59.9-59.15: warning [M0146], this pattern is never matched
-pat-inconsistent.mo:58.1-60.2: warning [M0145], this switch of type
+pat-inconsistent.mo:58.1-60.2: type error [M0145], this switch of type
   {#sparrows}
 does not cover value
   #sparrows

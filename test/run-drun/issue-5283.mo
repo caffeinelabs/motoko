@@ -1,5 +1,5 @@
 //MOC-FLAG -A=M0194
-persistent actor {
+actor {
 
  class C() = this {
    public func m() : async () {

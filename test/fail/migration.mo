@@ -13,9 +13,9 @@ import Prim "mo:prim";
     }})
 actor {
 
-   stable var version = 0;
+   var version = 0;
 
-   stable var three : [var (Nat, Text)] = [var];
+   var three : [var (Nat, Text)] = [var];
 
    public func check(): async() {
      Prim.debugPrint (debug_show {three});

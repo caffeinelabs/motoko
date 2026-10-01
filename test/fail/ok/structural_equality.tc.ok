@@ -10,25 +10,21 @@ structural_equality.mo:6.1-6.11: type error [M0060], operator is not defined for
   {inner : () -> Nat}
 and
   {inner : () -> Nat}
-structural_equality.mo:8.9-8.37: warning [M0062], comparing incompatible types
-  {x : Nat}
-and
-  {var x : Nat}
-at common supertype
+structural_equality.mo:8.9-8.37: type error [M0276], this comparison always has the same result, because it is performed at type
   {}
-structural_equality.mo:10.8-10.18: warning [M0062], comparing incompatible types
-  Nat
-and
-  Text
-at common supertype
+which has a single value
+structural_equality.mo:10.8-10.18: type error [M0276], this comparison always has the same result, because it is performed at type
   Any
-structural_equality.mo:12.37-12.43: warning [M0061], comparing abstract type
-  A
-to itself at supertype
+which has a single value
+structural_equality.mo:12.37-12.43: type error [M0276], this comparison always has the same result, because it is performed at type
   Any
-structural_equality.mo:13.41-13.47: warning [M0062], comparing incompatible types
-  A
-and
-  B
-at common supertype
+which has a single value
+structural_equality.mo:13.41-13.47: type error [M0276], this comparison always has the same result, because it is performed at type
   Any
+which has a single value
+structural_equality.mo:15.9-15.19: type error [M0276], this comparison always has the same result, because it is performed at type
+  Any
+which has a single value
+structural_equality.mo:16.9-16.47: type error [M0276], this comparison always has the same result, because it is performed at type
+  {x : {}}
+which has a single value

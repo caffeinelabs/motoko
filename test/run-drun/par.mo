@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0210,M0212
 import { call_raw; debugPrint; principalOfActor; replyDeadline; errorMessage; errorCode } = "mo:⛔";
 import Cycles = "cycles/cycles";
 
@@ -117,7 +117,7 @@ actor A {
     func localOuter() : async () { debugPrint ("localOuter: " # debug_show(Cycles.available())) };
     public func test9() : async () {
         debugPrint "test9()";
-        var env = 42;
+        let env = 42;
         func local() : async () { debugPrint ("local: " # debug_show(env + Cycles.available())) };
 
         // give a (dynamically) bogus base

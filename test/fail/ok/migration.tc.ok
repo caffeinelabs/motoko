@@ -1,4 +1,4 @@
-migration.mo:10.7-10.22: warning [M0215], field `unused` is provided but not expected in record of type
+migration.mo:10.7-10.22: type error [M0215], field `unused` is provided but not expected in record of type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
 migration.mo:3.7-13.7: type error [M0201], expected stable type, but migration expression produces non-stable type
   {var three : Text; unstable2 : () -> (); var versoin : ()}

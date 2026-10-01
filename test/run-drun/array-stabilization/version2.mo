@@ -4,9 +4,9 @@ import Prim "mo:prim";
 actor {
     type RecursiveArray = ?[RecursiveArray];
 
-    stable var simpleArray: [Float] = [];
-    stable var nestedArray: [Nat] = [];
-    stable var recursiveArray = ?[] : RecursiveArray;
+    var simpleArray: [Float] = [];
+    var nestedArray: [Nat] = [];
+    var recursiveArray = ?[] : RecursiveArray;
 
     public func print() : async () {
         Prim.debugPrint(debug_show (simpleArray));

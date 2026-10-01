@@ -4,10 +4,10 @@ import P "mo:⛔";
 import Region "stable-region/Region";
 
 actor {
-  stable var r1 = Region.new();
-  stable var aliases = [r1, r1];
-  stable var id : Nat32 = 0xFFFF;
-  stable var size : Nat64 = 0xFFFF_FFFF;
+  let r1 = Region.new();
+  let aliases = [r1, r1];
+  let id : Nat32 = 0xFFFF;
+  var size : Nat64 = 0xFFFF_FFFF;
 
   system func preupgrade() {
     ignore Region.grow(r1, 8);

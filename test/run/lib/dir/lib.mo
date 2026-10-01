@@ -1,1 +1,3 @@
-let hello = "Hello!";
+module {
+  public let hello = "Hello!";
+};

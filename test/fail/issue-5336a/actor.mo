@@ -1,1 +1,0 @@
-persistent actor class Actor() {};

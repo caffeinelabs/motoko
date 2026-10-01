@@ -35,35 +35,42 @@ module MakeState() = struct
         then c else '_'
       ) name
 
+  (* Candid names handed out so far; a suffixed name can equal a
+     user-written one (e.g. `Foo_1`), so each must be checked for reuse. *)
+  let taken = ref Set.empty
+
   let monomorphize_con vs c =
-    let name = normalize_name (Cons.name c) in
     match Cons.kind c with
     | Def _ ->
       let id = (c, vs) in
-      let (k, n) =
-        match TypeMap.find_opt id !type_map with
-        | None ->
-          (match Stamp.find_opt c !stamp with
+      (match TypeMap.find_opt id !type_map with
+       | Some name -> name
+       | None ->
+         let name = normalize_name (Cons.name c) in
+         let (k, n) =
+           match Stamp.find_opt c !stamp with
            | None ->
              let keys = Stamp.keys !stamp in
-             let k = List.length (List.filter (fun d -> Cons.name c = Cons.name d) keys) in
-             stamp := Stamp.add c (k, 0) !stamp;
-             type_map := TypeMap.add id (k, 0) !type_map;
-             (k, 0)
-           | Some (k, n) ->
-             stamp := Stamp.add c (k, n + 1) !stamp;
-             type_map := TypeMap.add id (k, n + 1) !type_map;
-             (k, n + 1))
-        | Some kn -> kn
-      in
-      begin
-        match (k, n) with
-        | _ when k < 0 || n < 0 -> assert false
-        | (0, 0) -> name
-        | (0, n) -> Printf.sprintf "%s_%d" name n
-        | (k, 0) -> Printf.sprintf "%s__%d" name k
-        | (k, n) -> Printf.sprintf "%s__%d_%d" name k n
-      end
+             (List.length (List.filter (fun d -> Cons.name c = Cons.name d) keys), 0)
+           | Some (k, n) -> (k, n + 1)
+         in
+         let rec pick n =
+           let candidate =
+             match (k, n) with
+             | _ when k < 0 || n < 0 -> assert false
+             | (0, 0) -> name
+             | (0, n) -> Printf.sprintf "%s_%d" name n
+             | (k, 0) -> Printf.sprintf "%s__%d" name k
+             | (k, n) -> Printf.sprintf "%s__%d_%d" name k n
+           in
+           if Set.mem candidate !taken then pick (n + 1) else begin
+             stamp := Stamp.add c (k, n) !stamp;
+             type_map := TypeMap.add id candidate !type_map;
+             taken := Set.add candidate !taken;
+             candidate
+           end
+         in
+         pick n)
     | _ -> assert false
 
   let prim = let open I in
@@ -219,30 +226,18 @@ module MakeState() = struct
         dec::list
       ) !env []
 
-  let rec gather_views includes acc dfs =
+  (* Trivia tables of all (transitively) included mixins, so that doc comments
+     on mixin members survive into the generated Candid. *)
+  let rec gather_mixin_trivia includes dfs =
     E.(match dfs with
-    | [] -> acc, List.rev includes
+    | [] -> List.rev includes
     | df :: dfs1 ->
       match df.it.dec.it with
       | E.IncludeD (_, _, _, include_note) ->
         (match !include_note with
-         | Some note -> gather_views (note.trivia :: includes) acc (note.decs @ dfs1)
-         | None -> gather_views includes acc dfs1)
-      | _ ->
-         (match df.it.stab with
-          | Some { it = Stable exp_ref; _} ->
-             (match !exp_ref with
-                None -> gather_views includes acc dfs1
-              | Some {viewer_field;_} -> gather_views includes (viewer_field::acc) dfs1)
-          | _ ->
-             gather_views includes acc dfs1))
-
-  let extend_obj t tfs =
-    if tfs = [] then t else
-    match normalize t with
-    | Obj(s, tfs1, tfs2) ->
-      Obj(s, List.sort compare_field (tfs1 @ tfs), tfs2)
-    | _ -> assert false
+         | Some note -> gather_mixin_trivia (note.trivia :: includes) (note.decs @ dfs1)
+         | None -> gather_mixin_trivia includes dfs1)
+      | _ -> gather_mixin_trivia includes dfs1)
 
   let actor prog =
     let open E in
@@ -250,26 +245,21 @@ module MakeState() = struct
     match cub.it with
     | ProgU _ | ModuleU _ | MixinU _ -> None
     | ActorU (_, _, _, dfs) ->
-       let (viewer_tfs, includes) = gather_views [] [] dfs in
-       mixin_trivia := includes;
-       let extended_actor_typ = extend_obj cub.note.note_typ viewer_tfs in
-       Some (typ extended_actor_typ)
+       mixin_trivia := gather_mixin_trivia [] dfs;
+       Some (typ cub.note.note_typ)
     | ActorClassU (_, _, _, _, _, _, _, _, dfs) ->
        (match normalize cub.note.note_typ with
         | Func (Local, Returns, [tb], ts1, [t2]) ->
           let args = List.map arg_typ (List.map (open_ [Non]) ts1) in
           let (_, _, actor_typ) = as_async (normalize (open_ [Non] t2)) in
-          let (viewer_tfs, includes) = gather_views [] [] dfs in
-          mixin_trivia := includes;
-          let extended_actor_typ = extend_obj actor_typ viewer_tfs in
-          let actor = typ extended_actor_typ in
+          mixin_trivia := gather_mixin_trivia [] dfs;
+          let actor = typ actor_typ in
           Some (I.ClassT (args, actor) @@ cub.at)
         | _ -> assert false
        )
 end
 
-let prog (progs, senv) : I.prog =
-  let prog = CompUnit.combine_progs progs in
+let prog (prog, senv) : I.prog =
   let open MakeState() in
   let actor = actor prog in
   let trivia = Trivia.merge_triv_tables (prog.note.E.trivia :: !mixin_trivia) in

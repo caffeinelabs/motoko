@@ -65,9 +65,15 @@ The available candidates are:
 
 If there is no such value,
 * Any field named `M.compare` declared in some module available `M`.
-* If there is more than one such field, none of which is more specific than all the others, the call is ambiguous.
+
+If there is no such field either,
+* Any field named `compare` of a module nested inside a module available `M`, such as `M.N.compare` (up to a depth of 8).
+
+If there is more than one candidate at the first step that has one, none of which is more general than all the others, the call is ambiguous.
 
 An ambiguous call can always be disambiguated by supplying the explicit arguments for all implicit parameters.
+
+The exact search order and disambiguation, shared with contextual dot notation, are specified in the [language manual](../reference/language-manual.md#resolution-of-dotted-calls-and-implicit-arguments).
 
 ### Contextual dot notation
 

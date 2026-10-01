@@ -57,9 +57,9 @@ Mechanics:
  * Fork PRs cannot read repository secrets, so `nixbuild_token` is empty for
    them; the Linux path then falls back to a local `nix-build-uncached` build so
    fork CI keeps working (without the remote-build speedup). The heavy
-   `gc-tests` / `tests` jobs pass `max-jobs: 1` for this fallback so the ~3 GB
-   RTS-variant builds run one at a time and don't OOM the small standard runner
-   (this input is ignored on the nixbuild.net path).
+   `tests` jobs pass `max-jobs: 1` for this fallback so the ~3 GB derivation
+   builds run one at a time and don't OOM the small standard runner (this input
+   is ignored on the nixbuild.net path).
  * Authentication uses the `NIXBUILD_TOKEN` repository secret.
 
 macOS (nightly tests, `build`/`release` macOS targets) stays on GitHub-hosted
@@ -139,7 +139,6 @@ Various build artifacts are most useful when available directly in the browser, 
  * The motoko user guide
  * The “overview slides”
  * The documentation for `motoko-base`, in the version pinned by motoko
- * Flamegraphs for the programs in `tests/perf`
  * A coverage report
 
 A stable link to these should exist for `master`, and an easy-to-find link for each PR.

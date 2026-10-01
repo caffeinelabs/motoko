@@ -1,5 +1,4 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-// Exercises compile_enhanced.ml arms:
+// Exercises compile.ml arms:
 //   SystemCyclesBurnPrim   (Cycles.burn)
 //   OtherPrim "costCall"
 //   OtherPrim "costCreateCanister"

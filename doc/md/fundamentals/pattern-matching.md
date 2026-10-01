@@ -39,7 +39,7 @@ Some types only have a single possible value. These are called singleton types. 
 
 ### Exhaustiveness checking
 
-To prevent runtime errors when no `switch` case matches, the Motoko compiler performs exhaustiveness checking. It will warn you if any possible input is not handled and shows an example of a missing case. It also flags redundant patterns that will never be matched, helping you write safer, cleaner code.
+To prevent runtime errors when no `switch` case matches, the Motoko compiler performs exhaustiveness checking. It rejects the program with an error if any possible input is not handled and shows an example of a missing case. It also warns about redundant patterns that will never be matched, helping you write safer, cleaner code.
 
 ## Using pattern matching
 

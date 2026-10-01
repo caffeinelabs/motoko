@@ -62,7 +62,7 @@ import Char "mo:core/Char";
 import Nat8 "mo:core/Nat8";
 import Nat32 "mo:core/Nat32";
 
-persistent actor CharConverter{
+actor CharConverter{
   func nat8ToChar(n : Nat8) : Char {
     Char.fromNat32(Nat32.fromNat(Nat8.toNat(n)));
   };
@@ -77,7 +77,7 @@ Motoko provides a built-in function `Text.toLower`, which converts all character
 ```motoko no-repl
 import Text "mo:core/Text";
 
-persistent actor CaseConverter{
+actor CaseConverter{
   func toLowercaseExample(s : Text) : Text {
     return Text.toLower(s);
   };
@@ -93,7 +93,7 @@ persistent actor CaseConverter{
 ```motoko no-repl
 import Text "mo:core/Text";
 
-persistent actor TextToBlobConverter {
+actor TextToBlobConverter {
   func textToOptionalBlob(s : Text) : ?Blob {
     ?Text.encodeUtf8(s);
   };
@@ -169,7 +169,7 @@ Motoko lacks support for dynamic objects, so an array of tuples is converted int
 import HashMap "mo:core/HashMap";
 import Text "mo:core/Text";
 
-persistent actor MapConverter {
+actor MapConverter {
   func arrayToMap(arr : [(Text, Nat)]) : HashMap.HashMap<Text, Nat> {
     let map = HashMap.HashMap<Text, Nat>(arr.size(), Text.equal, Text.hash);
       for ((key, value) in arr.values()) {
@@ -190,7 +190,7 @@ type User = {
     name : Text;
     age : Nat;
 };
-persistent actor TupleConverter{
+actor TupleConverter{
   func tuplesToUsers(arr : [(Text, Nat)]) : [User] {
     Array.map<(Text, Nat), User>(arr, func((name, age)) {
         { name; age }

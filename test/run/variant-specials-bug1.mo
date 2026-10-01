@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 func specials(two : { #c0; #c1 }) {
   switch two {
     case (#c0) ();

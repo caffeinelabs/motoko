@@ -20,6 +20,7 @@
 
 export const sidebar = [
   { slug: "index", label: "Overview" },
+  { slug: "moc-v2-migration" },
   {
     label: "Fundamentals",
     collapsed: false,
@@ -58,7 +59,6 @@ export const sidebar = [
             items: [
               { slug: "fundamentals/actors/orthogonal-persistence/overview" },
               { slug: "fundamentals/actors/orthogonal-persistence/enhanced" },
-              { slug: "fundamentals/actors/orthogonal-persistence/classical" },
             ],
           },
           { slug: "fundamentals/actors/mixins" },

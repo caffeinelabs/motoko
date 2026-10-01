@@ -1,10 +1,9 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --stabilization-instruction-limit=10000
 
 import Prim "mo:prim";
 
 actor {
-    stable var largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
+    let largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
 
     public func check() : async () {
         Prim.debugPrint("Array of length " # debug_show (largeArray.size()));

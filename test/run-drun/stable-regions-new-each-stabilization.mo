@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --stable-regions
 //MOC-ENV MOC_UNLOCK_PRIM=yesplease
 
@@ -6,8 +5,8 @@ import P "mo:⛔";
 import Region "stable-region/Region";
 
 actor {
-  stable var n = 0;
-  stable let regions : [var ?Region] = [var null, null, null];
+  var n = 0;
+  let regions : [var ?Region] = [var null, null, null];
   
   system func preupgrade() {
     P.debugPrint("upgrading... calling Region.new(), n=" # debug_show n);

@@ -8,7 +8,7 @@
    })
 actor A {
 
-   stable var data = 0;
+   var data = 0;
 
    ignore data;
 
@@ -21,7 +21,7 @@ actor A {
   })
 actor B {
 
-   stable var data = 0;
+   var data = 0;
 
    ignore data;
 
@@ -34,7 +34,7 @@ actor B {
   })
 actor C {
 
-   stable var data = 0;
+   var data = 0;
 
    ignore data;
 

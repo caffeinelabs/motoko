@@ -94,7 +94,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 1 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -102,7 +102,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -110,7 +110,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 3 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -118,7 +118,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 4 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -131,12 +131,11 @@ let%expect_test "test1" =
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
-      <binop> <exp_nest> (e.g. '+ 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -147,19 +146,17 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
 
     (unknown location): syntax error [M0001], unexpected token 'let', expected one of token or <phrase> sequence:
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
-      <binop> <exp_nest> (e.g. '+ 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -170,8 +167,8 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]') |}]
+      <inst> <exp_arg> (e.g. '<Int> 42')
+    |}]
 
 let%expect_test "test2" =
   let s = "actor {
@@ -200,7 +197,7 @@ let%expect_test "test2" =
                   )
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -208,7 +205,7 @@ let%expect_test "test2" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -279,7 +276,7 @@ let%expect_test "test3" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -330,7 +327,7 @@ actor Main {
               _
               Actor
               Main
-              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Flexible)
+              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Stable)
               (DecField
                 (ExpD
                   (FuncE
@@ -362,12 +359,11 @@ actor Main {
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
-      <binop> <exp_nest> (e.g. '+ 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -378,8 +374,7 @@ actor Main {
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
 
     (unknown location): syntax error [M0001], unexpected token '(', expected one of token or <phrase> sequence:
       func <func_pat> <annot_opt> <func_body> (e.g. 'func f(x : Int) : Int {}')
@@ -387,7 +382,8 @@ actor Main {
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test5" =
   let s = "module {
@@ -442,7 +438,8 @@ let%expect_test "test5" =
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test type recovery 1" =
   let s = "func test_func () {

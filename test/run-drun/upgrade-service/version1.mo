@@ -12,7 +12,7 @@ actor this {
         test1() : async ();
     };
 
-    stable var instance : ?ReducedActor = null;
+    var instance : ?ReducedActor = null;
 
     public func initialize() : async () {
         Cycles.add<system>(2_000_000_000_000);

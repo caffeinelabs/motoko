@@ -90,8 +90,7 @@ let primE prim es =
     | ICStableRead t -> t
     | ICStableStore _ -> T.unit
     | ICMethodNamePrim -> T.text
-    | ICPerformGC
-    | ICStableSize _ -> T.nat64
+    | ICPerformGC -> T.unit
     | IdxPrim
     | DerefArrayOffset -> T.(as_immut (as_array_sub (List.hd es).note.Note.typ))
     | EqArrayOffset -> T.bool
@@ -246,10 +245,6 @@ let tagE i e =
 
 let dec_eff dec = match dec.it with
   | LetD (_, e) | VarD (_, _, e) -> eff e
-  | RefD (_, _, le) ->
-    match le.it with
-    | DotLE (e, _) -> eff e
-    | _ -> assert false (*FIXME*)
 
 let rec simpl_decs decs = List.concat_map simpl_dec decs
 and simpl_dec dec = match dec.it with
@@ -544,11 +539,6 @@ let varD x exp =
   let t = typ_of_var x in
   assert (T.is_mut t);
   VarD (id_of_var x, T.as_immut t, exp) @@ no_region
-
-let refD x lexp =
-  let t = typ_of_var x in
-  assert (T.is_mut t);
-  RefD (id_of_var x, t, lexp) @@ no_region
 
 let expD exp =
   let pat = { it = WildP; at = exp.at; note = exp.note.Note.typ } in

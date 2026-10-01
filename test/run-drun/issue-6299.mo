@@ -7,7 +7,7 @@ import Prim "mo:⛔";
 // ~2^61 elements — every bounds-checked access to it was out of bounds, and the
 // incremental GC would never finish marking it.
 
-persistent actor {
+actor {
 
   func expectTrap(what : Text, n : Nat) : async () {
     try {
@@ -32,5 +32,4 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //CALL ingress go "DIDL\x00\x00"

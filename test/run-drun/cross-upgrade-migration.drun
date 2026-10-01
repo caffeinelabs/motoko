@@ -1,24 +1,23 @@
-# CLASSICAL-PERSISTENCE-ONLY
-# DEFAULT-GC-ONLY
-
 # classical to eop, with migration function
-install $ID cross-upgrade-migration/version0-classic.mo ""
+# The classical install/reinstall steps use committed wasm fixtures (`old-vN.wasm`);
+# classical persistence can no longer be produced by the current compiler.
+install $ID cross-upgrade-migration/old-v0.wasm ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID cross-upgrade-migration/version1-enhanced.mo ""
 ingress $ID check "DIDL\x00\x00"
-reinstall $ID cross-upgrade-migration/version1-classic.mo ""
+reinstall $ID cross-upgrade-migration/old-v1.wasm ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID cross-upgrade-migration/version2-enhanced.mo ""
 ingress $ID check "DIDL\x00\x00"
-reinstall $ID cross-upgrade-migration/version2-classic.mo ""
+reinstall $ID cross-upgrade-migration/old-v2.wasm ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID cross-upgrade-migration/version3-enhanced.mo ""
 ingress $ID check "DIDL\x00\x00"
-reinstall $ID cross-upgrade-migration/version3-classic.mo ""
+reinstall $ID cross-upgrade-migration/old-v3.wasm ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID cross-upgrade-migration/version4-enhanced.mo ""
 ingress $ID check "DIDL\x00\x00"
-reinstall $ID cross-upgrade-migration/version4-classic.mo ""
+reinstall $ID cross-upgrade-migration/old-v4.wasm ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID cross-upgrade-migration/version5-enhanced.mo ""
 ingress $ID check "DIDL\x00\x00"

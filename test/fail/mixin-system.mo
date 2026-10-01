@@ -1,7 +1,7 @@
 import MixinSystem "mixins/System";
 import MixinSystem2 "mixins/System2";
 
-persistent actor {
+actor {
   include MixinSystem<system>(); // Fine
   include MixinSystem2(); // Fails
 };

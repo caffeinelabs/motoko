@@ -1,9 +1,9 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0406: could not perform remote call
+debug.print: {count = 211}
+ingress Completed: Reply: 0x4449444c00017dd301
+debug.print: {sent = 0}
+ingress Completed: Reply: 0x4449444c00017d00
 debug.print: {count = 500}
 ingress Completed: Reply: 0x4449444c00017df403
-debug.print: {sent = 500}
-ingress Completed: Reply: 0x4449444c00017df403
-debug.print: {count = 1_000}
-ingress Completed: Reply: 0x4449444c00017de807

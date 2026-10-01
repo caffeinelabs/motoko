@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID stabilize-generics/version0.mo ""
 ingress $ID print "DIDL\x00\x00"
 ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"

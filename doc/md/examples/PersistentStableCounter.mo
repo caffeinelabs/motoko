@@ -1,6 +1,6 @@
-persistent actor Counter {
+actor Counter {
 
-  var value = 0; // implicitly stable
+  var value = 0; // persisted across upgrades (the default)
 
   transient var invocations = 0; // reset on upgrade
 

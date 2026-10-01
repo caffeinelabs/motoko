@@ -41,12 +41,14 @@ let parity = if (n % 2 == 0) #even else #odd;
 ```
 Here, the first branch has type `{#even}` and the second branch has type `{#odd}`. These types are different but they have a common supertype `{#even; #odd}`. The type of the `if-else` is then `{#even; #odd}`.
 
-Motoko will infer the common supertype for you, choosing the most specific one possible. If the types are inconsistent and only have the useless common supertype `Any`, Motoko will issue a warning:
+Motoko will infer the common supertype for you, choosing the most specific one possible. If the types are inconsistent and only have the useless common supertype `Any`, Motoko reports an error:
 
 ```motoko no-repl
 let n : Nat = 0;
 let oops = if (n % 2 == 0) #even else 0;
 ```
+
+If `Any` is really what you want, say so with a type annotation: `let ok : Any = if (n % 2 == 0) #even else 0;`.
 
 ## `if`-expression
 

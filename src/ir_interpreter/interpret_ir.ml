@@ -316,7 +316,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   let open Call_conv in
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | VarE (_, id) ->
     (match Lib.Promise.value_opt (find id env.vals) with
@@ -812,7 +811,7 @@ and interpret_block env ro decs exp k =
 and declare_dec dec : val_env =
   match dec.it with
   | LetD (pat, _) -> declare_pat pat
-  | VarD (id, _,  _) | RefD (id, _,  _) -> declare_id id
+  | VarD (id, _,  _) -> declare_id id
 
 and declare_decs decs ve : val_env =
   match decs with
@@ -833,11 +832,6 @@ and interpret_dec env dec k =
   | VarD (id, _, exp) ->
     interpret_exp env exp (fun v ->
       define_id env id (V.Mut (ref v));
-      k ()
-    )
-  | RefD (id, _, lexp) ->
-    interpret_lexp env lexp (fun v ->
-      define_id env id (V.Mut v);
       k ()
     )
 

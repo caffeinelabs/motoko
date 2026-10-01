@@ -1,7 +1,7 @@
 import Prim "mo:⛔";
 actor this {
 
-  stable var version = 0;
+  var version = 0;
   Prim.debugPrint (debug_show({ version = version }));
 
   system func postupgrade() {

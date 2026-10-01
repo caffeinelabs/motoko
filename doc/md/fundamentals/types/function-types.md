@@ -48,7 +48,7 @@ Motoko provides different types of functions based on where in the program they 
 Local functions run within the canister's [actor](../actors/actors-async.md). They cannot call other [canisters](https://docs.internetcomputer.org/concepts/canisters). Local functions are cheap to call and execute synchronously.
 
 ```motoko no-repl
-persistent actor CommonDivisor{
+actor CommonDivisor{
   func gcd(a : Nat, b : Nat) : Nat {
     var x = a;
     var y = b;
@@ -99,7 +99,7 @@ They are useful for defining asynchronous logic used in the implementation of pu
 import Time "mo:core/Time";
 import Logger "canister:Logger";
 
-persistent actor {
+actor {
   private func log(msg : Text) : async () {
     Logger.log(Time.now() + msg); // sends a message
   };
@@ -115,7 +115,7 @@ A more efficient variation is to use `async*` and `await*` , which avoids the ov
 import Time "mo:core/Time"
 import Logger "canister:Logger";
 
-persistent actor {
+actor {
   private func log(msg : Text) : async* () {
     await Logger.log(Time.now() + msg); // sends a message
   };
@@ -138,7 +138,7 @@ Although queries can temporarily alter the state of an actor, these changes are 
 When called from a front-end, `query` functions generally have much lower latency than equivalent shared functions. This is because shared functions require the protocol to reach consensus on the state changes and results, whereas query functions do not.
 
 ```motoko no-repl
-persistent actor Account {
+actor Account {
   var balance = 0;
 
   public shared func deposit(amount : Nat) : async Nat {
@@ -151,7 +151,7 @@ persistent actor Account {
 Omitting the shared keyword, we can also write:
 
 ```motoko no-repl
-persistent actor Account {
+actor Account {
   var balance = 0;
 
   public func deposit(amount : Nat) : async Nat {
@@ -184,7 +184,7 @@ Such a function is called a _one-way_ (or _fire-and-forget_) function.
 An example of this might be a variant of `Account.deposit`, `Account.credit`, that merely updates the balance without returning its new value:
 
 ```motoko no-repl
-persistent actor Account {
+actor Account {
   var balance = 0;
   public func credit(amount : Nat) : () {
     balance += amount;
@@ -215,7 +215,7 @@ Again, the shared keyword is optional. Note that `Account.credit(100` just retur
 
 
 ```motoko no-repl
-persistent actor Account {
+actor Account {
   var balance  = 0;
   public shared query func getBalance() : async Nat {
      balance
@@ -226,7 +226,7 @@ persistent actor Account {
 Again, you can omit the shared keyword:
 
 ```motoko no-repl
-persistent actor Account {
+actor Account {
   var balance = 0;
 
   public query func getBalance() : async Nat {
@@ -246,7 +246,7 @@ The `getBalance` function has function type `shared query () -> async Nat`.
 A good example of a composite query might be a bank that holds references to its individual accounts, implemented as separate actors, and provides a composite query that sums the deposits in all its accounts:
 
 ```motoko no-repl
-persistent actor Bank {
+actor Bank {
   type Account =
     actor { getBalance() : query () -> async Nat };
 
@@ -265,7 +265,7 @@ persistent actor Bank {
 Again, the shared keyword is redundant and can be omitted:
 
 ```motoko no-repl
-persistent actor Bank {
+actor Bank {
     // ... code omitted ...
     public composite query func getDeposits() : async Nat {
     var deposits = 0;

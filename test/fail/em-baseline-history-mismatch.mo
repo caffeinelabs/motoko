@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration enhanced-migration/enh-mig-history
+//MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration enhanced-migration/enh-mig-history
 //MOC-FLAG -A=M0194
 //MOC-FLAG --stable-baseline enhanced-migration/baselines/history-mismatch.most
 

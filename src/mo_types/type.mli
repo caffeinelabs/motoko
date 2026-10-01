@@ -363,7 +363,6 @@ val timeout_lab : lab
 (* Well-known fields *)
 
 val motoko_async_helper_fld : field
-val motoko_stable_var_info_fld : field
 val motoko_gc_trigger_fld : field
 val motoko_runtime_information_fld : field
 

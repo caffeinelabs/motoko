@@ -55,8 +55,6 @@ use core::{
     ptr::{null, null_mut},
 };
 
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
-
 use crate::{
     gc::incremental::mark_bitmap::BITMAP_ITERATION_END,
     memory::{Memory, alloc_blob},
@@ -77,11 +75,7 @@ use super::{
 ///    due to the increased frequency of large object handling.
 /// -> Large partitions are a waste for small programs, since the WASM memory is
 ///    allocated in that granularity and GC is then triggered later.
-#[enhanced_orthogonal_persistence]
 pub const PARTITION_SIZE: usize = 64 * 1024 * 1024;
-
-#[classical_persistence]
-pub const PARTITION_SIZE: usize = 32 * 1024 * 1024;
 
 /// Number of entries per partition table.
 /// Tables are linearly linked, allowing the usage of the entire address space.
@@ -118,7 +112,6 @@ pub struct Partition {
 }
 
 /// Optimization: Avoiding `Option` or `Lazy`.
-#[classical_persistence]
 const UNINITIALIZED_PARTITION: Partition = Partition {
     index: usize::MAX,
     free: false,
@@ -395,7 +388,6 @@ struct PartitionTable {
 }
 
 /// Optimization: Avoiding `Option` or `Lazy`.
-#[classical_persistence]
 const UNINITIALIZED_PARTITION_TABLE: PartitionTable = PartitionTable {
     partitions: [UNINITIALIZED_PARTITION; PARTITIONS_PER_TABLE],
     extension: null_mut(),
@@ -502,7 +494,6 @@ pub struct PartitionedHeap {
 }
 
 /// Optimization: Avoiding `Option` or `LazyCell`.
-#[classical_persistence]
 pub const UNINITIALIZED_HEAP: PartitionedHeap = PartitionedHeap {
     partition_table: UNINITIALIZED_PARTITION_TABLE,
     number_of_partitions: 0,

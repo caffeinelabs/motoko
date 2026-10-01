@@ -1,7 +1,7 @@
 import Text "mo:core/Text";
 import Map "mo:core/Map";
 
-persistent actor Registry {
+actor Registry {
 
   let map = Map.empty<Text, Nat>();
 

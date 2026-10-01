@@ -12,7 +12,6 @@ Last environment:
 @call_succeeded = <func>
 @cancelTimer = <func>
 @cleanup = <func>
-@create_actor_helper = <func>
 @cycles = 0
 @dedup = <func>
 @digits_dec = <func>

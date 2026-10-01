@@ -52,7 +52,7 @@ system func timer(setGlobalTimer : Nat64 -> ()) : async () {
 The `preupgrade()` system function is invoked immediately before a canister upgrade. It runs before the new Wasm module is installed, giving the current version one last chance to act. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-persistent actor MyCanister {
+actor MyCanister {
   system func preupgrade() {
     // Runs before the upgrade installs the new Wasm.
   }
@@ -60,7 +60,7 @@ persistent actor MyCanister {
 ```
 
 :::danger
-If `preupgrade` traps, runs out of cycles, or hits any other IC computing limit, **the upgrade fails and the canister cannot be upgraded going forward** — it is stuck on the current version. Use of this hook is discouraged.
+If `preupgrade` traps, runs out of cycles, or hits any other IC computing limit, **the upgrade fails and the canister cannot be upgraded going forward** — it is stuck on the current version. This hook is deprecated (warning M0270) in favor of migration functions.
 :::
 
 With orthogonal persistence, `mo:core` data structures persist across upgrades automatically and this hook is rarely needed. For the (legacy) save-into-stable-storage pattern and the migration alternatives that replace it, see [Data persistence](../fundamentals/actors/data-persistence.md).
@@ -70,14 +70,14 @@ With orthogonal persistence, `mo:core` data structures persist across upgrades a
 The `postupgrade()` system function runs immediately after an upgrade installs the new Wasm. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-persistent actor MyCanister {
+actor MyCanister {
   system func postupgrade() {
     // Runs after the upgrade installs the new Wasm.
   }
 }
 ```
 
-`postupgrade` is rarely required: the same effect can usually be achieved with actor initialization expressions (`let` bindings and statements at the top of the actor body), which run on every install and upgrade. See [Data persistence](../fundamentals/actors/data-persistence.md) for the recommended patterns.
+`postupgrade` is deprecated (warning M0270) and rarely required: the same effect can usually be achieved with actor initialization expressions (`let` bindings and statements at the top of the actor body), which run on every install and upgrade. See [Data persistence](../fundamentals/actors/data-persistence.md) for the recommended patterns.
 
 ## `lowmemory()`
 
@@ -113,7 +113,7 @@ The following actor defines an inspect function that blocks anonymous callers, l
 ```motoko no-repl
 import Principal "mo:core/Principal";
 
-persistent actor Counter {
+actor Counter {
   
   var c = 0;
 

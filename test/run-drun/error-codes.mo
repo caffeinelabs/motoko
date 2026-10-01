@@ -7,7 +7,7 @@ import P = "mo:⛔";
 
 actor a {
 
-  flexible let invalid = actor "bfozs-kwa73-7nadi" : actor { request() : async () };
+  transient let invalid = actor "bfozs-kwa73-7nadi" : actor { request() : async () };
 
   public func trap() : async () { assert false; };
 

@@ -442,7 +442,6 @@ let rec interpret_exp env exp (k : V.value V.cont) =
 and interpret_exp_mut env exp (k : V.value V.cont) =
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
   | PrimE s ->
@@ -534,7 +533,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     (* NB: we ignore the migration expression _exp_opt *)
     interpret_obj env obj_sort.it self_id_opt dec_fields k
   | ObjE (exp_bases, exp_fields) ->
-    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj env)) in
+    (* shallow-copy var fields carried over from bases into fresh cells, so
+       record-update does not alias the base's mutable state (OCaml-style copy).
+       Snapshot after the explicit fields run so a field initializer that
+       mutates a base var sees the post-initializer value, matching the
+       desugar/lowering order. *)
+    let copy_mut env = V.Env.map (function V.Mut r -> V.Mut (ref !r) | v -> v) env in
+    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj (copy_mut env))) in
     let open V.Env in
     let merges =
       List.fold_left
@@ -737,7 +742,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     )
   | LabelE (id, _typ, exp1) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
-    Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
   | BreakE (kind, id_opt, exp1) ->
     interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)

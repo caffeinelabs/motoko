@@ -1,6 +1,6 @@
 import { principalOfActor } = "mo:⛔";
 
-persistent actor Self {
+actor Self {
   type EnvVar = { name : Text; value : Text };
 
   transient let ic = actor "aaaaa-aa" : actor {
