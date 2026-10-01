@@ -208,6 +208,11 @@
       enables, no longer grows cubically with the number of syntax errors. A
       file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
 
+    * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
+      `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
+      second case without its tag test. Passing the other leg bound that
+      leg's payload at the first case's type instead of trapping (#6427).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
