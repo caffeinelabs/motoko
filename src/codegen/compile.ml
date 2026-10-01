@@ -12885,6 +12885,7 @@ and simplify_cases e (cs : Ir.case list) =
      (with irrefutable subpattern) didn't match, and the pattern types line up *)
   | [{it={pat={it=TagP (l1, ip); _}; _}; _} as c1; {it={pat={it=TagP (l2, pat'); _} as pat2; exp}; _} as c2], Type.(Variant [{lab=el1; _}; {lab=el2; _}])
        when Ir_utils.is_irrefutable ip
+            && l1 <> l2
             && (l1 = el1 || l1 = el2)
             && (l2 = el1 || l2 = el2) ->
      [c1; {c2 with it = {exp; pat = {pat2 with it = known_tag_pat pat'}}}]
