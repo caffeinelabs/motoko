@@ -211,6 +211,11 @@
       initialization arguments are ignored; `moc --explain M0185` has the
       details (#6425).
 
+    * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
+      `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
+      second case without its tag test. Passing the other leg bound that
+      leg's payload at the first case's type instead of trapping (#6427).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
