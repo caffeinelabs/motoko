@@ -133,6 +133,23 @@
 
   * **Type checking**
 
+    * feat: a function passed where an `async` function type is expected is
+      asynchronous without annotations. For `run : (Nat -> async Nat) ->
+      async Nat`, `run(func(n) { n + 1 })` takes both `n : Nat` and the
+      `async Nat` return type from `run`, as non-async functions already
+      did. This covers `async*` and generic calls such as
+      `forEach(xs, func(x) { await process(x) })` (#XXXX).
+
+    * Breaking change: `func f() : T = e` and `func f() : T { e }` mean the
+      same. A body is implicitly `async` exactly when the return type is
+      `async`, and a one-way `shared` function's body is implicitly
+      `ignore async`, so `= async { ... }` and `= ignore (async ...)` are
+      redundant and rejected with M0277, whose fix-it drops the `async`. A
+      parenthetical on the body, `= (with cycles = n) async { ... }`, goes at
+      the call site, `(with cycles = n) f()`, and a local function can no
+      longer return a future of its enclosing function (`= fut`). M0078,
+      M0079 and M0213 are retired (#XXXX).
+
     * Breaking change: `{ base with ... }` copies the base's `var` fields.
       The result is the equivalent field-for-field record literal, so
       mutating the copy does not mutate the base. This was error M0179, or

@@ -11,26 +11,26 @@ actor a {
      "hello"
   };
 
-  private func doInt() : async* Int = async* {
+  private func doInt() : async* Int {
     return await int();
   };
 
 
-  private func doText() : async* Int = async* {
+  private func doText() : async* Int {
     let t = await text(); // await at different type
     return t.size();
   };
 
-  private func doReturn() : async* Int = async* {
+  private func doReturn() : async* Int {
     return 666;
   };
 
 
-  private func doExit() : async* Int = async* {
+  private func doExit() : async* Int {
     666;
   };
 
-  private func doThrow() : async* Int = async* {
+  private func doThrow() : async* Int {
     throw P.error("oops");
   };
 

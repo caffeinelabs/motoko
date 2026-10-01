@@ -362,7 +362,7 @@ module Make (Cfg : Config) = struct
     | ArrayE (m, es) ->
         to_js_object "ArrayE" ([ mut_js m ] @ exps es |> Array.of_list)
     | IdxE (e1, e2) -> to_js_object "IdxE" [| exp_js e1; exp_js e2 |]
-    | FuncE (x, sp, tp, p, t, sugar, e') ->
+    | FuncE (x, sp, tp, p, t, note, e') ->
         to_js_object "FuncE"
           ([
              js_string (Type.string_of_typ e.note.note_typ);
@@ -375,7 +375,7 @@ module Make (Cfg : Config) = struct
                (match t with
                | None -> js_string "_"
                | Some t -> syntax_typ_js t);
-               js_string (if sugar then "" else "=");
+               js_string (if note.braced then "" else "=");
                exp_js e';
              ]
           |> Array.of_list)

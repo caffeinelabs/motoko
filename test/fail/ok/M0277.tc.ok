@@ -1,0 +1,7 @@
+M0277.mo:3.30-3.41: type error [M0277], redundant `async`: the body of a function returning `async` is already `async`
+M0277.mo:4.28-4.35: type error [M0277], redundant `async`: the body of a function returning `async` is already `async`
+M0277.mo:5.30-5.42: type error [M0277], redundant `async*`: the body of a function returning `async*` is already `async*`
+M0277.mo:6.27-6.53: type error [M0277], redundant `async`: the body of a function returning `async` is already `async`
+note: A parenthetical goes at the call site instead, e.g. `(with cycles = 1_000) f()`.
+M0277.mo:8.53-8.64: type error [M0277], redundant `async`: the body of a function returning `async` is already `async`
+M0277.mo:9.31-9.48: type error [M0277], redundant `ignore async`: the body of a one-way shared function is already `ignore async`

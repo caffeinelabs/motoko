@@ -64,8 +64,8 @@ let rec over_exp (f : exp -> exp) (exp : exp) : exp = match exp.it with
      f { exp with it = TryE (over_exp f exp1, List.map (over_case f) cases, Option.map (over_exp f) exp2_opt) }
   | SwitchE (exp1, cases) ->
      f { exp with it = SwitchE (over_exp f exp1, List.map (over_case f) cases) }
-  | FuncE (name, sort_pat, typ_binds, pat, typ_opt, sugar, exp1) ->
-     f { exp with it = FuncE (name, sort_pat, typ_binds, pat, typ_opt, sugar, over_exp f exp1) }
+  | FuncE (name, sort_pat, typ_binds, pat, typ_opt, note, exp1) ->
+     f { exp with it = FuncE (name, sort_pat, typ_binds, pat, typ_opt, note, over_exp f exp1) }
   | IgnoreE exp1 ->
      f { exp with it = IgnoreE (over_exp f exp1)}
 

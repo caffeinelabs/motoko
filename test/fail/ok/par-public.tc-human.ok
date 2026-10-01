@@ -1,7 +1,8 @@
-error[M0213]: parenthetical notes aren't allowed on shared functions
+error[M0277]: redundant `async`: the body of a function returning `async` is already `async`
     ┌─ par-public.mo:2:34
   2 │    public func baz() : async () = (with) async { }
-    │                                   ^^^^^^ 
+    │                                   ^^^^^^^^^^^^^^^^ 
+    = note: A parenthetical goes at the call site instead, e.g. `(with cycles = 1_000) f()`.
 warning[M0211]: redundant empty parenthetical note
     ┌─ par-public.mo:2:34
   2 │    public func baz() : async () = (with) async { }

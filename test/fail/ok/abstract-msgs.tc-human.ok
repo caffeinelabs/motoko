@@ -24,7 +24,7 @@ error[M0031]: shared function has non-shared parameter type
 error[M0032]: shared function has non-shared return type
   A
     ┌─ abstract-msgs.mo:11:30
- 11 │  do { func foo<A <: Any>( f : shared () -> async A ) : async A = async { await (f ())}; };
+ 11 │  do { func foo<A <: Any>( f : shared () -> async A ) : async A { await (f ())}; };
     │                               ^^^^^^^^^^^^^^^^^^^^ 
 error[M0180]: shared function has unexpected type parameters
     ┌─ abstract-msgs.mo:14:16

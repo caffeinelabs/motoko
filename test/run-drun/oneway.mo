@@ -17,18 +17,15 @@ actor a {
 
   // test that oneways can locally try/throw
   // using `=` syntax
-  public func onewayAlt() : () =
-    ignore (
-      (async {
-        Prim.debugPrint "3";
-        try {
-          throw (Prim.error("Error"));
-          Prim.debugPrint "unreachable";
-        }
-        catch e { Prim.debugPrint "4"};
-        pending -= 1;
-      }) : async ()
-    );
+  public func onewayAlt() : () = do {
+    Prim.debugPrint "3";
+    try {
+      throw (Prim.error("Error"));
+      Prim.debugPrint "unreachable";
+    }
+    catch e { Prim.debugPrint "4"};
+    pending -= 1;
+  };
 
 
   // test that throws from oneways are silently discarded (because replies are eager)
@@ -41,15 +38,12 @@ actor a {
 
   // test that throws from oneways are silently discarded (because replies are eager)
   // using `=` syntax
-  public func discardAlt() : () =
-    ignore (
-      (async {
-        Prim.debugPrint "6"; 
-        pending -= 1;
-        throw (Prim.error("ignored"));
-        Prim.debugPrint "unreachable";
-      }) : async ()
-    );
+  public func discardAlt() : () = do {
+    Prim.debugPrint "6";
+    pending -= 1;
+    throw (Prim.error("ignored"));
+    Prim.debugPrint "unreachable";
+  };
 
   // TODO test await and calls to shared functions
 

@@ -9,11 +9,11 @@ import Prim = "mo:⛔";
 import imported1 "ic:rwlgt-iiaaa-aaaaa-aaaaa-cai";
 import imported2 "canister:self";
 actor {
-  public func go1() : async (actor { cq : composite query () -> async () }) = async {
+  public func go1() : async (actor { cq : composite query () -> async () }) {
      imported1;
   };
 
-  public func go2() : async (actor { cq : composite query () -> async () }) = async {
+  public func go2() : async (actor { cq : composite query () -> async () }) {
      imported2;
   };
 

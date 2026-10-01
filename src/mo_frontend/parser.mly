@@ -32,17 +32,6 @@ let syntax_error at code msg =
 
 let persistent bool at = { it = bool; at = at; note = [] }
 
-let scope_bind x at =
-  { var = Type.scope_var x @@ at;
-    sort = Type.Scope @@ at;
-    bound = PrimT "Any" @! at
-  } @= at
-
-let ensure_scope_bind var tbs =
-  match tbs with
-  | tb::_ when tb.it.sort.it = Type.Scope -> tbs
-  | _ -> scope_bind var no_region :: tbs
-
 let funcT (sort, tbs, t1, t2) =
   match sort.it, t2.it with
   | Type.Local, AsyncT _ -> FuncT (sort, ensure_scope_bind "" tbs, t1, t2)
@@ -115,24 +104,8 @@ let is_sugared_func_or_module dec = match dec.it with
   | _ -> false
 
 
-let func_exp f s tbs p t_opt is_sugar e =
-  match s.it, t_opt, e with
-  | Type.Local, Some {it = AsyncT _; _}, {it = AsyncE _; _}
-  | Type.Shared _, _, _ ->
-    FuncE(f, s, ensure_scope_bind "" tbs, p, t_opt, is_sugar, e)
-  | _ ->
-    FuncE(f, s, tbs, p, t_opt, is_sugar, e)
-
-let desugar_func_body sp x t_opt (is_sugar, e) =
-  if not is_sugar then
-    false, e (* body declared as EQ e *)
-  else (* body declared as immediate block *)
-    match sp.it, t_opt with
-    | _, Some {it = AsyncT (s, _, _); _} ->
-      true, asyncE s (scope_bind x.it e.at) e
-    | Type.Shared _, (None | Some { it = TupT []; _}) ->
-      true, ignore_asyncE (scope_bind x.it e.at) e
-    | _, _ -> (true, e)
+let func_exp f s tbs p t_opt braced e =
+  FuncE(f, s, tbs, p, t_opt, func_note braced, e)
 
 let share_typ t =
   match t.it with
@@ -148,11 +121,8 @@ let share_typfield (tf : typ_field) = { tf with it = share_typfield' tf.it }
 
 let share_exp e =
   match e.it with
-  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p,
-    ((None | Some { it = TupT []; _ }) as t_opt), true, e) ->
-    func_exp x {sp with it = Type.Shared (Type.Write, WildP @! sp.at)} tbs p t_opt true (ignore_asyncE (scope_bind x e.at) e) @? e.at
-  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p, t_opt, s, e) ->
-    func_exp x {sp with it = Type.Shared (Type.Write, WildP @! sp.at)} tbs p t_opt s e @? e.at
+  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p, t_opt, note, e1) ->
+    FuncE (x, {sp with it = Type.Shared (Type.Write, WildP @! sp.at)}, tbs, p, t_opt, note, e1) @? e.at
   | _ -> e
 
 let share_dec d =
@@ -1244,13 +1214,10 @@ dec_nonvar(R) :
     { TypD(x, tps, t) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body(R)
-    { (* This is a hack to support local func declarations that return a computed async.
-         These should be defined using RHS syntax EQ e to avoid the implicit AsyncE introduction
-         around bodies declared as blocks *)
-      let xf, tps, p = xf_tps_p in
+    { let xf, tps, p = xf_tps_p in
       let named, x = xf "func" $sloc in
-      let is_sugar, e = desugar_func_body sp x t fb in
-      let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
+      let braced, e = fb in
+      let_or_exp named x (func_exp x.it sp tps p t braced e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
   | MIXIN system=system_opt p=pat_plain dfs=obj_body {
      let dfs = List.map (share_dec_field (fun () -> Stable @@ no_region)) dfs in
@@ -1314,8 +1281,8 @@ dec :
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 
 func_body(R) :
-  (* LEGACY(v3): `= e` bodies retire, a function body is a block (#6352). Open corner before the flip:
-     `= e` is also the way to forward a computed `async` without the implicit wrapper a block body adds. *)
+  (* LEGACY(v3): `= e` bodies retire, a function body is a block.
+     Both forms type and run the same, so the formatter can rewrite `= e` to `{ e }`. *)
   | EQ e=exp(R, R) { (false, e) }
   | e=block { (true, e) }
 
