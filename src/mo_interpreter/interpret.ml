@@ -77,6 +77,12 @@ exception Cancel of string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
 
+(* Compares as a Nat first, as an index need not fit an OCaml int *)
+let index at n len =
+  if Numerics.Nat.lt n (Numerics.Nat.of_int len)
+  then Numerics.Nat.to_int n
+  else trap at "index out of bounds"
+
 let find id env =
   try V.Env.find id env
   with Not_found ->
@@ -606,13 +612,14 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | IdxE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k V.(let i = Numerics.Int.to_int (as_int v2) in
-             match v1 with
+        let n = V.as_int v2 in
+        k V.(match v1 with
              | Blob s ->
-               Nat8 (s.[i] |> Char.code |> Numerics.Nat8.of_int)
+               let c = s.[index exp.at n (String.length s)] in
+               Nat8 (Numerics.Nat8.of_int (Char.code c))
              | _ ->
-               try (as_array v1).(i)
-               with Invalid_argument s -> trap exp.at "%s" s)
+               let a = as_array v1 in
+               a.(index exp.at n (Array.length a)))
       )
     )
   | FuncE (name, shared_pat, _typbinds, pat, _typ, _sugar, exp2) ->

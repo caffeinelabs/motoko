@@ -204,6 +204,12 @@
 
   * **Bug fixes**
 
+    * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
+      out-of-bounds `Blob` index or an index of 2^62 or more no longer
+      crashes with an internal error, `Array_init` and `Array_tabulate` trap
+      on a length of 2^48 or more, and `Nat`/`Int` `**` traps on an exponent
+      of 2^32 or more (#6422).
+
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
       type, e.g. `Foo_1` for `Foo<Text>`, no longer crashes with `Not_found`
