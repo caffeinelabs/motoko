@@ -4126,19 +4126,17 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
-    let tfs = try T.as_variant_sub id.it t with Invalid_argument _ ->
-      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
-      error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
-    in
+    let tfs = try T.as_variant_sub id.it t with Invalid_argument _ -> [] in
     let t1 = match T.lookup_val_field_opt id.it tfs with
       | Some t1 -> t1
       | None ->
         let tags = List.map (fun tf -> "#" ^ tf.T.lab) tfs in
-        error env pat.at "M0279"
-          ~spans:(suggest_span env id.at (Suggest.suggest_id "tag" ("#" ^ id.it) tags))
-          "variant tag #%s is not contained in expected type%a"
-          id.it
-          display_typ_expand t
+        let suggestion =
+          if tags = [] then [] else
+          suggest_span env id.at (Suggest.suggest_id "tag" ("#" ^ id.it) tags) in
+        let spans = add_error_ctx
+          (primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it :: suggestion) in
+        error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
     in check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in

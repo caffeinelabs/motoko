@@ -41,7 +41,7 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [Record update copies `var` fields](#record-update-copies-var-fields) | nothing (was error M0179) | none, unless you relied on `--experimental-field-aliasing` |
 | [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005, M0276, M0278 | per code, below |
 | [Inferred `Any`/`None`](#inferred-any-or-none) | M0074, M0081, M0101, M0166, M0167 | fix the code, or annotate `Any` |
-| [Unknown tags in patterns](#unknown-tags-in-patterns-m0279) | error M0279 | fix the tag, or annotate a larger variant type |
+| [Unknown tags in patterns](#unknown-tags-in-patterns-m0116) | error M0116 | fix the tag, or annotate a larger variant type |
 | [Bare-declaration libraries](#libraries-must-be-modules-m0142) | error M0142 | wrap in `module { ... }` |
 | [Actor class return type](#actor-class-return-type-m0193) | error M0193 | `: async actor { ... }` |
 | [Removed primitives](#removed-primitives-and-experimentalstablememory) | M0072 in `ExperimentalStableMemory` | use `Region` |
@@ -269,14 +269,14 @@ When the type `moc` infers collapses to `Any` or `None`, the value is useless an
 | M0166 | `type U = Nat and Text;` (`None`) | write the intended type |
 | M0167 | `type V = Nat or Text;` (`Any`) | write `Any`, or the intended type |
 
-### Unknown tags in patterns (M0279)
+### Unknown tags in patterns (M0116)
 
-A variant pattern whose tag is not in the type being matched is now error M0279, usually with a suggestion for the misspelled tag. It was warning M0146, and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
+A variant pattern whose tag is not in the type being matched is now error M0116, the error for a variant pattern against a type that is not a variant, usually with a suggestion for the misspelled tag. It was warning M0146, and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
 
 ```motoko no-repl
 type Status = { #active; #suspended };
 switch s {
-  case (#suspnded) { ... };   // M0279: did you mean tag #suspended?
+  case (#suspnded) { ... };   // M0116: did you mean tag #suspended?
   case _ { ... };
 };
 ```

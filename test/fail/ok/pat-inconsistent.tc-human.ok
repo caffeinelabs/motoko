@@ -18,16 +18,18 @@ error[M0116]: variant pattern cannot consume expected type
     │          ----------- this expression has type `Bool`
  54 │    case (#geese) {};
     │          ^^^^^^ expected `Bool`, got `{#geese : _}`
-error[M0279]: variant tag #geese is not contained in expected type
-  {#sparrows}
+error[M0116]: variant pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:59:9
+ 58 │  switch (#sparrows : { #sparrows }) {
+    │          ------------------------- this expression has type `{#sparrows}`
  59 │    case (#geese) {};
-    │          ^^^^^^ 
-error[M0279]: variant tag #geese is not contained in expected type
-  {#}
+    │          ^^^^^^ expected `{#sparrows}`, got `{#geese : _}`
+error[M0116]: variant pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:64:11
+ 63 │    switch birds {
+    │           ----- this expression has type `{#}`
  64 │      case (#geese) {};
-    │            ^^^^^^ 
+    │            ^^^^^^ expected `{#}`, got `{#geese : _}`
 error[M0112]: tuple pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:68:7
  68 │    let (_, _) = 10;
@@ -40,13 +42,18 @@ error[M0112]: tuple pattern cannot consume expected type
     │         ^^^^^^       -------- this expression has type `(Nat, Nat)`
     │         │
     │         expected `Nat`, got `(_, _)`
-error[M0279]: variant tag #sparows is not contained in expected type
-  {#geese; #sparrows}
+error[M0116]: variant pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:77:10
+ 76 │  switch (#sparrows : { #sparrows; #geese }) {
+    │          --------------------------------- this expression has type `{#geese; #sparrows}`
  77 │    case (#sparows) {};
-    │           ^^^^^^^ help: did you mean tag #sparrows?
-error[M0279]: variant tag #okk is not contained in expected type
-  {#err : Text; #ok : Nat}
+    │          ^^^^^^^^ help: did you mean tag #sparrows?
+    │          │
+    │          expected `{#geese; #sparrows}`, got `{#sparows : _}`
+error[M0116]: variant pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:82:8
  82 │    let #okk(n) = r else { return 0 };
-    │         ^^^ help: did you mean tag #ok?
+    │        ^^^^^^^   - this expression has type `{#err : Text; #ok : Nat}`
+    │        ││     
+    │        │help: did you mean tag #ok?
+    │        expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`

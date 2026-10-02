@@ -227,7 +227,6 @@ let error_codes : (string * string option) list =
     "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
-    "M0279", None; (* Variant pattern tag not contained in expected type *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
