@@ -119,6 +119,10 @@ assert (test(#le(1, #va 0, #app(#va 0, #va 1))) == 999);
 // Patterns redundant through various forms of subtyping
 
 do {
+  switch (0 : Int) {
+    case (-1) {};
+    case _ {};
+  };
   switch 0 {
     case (-1 : Int) {};
     case _ {};
@@ -127,7 +131,15 @@ do {
     case (-1 : Int : Nat) {};
     case _ {};
   };
+  switch (0 : Int) {
+    case (-1 : Int) {};
+    case _ {};
+  };
 
+  switch (null : ?Nat) {
+    case (?_) {};
+    case null {};
+  };
   switch null {
     case (?_ : ?Nat) {};
     case null {};
@@ -136,7 +148,15 @@ do {
     case (?_ : ?Nat : Null) {};
     case null {};
   };
+  switch (null : ?Nat) {
+    case (?_ : ?Nat) {};
+    case null {};
+  };
 
+  switch (#a : {#a; #b}) {
+    case (#b) {};
+    case (#a) {};
+  };
   switch (#a) {
     case (#b : {#a; #b}) {};
     case (#a) {};
@@ -145,50 +165,72 @@ do {
     case (#b : {#a; #b} : {#a}) {};
     case (#a) {};
   };
+  switch (#a : {#a; #b}) {
+    case (#b : {#a; #b}) {};
+    case (#a) {};
+  };
 
-  let i : Int = 0;
-  let (-1 or _) = i;
-  let o : ?Nat = null;
-  let (?_ or _) = o;
-  let ab : {#a; #b} = #b;
-  let (#a or _) = ab;
+  let (-1 or _) = (0 : Int);
+  let (?_ or _) = (null : ?Nat);
+  let (#a or _) = (#b : {#a; #b});
 };
 
 
 func h(e : {#}) {
+  switch (e : {#a}) {
+    case (#a) {};
+  };
   switch e {
     case (#a : {#a}) {};
   };
   switch e {
     case (#a : {#a} : {#}) {};
   };
+  switch (e : {#a}) {
+    case (#a : {#a}) {};
+  };
 
   // Same as above but non-exhaustive
+  switch (0 : Int) {
+    case (-1) {};
+  };
   switch 0 {
     case (-1 : Int) {};
   };
   switch 0 {
     case (-1 : Int : Nat) {};
   };
+  switch (0 : Int) {
+    case (-1 : Int) {};
+  };
 
+  switch (null : ?Nat) {
+    case (?_) {};
+  };
   switch null {
     case (?_ : ?Nat) {};
   };
   switch null {
     case (?_ : ?Nat : Null) {};
   };
+  switch (null : ?Nat) {
+    case (?_ : ?Nat) {};
+  };
 
+  switch (#a : {#a; #b}) {
+    case (#b) {};
+  };
   switch (#a) {
     case (#b : {#a; #b}) {};
   };
   switch (#a) {
     case (#b : {#a; #b} : {#a}) {};
   };
+  switch (#a : {#a; #b}) {
+    case (#b : {#a; #b}) {};
+  };
 
-  let i : Int = 0;
-  let -1 = i;
-  let o : ?Nat = null;
-  let ?_ = o;
-  let ab : {#a; #b} = #b;
-  let #a = ab;
+  let -1 = (0 : Int);
+  let ?_ = (null : ?Nat);
+  let #a = (#b : {#a; #b});
 };
