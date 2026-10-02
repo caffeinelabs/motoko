@@ -211,6 +211,10 @@
       initialization arguments are ignored; `moc --explain M0185` has the
       details (#6425).
 
+    * bugfix: checking time with `--error-recovery`, which `moc.js` always
+      enables, no longer grows cubically with the number of syntax errors. A
+      file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
+
     * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
       `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
       second case without its tag test. Passing the other leg bound that

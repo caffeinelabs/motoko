@@ -54,6 +54,10 @@ Any more complex change can be performed with programmatic instruction, see [exp
 ### Migration path
 When upgrading a canister from classical orthogonal persistence (the old serialization-based stabilization) to the new persistent heap, the old data is deserialized one last time from stable memory and then placed in the new persistent heap layout. This one-time upgrade must be compiled with the explicit `--enhanced-orthogonal-persistence` flag and without `--enhanced-migration`; later upgrades need no flag. Once operating on the persistent heap, the system prevents downgrade attempts to the old serialization-based persistence.
 
+:::caution
+A canister that moved from classical persistence to the persistent heap with a `moc` older than 1.5.0 may fail to upgrade with `moc` 1.5.0 or later. The upgrade traps with `cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration`, even if the canister never used enhanced migration. The cause is runtime metadata, added in later versions, that can still hold leftover bytes from the old classical heap. The upgrade is rolled back, so no data is lost. To fix it, perform that upgrade once with [graph-copy-based stabilization](#graph-copy-based-stabilization), which reinitializes the metadata. Later upgrades work as usual.
+:::
+
 #### Graph-copy-based stabilization
 Assuming that the persistent memory layout needs to be changed in the future, the runtime system supports serialization and deserialization to and from stable memory in a defined data format using graph-copy-based stabilization. Arbitrarily large data can be serialized and deserialized beyond the instruction and working set limit of upgrades. Large data serialization and deserialization is split in multiple messages, running before and/or after the IC upgrade to migrate large heaps. Other messages will be blocked during this process and only the canister owner or the canister controllers are permitted to initiate this process.
 
