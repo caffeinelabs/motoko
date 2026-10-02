@@ -182,9 +182,9 @@
       (`case (-1)`), as `let n : Nat = -1` already is; an option pattern
       against `Null` is error M0115. Before, only the coverage check flagged
       these, and nothing did in `let ... else`. To match at a larger type,
-      annotate the pattern, `case (-1 : Int)`, or bind the value at that type
-      first. A pattern that fits the type but is unreachable, such as a
-      duplicate case, stays warning M0146 (#6429).
+      annotate the matched value: `switch (n : Int)`. A pattern that fits the
+      type but is unreachable, such as a duplicate case, stays warning M0146
+      (#6429).
 
     * bugfix: in `let ... else`, an alternative that is never matched, such as
       the second `1` in `let (1 or 1) = n else { ... }`, is warning M0146, as

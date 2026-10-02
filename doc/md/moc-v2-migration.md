@@ -279,7 +279,7 @@ A pattern is now checked against the type of the value it matches, not a larger 
 | `-1` or `+1`, a signed literal | `Nat` | M0050, as for `let n : Nat = -1` |
 | `?x`, an option pattern | `Null` | M0115 |
 
-To match at a larger type on purpose, bind the value at that type first, `let i : Int = n;`, or annotate the pattern, `case (-1 : Int) { ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value: `let mode : {#dev; #prod} = #dev`. A pattern that fits the type but can never be reached, such as a duplicate case, stays warning M0146.
+To match at a larger type on purpose, annotate the matched value: `switch (n : Int) { case (-1) { ... }; ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value: `let mode : {#dev; #prod} = #dev`. A pattern that fits the type but can never be reached, such as a duplicate case, stays warning M0146.
 
 ## Libraries and modules
 

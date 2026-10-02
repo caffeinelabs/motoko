@@ -1,5 +1,4 @@
-variant-specials-bug1.mo:5.10-5.35: warning [M0146], this pattern is never matched
 variant-specials-bug1.mo:3.3-6.4: warning [M0145], this switch of type
-  {#c0; #c1}
+  {#c0; #c1; #c2}
 does not cover value
   #c1
