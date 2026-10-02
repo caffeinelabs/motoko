@@ -349,9 +349,6 @@
     'var'? <id> (':' <typ>)?
     'var'? <id> (':' <typ>)? '=' <exp>
 
-<no_attr> ::= 
-    <empty>
-
 <dec_pub> ::= 
     'let' <pat> '=' <exp>
     'let' <pat>
@@ -359,11 +356,17 @@
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
 
-<dec_field(attr, dpub)> ::= 
+<pub_ac> ::= 
+    <parenthetical>? <stab> <dec_pub>
+
+<pub_lo> ::= 
+    <stab> <dec>
+
+<dec_field(pub)> ::= 
     <stab> <dec>
     'private' <stab> <dec>
     'system' <stab> <dec>
-    'public' attr <stab> dpub
+    'public' pub
 
 <stab> ::= 
     <empty>
@@ -429,14 +432,18 @@
     'let' <pat>
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
-    <parenthetical>? <obj_or_class_dec(<obj_sort_ac>, <obj_sort_ac>, <parenthetical>?, <dec_pub>)>
-    <parenthetical>? <obj_or_class_dec(<obj_sort_lo>, <obj_sort_lo>?, <no_attr>, <dec>)>
-    'mixin' ('<' 'system' '>')? <pat_plain> <obj_body(<parenthetical>?, <dec_pub>)>
+    <parenthetical>? <actor_dec>
+    <parenthetical>? <obj_or_class_dec>
+    'mixin' ('<' 'system' '>')? <pat_plain> <obj_body(<pub_ac>)>
     'include' <id> ('<' 'system' '>')? <exp>
 
-<obj_or_class_dec(sort, sort_opt, attr, dpub)> ::= 
-    sort <id>? (':' <typ>)? '='? <obj_body(attr, dpub)>
-    <shared_pat_opt> sort_opt 'class' <func_pat> (':' <typ>)? <class_body(attr, dpub)>
+<actor_dec> ::= 
+    <obj_sort_ac> <id>? (':' <typ>)? '='? <obj_body(<pub_ac>)>
+    <shared_pat_opt> <obj_sort_ac> 'class' <func_pat> (':' <typ>)? <class_body(<pub_ac>)>
+
+<obj_or_class_dec> ::= 
+    <obj_sort_lo> <id>? (':' <typ>)? '='? <obj_body(<pub_lo>)>
+    <shared_pat_opt> <obj_sort_lo>? 'class' <func_pat> (':' <typ>)? <class_body(<pub_lo>)>
 
 <dec> ::= 
     <dec_var>
@@ -449,12 +456,12 @@
     '=' <exp>
     <block>
 
-<obj_body(attr, dpub)> ::= 
-    '{' <list(<dec_field(attr, dpub)>, ';')> '}'
+<obj_body(pub)> ::= 
+    '{' <list(<dec_field(pub)>, ';')> '}'
 
-<class_body(attr, dpub)> ::= 
-    '=' <id>? <obj_body(attr, dpub)>
-    <obj_body(attr, dpub)>
+<class_body(pub)> ::= 
+    '=' <id>? <obj_body(pub)>
+    <obj_body(pub)>
 
 <imp> ::= 
     'import' <pat_nullary> '='? <text>
