@@ -120,10 +120,6 @@ assert (test(#le(1, #va 0, #app(#va 0, #va 1))) == 999);
 
 do {
   switch 0 {
-    case (-1) {};
-    case _ {};
-  };
-  switch 0 {
     case (-1 : Int) {};
     case _ {};
   };
@@ -131,25 +127,13 @@ do {
     case (-1 : Int : Nat) {};
     case _ {};
   };
-  switch 0 {
-    case (-1 : Nat) {};
-    case _ {};
-  };
 
-  switch null {
-    case (?_) {};
-    case null {};
-  };
   switch null {
     case (?_ : ?Nat) {};
     case null {};
   };
   switch null {
     case (?_ : ?Nat : Null) {};
-    case null {};
-  };
-  switch null {
-    case (?_ : Null) {};
     case null {};
   };
 
@@ -162,8 +146,10 @@ do {
     case (#a) {};
   };
 
-  let (-1 or _) = 0;
-  let (?_ or _) = null;
+  let i : Int = 0;
+  let (-1 or _) = i;
+  let o : ?Nat = null;
+  let (?_ or _) = o;
   let ab : {#a; #b} = #b;
   let (#a or _) = ab;
 };
@@ -179,29 +165,17 @@ func h(e : {#}) {
 
   // Same as above but non-exhaustive
   switch 0 {
-    case (-1) {};
-  };
-  switch 0 {
     case (-1 : Int) {};
   };
   switch 0 {
     case (-1 : Int : Nat) {};
   };
-  switch 0 {
-    case (-1 : Nat) {};
-  };
 
-  switch null {
-    case (?_) {};
-  };
   switch null {
     case (?_ : ?Nat) {};
   };
   switch null {
     case (?_ : ?Nat : Null) {};
-  };
-  switch null {
-    case (?_ : Null) {};
   };
 
   switch (#a) {
@@ -211,8 +185,10 @@ func h(e : {#}) {
     case (#b : {#a; #b} : {#a}) {};
   };
 
-  let -1 = 0;
-  let ?_ = null;
+  let i : Int = 0;
+  let -1 = i;
+  let o : ?Nat = null;
+  let ?_ = o;
   let ab : {#a; #b} = #b;
   let #a = ab;
 };

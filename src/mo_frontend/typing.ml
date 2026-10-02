@@ -567,7 +567,7 @@ let coverage_pat warnOrError env pat t =
   coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
 
 let coverage_let_else env pat t =
-  let uncovered, unreached = Coverage.check_let_else pat t in
+  let uncovered, unreached = Coverage.check_pat pat t in
   warn_unreached env unreached;
   if uncovered = [] then
     warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause"
@@ -4090,24 +4090,22 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     T.Env.singleton id.it (t_orig, id.at, val_kind)
   | LitP lit ->
     if not env.pre then begin
-      let t' = if eq env pat.at t T.nat then T.int else t in  (* account for Nat <: Int *)
-      if T.opaque t' then
+      if T.opaque t then
         error env pat.at "M0110" "literal pattern cannot consume expected type%a"
           display_typ_expand t;
-      if sub env pat.at t' T.Non
+      if sub env pat.at t T.Non
       then ignore (infer_lit env lit pat.at)
-      else check_lit env t' lit pat.at false
+      else check_lit env t lit pat.at false
     end;
     T.Env.empty
   | SignP (op, lit) ->
     if not env.pre then begin
-      let t' = if eq env pat.at t T.nat then T.int else t in  (* account for Nat <: Int *)
       if not (Operator.has_unop op (T.promote t)) then
         error env pat.at "M0111" "operator pattern cannot consume expected type%a"
           display_typ_expand t;
-      if sub env pat.at t' T.Non
+      if sub env pat.at t T.Non
       then ignore (infer_lit env lit pat.at)
-      else check_lit env t' lit pat.at false
+      else check_lit env t lit pat.at false
     end;
     T.Env.empty
   | TupP pats ->
@@ -4121,9 +4119,12 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
   | ObjP pfs ->
     check_obj_pat_aux env t pat pfs
   | OptP pat1 ->
-    let t1 = try T.as_opt_sub t with Invalid_argument _ ->
-      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
-      error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
+    let t1 = match T.promote t with
+      | T.Opt t1 -> t1
+      | T.Non -> T.Non
+      | _ ->
+        let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
+        error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
     let tfs = try T.as_variant_sub id.it t with Invalid_argument _ -> [] in

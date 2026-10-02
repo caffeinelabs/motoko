@@ -393,14 +393,7 @@ let check_cases cases t =
 
 let (@?) it at = {it; at; note = empty_typ_note}
 
-let check_single pat t =
-  check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
-
 let check_pat pat t =
-  let uncovered, unreached = check_single pat t in
-  uncovered, List.filter ((<>) pat.at) unreached
-
-(* unlike in a plain `let`, a pattern that matches no value is reported: it always takes the `else` *)
-let check_let_else pat t =
-  let uncovered, unreached = check_single pat t in
-  uncovered, if T.inhabited t then unreached else List.filter ((<>) pat.at) unreached
+  let uncovered, unreached =
+    check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
+  in uncovered, List.filter ((<>) pat.at) unreached

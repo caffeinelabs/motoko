@@ -175,19 +175,21 @@
     * bugfix: contextual dot resolves functions returning `async` in an async
       context, e.g. `await x.asyncFunc()` (#6085).
 
-    * Breaking change: a variant pattern whose tag is not in the expected
-      type is error M0116, as for a type that is not a variant, with a
-      suggestion for a misspelled tag: `case (#suspnded)` on
-      `{#active; #suspended}`. Before, only the coverage check flagged it
-      (M0146, or M0145 in a plain `let`), and nothing did in
-      `let ... else`. A tag that is in the type but unreachable, such as a
-      duplicate case, stays warning M0146. To match at a larger variant
-      type, annotate the pattern: `case (#c : {#a; #b; #c})` (#6429).
+    * Breaking change: a pattern is checked against the type of the value it
+      matches, not a larger type. A variant tag the type lacks is error M0116,
+      with a suggestion for a misspelled tag (`case (#suspnded)` on
+      `{#active; #suspended}`); a signed literal against `Nat` is error M0050
+      (`case (-1)`), as `let n : Nat = -1` already is; an option pattern
+      against `Null` is error M0115. Before, only the coverage check flagged
+      these, and nothing did in `let ... else`. To match at a larger type,
+      annotate the pattern, `case (-1 : Int)`, or bind the value at that type
+      first. A pattern that fits the type but is unreachable, such as a
+      duplicate case, stays warning M0146 (#6429).
 
-    * bugfix: a `let ... else` pattern that can never match, such as
-      `let -1 = n else { ... }` with `n : Nat`, is warning M0146 instead of
-      silently always taking the `else`. In any pattern, an unreached pattern
-      nested inside another one is no longer reported a second time (#6429).
+    * bugfix: in `let ... else`, an alternative that is never matched, such as
+      the second `1` in `let (1 or 1) = n else { ... }`, is warning M0146, as
+      in a `switch`. In any pattern, an unreached pattern nested inside
+      another one is no longer reported a second time (#6429).
 
   * **Command line and tooling**
 

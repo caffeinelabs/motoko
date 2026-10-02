@@ -41,7 +41,7 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [Record update copies `var` fields](#record-update-copies-var-fields) | nothing (was error M0179) | none, unless you relied on `--experimental-field-aliasing` |
 | [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005, M0276, M0278 | per code, below |
 | [Inferred `Any`/`None`](#inferred-any-or-none) | M0074, M0081, M0101, M0166, M0167 | fix the code, or annotate `Any` |
-| [Unknown tags in patterns](#unknown-tags-in-patterns-m0116) | error M0116 | fix the tag, or annotate a larger variant type |
+| [Patterns that do not fit the type](#patterns-that-do-not-fit-the-type) | errors M0116, M0050, M0115 | fix the pattern, or annotate a larger type |
 | [Bare-declaration libraries](#libraries-must-be-modules-m0142) | error M0142 | wrap in `module { ... }` |
 | [Actor class return type](#actor-class-return-type-m0193) | error M0193 | `: async actor { ... }` |
 | [Removed primitives](#removed-primitives-and-experimentalstablememory) | M0072 in `ExperimentalStableMemory` | use `Region` |
@@ -269,19 +269,17 @@ When the type `moc` infers collapses to `Any` or `None`, the value is useless an
 | M0166 | `type U = Nat and Text;` (`None`) | write the intended type |
 | M0167 | `type V = Nat or Text;` (`Any`) | write `Any`, or the intended type |
 
-### Unknown tags in patterns (M0116)
+### Patterns that do not fit the type
 
-A variant pattern whose tag is not in the type being matched is now error M0116, the error for a variant pattern against a type that is not a variant, usually with a suggestion for the misspelled tag. Before, only the coverage check flagged it (M0146, or M0145 in a plain `let`), and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
+A pattern is now checked against the type of the value it matches, not a larger type. Before, a pattern that the type could not contain was accepted and only flagged as never matched (M0146, or M0145 in a plain `let`), or not at all in `let ... else`, so the case silently never ran. These are type errors now and cannot be downgraded with `-W`:
 
-```motoko no-repl
-type Status = { #active; #suspended };
-switch s {
-  case (#suspnded) { ... };   // M0116: did you mean tag #suspended?
-  case _ { ... };
-};
-```
+| Pattern | Matched type | Error |
+|---|---|---|
+| `#suspnded`, a tag the variant type lacks | `{#active; #suspended}` | M0116, with "did you mean tag #suspended?" |
+| `-1` or `+1`, a signed literal | `Nat` | M0050, as for `let n : Nat = -1` |
+| `?x`, an option pattern | `Null` | M0115 |
 
-To match at a larger variant type on purpose, annotate the pattern: `case (#c : {#a; #b; #c}) { ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value instead: `let mode : {#dev; #prod} = #dev`. A tag that is in the type but can never be reached, such as a duplicate case, stays warning M0146.
+To match at a larger type on purpose, bind the value at that type first, `let i : Int = n;`, or annotate the pattern, `case (-1 : Int) { ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value: `let mode : {#dev; #prod} = #dev`. A pattern that fits the type but can never be reached, such as a duplicate case, stays warning M0146.
 
 ## Libraries and modules
 
@@ -376,7 +374,7 @@ let n = Helper.helper();
 
 These warnings are new, or reported in new places, by default. They matter mainly if you build with `-Werror`:
 
-- M0146 is now also reported for a `let ... else` whose pattern can never match, such as `let ?x = null else { ... }`, so the `else` always runs. Fix the pattern.
+- M0146 is now also reported in `let ... else`, for an alternative that is never matched, such as the second `1` in `let (1 or 1) = n else { ... }`. Delete it.
 - M0217: redundant `persistent` keyword. Delete it.
 - M0236: a call that could use dot notation, such as `Map.size(map)` for `map.size()`. Apply the suggestion (`mops check --fix`), or silence it with `-A M0236`.
 

@@ -1560,6 +1560,8 @@ The consequences of pattern match failure depends on the context of the pattern.
 
 -   In a `case` branch of a `switch` expression, failure to match that case’s pattern continues with an attempt to match the next case of the switch, trapping only when no such case remains.
 
+A pattern is checked against the type of the value it matches, not a larger type: a variant pattern needs a tag of that variant type, a literal pattern a literal of that type, and an option pattern an option type. Only `None`, which has no values, accepts any pattern. To match at a larger type, annotate the pattern, as in `(-1 : Int)` or `(#c : {#a; #b; #c})`.
+
 ### Wildcard pattern
 
 The wildcard pattern `_` matches a single value without binding its contents to an identifier.
@@ -1597,8 +1599,6 @@ The `<typ-sort>` of the matched object type must be determined by an enclosing t
 ### Variant pattern
 
 The variant pattern `# <id> <pat>?` matches a variant value (of the form `# <id'> v`) against a variant pattern. An absent `<pat>?` is shorthand for the unit pattern (`()`). Pattern matching fails if the tag `<id'>` of the value is distinct from the tag `<id>` of the pattern (i.e. `<id>` \<\> `<id'>`); or the tags are equal but the value `v` does not match the pattern `<pat>?`. Pattern matching succeeds if the tag of the value is `<id>` (i.e. `<id'>` = `<id>`) and the value `v` matches the pattern `<pat>?`. The binding returned by a successful match is just the binding returned by the match of `v` against `<pat>?`.
-
-The tag `<id>` must be a tag of the expected variant type, unless that type is `None`. To match at a larger variant type, annotate the pattern, as in `(#c : {#a; #b; #c})`.
 
 ### Annotated pattern
 

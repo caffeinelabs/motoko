@@ -1,4 +1,4 @@
-refuted-const-option-null.mo:3.5-3.7: warning [M0145], this pattern of type
-  Null
+refuted-const-option-null.mo:4.5-4.7: warning [M0145], this pattern of type
+  ?Nat
 does not cover value
   null
