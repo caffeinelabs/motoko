@@ -196,7 +196,7 @@
       after a bad `let`, `let ... else` or function parameter, so later
       declarations and actor fields are checked too. A case whose pattern is
       ill-typed has its body skipped, and coverage (M0145, M0146, M0243) is
-      not checked on ill-typed patterns (#NNNN).
+      not checked on ill-typed patterns (#6430).
 
   * **Command line and tooling**
 
