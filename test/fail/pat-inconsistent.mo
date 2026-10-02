@@ -73,13 +73,15 @@ func nested_bad_pat() {
 };
 
 // Misspelled tags
-switch (#sparrows : { #sparrows; #geese }) {
+let flock : { #sparrows; #geese } = #sparrows;
+switch flock {
   case (#sparows) {};
   case _ {};
 };
 
 // No suggestion for a one-letter tag
-switch (#a : { #a; #b }) {
+let letter : { #a; #b } = #a;
+switch letter {
   case (#c) {};
   case _ {};
 };

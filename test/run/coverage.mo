@@ -164,7 +164,8 @@ do {
 
   let (-1 or _) = 0;
   let (?_ or _) = null;
-  let ((#a : {#a; #b}) or _) = #b;
+  let ab : {#a; #b} = #b;
+  let (#a or _) = ab;
 };
 
 
@@ -212,5 +213,6 @@ func h(e : {#}) {
 
   let -1 = 0;
   let ?_ = null;
-  let (#a : {#a; #b}) = #b;
+  let ab : {#a; #b} = #b;
+  let #a = ab;
 };

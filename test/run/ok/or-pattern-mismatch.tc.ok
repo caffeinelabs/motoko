@@ -5,14 +5,14 @@ type in left pattern is
   Nat
 type in right pattern is
   Char
-or-pattern-mismatch.mo:6.5-6.32: warning [M0190], pattern variable a4 has larger type
+or-pattern-mismatch.mo:7.5-7.32: warning [M0190], pattern variable a4 has larger type
   Any
 because its types in the pattern alternatives are unrelated smaller types:
 type in left pattern is
   Char
 type in right pattern is
   Int
-or-pattern-mismatch.mo:7.5-7.32: warning [M0190], pattern variable a5 has larger type
+or-pattern-mismatch.mo:9.5-9.32: warning [M0190], pattern variable a5 has larger type
   Any
 because its types in the pattern alternatives are unrelated smaller types:
 type in left pattern is
