@@ -204,6 +204,13 @@
 
   * **Bug fixes**
 
+    * bugfix: type pattern fields such as `let { type T } = m` no longer crash
+      the compiler with an internal assertion. A binding in an `object` or
+      `module` body is accepted, and a scrutinee that is not an object reports
+      M0113 or M0221 as it does elsewhere. A type definition or class that
+      uses `T` above its binding reports the new error M0279; value
+      annotations and function signatures may still use it there (#NNNN).
+
     * bugfix: a `switch` on a two-legged variant that repeats a tag, such as
       `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
       second case without its tag test. Passing the other leg bound that
