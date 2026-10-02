@@ -225,6 +225,12 @@
 
   * **Bug fixes**
 
+    * bugfix: an upgrade that drops a stable variable without a migration
+      function is rejected even when it also adds a stable variable.
+      Depending on how the names hashed, as when renaming `balances` to
+      `users`, the runtime check accepted it and the dropped variable's
+      value was lost (#6432).
+
     * bugfix: checking time with `--error-recovery`, which `moc.js` always
       enables, no longer grows cubically with the number of syntax errors. A
       file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
