@@ -902,7 +902,7 @@ pub(crate) unsafe fn memory_compatible(
                             n2 -= 1;
                             continue;
                         };
-                        return true;
+                        return false; // discarded field
                     };
                 }
                 if !memory_compatible(rel, variance, typtbl1, typtbl2, end1, end2, t11, t21, false)

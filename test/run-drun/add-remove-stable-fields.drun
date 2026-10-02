@@ -14,6 +14,10 @@ ingress $ID show "DIDL\x00\x00"
 upgrade $ID add-remove-stable-fields/version2.mo ""
 ingress $ID increase "DIDL\x00\x01\x7d\x0F"
 ingress $ID show "DIDL\x00\x00"
+# should fail
+upgrade $ID add-remove-stable-fields/version3.mo ""
+ingress $ID increase "DIDL\x00\x01\x7d\x0F"
+ingress $ID show "DIDL\x00\x00"
 # should succeed
 upgrade $ID add-remove-stable-fields/version2b.mo ""
 ingress $ID increase "DIDL\x00\x01\x7d\x0F"
