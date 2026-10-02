@@ -10,14 +10,14 @@ let oneof sep lastsep ss =
   let rest, last = Lib.List.split_last ss in
   ((if rest <> [] then (String.concat sep rest) ^ lastsep else "") ^ last)
 
-let suggest_id desc id ids =
+let suggest_id ?(sigil = "") desc id ids =
   let ids =
       List.filter (fun id ->
         not (Syntax.is_privileged id))
       ids
   in
   if !Flags.ai_errors then
-    Some(Printf.sprintf "The %s %s is not available. Try something else?" desc id)
+    Some(Printf.sprintf "The %s %s%s is not available. Try something else?" desc sigil id)
   else
   let suggestions =
     let limit = Lib.Int.log2 (String.length id) in
@@ -31,7 +31,7 @@ let suggest_id desc id ids =
   in
   if suggestions = [] then None
   else
-  Some (Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " suggestions))
+  Some (Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " (List.map ((^) sigil) suggestions)))
 
 let search_obj desc path ty ty1 ty2 =
   let suggestions = ref [] in

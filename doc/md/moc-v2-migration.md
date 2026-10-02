@@ -271,7 +271,7 @@ When the type `moc` infers collapses to `Any` or `None`, the value is useless an
 
 ### Unknown tags in patterns (M0116)
 
-A variant pattern whose tag is not in the type being matched is now error M0116, the error for a variant pattern against a type that is not a variant, usually with a suggestion for the misspelled tag. It was warning M0146, and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
+A variant pattern whose tag is not in the type being matched is now error M0116, the error for a variant pattern against a type that is not a variant, usually with a suggestion for the misspelled tag. Before, only the coverage check flagged it (M0146, or M0145 in a plain `let`), and `let ... else` gave no diagnostic at all, so the case silently never ran. Like a misspelled record field in a pattern (M0119), it cannot be downgraded with `-W`.
 
 ```motoko no-repl
 type Status = { #active; #suspended };
@@ -281,7 +281,7 @@ switch s {
 };
 ```
 
-To match at a larger variant type on purpose, annotate the pattern: `case (#c : {#a; #b; #c}) { ... }`. A tag that is in the type but can never be reached, such as a duplicate case, stays warning M0146.
+To match at a larger variant type on purpose, annotate the pattern: `case (#c : {#a; #b; #c}) { ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value instead: `let mode : {#dev; #prod} = #dev`. A tag that is in the type but can never be reached, such as a duplicate case, stays warning M0146.
 
 ## Libraries and modules
 
@@ -374,9 +374,9 @@ let n = Helper.helper();
 
 ### New default warnings
 
-These warnings are new by default. They matter mainly if you build with `-Werror`:
+These warnings are new, or reported in new places, by default. They matter mainly if you build with `-Werror`:
 
-- M0146: a `let ... else` whose pattern can never match, such as `let ?x = null else { ... }`, so the `else` always runs. Fix the pattern.
+- M0146 is now also reported for a `let ... else` whose pattern can never match, such as `let ?x = null else { ... }`, so the `else` always runs. Fix the pattern.
 - M0217: redundant `persistent` keyword. Delete it.
 - M0236: a call that could use dot notation, such as `Map.size(map)` for `map.size()`. Apply the suggestion (`mops check --fix`), or silence it with `-A M0236`.
 

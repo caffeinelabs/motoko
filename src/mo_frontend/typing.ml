@@ -4130,10 +4130,10 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     let t1 = match T.lookup_val_field_opt id.it tfs with
       | Some t1 -> t1
       | None ->
-        let tags = List.map (fun tf -> "#" ^ tf.T.lab) tfs in
         let suggestion =
-          if tags = [] then [] else
-          suggest_span env id.at (Suggest.suggest_id "tag" ("#" ^ id.it) tags) in
+          if tfs = [] then [] else
+          suggest_span env id.at
+            (Suggest.suggest_id ~sigil:"#" "tag" id.it (List.map (fun tf -> tf.T.lab) tfs)) in
         let spans = add_error_ctx
           (primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it :: suggestion) in
         error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"

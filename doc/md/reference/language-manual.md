@@ -1598,7 +1598,7 @@ The `<typ-sort>` of the matched object type must be determined by an enclosing t
 
 The variant pattern `# <id> <pat>?` matches a variant value (of the form `# <id'> v`) against a variant pattern. An absent `<pat>?` is shorthand for the unit pattern (`()`). Pattern matching fails if the tag `<id'>` of the value is distinct from the tag `<id>` of the pattern (i.e. `<id>` \<\> `<id'>`); or the tags are equal but the value `v` does not match the pattern `<pat>?`. Pattern matching succeeds if the tag of the value is `<id>` (i.e. `<id'>` = `<id>`) and the value `v` matches the pattern `<pat>?`. The binding returned by a successful match is just the binding returned by the match of `v` against `<pat>?`.
 
-The tag `<id>` must be a tag of the expected variant type. To match at a larger variant type, annotate the pattern, as in `(#c : {#a; #b; #c})`.
+The tag `<id>` must be a tag of the expected variant type, unless that type is `None`. To match at a larger variant type, annotate the pattern, as in `(#c : {#a; #b; #c})`.
 
 ### Annotated pattern
 

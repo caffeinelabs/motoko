@@ -178,8 +178,8 @@
     * Breaking change: a variant pattern whose tag is not in the expected
       type is error M0116, as for a type that is not a variant, with a
       suggestion for a misspelled tag: `case (#suspnded)` on
-      `{#active; #suspended}`. It was warning M0146, or no diagnostic at all
-      in `let ... else`. A tag that is in the type but
+      `{#active; #suspended}`. Before, only the coverage check flagged it
+      (M0146, or M0145 in a plain `let`), and nothing did in `let ... else`. A tag that is in the type but
       unreachable, such as a duplicate case, stays warning M0146. To match at
       a larger variant type, annotate the pattern:
       `case (#c : {#a; #b; #c})` (#6429).
