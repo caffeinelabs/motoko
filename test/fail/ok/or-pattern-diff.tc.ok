@@ -1,1 +1,1 @@
-or-pattern-diff.mo:2.5-2.21: type error [M0189], different set of bindings in pattern alternatives
+or-pattern-diff.mo:1.5-1.21: type error [M0189], different set of bindings in pattern alternatives

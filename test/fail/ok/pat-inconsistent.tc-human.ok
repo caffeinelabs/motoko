@@ -43,22 +43,22 @@ error[M0112]: tuple pattern cannot consume expected type
     │         │
     │         expected `Nat`, got `(_, _)`
 error[M0116]: variant pattern cannot consume expected type
-    ┌─ pat-inconsistent.mo:78:10
- 77 │  switch flock {
-    │         ----- this expression has type `{#geese; #sparrows}`
- 78 │    case (#sparows) {};
+    ┌─ pat-inconsistent.mo:77:10
+ 76 │  switch (#sparrows : { #sparrows; #geese }) {
+    │          --------------------------------- this expression has type `{#geese; #sparrows}`
+ 77 │    case (#sparows) {};
     │          ^^^^^^^^ help: did you mean tag #sparrows?
     │          │
     │          expected `{#geese; #sparrows}`, got `{#sparows : _}`
 error[M0116]: variant pattern cannot consume expected type
-    ┌─ pat-inconsistent.mo:85:9
- 84 │  switch letter {
-    │         ------ this expression has type `{#a; #b}`
- 85 │    case (#c) {};
+    ┌─ pat-inconsistent.mo:83:9
+ 82 │  switch (#a : { #a; #b }) {
+    │          --------------- this expression has type `{#a; #b}`
+ 83 │    case (#c) {};
     │          ^^ expected `{#a; #b}`, got `{#c : _}`
 error[M0116]: variant pattern cannot consume expected type
-    ┌─ pat-inconsistent.mo:90:8
- 90 │    let #okk(n) = r else { return 0 };
+    ┌─ pat-inconsistent.mo:88:8
+ 88 │    let #okk(n) = r else { return 0 };
     │        ^^^^^^^   - this expression has type `{#err : Text; #ok : Nat}`
     │        ││     
     │        │help: did you mean tag #ok?

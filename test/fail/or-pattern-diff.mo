@@ -1,2 +1,1 @@
-let v : { #a : Nat; #b : Nat } = #a 5;
-let (#a a) or (#b b) = v;
+let (#a a) or (#b b) = (#a 5 : { #a : Nat; #b : Nat });

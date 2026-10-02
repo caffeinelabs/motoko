@@ -2,6 +2,5 @@
 import Prim "mo:⛔";
 
 actor {
-    transient let none : ?Nat = null;
-    transient let ?x = none else { Prim.trap "x was null" };
+    transient let ?x = (null : ?Nat) else { Prim.trap "x was null" };
 };

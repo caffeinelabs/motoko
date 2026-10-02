@@ -1,4 +1,4 @@
-refuted-const-variant.mo:4.6-4.14: warning [M0145], this pattern of type
+refuted-const-variant.mo:3.6-3.14: warning [M0145], this pattern of type
   {#bummer; #const : Nat}
 does not cover value
   #bummer
