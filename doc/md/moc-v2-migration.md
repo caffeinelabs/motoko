@@ -39,15 +39,16 @@ Most projects need only a few changes: removing flags that no longer exist, fixi
 | [Glued `if` branches](#if-while-for-and-switch-heads) | M0275 | put a space before the branch |
 | [`.vals()` deprecated](#vals-is-deprecated) | warning M0269 | `.values()` |
 | [Record update copies `var` fields](#record-update-copies-var-fields) | nothing (was error M0179) | none, unless you relied on `--experimental-field-aliasing` |
-| [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005 | per code, below |
+| [Warnings that are now errors](#warnings-that-are-now-errors) | M0145, M0222, M0210, M0212, M0215, M0128, M0242, M0005, M0276, M0278 | per code, below |
 | [Inferred `Any`/`None`](#inferred-any-or-none) | M0074, M0081, M0101, M0166, M0167 | fix the code, or annotate `Any` |
+| [Patterns that do not fit the type](#patterns-that-do-not-fit-the-type) | errors M0116, M0050, M0115 | fix the pattern, or annotate a larger type |
 | [Bare-declaration libraries](#libraries-must-be-modules-m0142) | error M0142 | wrap in `module { ... }` |
 | [Actor class return type](#actor-class-return-type-m0193) | error M0193 | `: async actor { ... }` |
 | [Removed primitives](#removed-primitives-and-experimentalstablememory) | M0072 in `ExperimentalStableMemory` | use `Region` |
 | [Read-only primitives drop `<system>`](#read-only-primitives-no-longer-take-system) | warning M0196 | delete `<system>` |
 | [Removed flags](#removed-flags) | `unknown option` | see the table |
 | [`moc --check` per file](#moc---check-checks-each-file-on-its-own) | M0057 unbound variable; `-r expects exactly one source file` | use imports |
-| [New default warnings](#new-default-warnings) | M0217, M0236 | fix them, or `-A` them if you build with `-Werror` |
+| [New default warnings](#new-default-warnings) | M0146, M0217, M0236 | fix them, or `-A` them if you build with `-Werror` |
 | [`moc.js` API](#mocjs) | `Invalid_argument` | `Motoko.run([], ...)`; `gcFlags` `"force"`/`"scheduling"` only |
 | [Release artifacts](#release-artifacts) | no Intel-Mac or `base` tarball | on Intel Macs build from source, stay on moc 1, or use `moc.js` |
 
@@ -147,6 +148,8 @@ Code that only initializes something in `postupgrade` can move into the actor bo
 ### Canisters still on classical persistence
 
 `moc` 2 can no longer produce classical-persistence canisters, but it can still upgrade one. Compile that one-time upgrade with `--enhanced-orthogonal-persistence` and without `--enhanced-migration`, as described in [Migration path](fundamentals/actors/orthogonal-persistence/enhanced.md#migration-path). Later upgrades need neither flag. If your canisters are already on EOP, `--enhanced-orthogonal-persistence` is accepted and has no effect, so you can remove it.
+
+A canister that moved to EOP with a `moc` older than 1.5.0 may trap on upgrade with `cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration`; see [Migration path](fundamentals/actors/orthogonal-persistence/enhanced.md#migration-path) for the fix.
 
 ## Syntax
 
@@ -253,6 +256,8 @@ These diagnostics flag code that traps, or silently does something other than wh
 | M0128 | a function named like a system method, but not declared `system` | `func heartbeat() : async () { ... }` | `system func heartbeat() : async () { ... }`, or rename it |
 | M0242 | a `public func` without a return type, which is implicitly oneway | `public func log(t : Text) { ... }` | `public func log(t : Text) : () { ... }`, or `: async ()` |
 | M0005 | an import path whose letter case differs from the file name | `import L "lib";` for `Lib.mo` | `import L "Lib";` |
+| M0276 | a comparison at a type with a single value, such as `Any` or `{}`, whose result is constant | `user == order` for records that share no field | compare the fields you mean: `user.id == order.userId` |
+| M0278 | a file in the `--enhanced-migration` directory that does not export a public `migration` function, which never runs (was warning M0251) | `public func migrate(old : { ... }) : { ... }` | `public func migration(old : { ... }) : { ... }`, or move helper modules out of the directory |
 
 ### Inferred `Any` or `None`
 
@@ -265,6 +270,18 @@ When the type `moc` infers collapses to `Any` or `None`, the value is useless an
 | M0101 | `switch o { case null { "none" } case ?n { n } }` | `case ?n { debug_show n }` |
 | M0166 | `type U = Nat and Text;` (`None`) | write the intended type |
 | M0167 | `type V = Nat or Text;` (`Any`) | write `Any`, or the intended type |
+
+### Patterns that do not fit the type
+
+A pattern is now checked against the type of the value it matches, not a larger type. Before, a pattern that the type could not contain was accepted and only flagged as never matched (M0146, or M0145 in a plain `let`), or not at all in `let ... else`, so the case silently never ran. These are type errors now and cannot be downgraded with `-W`:
+
+| Pattern | Matched type | Error |
+|---|---|---|
+| `#suspnded`, a tag the variant type lacks | `{#active; #suspended}` | M0116, with "did you mean tag #suspended?" |
+| `-1` or `+1`, a signed literal | `Nat` | M0050, as for `let n : Nat = -1` |
+| `?x`, an option pattern | `Null` | M0115 |
+
+To match at a larger type on purpose, annotate the matched value: `switch (n : Int) { case (-1) { ... }; ... }`. When the scrutinee's inferred type is narrower than intended, as in `let mode = #dev; switch mode { case (#prod) { ... }; ... }`, annotate the value: `let mode : {#dev; #prod} = #dev`. A pattern that fits the type but can never be reached, such as a duplicate case, stays warning M0146.
 
 ## Libraries and modules
 
@@ -357,8 +374,9 @@ let n = Helper.helper();
 
 ### New default warnings
 
-Two warnings are new by default. They matter mainly if you build with `-Werror`:
+These warnings are new, or reported in new places, by default. They matter mainly if you build with `-Werror`:
 
+- M0146 is now also reported in `let ... else`, for an alternative that is never matched, such as the second `1` in `let (1 or 1) = n else { ... }`. Delete it.
 - M0217: redundant `persistent` keyword. Delete it.
 - M0236: a call that could use dot notation, such as `Map.size(map)` for `map.size()`. Apply the suggestion (`mops check --fix`), or silence it with `-A M0236`.
 

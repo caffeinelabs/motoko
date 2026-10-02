@@ -39,7 +39,7 @@ sidebar:
 | M0097 | Expected function type. | ```let x = 5; x();``` | Cannot call a non-function value. |
 | M0098 | Cannot instantiate function type. | ```type Func = (Nat) -> Nat; let f = Func();``` | Function types cannot be instantiated directly. |
 | M0112 | Tuple pattern cannot consume type. | ```let (x, y) = { a = 1; b = 2 };``` | Cannot destructure an object using tuple pattern. |
-| M0116 | Variant pattern cannot consume type. | ```switch (value) { case (#ok(x)) { ... } };``` (where `value` is not a variant) | Cannot match a non-variant value with variant patterns. |
+| M0116 | Variant pattern cannot consume type. | ```switch (value) { case (#okk(x)) { ... } };``` (where `value` is not a variant, or its type has no `#okk` tag) | A variant pattern's tag must be a tag of the matched type; check for a misspelled tag. |
 | M0126 | Shared function cannot be private. | ```actor { private shared func publicAPI() { ... } }``` | Shared functions must be public in actors. |
 | M0137 | A type or class was declared that explicitly or implicitly references an outer type parameter. | ```class Container<T>() { class Inner() { var value : T = ... } }``` | Inner classes cannot reference type parameters from outer classes. |
 | M0139 | Inner actor classes are not supported. | ```class Outer() { actor class Inner() { ... } }``` | Actor classes cannot be nested inside other classes. |

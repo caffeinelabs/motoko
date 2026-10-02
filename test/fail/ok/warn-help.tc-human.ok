@@ -44,5 +44,6 @@ M0268 (E) Migration directory disagrees with the deployed history recorded by th
 M0269 (W) Deprecate `.vals()` in favor of `.values()`
 M0270 (W) Deprecate `system func preupgrade`/`postupgrade`
 M0276 (E) Comparison at a type with a single value
+M0278 (E) File in the migration directory is not a migration module
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

@@ -278,6 +278,7 @@ let warning_codes = [
   "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
   "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
+  "M0278", None, "File in the migration directory is not a migration module";
 ]
 
 let try_find_explanation code =
