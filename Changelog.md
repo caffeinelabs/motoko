@@ -186,8 +186,8 @@
 
     * bugfix: a `let ... else` pattern that can never match, such as
       `let -1 = n else { ... }` with `n : Nat`, is warning M0146 instead of
-      silently always taking the `else`. A pattern nested inside another
-      never-matched pattern is no longer reported a second time (#6429).
+      silently always taking the `else`. In any pattern, an unreached pattern
+      nested inside another one is no longer reported a second time (#6429).
 
   * **Command line and tooling**
 
