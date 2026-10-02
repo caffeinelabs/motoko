@@ -179,10 +179,10 @@
       type is error M0116, as for a type that is not a variant, with a
       suggestion for a misspelled tag: `case (#suspnded)` on
       `{#active; #suspended}`. Before, only the coverage check flagged it
-      (M0146, or M0145 in a plain `let`), and nothing did in `let ... else`. A tag that is in the type but
-      unreachable, such as a duplicate case, stays warning M0146. To match at
-      a larger variant type, annotate the pattern:
-      `case (#c : {#a; #b; #c})` (#6429).
+      (M0146, or M0145 in a plain `let`), and nothing did in
+      `let ... else`. A tag that is in the type but unreachable, such as a
+      duplicate case, stays warning M0146. To match at a larger variant
+      type, annotate the pattern: `case (#c : {#a; #b; #c})` (#6429).
 
     * bugfix: a `let ... else` pattern that can never match, such as
       `let -1 = n else { ... }` with `n : Nat`, is warning M0146 instead of

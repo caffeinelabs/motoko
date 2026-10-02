@@ -51,8 +51,14 @@ error[M0116]: variant pattern cannot consume expected type
     │          │
     │          expected `{#geese; #sparrows}`, got `{#sparows : _}`
 error[M0116]: variant pattern cannot consume expected type
-    ┌─ pat-inconsistent.mo:82:8
- 82 │    let #okk(n) = r else { return 0 };
+    ┌─ pat-inconsistent.mo:83:9
+ 82 │  switch (#a : { #a; #b }) {
+    │          --------------- this expression has type `{#a; #b}`
+ 83 │    case (#c) {};
+    │          ^^ expected `{#a; #b}`, got `{#c : _}`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:88:8
+ 88 │    let #okk(n) = r else { return 0 };
     │        ^^^^^^^   - this expression has type `{#err : Text; #ok : Nat}`
     │        ││     
     │        │help: did you mean tag #ok?
