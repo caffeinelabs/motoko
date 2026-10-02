@@ -4296,15 +4296,16 @@ and check_pat_fields env t fs pfs ve at : Scope.val_env =
   Seq.fold_left (fun ve -> function
     | Lib.This _ -> ve
     | Lib.That (id, pat, pf) ->
+      let ve1 = check_pat_aux env T.Non pat (kind_of_field_pattern pf) in
       if String.equal !last_field id.it then begin
         pat_error env pf.at "M0121" "duplicate field %s in object pattern" id.it;
-        ve
+        (* Not disjoint, or a punned duplicate is reported twice *)
+        T.Env.union (fun _ v _ -> Some v) ve ve1
       end else begin
         pat_error env pf.at "M0119"
           "object field %s is not contained in expected type%a"
           id.it
           display_typ_expand t;
-        let ve1 = check_pat_aux env T.Non pat (kind_of_field_pattern pf) in
         disjoint_union env at "M0017" "duplicate binding for %s in pattern" ve ve1
       end
     | Lib.Both(T.{ lab; typ; src }, (id, pat, pf)) ->
