@@ -230,7 +230,7 @@
       `module` body is accepted, and a scrutinee that is not an object reports
       M0113 or M0221 as it does elsewhere. A type definition or class that
       uses `T` above its binding reports the new error M0279; value
-      annotations and function signatures may still use it there (#NNNN).
+      annotations and function signatures may still use it there (#6431).
 
     * bugfix: checking time with `--error-recovery`, which `moc.js` always
       enables, no longer grows cubically with the number of syntax errors. A
