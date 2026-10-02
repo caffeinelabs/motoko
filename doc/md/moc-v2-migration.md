@@ -148,6 +148,8 @@ Code that only initializes something in `postupgrade` can move into the actor bo
 
 `moc` 2 can no longer produce classical-persistence canisters, but it can still upgrade one. Compile that one-time upgrade with `--enhanced-orthogonal-persistence` and without `--enhanced-migration`, as described in [Migration path](fundamentals/actors/orthogonal-persistence/enhanced.md#migration-path). Later upgrades need neither flag. If your canisters are already on EOP, `--enhanced-orthogonal-persistence` is accepted and has no effect, so you can remove it.
 
+A canister that moved to EOP with a `moc` older than 1.5.0 may trap on upgrade with `cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration`; see [Migration path](fundamentals/actors/orthogonal-persistence/enhanced.md#migration-path) for the fix.
+
 ## Syntax
 
 ### `??` is whitespace-sensitive
