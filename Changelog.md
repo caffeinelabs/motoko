@@ -225,6 +225,10 @@
 
   * **Bug fixes**
 
+    * bugfix: numeric field ids in imported Candid (`.did`) files no longer
+      crash `moc`. Hex ids such as `0x7f` parse, and an id that does not fit
+      in 32 bits is a syntax error (#6421).
+
     * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
       out-of-bounds `Blob` index or an index of 2^62 or more no longer
       crashes with an internal error, `Array_init` and `Array_tabulate` trap
