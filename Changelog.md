@@ -191,6 +191,13 @@
       in a `switch`. In any pattern, an unreached pattern nested inside
       another one is no longer reported a second time (#6429).
 
+    * bugfix: an ill-typed pattern no longer hides other type errors. Every
+      bad pattern of a `switch` or `try` is reported, and checking goes on
+      after a bad `let`, `let ... else` or function parameter, so later
+      declarations and actor fields are checked too. A case whose pattern is
+      ill-typed has its body skipped, and coverage (M0145, M0146, M0243) is
+      not checked on ill-typed patterns (#6430).
+
   * **Command line and tooling**
 
     * Breaking change: `moc --check a.mo b.mo` checks each file on its own.

@@ -1,0 +1,14 @@
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent-actor.mo:3:8
+  3 │    let #okk(n) = (#ok(1) : { #ok : Nat; #err : Text }) else { loop {} };
+    │        ^^^^^^^    ----------------------------------- this expression has type `{#err : Text; #ok : Nat}`
+    │        ││     
+    │        │help: did you mean tag #ok?
+    │        expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ pat-inconsistent-actor.mo:4:37
+  4 │    public func f() : async Nat { n + "checked" };
+    │                                      ^^^^^^^^^ 
