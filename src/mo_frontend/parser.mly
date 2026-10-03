@@ -204,6 +204,10 @@ let share_dec_field default_stab (df : dec_field) =
           | some -> some}
     }
 
+let actor_fields persistent dfs =
+  let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
+  List.map (share_dec_field default_stab) dfs
+
 
 and objblock eo s id ty dec_fields =
   List.iter (fun df ->
@@ -300,7 +304,6 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.exp * bool> exp_arg(ob) exp_arg(bl)
 %type<Mo_def.Syntax.typ_item> typ_item
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
-%type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
@@ -318,7 +321,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.exp list> seplist(exp_nonvar(ob, ob),COMMA) seplist(exp(ob, ob),COMMA)
 %type<Mo_def.Syntax.exp_field list> seplist1(exp_field,semicolon) seplist(exp_field,semicolon)
 %type<Mo_def.Syntax.exp list> separated_nonempty_list(AND, exp_post(ob, ob))
-%type<Mo_def.Syntax.dec_field list> seplist(dec_field,semicolon) obj_body
+%type<Mo_def.Syntax.dec_field list> seplist(dec_field(pub_lo),semicolon) seplist(dec_field(pub_ac),semicolon) obj_body(pub_lo) obj_body(pub_ac)
 %type<Mo_def.Syntax.case list> cases
 %type<Mo_def.Syntax.typ option> annot_opt
 %type<Mo_def.Syntax.path> path
@@ -334,8 +337,10 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.lit> lit
 %type<Mo_def.Syntax.dec> dec imp dec_var(ob) dec_var(bl) dec_nonvar(ob) dec_nonvar(bl)
 %type<Mo_def.Syntax.exp_field> exp_field
-%type<Mo_def.Syntax.dec_field> dec_field
-%type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body
+%type<Mo_def.Syntax.dec_field> dec_field(pub_lo) dec_field(pub_ac)
+%type<Mo_def.Syntax.dec> dec_pub
+%type<Mo_def.Syntax.exp option> par_attr
+%type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body(pub_lo) class_body(pub_ac)
 %type<Mo_def.Syntax.case> catch(ob) catch(bl) case
 %type<Mo_def.Syntax.dec list> import_list
 %type<Mo_def.Syntax.inst> inst
@@ -420,13 +425,20 @@ seplist1(X, SEP) :
   | ACTOR { Type.Actor @@ at $sloc }
   | MODULE {Type.Module @@ at $sloc }
 
-%inline obj_sort :
-  | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
+(* Split so the *body* nonterminal can differ per sort: an actor body admits
+   the codec parenthetical after `public`, a module/object body does not. The
+   sort is a semantic value and so cannot select a body -- only separate
+   productions can, hence the split. Not %inline: menhir cannot pass an
+   %inline symbol as a parameter. *)
+%inline obj_sort_ac :
   | po=persistent ACTOR { (po, Type.Actor @@ at $sloc) }
+
+%inline obj_sort_lo :
+  | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
   | MODULE { (persistent false no_region, Type.Module @@ at $sloc) }
 
-%inline obj_sort_opt :
-  | os=obj_sort { os }
+%inline obj_sort_lo_opt :
+  | os=obj_sort_lo { os }
   | (* empty *) {
       (persistent true no_region, Type.Object @@ no_region)
     }
@@ -1095,19 +1107,56 @@ exp_field :
   | m=var_opt x=id t=annot_opt EQ e=exp(ob, ob)
     { { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
 
-dec_field :
-  | v=vis s=stab d=dec
-    { {dec = d; vis = v; stab = s} @@ at $sloc }
+(* The codec parenthetical that may follow `public` in an actor body. *)
+par_attr :
+  | p=parenthetical { p }
+  | (* empty *) { None }
 
-vis :
-  | (* empty *) { Private @@ no_region }
-  | PRIVATE { Private @@ at $sloc }
-  | PUBLIC {
-    let at = at $sloc in
-    let trivia = Trivia.find_trivia !triv_table at in
-    let depr = Trivia.deprecated_of_trivia_info trivia in
-    Public depr @@ at }
-  | SYSTEM { System @@ at $sloc }
+(* PROTOTYPE: in an actor body a *public* member is a manifest function /
+   let / type (dec_pub) -- never a bare expression -- so it can't begin with
+   LPAR, and `public (` is unambiguously the codec parenthetical (no bare-LPAR
+   dec to reduce into). *)
+dec_pub :
+  | LET p=pat EQ e=exp(ob, ob)
+    { let p', e' = normalize_let p e in LetD (p', e', None) @? at $sloc }
+  | LET p=pat
+    { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in LetD (p', e', None) @? at $sloc }
+  | LET p=pat EQ e=exp(ob, ob) ELSE fail=legacy_operand(ob)
+    { let p', e' = normalize_let p e in LetD (p', e', Some fail) @? at $sloc }
+  | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
+    { TypD(x, tps, t) @? at $sloc }
+  | sp=shared_pat_opt FUNC xf_tps_p=func_pat t=annot_opt fb=func_body(ob)
+    { let xf, tps, p = xf_tps_p in
+      let named, x = xf "func" $sloc in
+      let is_sugar, e = desugar_func_body sp x t fb in
+      let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
+
+(* What follows `public`: in an actor body (pub_ac) an optional codec
+   parenthetical and a dec_pub; elsewhere (pub_lo) any dec. The parenthetical
+   is parsed but not yet used. *)
+%inline pub_ac :
+  | eo=par_attr s=stab d=dec_pub { (eo, s, d) }
+
+%inline pub_lo :
+  | s=stab d=dec { (None, s, d) }
+
+(* Only the PUBLIC arm varies. The private/implicit/system arms keep the full
+   `dec` in every instantiation -- a private field may still be a `var`, a bare
+   expression, a nested object, etc. Parameterizing the continuation for all
+   four arms would wrongly restrict those too. *)
+dec_field(pub) :
+  | s=stab dd=dec
+    { {dec = dd; vis = Private @@ no_region; stab = s} @@ at $sloc }
+  | PRIVATE s=stab dd=dec
+    { {dec = dd; vis = Private @@ at $loc($1); stab = s} @@ at $sloc }
+  | SYSTEM s=stab dd=dec
+    { {dec = dd; vis = System @@ at $loc($1); stab = s} @@ at $sloc }
+  | PUBLIC t=pub
+    { let (_codec, s, dd) = t in
+      let at_pub = at $loc($1) in
+      let trivia = Trivia.find_trivia !triv_table at_pub in
+      let depr = Trivia.deprecated_of_trivia_info trivia in
+      {dec = dd; vis = Public depr @@ at_pub; stab = s} @@ at $sloc }
 
 stab :
   | (* empty *) { None }
@@ -1251,49 +1300,59 @@ dec_nonvar(R) :
       let named, x = xf "func" $sloc in
       let is_sugar, e = desugar_func_body sp x t fb in
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
+  | eo=parenthetical_opt mk_d=actor_dec  { mk_d eo }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
-  | MIXIN system=system_opt p=pat_plain dfs=obj_body {
+  | MIXIN system=system_opt p=pat_plain dfs=obj_body(pub_ac) {
      let dfs = List.map (share_dec_field (fun () -> Stable @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
   | INCLUDE x=id system=system_opt e=exp(R, R) { IncludeD(x, system, e, ref None) @? at $sloc }
 
-obj_or_class_dec :
-  | ds=obj_sort xf=id_opt t=annot_opt EQ? efs=obj_body
+actor_dec :
+  | ds=obj_sort_ac xf=id_opt t=annot_opt EQ? efs=obj_body(pub_ac)
     { fun eo ->
       let (persistent, s) = ds in
-      let sort = Type.(match s.it with
-                       | Actor -> "actor" | Module -> "module" | Object -> "object"
-                       | _ -> assert false) in
-      let named, x = xf sort $sloc in
+      let named, x = xf "actor" $sloc in
+      let id = if named then Some x else None in
       let e =
-        if s.it = Type.Actor then
-          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
-          let id = if named then Some x else None in
-          AwaitE
-            (Type.AwaitFut false,
-             AsyncE(None, Type.Fut, scope_bind (anon_id "async" (at $sloc)) (at $sloc),
-                    objblock eo { s with note = persistent } id t (List.map (share_dec_field default_stab) efs) @? at $sloc)
-             @? at $sloc) @? at $sloc
-        else objblock eo { s with note = persistent } None t efs @? at $sloc
+        AwaitE
+          (Type.AwaitFut false,
+           AsyncE(None, Type.Fut, scope_bind (anon_id "async" (at $sloc)) (at $sloc),
+                  objblock eo { s with note = persistent } id t (actor_fields persistent efs) @? at $sloc)
+           @? at $sloc) @? at $sloc
       in
       let_or_exp named x e.it e.at }
-  | sp=shared_pat_opt ds=obj_sort_opt CLASS
-      xf_tps_p=func_pat t=annot_opt  cb=class_body
+  | sp=shared_pat_opt ds=obj_sort_ac CLASS
+      xf_tps_p=func_pat t=annot_opt  cb=class_body(pub_ac)
     { fun eo ->
       let (persistent, s) = ds in
       let xf, tps, p = xf_tps_p in
       let (_, id) = xf "class" $sloc in
       let cid = id.it @= id.at in
       let x, dfs = cb in
-      let dfs', tps' =
-       if s.it = Type.Actor then
-         let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
-          (List.map (share_dec_field default_stab) dfs,
-           ensure_scope_bind "" tps)
-        else (dfs, tps)
-      in
+      let tps' = ensure_scope_bind "" tps in
+      let dfs' = actor_fields persistent dfs in
       ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t, x, dfs') @? at $sloc }
+
+obj_or_class_dec :
+  | ds=obj_sort_lo xf=id_opt t=annot_opt EQ? efs=obj_body(pub_lo)
+    { fun eo ->
+      let (persistent, s) = ds in
+      let sort = Type.(match s.it with
+                       | Module -> "module" | Object -> "object"
+                       | _ -> assert false) in
+      let named, x = xf sort $sloc in
+      let e = objblock eo { s with note = persistent } None t efs @? at $sloc in
+      let_or_exp named x e.it e.at }
+  | sp=shared_pat_opt ds=obj_sort_lo_opt CLASS
+      xf_tps_p=func_pat t=annot_opt  cb=class_body(pub_lo)
+    { fun eo ->
+      let (persistent, s) = ds in
+      let xf, tps, p = xf_tps_p in
+      let (_, id) = xf "class" $sloc in
+      let cid = id.it @= id.at in
+      let x, dfs = cb in
+      ClassD(eo, sp, {s with note = persistent}, cid, tps, p, t, x, dfs) @? at $sloc }
 
 dec :
   | d=dec_var(ob)
@@ -1319,12 +1378,12 @@ func_body(R) :
   | EQ e=exp(R, R) { (false, e) }
   | e=block { (true, e) }
 
-obj_body :
-  | LCURLY dfs=seplist(dec_field, semicolon) RCURLY { dfs }
+obj_body(pub) :
+  | LCURLY dfs=seplist(dec_field(pub), semicolon) RCURLY { dfs }
 
-class_body :
-  | EQ xf=id_opt dfs=obj_body { snd (xf "object" $sloc), dfs }
-  | dfs=obj_body { anon_id "object" (at $sloc) @@ at $sloc, dfs }
+class_body(pub) :
+  | EQ xf=id_opt dfs=obj_body(pub) { snd (xf "object" $sloc), dfs }
+  | dfs=obj_body(pub) { anon_id "object" (at $sloc) @@ at $sloc, dfs }
 
 
 (* Programs *)
