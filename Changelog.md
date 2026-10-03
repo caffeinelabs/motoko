@@ -232,6 +232,12 @@
       uses `T` above its binding reports the new error M0279; value
       annotations and function signatures may still use it there (#6431).
 
+    * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
+      out-of-bounds `Blob` index or an index of 2^62 or more no longer
+      crashes with an internal error, `Array_init` and `Array_tabulate` trap
+      on a length of 2^48 or more, and `Nat`/`Int` `**` traps on an exponent
+      of 2^32 or more (#6422).
+
     * bugfix: checking time with `--error-recovery`, which `moc.js` always
       enables, no longer grows cubically with the number of syntax errors. A
       file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
