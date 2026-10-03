@@ -1560,6 +1560,8 @@ The consequences of pattern match failure depends on the context of the pattern.
 
 -   In a `case` branch of a `switch` expression, failure to match that case’s pattern continues with an attempt to match the next case of the switch, trapping only when no such case remains.
 
+A pattern is checked against the type of the value it matches, not a larger type: a variant pattern needs a tag of that variant type, a literal pattern a literal of that type, and an option pattern an option type. Only `None`, which has no values, accepts any pattern. To match at a larger type, annotate the matched value, as in `switch (n : Int)`.
+
 ### Wildcard pattern
 
 The wildcard pattern `_` matches a single value without binding its contents to an identifier.

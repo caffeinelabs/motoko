@@ -77,6 +77,7 @@ let default_warning_levels = M.empty
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)
   |> M.add "M0237" Allow (* don't report redundant explicit arguments *)
   |> M.add "M0268" (Error : lint_level) (* diverging from the deployed migration history is a deployment hazard *)
+  |> M.add "M0278" (Error : lint_level) (* a skipped file in the migration directory never runs *)
   (* each of these silently miscompiles intent or traps at runtime *)
   |> M.add "M0005" (Error : lint_level) (* import case mismatch breaks on case-sensitive filesystems *)
   |> M.add "M0128" (Error : lint_level) (* system method name without `system` is never called *)

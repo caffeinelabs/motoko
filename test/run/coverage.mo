@@ -119,7 +119,7 @@ assert (test(#le(1, #va 0, #app(#va 0, #va 1))) == 999);
 // Patterns redundant through various forms of subtyping
 
 do {
-  switch 0 {
+  switch (0 : Int) {
     case (-1) {};
     case _ {};
   };
@@ -131,12 +131,12 @@ do {
     case (-1 : Int : Nat) {};
     case _ {};
   };
-  switch 0 {
-    case (-1 : Nat) {};
+  switch (0 : Int) {
+    case (-1 : Int) {};
     case _ {};
   };
 
-  switch null {
+  switch (null : ?Nat) {
     case (?_) {};
     case null {};
   };
@@ -148,12 +148,12 @@ do {
     case (?_ : ?Nat : Null) {};
     case null {};
   };
-  switch null {
-    case (?_ : Null) {};
+  switch (null : ?Nat) {
+    case (?_ : ?Nat) {};
     case null {};
   };
 
-  switch (#a) {
+  switch (#a : {#a; #b}) {
     case (#b) {};
     case (#a) {};
   };
@@ -165,19 +165,19 @@ do {
     case (#b : {#a; #b} : {#a}) {};
     case (#a) {};
   };
-  switch (#a) {
-    case (#b : {#a}) {};
+  switch (#a : {#a; #b}) {
+    case (#b : {#a; #b}) {};
     case (#a) {};
   };
 
-  let (-1 or _) = 0;
-  let (?_ or _) = null;
-  let (#a or _) = #b;
+  let (-1 or _) = (0 : Int);
+  let (?_ or _) = (null : ?Nat);
+  let (#a or _) = (#b : {#a; #b});
 };
 
 
 func h(e : {#}) {
-  switch e {
+  switch (e : {#a}) {
     case (#a) {};
   };
   switch e {
@@ -186,12 +186,12 @@ func h(e : {#}) {
   switch e {
     case (#a : {#a} : {#}) {};
   };
-  switch e {
-    case (#a : {#}) {};
+  switch (e : {#a}) {
+    case (#a : {#a}) {};
   };
 
   // Same as above but non-exhaustive
-  switch 0 {
+  switch (0 : Int) {
     case (-1) {};
   };
   switch 0 {
@@ -200,11 +200,11 @@ func h(e : {#}) {
   switch 0 {
     case (-1 : Int : Nat) {};
   };
-  switch 0 {
-    case (-1 : Nat) {};
+  switch (0 : Int) {
+    case (-1 : Int) {};
   };
 
-  switch null {
+  switch (null : ?Nat) {
     case (?_) {};
   };
   switch null {
@@ -213,11 +213,11 @@ func h(e : {#}) {
   switch null {
     case (?_ : ?Nat : Null) {};
   };
-  switch null {
-    case (?_ : Null) {};
+  switch (null : ?Nat) {
+    case (?_ : ?Nat) {};
   };
 
-  switch (#a) {
+  switch (#a : {#a; #b}) {
     case (#b) {};
   };
   switch (#a) {
@@ -226,11 +226,11 @@ func h(e : {#}) {
   switch (#a) {
     case (#b : {#a; #b} : {#a}) {};
   };
-  switch (#a) {
-    case (#b : {#a}) {};
+  switch (#a : {#a; #b}) {
+    case (#b : {#a; #b}) {};
   };
 
-  let -1 = 0;
-  let ?_ = null;
-  let #a = #b;
+  let -1 = (0 : Int);
+  let ?_ = (null : ?Nat);
+  let #a = (#b : {#a; #b});
 };
