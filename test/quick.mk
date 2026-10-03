@@ -19,7 +19,7 @@ _out:
 # run single test, e.g. make _out/AST-56_done
 # _done, not .done, because run-test likes to clean $base.*
 _out/%_done: %.mo $(wildcard ../../src/moc) $(RUN_TEST) | _out
-	@+ chronic run-test $(RUNFLAGS) $<
+	@+ chronic run-test $(RUNFLAGS) $(EXTRA_RUNFLAGS) $<
 	@+ touch $@
 _out/%_done: %.sh $(wildcard ../../src/moc) $(RUN_TEST) | _out
 	@+ chronic run-test $(RUNFLAGS) $<
