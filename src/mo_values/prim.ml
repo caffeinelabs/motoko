@@ -100,10 +100,19 @@ let num_conv_wrap_prim trap t1 t2 =
   fun v -> try of_big_int_wrap t2 (as_big_int t1 v)
            with Invalid_argument msg -> trap.trap msg
 
+(* Compiled code traps from this length on *)
+let max_array_length = Nat.pow (Nat.of_int 2) (Nat.of_int 48)
+
 let prim trap =
   let via_float f v = Float.(Float (of_float (f (to_float (as_float v))))) in
   let via_float2 f v w = Float.(Float (of_float (f (to_float (as_float v)) (to_float (as_float w))))) in
   let unpack_nat8 v = Nat8.to_int (as_nat8 v) in
+  (* is_int_big_int matters for moc.js only, whose ints have 32 bits *)
+  let array_length v =
+    let n = as_int v in
+    if Nat.lt n max_array_length && Big_int.is_int_big_int (Nat.to_big_int n)
+    then Nat.to_int n
+    else trap.trap "array too large" in
   let float_formatter prec : int -> float -> string =
     let open Printf in
     function
@@ -312,14 +321,14 @@ let prim trap =
   | "Array.init" -> fun _ v k ->
     (match Value.as_tup v with
     | [len; x] ->
-      k (Array (Array.init (Int.to_int (as_int len)) (fun _ -> Mut (ref x))))
+      k (Array (Array.init (array_length len) (fun _ -> Mut (ref x))))
     | _ -> assert false
     )
   | "Array.tabulate" -> fun c v k ->
     (* TODO: optimize these (https://github.com/dfinity/motoko/pull/5256#discussion_r2143573548) *)
     (match Value.as_tup v with
     | [len; g] ->
-      let len_nat = Int.to_int (as_int len) in
+      let len_nat = array_length len in
       let (_, g') = Value.as_func g in
       let rec go prefix k i =
         if i == len_nat
@@ -331,7 +340,7 @@ let prim trap =
   | "Array.tabulateVar" -> fun c v k ->
     (match Value.as_tup v with
     | [len; g] ->
-      let len_nat = Int.to_int (as_int len) in
+      let len_nat = array_length len in
       let (_, g') = Value.as_func g in
       let rec go prefix k i =
         if i == len_nat
