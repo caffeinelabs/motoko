@@ -30,3 +30,31 @@ error[M0189]: different set of type bindings in pattern alternatives
     ┌─ objpat-type-fields.mo:62:8
  62 │    let (#left{ type N } or #right { }) = x else {
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0113]: object pattern cannot consume expected type
+    ┌─ objpat-type-fields.mo:88:25
+ 88 │    let _o = object { let { type T; f } = 5; let _y : T = f };
+    │                          ^^^^^^^^^^^^^   - this expression has type `Nat`
+    │                          │
+    │                          expected `Nat`, got object type
+error[M0279]: cannot use type N before the type pattern field that binds it
+    ┌─ objpat-type-fields.mo:100:13
+100 │    type _M = N;
+    │              ^ help: move the `let` that binds `N` above this definition
+error[M0279]: cannot use type N before the type pattern field that binds it
+    ┌─ objpat-type-fields.mo:106:31
+106 │    class _C() { public let n : N = 10 };
+    │                                ^ help: move the `let` that binds `N` above this definition
+error[M0279]: cannot use type N before the type pattern field that binds it
+    ┌─ objpat-type-fields.mo:112:30
+112 │    let _o = object { type M = N; let { type N } = x; public let m : M = 10 };
+    │                               ^ help: move the `let` that binds `N` above this definition
+error[M0113]: object pattern cannot consume expected type
+    ┌─ objpat-type-fields.mo:126:7
+126 │    let { type N } = 5;
+    │        ^^^^^^^^^^   - this expression has type `Nat`
+    │        │
+    │        expected `Nat`, got object type
+error[M0221]: failed to determine type for type pattern field
+    ┌─ objpat-type-fields.mo:133:9
+133 │    let { type N } = module { type N = Nat };
+    │          ^^^^^^ 

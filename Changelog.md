@@ -225,6 +225,13 @@
 
   * **Bug fixes**
 
+    * bugfix: type pattern fields such as `let { type T } = m` no longer crash
+      the compiler with an internal assertion. A binding in an `object` or
+      `module` body is accepted, and a scrutinee that is not an object reports
+      M0113 or M0221 as it does elsewhere. A type definition or class that
+      uses `T` above its binding reports the new error M0279; value
+      annotations and function signatures may still use it there (#6431).
+
     * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
       out-of-bounds `Blob` index or an index of 2^62 or more no longer
       crashes with an internal error, `Array_init` and `Array_tabulate` trap
