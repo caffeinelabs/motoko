@@ -225,6 +225,12 @@
 
   * **Bug fixes**
 
+    * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
+      value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
+      result too large" when the result would have 2^31 or more bits, instead
+      of returning a wrong value. The interpreter agrees and no longer hangs
+      on large shift amounts (#6423).
+
     * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
       out-of-bounds `Blob` index or an index of 2^62 or more no longer
       crashes with an internal error, `Array_init` and `Array_tabulate` trap
