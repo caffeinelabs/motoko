@@ -74,6 +74,11 @@
       share no field, or `x == y` on type parameters. Comparisons at a common
       type that still has content stay warning M0062 (#6415).
 
+    * Breaking change: a file in the `--enhanced-migration` directory that
+      does not export a public `migration` function is error M0278 instead of
+      warning M0251. The file was skipped, so the build succeeded and the
+      migration never ran (#6429).
+
     * Breaking change: an imported library must be a `module { ... }` or a
       named actor class. A bare sequence of declarations is error M0142
       instead of a deprecation warning; wrap it in `module { ... }` and mark
@@ -170,6 +175,22 @@
     * bugfix: contextual dot resolves functions returning `async` in an async
       context, e.g. `await x.asyncFunc()` (#6085).
 
+    * Breaking change: a pattern is checked against the type of the value it
+      matches, not a larger type. A variant tag the type lacks is error M0116,
+      with a suggestion for a misspelled tag (`case (#suspnded)` on
+      `{#active; #suspended}`); a signed literal against `Nat` is error M0050
+      (`case (-1)`), as `let n : Nat = -1` already is; an option pattern
+      against `Null` is error M0115. Before, only the coverage check flagged
+      these, and nothing did in `let ... else`. To match at a larger type,
+      annotate the matched value: `switch (n : Int)`. A pattern that fits the
+      type but is unreachable, such as a duplicate case, stays warning M0146
+      (#6429).
+
+    * bugfix: in `let ... else`, an alternative that is never matched, such as
+      the second `1` in `let (1 or 1) = n else { ... }`, is warning M0146, as
+      in a `switch`. In any pattern, an unreached pattern nested inside
+      another one is no longer reported a second time (#6429).
+
   * **Command line and tooling**
 
     * Breaking change: `moc --check a.mo b.mo` checks each file on its own.
@@ -209,6 +230,12 @@
       result too large" when the result would have 2^31 or more bits, instead
       of returning a wrong value. The interpreter agrees and no longer hangs
       on large shift amounts (#6423).
+
+    * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
+      out-of-bounds `Blob` index or an index of 2^62 or more no longer
+      crashes with an internal error, `Array_init` and `Array_tabulate` trap
+      on a length of 2^48 or more, and `Nat`/`Int` `**` traps on an exponent
+      of 2^32 or more (#6422).
 
     * bugfix: checking time with `--error-recovery`, which `moc.js` always
       enables, no longer grows cubically with the number of syntax errors. A
