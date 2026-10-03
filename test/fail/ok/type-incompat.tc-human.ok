@@ -21,17 +21,17 @@ cannot produce expected type
 because of incompatible function modifiers: 
  does not match shared 
     ┌─ type-incompat.mo:5:40
-  5 │  do { let f : shared Nat -> async Nat = func(n : Nat) : async Nat = async n; let g : Nat -> async Nat = f };
-    │                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+  5 │  do { let f : shared Nat -> async Nat = func(n : Nat) : async Nat { n }; let g : Nat -> async Nat = f };
+    │                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0096]: expression of type
   shared Nat -> async Nat
 cannot produce expected type
   Nat -> async Nat
 because of incompatible function modifiers: shared 
  does not match 
-    ┌─ type-incompat.mo:5:104
-  5 │  do { let f : shared Nat -> async Nat = func(n : Nat) : async Nat = async n; let g : Nat -> async Nat = f };
-    │                                                                                                         ^ 
+    ┌─ type-incompat.mo:5:100
+  5 │  do { let f : shared Nat -> async Nat = func(n : Nat) : async Nat { n }; let g : Nat -> async Nat = f };
+    │                                                                                                     ^ 
 error[M0096]: expression of type
   T
 cannot produce expected type
@@ -68,8 +68,8 @@ cannot produce expected type
 because of incompatible function modifiers: 
  does not match shared 
     ┌─ type-incompat.mo:7:39
-  7 │  do { let f : shared () -> async Nat = func() : async Nat = async 0; let _ : shared () -> async Text = f };
-    │                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+  7 │  do { let f : shared () -> async Nat = func() : async Nat { 0 }; let _ : shared () -> async Text = f };
+    │                                        ^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0096]: expression of type
   shared () -> async Nat
 cannot produce expected type
@@ -79,9 +79,9 @@ because the type
  is not compatible with type 
   Text
  in results
-    ┌─ type-incompat.mo:7:103
-  7 │  do { let f : shared () -> async Nat = func() : async Nat = async 0; let _ : shared () -> async Text = f };
-    │                                                                                                        ^ 
+    ┌─ type-incompat.mo:7:99
+  7 │  do { let f : shared () -> async Nat = func() : async Nat { 0 }; let _ : shared () -> async Text = f };
+    │                                                                                                    ^ 
 error[M0096]: expression of type
   () -> ()
 cannot produce expected type
@@ -89,7 +89,7 @@ cannot produce expected type
 because of incompatible function modifiers: 
  does not match shared 
     ┌─ type-incompat.mo:8:32
-  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat = async n; let _ : shared () -> async () = func() {} };
+  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat { n }; let _ : shared () -> async () = func() {} };
     │                                 ^^^^^^^^^ 
 error[M0096]: expression of type
   (n : Nat) -> async Nat
@@ -98,14 +98,14 @@ cannot produce expected type
 because of incompatible function modifiers: 
  does not match shared 
     ┌─ type-incompat.mo:8:77
-  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat = async n; let _ : shared () -> async () = func() {} };
-    │                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat { n }; let _ : shared () -> async () = func() {} };
+    │                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0096]: expression of type
   () -> ()
 cannot produce expected type
   shared () -> async ()
 because of incompatible function modifiers: 
  does not match shared 
-    ┌─ type-incompat.mo:8:146
-  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat = async n; let _ : shared () -> async () = func() {} };
-    │                                                                                                                                                   ^^^^^^^^^ 
+    ┌─ type-incompat.mo:8:142
+  8 │  do { let f : shared () -> () = func() {}; let g : shared Nat -> async Nat = func(n : Nat) : async Nat { n }; let _ : shared () -> async () = func() {} };
+    │                                                                                                                                               ^^^^^^^^^ 

@@ -77,8 +77,8 @@ let error_codes : (string * string option) list =
     "M0075", None; (* Expected array type *)
     "M0076", None; (* Shared functions are not supported *)
     "M0077", None; (* Shared function is only allowed as a public field of an actor *)
-    "M0078", None; (* Shared function with () result type has unexpected body *)
-    "M0079", None; (* Shared function with async result type has non-async body *)
+    "M0078", None; (* Shared function with () result type has unexpected body. Retired: such bodies are now implicitly `ignore async` *)
+    "M0079", None; (* Shared function with async result type has non-async body. Retired: such bodies are now implicitly `async` *)
     (* "M0080" DEFUNCT Local class type is contained in inferred block type *)
     "M0082", None; (* Expected iterable type *)
     "M0083", None; (* Unbound label *)
@@ -191,7 +191,7 @@ let error_codes : (string * string option) list =
     "M0205", None; (* Migration produces unexpected field *)
     "M0208", None; (* Missing field migration*)
     "M0209", None; (* Misplaced migration expression on module/object *)
-    "M0213", None; (* Parenthetical note on shared functions is disallowed *)
+    "M0213", None; (* Parenthetical note on shared functions is disallowed. Retired: an explicit `async` body is rejected with M0277 *)
     "M0214", None; (* Expected type of field in parenthetical note differs from inferred *)
     "M0216", None; (* Stable variable must stable subtype *)
     "M0221", None; (* Failed to determine type for type pattern field *)
@@ -227,6 +227,7 @@ let error_codes : (string * string option) list =
     "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
+    "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

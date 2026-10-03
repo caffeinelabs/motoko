@@ -10,11 +10,11 @@ actor A {
         await (with cycles = 3000) next()
     };
 
-    func bar(next : () -> async ()) : async () = async {
+    func bar(next : () -> async ()) : async () {
         await (with cycles = 4000) next()
     };
 
-    func quux() : async () = (with) async {
+    func quux() : async () {
         debugPrint ("quux: " # debug_show(Cycles.available()));
     };
 
@@ -40,7 +40,7 @@ actor A {
             i + message.size()
         };
 
-        func closB() : async Nat = async {
+        func closB() : async Nat {
             assert Cycles.available() == 102;
             message.size()
         };
@@ -50,10 +50,10 @@ actor A {
 
         let c : async () =
           (with yeah = 8; timeout = 55; cycles = 1000)
-          foo(func() : async () = async { assert message == "Hi!" and Cycles.available() == 3000 });
+          foo(func() : async () { assert message == "Hi!" and Cycles.available() == 3000 });
         await c;
         await (with cycles = 5000)
-        bar(func() : async () = async { assert message == "Hi!" and Cycles.available() == 4000 });
+        bar(func() : async () { assert message == "Hi!" and Cycles.available() == 4000 });
     };
 
     public func test2() : async () {

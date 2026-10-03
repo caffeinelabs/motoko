@@ -6,10 +6,10 @@ actor a {
 
   // check whether we can pattern match shared objects
 
-  public func baz(sh : Shob) : async Int = async (switch sh {
+  public func baz(sh : Shob) : async Int { switch sh {
     case {a; b = {c = null}} a;
     case {a; b = {c = ?c}} (a + c)
-  });
+  } };
 
   public func go() : () {
     let b = await (baz foo);

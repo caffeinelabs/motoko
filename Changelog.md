@@ -138,6 +138,23 @@
 
   * **Type checking**
 
+    * feat: a function passed where an `async` function type is expected is
+      asynchronous without annotations. For `run : (Nat -> async Nat) ->
+      async Nat`, `run(func(n) { n + 1 })` takes both `n : Nat` and the
+      `async Nat` return type from `run`, as non-async functions already
+      did. This covers `async*` and generic calls such as
+      `forEach(xs, func(x) { await process(x) })` (#6428).
+
+    * Breaking change: `func f() : T = e` and `func f() : T { e }` mean the
+      same. A body is implicitly `async` exactly when the return type is
+      `async`, and a one-way `shared` function's body is implicitly
+      `ignore async`, so `= async { ... }` and `= ignore (async ...)` are
+      redundant and rejected with M0277, whose fix-it drops the `async`. A
+      parenthetical on the body, `= (with cycles = n) async { ... }`, goes at
+      the call site, `(with cycles = n) f()`, and a local function can no
+      longer return a future of its enclosing function (`= fut`). M0078,
+      M0079 and M0213 are retired (#6428).
+
     * Breaking change: `{ base with ... }` copies the base's `var` fields.
       The result is the equivalent field-for-field record literal, so
       mutating the copy does not mutate the base. This was error M0179, or
@@ -239,6 +256,11 @@
       `case (#admin t)` followed by `case (#admin u)`, no longer compiles the
       second case without its tag test. Passing the other leg bound that
       leg's payload at the first case's type instead of trapping (#6427).
+
+    * bugfix: a class method returning `async*` with an `= e` body, such as
+      `public func next() : async* Nat = v`, no longer fails with M0137 when
+      the class is used at a record type: the method binds its own async
+      scope, like a block body always did (#6428).
 
     * bugfix: generated Candid never reuses a user-written type name. A
       suffixed name `moc` picks for a generic instantiation or a same-named
