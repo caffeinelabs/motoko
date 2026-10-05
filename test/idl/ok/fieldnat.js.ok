@@ -2,5 +2,11 @@ export default ({ IDL }) => {
  return IDL.Service({'foo': IDL.Func([IDL.Record({'_2_': IDL.Int})], [], []),
   'bar': IDL.Func([IDL.Record({'2': IDL.Int})], [], []),
   'baz': IDL.Func([IDL.Record({'_2_': IDL.Int, '2': IDL.Nat})], [], []),
-  'bab': IDL.Func([IDL.Int, IDL.Nat], [], [])});
+  'bab': IDL.Func([IDL.Int, IDL.Nat], [], []),
+  'hex':
+   IDL.Func([IDL.Record({'_42_': IDL.Int, '_4294967295_': IDL.Nat})], [], []),
+  
+  'max':
+   IDL.Func([IDL.Variant({'_16_': IDL.Null, '_4294967295_': IDL.Nat})], 
+    [], [])});
 };
