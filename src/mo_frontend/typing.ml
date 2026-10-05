@@ -1142,6 +1142,8 @@ and infer_inst env sort tbs typs t_ret at =
   match tbs, typs with
   | {T.bound; sort = T.Scope; _}::tbs', typs' ->
     assert (List.for_all (fun tb -> tb.T.sort = T.Type) tbs');
+    let local_async () =
+      match t_ret with T.Async (T.Cmp, _, _) -> "async*" | _ -> "async" in
     (match env.async with
      | cap when sort = T.Local && not (T.is_async t_ret) ->
        begin
@@ -1164,10 +1166,18 @@ and infer_inst env sort tbs typs t_ret at =
          match sort with
          | T.(Shared (Composite | Query)) ->
            (T.Con(c, [])::ts, at::ats)
-         | T.(Shared Write | Local) ->
+         | T.(Shared Write) ->
            error env at "M0187"
              "send capability required, but not available\n  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)"
+         | T.Local ->
+           error env at "M0187"
+             "send capability required, but not available\n  (cannot call a local `%s` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)"
+             (local_async ())
        end
+     | C.(ErrorCap | QueryCap _) when sort = T.Local ->
+        error env at "M0188"
+         "send capability required, but not available\n  (cannot call a local `%s` function from a `query` function, since such functions may call `shared` functions)"
+         (local_async ())
      | C.ErrorCap
      | C.QueryCap _ ->
         error env at "M0188"
