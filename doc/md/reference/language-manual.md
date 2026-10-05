@@ -1409,7 +1409,7 @@ These effects can only be achieved using an explicit [migration expression](#mig
 
 #### Migration expressions
 
-Actors and actor class declaration may specify a migration expression, using an optional, leading `<parenthetical>` expression with a required field named `migration`.
+Actors and actor class declarations may specify a migration expression, using an optional, leading `<parenthetical>` expression with a required field named `migration`.
 The value of this field, a function, is applied to the stable variables of an upgraded actor, before initializing any stable fields of the declared actor.
 
 The parenthetical expression must satisfy the following conditions:
@@ -1439,7 +1439,7 @@ the value of a `stable` declaration is obtained as follows:
 - Otherwise, if the stable declaration is not present in the domain and is declared stable in the retired actor,
   then its initial value is obtained from the retired actor.
 
-- Otherwise, its value is obtained by evaluating the declaration's initalizer.
+- Otherwise, its value is obtained by evaluating the declaration's initializer.
 
 Thus a stable variable's initializer is run if the variable is not produced by the migration function and either
 consumed by the migration function (by appearing in its domain) or absent in the retired actor.
@@ -1452,8 +1452,8 @@ For the upgrade to be safe:
 - Every stable identifier declared with type `T` in the retired actor, not present in the domain or codomain,
   and declared stable and of type `U` in the replacement actor, must satisfy `T < U` (stable subtyping).
 
-Thses conditions ensure that every stable variable is either discarded or fresh, requiring initialization,
-or that its value can be safely consumed from the output of migration or the retired actor without loss of date.
+These conditions ensure that every stable variable is either discarded or fresh, requiring initialization,
+or that its value can be safely consumed from the output of migration or the retired actor without loss of data.
 
 The compiler will issue a warning if a migration function appears to be discarding data by consuming a field and not producing it.
 The warnings should be carefully considered to verify any data loss is intentional and not accidental.
@@ -1559,6 +1559,8 @@ The consequences of pattern match failure depends on the context of the pattern.
 -   In a function application or `let`-binding, failure to match the formal argument pattern or `let`-pattern causes a trap.
 
 -   In a `case` branch of a `switch` expression, failure to match that case’s pattern continues with an attempt to match the next case of the switch, trapping only when no such case remains.
+
+A pattern is checked against the type of the value it matches, not a larger type: a variant pattern needs a tag of that variant type, a literal pattern a literal of that type, and an option pattern an option type. Only `None`, which has no values, accepts any pattern. To match at a larger type, annotate the matched value, as in `switch (n : Int)`.
 
 ### Wildcard pattern
 

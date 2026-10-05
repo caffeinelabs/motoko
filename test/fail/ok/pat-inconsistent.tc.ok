@@ -6,13 +6,19 @@ does not have expected type
   Bool
 pat-inconsistent.mo:54.9-54.15: type error [M0116], variant pattern cannot consume expected type
 expected `Bool`, got `{#geese : _}`
-pat-inconsistent.mo:59.9-59.15: warning [M0146], this pattern is never matched
-pat-inconsistent.mo:58.1-60.2: type error [M0145], this switch of type
-  {#sparrows}
-does not cover value
-  #sparrows
-pat-inconsistent.mo:64.10-64.18: warning [M0146], this pattern is never matched
+pat-inconsistent.mo:59.9-59.15: type error [M0116], variant pattern cannot consume expected type
+expected `{#sparrows}`, got `{#geese : _}`
+pat-inconsistent.mo:64.11-64.17: type error [M0116], variant pattern cannot consume expected type
+expected `{#}`, got `{#geese : _}`
 pat-inconsistent.mo:68.7-68.13: type error [M0112], tuple pattern cannot consume expected type
 expected `Nat`, got `(_, _)`
 pat-inconsistent.mo:72.8-72.14: type error [M0112], tuple pattern cannot consume expected type
 expected `Nat`, got `(_, _)`
+pat-inconsistent.mo:77.9-77.17: type error [M0116], variant pattern cannot consume expected type
+expected `{#geese; #sparrows}`, got `{#sparows : _}`
+help: did you mean tag #sparrows?
+pat-inconsistent.mo:83.9-83.11: type error [M0116], variant pattern cannot consume expected type
+expected `{#a; #b}`, got `{#c : _}`
+pat-inconsistent.mo:88.7-88.14: type error [M0116], variant pattern cannot consume expected type
+expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+help: did you mean tag #ok?
