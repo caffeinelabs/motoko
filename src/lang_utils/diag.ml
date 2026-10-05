@@ -148,7 +148,7 @@ let fancy_of_message_with cache (msg : message) =
     let edit_note edit =
       (* Future work: merge the replacements and display a diff *)
       let original = source_text edit.at_edit in
-      if edit.suggested_replacement = "" then
+      if String.trim edit.suggested_replacement = "" && original <> "" then
         GD.Message.createf "help: remove `%s`" original
       else if original = "" then
         GD.Message.createf "help: insert `%s`" edit.suggested_replacement

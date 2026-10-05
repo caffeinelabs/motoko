@@ -10,7 +10,7 @@ actor A {
         Cycles.add<system> 3000; await next()
     };
 
-    func bar(next : () -> async ()) : async () = async {
+    func bar(next : () -> async ()) : async () {
         Cycles.add<system> 4000; await next()
     };
 
@@ -38,7 +38,7 @@ actor A {
             i + message.size()
         };
 
-        func closB() : async Nat = async {
+        func closB() : async Nat {
             assert Cycles.available() == 102;
             message.size()
         };
@@ -48,10 +48,10 @@ actor A {
 
         Cycles.add<system> 1000; let c : async () =
 
-          foo(func() : async () = async { assert message == "Hi!" and Cycles.available() == 3000 });
+          foo(func() : async () { assert message == "Hi!" and Cycles.available() == 3000 });
         await c;
         Cycles.add<system> 5000; await
-        bar(func() : async () = async { assert message == "Hi!" and Cycles.available() == 4000 });
+        bar(func() : async () { assert message == "Hi!" and Cycles.available() == 4000 });
     };
 
     public func test2() : async () {

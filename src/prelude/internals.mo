@@ -413,7 +413,7 @@ func @install_actor_helper(
   },
   wasm_module : Blob,
   arg : Blob,
-) : async* Principal = async* {
+) : async* Principal {
   let (mode, canister_id) = switch install_arg {
     case (#new settings) {
       let available = (prim "cyclesAvailable" : () -> Nat)();

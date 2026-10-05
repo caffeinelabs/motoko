@@ -102,7 +102,8 @@ module Make (Cfg : Config) = struct
     | AssignE (e1, e2)    -> "AssignE"   $$ [exp e1; exp e2]
     | ArrayE (m, es)      -> "ArrayE"    $$ [mut m] @ exps es
     | IdxE (e1, e2)       -> "IdxE"      $$ [exp e1; exp e2]
-    | FuncE (x, sp, tp, p, t, sugar, e') ->
+    | FuncE (x, sp, tp, p, t, note, e') ->
+      let tp, e' = func_elab note tp e' in
       "FuncE" $$ [
         Atom (Type.string_of_typ e.note.note_typ);
         shared_pat sp;
@@ -110,7 +111,7 @@ module Make (Cfg : Config) = struct
         List.map typ_bind tp @ [
         pat p;
         (match t with None -> Atom "_" | Some t -> typ t);
-        Atom (if sugar then "" else "=");
+        Atom (if note.braced then "" else "=");
         exp e'
       ]
     | CallE (par_opt, e1, ts, (_, e2)) -> "CallE" $$ parenthetical par_opt ([exp e1] @ inst ts @ [exp !e2])
