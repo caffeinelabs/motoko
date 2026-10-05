@@ -231,6 +231,19 @@
       `users`, the runtime check accepted it and the dropped variable's
       value was lost (#6432).
 
+    * bugfix: clearer diagnostics. Calling a local `async` or `async*`
+      function from a `query` (M0188) or `composite query` (M0187) says so
+      instead of claiming a `shared` function was called, and the M0185
+      warning on importing a Candid service constructor explains that its
+      initialization arguments are ignored; `moc --explain M0185` has the
+      details (#6425).
+
+    * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
+      out-of-bounds `Blob` index or an index of 2^62 or more no longer
+      crashes with an internal error, `Array_init` and `Array_tabulate` trap
+      on a length of 2^48 or more, and `Nat`/`Int` `**` traps on an exponent
+      of 2^32 or more (#6422).
+
     * bugfix: checking time with `--error-recovery`, which `moc.js` always
       enables, no longer grows cubically with the number of syntax errors. A
       file with 400 syntax errors takes 0.05 s instead of 7 s (#6424).
