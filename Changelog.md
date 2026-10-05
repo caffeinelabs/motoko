@@ -225,12 +225,11 @@
 
   * **Bug fixes**
 
-    * bugfix: type pattern fields such as `let { type T } = m` no longer crash
-      the compiler with an internal assertion. A binding in an `object` or
-      `module` body is accepted, and a scrutinee that is not an object reports
-      M0113 or M0221 as it does elsewhere. A type definition or class that
-      uses `T` above its binding reports the new error M0279; value
-      annotations and function signatures may still use it there (#6431).
+    * bugfix: a type pattern field such as `let { type T } = m` in the body of
+      `let o = object { ... }` or `module M { ... }` no longer crashes the
+      compiler with an internal assertion. A well-typed binding is accepted,
+      and a scrutinee that is not an object reports M0113 as it does
+      elsewhere (#6431).
 
     * bugfix: numeric field ids in imported Candid (`.did`) files no longer
       crash `moc`. Hex ids such as `0x7f` parse, and an id that does not fit

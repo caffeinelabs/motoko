@@ -82,8 +82,6 @@ type env =
        Their fields are all directly in scope there, so nested implicit search
        must not reach the same bindings again through `M.` *)
     enclosing_modules : string list;
-    (* Typing an annotated value path ahead of the value pass, where a type pattern field may be used above its binding *)
-    early_val_path : bool;
   }
 and ret_env =
   | NoRet
@@ -120,7 +118,6 @@ let env_of_scope msgs scope =
     stable_baseline_sig = None;
     enclosing_removal = false;
     enclosing_modules = [];
-    early_val_path = false;
   }
 
 let is_implicit_package pkg =
@@ -687,10 +684,6 @@ and check_obj_path' env path : T.typ =
         id.it
         display_obj (T.Obj(s, fs, tfs))
 
-(* A type pattern field whose `let` is not checked yet, see gather_typ_id *)
-let is_pending_typ_field c =
-  match Cons.kind c with T.Def ([], T.Pre) -> true | _ -> false
-
 let rec check_typ_path env path : T.con =
   let c = check_typ_path' env path in
   path.note <- Some c;
@@ -701,10 +694,6 @@ and check_typ_path' env path : T.con =
   | IdH id ->
     use_identifier env id.it;
     (match T.Env.find_opt id.it env.typs with
-    | Some c when is_pending_typ_field c && not env.early_val_path ->
-      error env id.at "M0279"
-        ~spans:[primary env id.at "help: move the `let` that binds `%s` above this definition" id.it]
-        "cannot use type %s before the type pattern field that binds it" id.it
     | Some c -> c
     | None ->
       error env id.at "M0029"
@@ -5290,7 +5279,7 @@ and infer_val_path env exp : T.typ option =
        | _ -> None
     )
   | AnnotE (_, typ) ->
-    Some (check_typ {env with pre = true; early_val_path = true} typ)
+    Some (check_typ {env with pre = true} typ)
   | _ -> None
 
 (* Pass 1: collect:
@@ -5447,8 +5436,8 @@ and gather_typ_id env scope id : Scope.t =
   type constructors on type pattern fields we need to record them here *)
   let pre_k = T.Def ([], T.Pre) in
   let c = Cons.fresh id.it pre_k in
-  (* A placeholder until settle_typ_fields, whose arity a type definition above the `let` cannot know (M0279).
-     The field binds an existing constructor, so the placeholder stays out of `con_env` (checked for productivity). *)
+  (* The field binds an existing constructor, so this placeholder is never defined
+     and stays out of `con_env`, which is checked for productivity. *)
   { scope with typ_env = T.Env.add id.it c scope.typ_env }
 
 (* Pass 2 and 3: infer type definitions *)
@@ -5501,12 +5490,12 @@ and infer_dec_typdecs env dec : Scope.t =
       | _ -> { Scope.empty with val_env = singleton id T.Pre }
     end
   | LetD (pat, exp, _) ->
-    let te = match infer_val_path env exp with
-      | Some t -> check_pat_typ_dec {env with pre = true} t pat
-      | None -> T.Env.empty
-    in
-    settle_typ_fields env pat te;
-    Scope.{empty with typ_env = te}
+       begin match infer_val_path env exp with
+       | Some t ->
+          let te = check_pat_typ_dec {env with pre = true} t pat in
+          Scope.{empty with typ_env = te}
+       | None -> Scope.empty
+       end
   | ExpD _ | VarD _ ->
     Scope.empty
   | TypD (id, typ_binds, typ) ->
@@ -5548,19 +5537,6 @@ and infer_id_typdecs env at id c k : Scope.con_env =
   | k' -> assert (eq_kind env at k' k) (* may diverge on expansive types *)
   );
   T.ConSet.singleton c
-
-(* Annotations typed early (early_val_path) may hold the placeholder, so it becomes an alias of the bound type.
-   An unresolved or generic field is an error once rechecked, and `Any` only keeps the placeholder well-formed until then. *)
-and settle_typ_fields env pat te =
-  (gather_pat env Scope.empty pat).Scope.typ_env |> T.Env.iter (fun x _ ->
-    match T.Env.find_opt x env.typs with
-    | Some p when is_pending_typ_field p ->
-      let t = match Option.map (fun c -> c, Cons.kind c) (T.Env.find_opt x te) with
-        | Some (c, (T.Def ([], _) | T.Abs ([], _))) -> T.Con (c, [])
-        | _ -> T.Any
-      in
-      Cons.unsafe_set_kind p (T.Def ([], t))
-    | _ -> ())
 
 (* Pass 4: infer value types *)
 and infer_block_valdecs env decs scope : Scope.t =

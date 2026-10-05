@@ -9,14 +9,5 @@ objpat-type-fields.mo:45.9-45.15: type error [M0119], object type field U is not
   L1 = module {type N = Nat; Z : Nat}
 objpat-type-fields.mo:54.8-54.44: type error [M0189], mismatched types for type N in patterns
 objpat-type-fields.mo:62.8-62.37: type error [M0189], different set of type bindings in pattern alternatives
-objpat-type-fields.mo:88.25-88.38: type error [M0113], object pattern cannot consume expected type
+objpat-type-fields.mo:89.25-89.38: type error [M0113], object pattern cannot consume expected type
 expected `Nat`, got object type
-objpat-type-fields.mo:100.13-100.14: type error [M0279], cannot use type N before the type pattern field that binds it
-help: move the `let` that binds `N` above this definition
-objpat-type-fields.mo:106.31-106.32: type error [M0279], cannot use type N before the type pattern field that binds it
-help: move the `let` that binds `N` above this definition
-objpat-type-fields.mo:112.30-112.31: type error [M0279], cannot use type N before the type pattern field that binds it
-help: move the `let` that binds `N` above this definition
-objpat-type-fields.mo:126.7-126.17: type error [M0113], object pattern cannot consume expected type
-expected `Nat`, got object type
-objpat-type-fields.mo:133.9-133.15: type error [M0221], failed to determine type for type pattern field

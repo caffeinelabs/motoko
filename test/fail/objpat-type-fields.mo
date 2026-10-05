@@ -79,56 +79,12 @@ func _f4(x : T4) {
 };
 
 func _f5(x : T3) {
-  // Fine inside an object body
+  // Fine inside an object or module body
   let _o = object { let { type N } = x; let _n : N = 10 };
+  module _M { let { type N } = x; public let n : N = 10 };
 };
 
 func _f5_1() {
   // Error with a non-object in an object body
   let _o = object { let { type T; f } = 5; let _y : T = f };
-};
-
-func _f6(x : T3) {
-  // Fine: values may use a type pattern field before its binding
-  let _n : N = 10;
-  func _h(n : N) : N = n;
-  let { type N } = x;
-};
-
-func _f6_1(x : T3) {
-  // Error with a type definition before the binding
-  type _M = N;
-  let { type N } = x;
-};
-
-func _f6_2(x : T3) {
-  // Error with a class before the binding
-  class _C() { public let n : N = 10 };
-  let { type N } = x;
-};
-
-func _f6_3(x : T3) {
-  // Error with a type definition before the binding in an object body
-  let _o = object { type M = N; let { type N } = x; public let m : M = 10 };
-};
-
-func _f6_4(x : T3, y : module { type S = Nat }) {
-  // Fine: a type definition after a binding whose earlier annotation uses N
-  let z = (y : module { type S = N });
-  let { type S } = z;
-  type U = S;
-  let { type N } = x;
-  let _u : U = 10;
-};
-
-func _f6_5() {
-  // Error with a non-object, and a type definition after the binding
-  let { type N } = 5;
-  type _M = N;
-};
-
-func _f6_6() {
-  // Error with a value use before an unresolved binding
-  let _n : N = 10;
-  let { type N } = module { type N = Nat };
 };
