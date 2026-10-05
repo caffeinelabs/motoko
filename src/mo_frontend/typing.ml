@@ -849,8 +849,8 @@ let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
     if kind <> Plain || T.is_shared_sort sort then ensure_scope_bind "" typ_binds else typ_binds in
   let spelled_out = match kind, body.it with
     | Async s, AsyncE (par, s', _, inner) when s = s' -> Some (par, inner)
-    | Oneway, IgnoreE {it = AsyncE (par, T.Fut, _, inner)
-                     | AnnotE ({it = AsyncE (par, T.Fut, _, inner); _}, _); _} -> Some (par, inner)
+    | Oneway, IgnoreE {it = AsyncE (par, T.Fut, _, inner); _}
+    | Oneway, IgnoreE {it = AnnotE ({it = AsyncE (par, T.Fut, _, inner); _}, _); _} -> Some (par, inner)
     | _ -> None
   in
   let redundant = Option.is_some spelled_out in
