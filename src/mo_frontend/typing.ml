@@ -5436,10 +5436,9 @@ and gather_typ_id env scope id : Scope.t =
   type constructors on type pattern fields we need to record them here *)
   let pre_k = T.Def ([], T.Pre) in
   let c = Cons.fresh id.it pre_k in
-  { scope with
-    typ_env = T.Env.add id.it c scope.typ_env;
-    con_env = T.ConSet.disjoint_add c scope.con_env;
-  }
+  (* The field binds an existing constructor, so this placeholder is never defined
+     and stays out of `con_env`, which is checked for productivity. *)
+  { scope with typ_env = T.Env.add id.it c scope.typ_env }
 
 (* Pass 2 and 3: infer type definitions *)
 and infer_block_typdecs env decs : Scope.t =

@@ -77,3 +77,14 @@ func _f4(x : T4) {
   let ({ type N }, _) = x;
   let _n : N = 10;
 };
+
+func _f5(x : T3) {
+  // Fine inside an object or module body
+  let _o = object { let { type N } = x; let _n : N = 10 };
+  module _M { let { type N } = x; public let n : N = 10 };
+};
+
+func _f5_1() {
+  // Error with a non-object in an object body
+  let _o = object { let { type T; f } = 5; let _y : T = f };
+};

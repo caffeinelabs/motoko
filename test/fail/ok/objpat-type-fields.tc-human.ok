@@ -30,3 +30,9 @@ error[M0189]: different set of type bindings in pattern alternatives
     ┌─ objpat-type-fields.mo:62:8
  62 │    let (#left{ type N } or #right { }) = x else {
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0113]: object pattern cannot consume expected type
+    ┌─ objpat-type-fields.mo:89:25
+ 89 │    let _o = object { let { type T; f } = 5; let _y : T = f };
+    │                          ^^^^^^^^^^^^^   - this expression has type `Nat`
+    │                          │
+    │                          expected `Nat`, got object type

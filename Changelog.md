@@ -225,6 +225,12 @@
 
   * **Bug fixes**
 
+    * bugfix: a type pattern field such as `let { type T } = m` in the body of
+      `let o = object { ... }` or `module M { ... }` no longer crashes the
+      compiler with an internal assertion. A well-typed binding is accepted,
+      and a scrutinee that is not an object reports M0113 as it does
+      elsewhere (#6431).
+
     * bugfix: an upgrade that drops a stable variable without a migration
       function is rejected even when it also adds a stable variable.
       Depending on how the names hashed, as when renaming `balances` to
