@@ -446,21 +446,29 @@ unsafe extern "C" fn bigint_isneg(a: Value) -> bool {
 #[cfg(feature = "ic")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_lsh(a: Value, b: isize) -> Value {
+    let a = a.as_bigint().mp_int_ptr();
     let mut i = tmp_bigint();
-    check(mp_mul_2d(a.as_bigint().mp_int_ptr(), b as i32, &mut i));
+    // Zero stays zero for any amount, without growing to the shifted size.
+    if mp_iszero(a) {
+        return persist_bigint(i);
+    }
+    // libtommath counts bits in an `int`, so the result's bit length must fit one.
+    if mp_count_bits(a) as isize + b > i32::MAX as isize {
+        crate::rts_trap_with("left shift result too large");
+    }
+    check(mp_mul_2d(a, b as i32, &mut i));
     persist_bigint(i)
 }
 
 #[cfg(feature = "ic")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_rsh(a: Value, b: isize) -> Value {
+    let a = a.as_bigint().mp_int_ptr();
     let mut i = tmp_bigint();
-    check(mp_div_2d(
-        a.as_bigint().mp_int_ptr(),
-        b as i32,
-        &mut i,
-        core::ptr::null_mut(),
-    ));
+    // Shifting out every bit leaves zero; any smaller amount fits the `int` of `mp_div_2d`.
+    if b < mp_count_bits(a) as isize {
+        check(mp_div_2d(a, b as i32, &mut i, core::ptr::null_mut()));
+    }
     persist_bigint(i)
 }
 

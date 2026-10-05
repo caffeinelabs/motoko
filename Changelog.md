@@ -225,6 +225,12 @@
 
   * **Bug fixes**
 
+    * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
+      value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
+      result too large" when the result would have 2^31 or more bits, instead
+      of returning a wrong value. The interpreter agrees and no longer hangs
+      on large shift amounts (#6423).
+
     * bugfix: an upgrade that drops a stable variable without a migration
       function is rejected even when it also adds a stable variable.
       Depending on how the names hashed, as when renaming `balances` to
