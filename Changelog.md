@@ -231,6 +231,12 @@
       of returning a wrong value. The interpreter agrees and no longer hangs
       on large shift amounts (#6423).
 
+    * bugfix: an upgrade that drops a stable variable without a migration
+      function is rejected even when it also adds a stable variable.
+      Depending on how the names hashed, as when renaming `balances` to
+      `users`, the runtime check accepted it and the dropped variable's
+      value was lost (#6432).
+
     * bugfix: numeric field ids in imported Candid (`.did`) files no longer
       crash `moc`. Hex ids such as `0x7f` parse, and an id that does not fit
       in 32 bits is a syntax error (#6421).
