@@ -3239,18 +3239,21 @@ and check_exp' env0 t exp : T.typ =
     if not env.pre then
       Option.iter (check_exp_strong { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } T.unit) exp2_opt;
     t
-  | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2)
-    when Option.is_some (checked_body_kind shared_pat.it typ_opt s tbs ts2) ->
-    let env', t2, codom, body =
-      check_func_step env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) exp.at (s, c, tbs, ts1, ts2) in
-    check_sub_explained env no_region t2 codom (fun explanation ->
-      error env body.at "M0095"
-        "function return type%a\ndoes not match expected return type%a%a"
-        display_typ_expand t2
-        display_typ_expand codom
-        (display_explanation t2 codom) explanation);
-    check_exp_strong env' t2 body;
-    t
+  | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2) ->
+    begin match checked_body_kind shared_pat.it typ_opt s tbs ts2 with
+    | None -> check_inferred env0 env t (infer_exp env0 exp) exp
+    | Some kind ->
+      let env', t2, codom, body =
+        check_func_step env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
+      check_sub_explained env no_region t2 codom (fun explanation ->
+        error env body.at "M0095"
+          "function return type%a\ndoes not match expected return type%a%a"
+          display_typ_expand t2
+          display_typ_expand codom
+          (display_explanation t2 codom) explanation);
+      check_exp_strong env' t2 body;
+      t
+    end
   | CallE (par_opt, exp1, inst, exp2), _ ->
     let t' = infer_call env exp1 inst exp2 exp.at (Some t) in
     check_sub_explained env exp1.at t' t (fun explanation ->
@@ -3361,7 +3364,7 @@ and check_exp_field env (ef : exp_field) fts =
     ignore (infer_exp env exp);
 
 (** Performs the first step of checking that the given [FuncE (_, shared_pat, [], pat, typ_opt, _, body)] expression has type [T.Func (s, c, tbs, ts1, ts2)],
-  where [checked_body_kind] accepts [tbs].
+  where [kind] is what [checked_body_kind] gives for [tbs].
   Used to prepare the new env for checking the elaborated body of the function.
   Returns:
   - the env for the elaborated body,
@@ -3369,12 +3372,11 @@ and check_exp_field env (ef : exp_field) fts =
   - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom],
   - the elaborated body.
  *)
-and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) at (s, c, tbs, ts1, ts2) : env * T.typ * T.typ * exp =
+and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) kind at (s, c, ts1, ts2) : env * T.typ * T.typ * exp =
   let sort, ve = check_shared_pat env shared_pat in
   if not env.pre && not in_actor && T.is_shared_sort sort then
     error_in Flags.[ICMode] env body.at "M0077"
       "a shared function is only allowed as a public field of an actor";
-  let kind = Option.get (checked_body_kind shared_pat.it typ_opt s tbs ts2) in
   let typ_binds, body = elab_func_body env name shared_pat.it kind (pat, typ_opt) [] body note in
   let cs, tbs, te, ce = check_typ_binds env typ_binds in
   (* the function's own scope, if any, stands for the expected type's binder *)
@@ -3846,31 +3848,34 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       (* Substitute fixed type variables *)
       let typ = T.open_ ts typ in
       match exp.it, T.normalize typ with
-      | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2)
-        when Option.is_some (checked_body_kind shared_pat.it typ_opt s tbs ts2) ->
-        (* Check that all type variables in the function input type are fixed, fail otherwise *)
-        Bi_match.fail_when_types_are_not_closed remaining ts1;
-        (* Check the function input type and prepare for inferring the body *)
-        let env', body_typ, codom, body =
-          check_func_step false env (name, shared_pat, pat, typ_opt, note, body) exp.at (s, c, tbs, ts1, ts2) in
-        (* [codom] comes from [ts2] which might contain unsolved type variables. *)
-        let closed_codom = Bi_match.is_closed remaining codom in
-        (* Closed [codom] implies closed [body_typ]. [body_typ] is closed when it comes from [typ_opt] *)
-        let closed_body_typ = closed_codom || Option.is_some typ_opt in
-        let env' = if closed_body_typ then env' else { env' with rets = BimatchRet (infer_body body_typ) } in
-        if closed_body_typ && not env.pre then begin
-          assert (Bi_match.is_closed remaining body_typ);
-          check_exp env' body_typ body;
-        end;
+      | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2) ->
+        begin match checked_body_kind shared_pat.it typ_opt s tbs ts2 with
+        | None -> subs := (infer_exp env exp, typ, exp.at) :: !subs
+        | Some kind ->
+          (* Check that all type variables in the function input type are fixed, fail otherwise *)
+          Bi_match.fail_when_types_are_not_closed remaining ts1;
+          (* Check the function input type and prepare for inferring the body *)
+          let env', body_typ, codom, body =
+            check_func_step false env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
+          (* [codom] comes from [ts2] which might contain unsolved type variables. *)
+          let closed_codom = Bi_match.is_closed remaining codom in
+          (* Closed [codom] implies closed [body_typ]. [body_typ] is closed when it comes from [typ_opt] *)
+          let closed_body_typ = closed_codom || Option.is_some typ_opt in
+          let env' = if closed_body_typ then env' else { env' with rets = BimatchRet (infer_body body_typ) } in
+          if closed_body_typ && not env.pre then begin
+            assert (Bi_match.is_closed remaining body_typ);
+            check_exp env' body_typ body;
+          end;
 
-        (* When [codom] is open, we need to solve it *)
-        if not closed_codom then
-          if body_typ <> codom then
-            (* [body_typ] is closed, body is already checked above, we just need to solve the subtype problem *)
-            subs := (body_typ, codom, body.at) :: !subs
-          else begin
-            (* We just have open [codom], we need to infer the body *)
-            infer_body body_typ env' body;
+          (* When [codom] is open, we need to solve it *)
+          if not closed_codom then
+            if body_typ <> codom then
+              (* [body_typ] is closed, body is already checked above, we just need to solve the subtype problem *)
+              subs := (body_typ, codom, body.at) :: !subs
+            else begin
+              (* We just have open [codom], we need to infer the body *)
+              infer_body body_typ env' body;
+            end
         end
       | HoleE _, _ -> () (* check after the last round *)
       | _ ->
