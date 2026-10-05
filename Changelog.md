@@ -225,6 +225,13 @@
 
   * **Bug fixes**
 
+    * bugfix: clearer diagnostics. Calling a local `async` or `async*`
+      function from a `query` (M0188) or `composite query` (M0187) says so
+      instead of claiming a `shared` function was called, and the M0185
+      warning on importing a Candid service constructor explains that its
+      initialization arguments are ignored; `moc --explain M0185` has the
+      details (#6425).
+
     * bugfix: the interpreter (`moc -r`) traps where compiled code does. An
       out-of-bounds `Blob` index or an index of 2^62 or more no longer
       crashes with an internal error, `Array_init` and `Array_tabulate` trap
