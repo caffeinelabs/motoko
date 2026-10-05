@@ -225,6 +225,10 @@
 
   * **Bug fixes**
 
+    * bugfix: numeric field ids in imported Candid (`.did`) files no longer
+      crash `moc`. Hex ids such as `0x7f` parse, and an id that does not fit
+      in 32 bits is a syntax error (#6421).
+
     * bugfix: clearer diagnostics. Calling a local `async` or `async*`
       function from a `query` (M0188) or `composite query` (M0187) says so
       instead of claiming a `shared` function was called, and the M0185
