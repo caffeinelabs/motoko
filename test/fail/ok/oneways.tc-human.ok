@@ -2,10 +2,14 @@ error[M0277]: redundant `ignore async`: the body of a one-way shared function is
     ┌─ oneways.mo:8:30
   8 │   public func wrong1() : () = ignore ((async ()) : async ());
     │                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
 error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
     ┌─ oneways.mo:9:30
   9 │   public func wrong2() : () = ignore async ();
     │                               ^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore async` with ` { `
+    = help: insert ` }`
 error[M0242]: this declares an implicit oneway function.
   if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
     ┌─ oneways.mo:12:21
@@ -20,10 +24,14 @@ error[M0277]: redundant `ignore async`: the body of a one-way shared function is
     ┌─ oneways.mo:16:29
  16 │  shared func wrong1() : () = ignore ((async ()) : async ()) ;
     │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
 error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
     ┌─ oneways.mo:17:29
  17 │  shared func wrong2() : () = ignore ((async return) : async ()) ;
     │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
 error[M0242]: this declares an implicit oneway function.
   if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
     ┌─ oneways.mo:18:24
@@ -33,3 +41,5 @@ error[M0277]: redundant `ignore async`: the body of a one-way shared function is
     ┌─ oneways.mo:18:24
  18 │  shared func wrong3() = ignore async ();
     │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore async` with ` { `
+    = help: insert ` }`

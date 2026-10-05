@@ -7,6 +7,9 @@ actor {
   func run(f : () -> async Nat) : async Nat { await f() };
   public func go() : async Nat { await run(func() = async { 1 }) };
   public func notify() : () = ignore (async {});
+  public func notify2() : () = ignore async {};
+  public func notify3() : () = ignore ((async ()) : async ());
+  public func notify4() = ignore (async ());
 
   // not redundant
   func eq() : async Nat = do { 1 };

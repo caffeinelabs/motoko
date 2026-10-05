@@ -28,3 +28,27 @@ error[M0277]: redundant `ignore async`: the body of a one-way shared function is
     ┌─ M0277.mo:9:31
   9 │    public func notify() : () = ignore (async {});
     │                                ^^^^^^^^^^^^^^^^^ 
+    = help: remove `= ignore (async`
+    = help: remove `)`
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
+    ┌─ M0277.mo:10:32
+ 10 │    public func notify2() : () = ignore async {};
+    │                                 ^^^^^^^^^^^^^^^ 
+    = help: remove `= ignore async`
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
+    ┌─ M0277.mo:11:32
+ 11 │    public func notify3() : () = ignore ((async ()) : async ());
+    │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
+error[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ M0277.mo:12:27
+ 12 │    public func notify4() = ignore (async ());
+    │                            ^^^^^^^^^^^^^^^^^ 
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
+    ┌─ M0277.mo:12:27
+ 12 │    public func notify4() = ignore (async ());
+    │                            ^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore (async` with ` { `
+    = help: replace `)` with ` }`

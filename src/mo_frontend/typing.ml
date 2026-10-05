@@ -847,21 +847,26 @@ let checked_body_kind sort typ_opt s tbs ts2 =
 let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
   let typ_binds' =
     if kind <> Plain || T.is_shared_sort sort then ensure_scope_bind "" typ_binds else typ_binds in
-  let redundant = match kind, body.it with
-    | Async s, AsyncE (_, s', _, _) -> s = s'
-    | Oneway, IgnoreE {it = AsyncE (_, T.Fut, _, _) | AnnotE ({it = AsyncE (_, T.Fut, _, _); _}, _); _} -> true
-    | _ -> false
+  let spelled_out = match kind, body.it with
+    | Async s, AsyncE (par, s', _, inner) when s = s' -> Some (par, inner)
+    | Oneway, IgnoreE {it = AsyncE (par, T.Fut, _, inner)
+                     | AnnotE ({it = AsyncE (par, T.Fut, _, inner); _}, _); _} -> Some (par, inner)
+    | _ -> None
   in
+  let redundant = Option.is_some spelled_out in
   if redundant && not env.pre then begin
-    let par, edits = match body.it with
-      | AsyncE (par, _, _, inner) ->
+    let par, edits = match spelled_out with
+      | Some (par, inner) ->
         let left = match typ_opt with Some t -> t.at.right | None -> pat.at.right in
-        par, (match par, inner.it with
-          | Some _, _ -> []
-          | None, BlockE _ -> [edit { left; right = inner.at.left } " "]
-          | None, _ ->
-            [edit { left; right = inner.at.left } " { "; edit { left = inner.at.right; right = body.at.right } " }"])
-      | _ -> None, []
+        (* `= async <inner>` and `= ignore (async <inner>)` become ` { <inner> }`, or just ` <inner>` for a block *)
+        let opening, closing = match inner.it with BlockE _ -> " ", "" | _ -> " { ", " }" in
+        let trailing = { left = inner.at.right; right = body.at.right } in
+        par, (match par with
+          | Some _ -> []
+          | None ->
+            edit { left; right = inner.at.left } opening ::
+            (if closing = "" && trailing.left = trailing.right then [] else [edit trailing closing]))
+      | None -> None, []
     in
     let notes = if par = None then [] else
       ["A parenthetical goes at the call site instead, e.g. `(with cycles = 1_000) f()`."] in

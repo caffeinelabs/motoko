@@ -438,14 +438,6 @@ let is_asyncE e =
   | AsyncE _ -> true
   | _ -> false
 
-let is_ignore_asyncE e =
-  match e.it with
-  | IgnoreE
-      {it = AnnotE ({it = AsyncE (None, Type.Fut, _, _); _},
-        {it = AsyncT (Type.Fut, _, {it = TupT []; _}); _}); _} ->
-    true
-  | _ -> false
-
 let contextual_dot_args e1 e2 dot_note =
   let module T = Mo_types.Type in
   let arity = match dot_note.note.note_typ with
