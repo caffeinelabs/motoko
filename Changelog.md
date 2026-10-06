@@ -242,6 +242,12 @@
 
   * **Bug fixes**
 
+    * bugfix: timers no longer stop for good when a canister runs short of
+      cycles. If the self-call that dispatches expired timers was rejected
+      before it ran (e.g. `IC0207` out of cycles), no timer fired again, even
+      after a top-up. A one-shot timer whose job was rejected that way is now
+      retried instead of dropped (#NNNN).
+
     * bugfix: a type pattern field such as `let { type T } = m` in the body of
       `let o = object { ... }` or `module M { ... }` no longer crashes the
       compiler with an internal assertion. A well-typed binding is accepted,

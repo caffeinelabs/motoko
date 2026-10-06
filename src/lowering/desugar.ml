@@ -927,8 +927,12 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
          (match call_system_func_opt "timer" es obj_typ with
           | Some call -> call
           | None when !Mo_config.Flags.global_timer ->
+            (* expire again soon in case @timer_helper's self-call is rejected
+               before it runs (e.g. out of cycles): only it sets the next expiration *)
             blockE
-              [ expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
+              [ expD T.(callE (varE (var "@set_global_timer" global_timer_set_type)) []
+                  (nat64E Mo_values.Numerics.Nat64.one));
+                expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
               (unitE())
           | None -> tupE []);
        inspect =

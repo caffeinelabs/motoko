@@ -38,6 +38,17 @@ use std::time::Duration;
 //    - Makes a query call to a canister method
 //    - args can be empty ("") or DIDL-encoded
 //    - Returns the response or error
+//
+// 3. submit <canister_id> <method_name> <args>
+//    - Submits an ingress call without executing or awaiting it
+//    - It executes in the next round, e.g. alongside a due timer
+//
+// Execution Commands:
+// 1. tick <rounds>
+//    - Executes that many rounds, advancing time by one second after each
+//
+// 2. add_cycles <canister_id> <amount>
+//    - Deposits cycles into a canister, e.g. to top up a starved one
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum SubnetType {
@@ -72,6 +83,18 @@ pub enum TestCommand {
         canister_id: String,
         method_name: String,
         args: String,
+    },
+    Submit {
+        canister_id: String,
+        method_name: String,
+        args: String,
+    },
+    Tick {
+        rounds: u64,
+    },
+    AddCycles {
+        canister_id: String,
+        amount: u128,
     },
 }
 
@@ -220,6 +243,11 @@ impl ResultExtractor for () {
             | TestCommand::Upgrade { .. }
             | TestCommand::Install { .. } => "ingress Completed: Reply: 0x4449444c0000".to_string(),
             TestCommand::Query { .. } => "Ok: Reply: 0x4449444c0000".to_string(),
+            TestCommand::Submit { .. }
+            | TestCommand::Tick { .. }
+            | TestCommand::AddCycles { .. } => {
+                unreachable!("command has no response")
+            }
         }
     }
 }
@@ -237,6 +265,11 @@ impl ResultExtractor for Vec<u8> {
                 format!("ingress Completed: Reply: 0x{}", hex_str)
             }
             TestCommand::Query { .. } => format!("Ok: Reply: 0x{}", hex_str),
+            TestCommand::Submit { .. }
+            | TestCommand::Tick { .. }
+            | TestCommand::AddCycles { .. } => {
+                unreachable!("command has no response")
+            }
         }
     }
 }
@@ -343,6 +376,9 @@ impl TestCommand {
                     TestCommand::Query { .. } => {
                         format!("Err: {}: {}", e.error_code, e.reject_message)
                     }
+                    TestCommand::Submit { .. }
+                    | TestCommand::Tick { .. }
+                    | TestCommand::AddCycles { .. } => unreachable!("command has no response"),
                 }
             }
         }
@@ -508,6 +544,44 @@ impl TestCommand {
         Ok(())
     }
 
+    fn submit_command(
+        &self,
+        server: &mut PocketIc,
+        canister_id: &str,
+        method_name: &str,
+        args: &str,
+    ) -> std::io::Result<()> {
+        let canister_principal = Self::principal_from_text(canister_id)?;
+        let payload = Self::parse_args(args)?;
+        if let Err(e) = server.submit_call(
+            canister_principal,
+            Principal::anonymous(),
+            method_name,
+            payload,
+        ) {
+            println!("ingress Err: {}: {}", e.error_code, e.reject_message);
+        }
+        Ok(())
+    }
+
+    fn tick_command(&self, server: &mut PocketIc, rounds: u64) -> std::io::Result<()> {
+        for _ in 0..rounds {
+            server.tick();
+            server.advance_time(Duration::from_secs(1));
+        }
+        Ok(())
+    }
+
+    fn add_cycles_command(
+        &self,
+        server: &mut PocketIc,
+        canister_id: &str,
+        amount: u128,
+    ) -> std::io::Result<()> {
+        server.add_cycles(Self::principal_from_text(canister_id)?, amount);
+        Ok(())
+    }
+
     pub fn execute(&self, server: &mut PocketIc) -> std::io::Result<()> {
         match self {
             TestCommand::Install {
@@ -536,6 +610,16 @@ impl TestCommand {
                 method_name,
                 args,
             } => self.query_command(server, canister_id, method_name, args),
+            TestCommand::Submit {
+                canister_id,
+                method_name,
+                args,
+            } => self.submit_command(server, canister_id, method_name, args),
+            TestCommand::Tick { rounds } => self.tick_command(server, *rounds),
+            TestCommand::AddCycles {
+                canister_id,
+                amount,
+            } => self.add_cycles_command(server, canister_id, *amount),
         }?;
         Ok(())
     }
@@ -639,6 +723,48 @@ pub fn parse_commands(content: &str) -> std::io::Result<Vec<TestCommand>> {
                     canister_id: parts[1].to_string(),
                     method_name: parts[2].to_string(),
                     args: parts[3].to_string(),
+                }
+            }
+            "submit" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "submit command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Submit {
+                    canister_id: parts[1].to_string(),
+                    method_name: parts[2].to_string(),
+                    args: parts[3].to_string(),
+                }
+            }
+            "tick" => {
+                let rounds = match parts[1..] {
+                    [n] => n.parse().ok(),
+                    _ => None,
+                };
+                let Some(rounds) = rounds else {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "tick command requires a number of rounds",
+                    ));
+                };
+                TestCommand::Tick { rounds }
+            }
+            "add_cycles" => {
+                let amount = match parts[1..] {
+                    [_, n] => n.replace('_', "").parse().ok(),
+                    _ => None,
+                };
+                let Some(amount) = amount else {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "add_cycles command requires a canister id and an amount",
+                    ));
+                };
+                TestCommand::AddCycles {
+                    canister_id: parts[1].to_string(),
+                    amount,
                 }
             }
             _ => {
