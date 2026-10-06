@@ -240,6 +240,10 @@
       binaries continue. The `motoko-base-library.tar.gz` artifact is also
       dropped; `motoko-core.tar.gz` is unaffected (#6355).
 
+    * feat: M0217 (redundant `persistent`) and M0269 (deprecated `.vals()`)
+      ship machine-applicable edits, so `mops check --fix` rewrites
+      `persistent actor` to `actor` and `.vals()` to `.values()` (#NNNN).
+
   * **Bug fixes**
 
     * bugfix: a type pattern field such as `let { type T } = m` in the body of
