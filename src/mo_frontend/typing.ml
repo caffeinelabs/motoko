@@ -5048,10 +5048,7 @@ and check_stable_defaults env sort dec_fields =
   if declared_persistent then
     begin
       if sort.note.at <> no_region then
-        (* [sort.at] spans `persistent actor` *)
-        warn env sort.note.at "M0217"
-          ~edits:[edit { sort.note.at with right = sort.at.right } "actor"]
-          "redundant `persistent` keyword";
+        warn env sort.note.at "M0217" ~edits:[edit sort.note.at ""] "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable; at; _}, (LetD _ | VarD _) ->

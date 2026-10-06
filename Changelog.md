@@ -241,8 +241,8 @@
       dropped; `motoko-core.tar.gz` is unaffected (#6355).
 
     * feat: M0217 (redundant `persistent`) and M0269 (deprecated `.vals()`)
-      ship machine-applicable edits, so `mops check --fix` rewrites
-      `persistent actor` to `actor` and `.vals()` to `.values()` (#6439).
+      ship machine-applicable edits, so `mops check --fix` removes the
+      `persistent` and rewrites `.vals()` to `.values()` (#6439).
 
   * **Bug fixes**
 
