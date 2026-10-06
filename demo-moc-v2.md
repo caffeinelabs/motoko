@@ -1,6 +1,6 @@
 # moc v2
 
-Versions: `moc` 2.0.0-beta.4 · `mo-fmt` 0.2.0 · `mops` 3.4.1
+Versions: `moc` 2.0.0-beta.5 · `mo-fmt` 0.2.0 · `mops` 3.4.1
 Full reference: [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md) · [Changelog](Changelog.md)
 
 | Area | moc 1 | moc 2 |
@@ -10,6 +10,7 @@ Full reference: [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md) · [
 | Control flow | `if (c) …`, `switch (e) { case (p) …; }` | `if c { … }`, `switch e { case p { … } }` |
 | Safety | traps-in-waiting are warnings | they are errors |
 | Dot notation | opt-in hint | on by default, works across nested modules |
+| Async functions | `func(n : Nat) : async Nat { … }` | `func(n) { … }` where the type is known |
 | Formatting | Prettier plugin (Node) | `mo-fmt` (Rust, tree-sitter), rewrites to moc 2 syntax |
 
 ---
@@ -153,6 +154,10 @@ actor {
 | Raw stable memory | `ExperimentalStableMemory` | `Region` |
 
 A classical canister still upgrades: compile that one upgrade with `--enhanced-orthogonal-persistence`.
+
+### Dropped stable variables are always caught
+
+An upgrade that drops a stable variable without a migration function is rejected, also when it adds one at the same time. Renaming `balances` to `users` could pass the runtime check in moc 1, depending on how the names hashed, and lose the data.
 
 ### `preupgrade` / `postupgrade`
 
@@ -333,7 +338,7 @@ Code that traps, or silently does something other than what it says. `-W <code>`
 | M0128 | `func heartbeat() : async () { … }` | named like a system method but not `system`: never called by the IC | `system func heartbeat() …` |
 | M0242 | `public func log(t : Text) { … }` | no return type: implicitly oneway, callers get no reply or error | `public func log(t : Text) : () { … }` |
 | M0005 | `import L "lib";` for `Lib.mo` | import path case differs from the file: breaks on case-sensitive filesystems | `import L "Lib";` |
-| M0278 | migration file without `public func migration` | file in the migrations dir is skipped: the migration never runs | export `migration` (after beta.4) |
+| M0278 | migration file without `public func migration` | file in the migrations dir is skipped: the migration never runs | export `migration` |
 | M0142 | library file with bare declarations | imported library isn't a `module`: deprecated form | wrap in `module { … }` |
 | M0193 | `actor class C() : actor {} { … }` | actor class with a non-`async` return type: creation is async | `: async actor {}` |
 
@@ -353,8 +358,6 @@ user == order // records sharing no field  M0276
 ```
 
 ### 4.4 Patterns must fit the matched type
-
-Lands after 2.0.0-beta.4.
 
 ```motoko
 type Status = { #active; #suspended };
@@ -388,6 +391,24 @@ m.add("a", 1)  // implicit `compare`
 
 - M0236 is on by default, and `mops check --fix` applies it.
 - Dot notation and implicits also search nested modules, so importing a facade that re-exports its package is enough.
+
+### `async` functions infer from context
+
+```motoko
+// moc 1
+func get() : async Nat = async { 1 };
+let n = await run(func(n : Nat) : async Nat { n + 1 });
+```
+
+```motoko
+// moc 2
+func get() : async Nat = 1;                   // `= async { 1 }` is now M0277
+let n = await run(func(n) { n + 1 });         // run : (Nat -> async Nat) -> async Nat
+```
+
+- A body is `async` exactly when the return type is, for `= e` and `{ … }` alike.
+- A function passed where an `async` function type is expected takes its parameter and return types from it, as non-async functions already did. Also for `async*` and generic calls: `forEach(xs, func(x) { await process(x) })`.
+- `= (with cycles = n) async { … }` moves to the call site: `(with cycles = n) f()`.
 
 ### Read-only primitives in queries
 
@@ -433,7 +454,7 @@ mops toolchain use mo-fmt 0.2.0
 ```toml
 # mops.toml
 [toolchain]
-moc = "2.0.0-beta.4"
+moc = "2.0.0-beta.5"
 mo-fmt = "0.2.0"
 ```
 
@@ -496,7 +517,7 @@ Real `mo-fmt --syntax moc2` output on the moc 1 column. Semicolons outside `case
 ## 8. Upgrading a project
 
 ```bash
-mops toolchain use moc 2.0.0-beta.4
+mops toolchain use moc 2.0.0-beta.5
 mops toolchain use mo-fmt 0.2.0
 mops check --fix
 mops format --verify -- --syntax moc2
