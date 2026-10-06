@@ -1,6 +1,6 @@
 # moc v2
 
-Versions: `moc` 2.0.0-beta.5 · `mo-fmt` 0.2.0 · `mops` 3.4.1
+Versions: `moc` 2.0.0-beta.5 · `mo-fmt` 0.3.0 · `mops` 3.4.1
 Full reference: [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md) · [Changelog](Changelog.md)
 
 | Area | moc 1 | moc 2 |
@@ -115,9 +115,8 @@ How the right column was produced:
 | Step | Command | What it changed |
 |---|---|---|
 | 1 | `mops check --fix` | dropped `stable` (M0218), `Map.get(stock, …)` → `stock.get(…)` (M0236) |
-| 2 | `mops format` with `mo-fmt` in `moc2` mode | parentheses, `case` patterns, `;` after `case` arms, braced branches |
+| 2 | `mops format` with `mo-fmt` in `moc2` mode | parentheses, `case` patterns, braced branches, minimal `;` |
 | 3 | by hand | `persistent actor` → `actor` (M0217), `.vals()` → `.values()` (M0269) |
-| 4 | by hand, optional | trailing `;` after the last expression: moc 1 style uses it everywhere, moc 2 style keeps `;` only between declarations and statements. Both compile |
 
 ---
 
@@ -438,30 +437,39 @@ Also `envVar`, `envVarNames`, `callerInfoSigner`, `callerInfoData`, `getCandidLi
 - Rust binary, built on the tree-sitter grammar in `caffeinelabs/tree-sitter-motoko`. Replaces the Node `prettier-plugin-motoko`.
 - **Keeps your line breaks**: a list on one line stays on one line, a broken list gets one item per line.
 - **Never changes meaning**: every run re-parses its own output and refuses to write code that parses differently.
-- Two modes:
+- **Granular**: `syntax` is a preset over individual rules, and any rule can be set on its own.
 
-| `syntax` | Does |
-|---|---|
-| `preserve` (default) | indentation and spacing only; any moc version |
-| `moc2` | also rewrites to moc 2 syntax: drops head and `case` parentheses, braces every control body, drops `;` after braced `case` arms |
+| Rule | Does | `preserve` (default) | `moc2` |
+|---|---|---|---|
+| `brace-bodies` | every control body becomes `{ … }` | off | on |
+| `unparen-heads` | `switch (e)` → `switch e`, `for (p in e)` → `for p in e` | off | on |
+| `unparen-patterns` | `case (#ok v)` → `case #ok(v)` | off | on |
+| `do-blocks` | `let … else { … }` → `let … else do { … }` | off | on |
+| `semicolons` | `minimal`: drop every `;` moc doesn't need | `preserve` | `minimal` |
+| `trailing-commas` | `multiline`: one on broken lists; `never` | `preserve` | `preserve` |
+| `block-blank-lines` | `trim`: no blank lines just inside braces | `preserve` | `preserve` |
+| `imports` | `organize`: packages, canisters, local files, each sorted | `preserve` | `preserve` |
 
 ### Setup
 
 ```bash
-mops toolchain use mo-fmt 0.2.0
+mops toolchain use mo-fmt 0.3.0
 ```
 
 ```toml
 # mops.toml
 [toolchain]
 moc = "2.0.0-beta.5"
-mo-fmt = "0.2.0"
+mo-fmt = "0.3.0"
 ```
 
 ```toml
 # mo-fmt.toml (optional)
 syntax = "moc2"
 indent-width = 2
+imports = "organize"           # any rule overrides the preset
+trailing-commas = "multiline"
+block-blank-lines = "trim"
 ```
 
 Without the `mo-fmt` pin, `mops format` still runs the Prettier plugin.
@@ -473,12 +481,13 @@ Without the `mo-fmt` pin, `mops format` still runs the Prettier plugin.
 | `mops format` | format in place |
 | `mops format --check` | CI: list files that need formatting, exit 1 |
 | `mops format -- --syntax moc2` | try the moc 2 rewrite without a config file |
+| `mops format -- --rule semicolons=minimal` | one rule on its own, on top of the preset |
 | `mops format --verify` | run `mops check` afterwards, revert formatting if it fails |
 | `// mo-fmt-ignore` | leave the next item as written |
 
 ### `moc2` mode on the demo file
 
-Real `mo-fmt --syntax moc2` output on the moc 1 column. Semicolons outside `case` arms are kept.
+Real `mo-fmt --syntax moc2` output on the moc 1 column. With steps 1 and 3 from section 1, it gives the moc 2 column.
 
 ```diff
    public query func describe(s : Status) : async Text {
@@ -486,30 +495,82 @@ Real `mo-fmt --syntax moc2` output on the moc 1 column. Semicolons outside `case
 -      case (#open) { "open" };
 -      case (#paused) { "paused" };
 -      case (#closed(reason)) { "closed: " # reason };
+-    };
 +    switch s {
 +      case #open { "open" }
 +      case #paused { "paused" }
 +      case #closed(reason) { "closed: " # reason }
-     };
++    }
+   };
  ...
+     hits += 1;
 -    switch (Map.get(stock, Text.compare, item)) {
 -      case (null) { return "unknown item" };
 -      case (?n) {
 -        if (n < qty) return "only " # Nat.toText(n) # " left";
+-        Map.add(stock, Text.compare, item, n - qty : Nat);
+-      };
 +    switch Map.get(stock, Text.compare, item) {
 +      case null { return "unknown item" }
 +      case ?n {
 +        if n < qty { return "only " # Nat.toText(n) # " left" };
-         Map.add(stock, Text.compare, item, n - qty : Nat);
--      };
++        Map.add(stock, Text.compare, item, n - qty : Nat)
 +      }
      };
+     orders += 1;
+-    "ok";
++    "ok"
+   };
  ...
+     var sum = 0;
 -    for (p in prices.vals()) { sum += p };
+-    sum;
 +    for p in prices.vals() { sum += p };
++    sum
+   };
  ...
+   public query func sign(n : Int) : async Text {
 -    if (n < 0) "negative" else if (n == 0) "zero" else "positive";
-+    if n < 0 { "negative" } else if n == 0 { "zero" } else { "positive" };
+-  };
+-};
++    if n < 0 { "negative" } else if n == 0 { "zero" } else { "positive" }
++  }
++}
+```
+
+### The opt-in rules
+
+`moc2` plus `imports = "organize"`, `trailing-commas = "multiline"`, `block-blank-lines = "trim"`:
+
+```diff
+ /// Orders service.
++import Array "mo:core/Array";
++import Text "mo:core/Text";
++
++import Ledger "canister:ledger";
++
+ import Utils "./utils";
+-import Text "mo:core/Text";
+-import Ledger "canister:ledger";
+-import Array "mo:core/Array";
+ 
+ module {
+-
+   public func find(users : Users, id : Nat) : Result {
+-    let ?user = users.get(id) else { return #err("unknown") };
++    let ?user = users.get(id) else do { return #err("unknown") };
+     Map.add(
+       map,
+       key,
+-      value
++      value,
+     );
+-    #ok(user);
+-  };
+-
++    #ok(user)
++  }
+ }
 ```
 
 ---
@@ -518,7 +579,7 @@ Real `mo-fmt --syntax moc2` output on the moc 1 column. Semicolons outside `case
 
 ```bash
 mops toolchain use moc 2.0.0-beta.5
-mops toolchain use mo-fmt 0.2.0
+mops toolchain use mo-fmt 0.3.0
 mops check --fix
 mops format --verify -- --syntax moc2
 mops check-stable
