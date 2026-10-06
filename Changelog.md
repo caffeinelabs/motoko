@@ -242,7 +242,7 @@
 
     * feat: M0217 (redundant `persistent`) and M0269 (deprecated `.vals()`)
       ship machine-applicable edits, so `mops check --fix` rewrites
-      `persistent actor` to `actor` and `.vals()` to `.values()` (#NNNN).
+      `persistent actor` to `actor` and `.vals()` to `.values()` (#6439).
 
   * **Bug fixes**
 
