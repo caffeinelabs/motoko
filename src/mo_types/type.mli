@@ -409,6 +409,7 @@ module type PrettyConfig = sig
   val con_sep : string
   val par_sep : string
   val max_list : int option
+  val canonicalize : bool
 end
 
 module ShowStamps : PrettyConfig
