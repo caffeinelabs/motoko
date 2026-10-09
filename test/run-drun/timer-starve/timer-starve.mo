@@ -6,19 +6,19 @@ actor Self {
   let ic = actor "aaaaa-aa" : actor {
     update_settings : {
       canister_id : Principal;
-      settings : { freezing_threshold : ?Nat };
-    } -> async ();
+      settings : { freezing_threshold : ?Nat }
+    } -> async ()
   };
 
   var ticks = 0;
   var recurring = 0;
 
   func burnAll<system>() {
-    ignore Prim.cyclesBurn<system>(Prim.cyclesBalance());
+    ignore Prim.cyclesBurn<system>(Prim.cyclesBalance())
   };
 
   public func start() : async () {
-    recurring := Prim.setTimer<system>(1_000_000_000, true, func() : async () { ticks += 1 });
+    recurring := Prim.setTimer<system>(1_000_000_000, true, func() : async () { ticks += 1 })
   };
 
   public func burn() : async () { burnAll<system>() };
@@ -26,15 +26,15 @@ actor Self {
   // Two one-shot jobs due together: the first starves the second. Without
   // a freezing reserve, the burn leaves no cycles for the second to run on.
   public func starve() : async () {
-    Prim.cancelTimer recurring;
+    Prim.cancelTimer(recurring);
     ticks := 0;
     await ic.update_settings({
-      canister_id = Prim.principalOfActor Self;
-      settings = { freezing_threshold = ?0 };
+      canister_id = Prim.principalOfActor(Self);
+      settings = { freezing_threshold = ?0 }
     });
     ignore Prim.setTimer<system>(1_000_000_000, false, func() : async () { burnAll<system>() });
-    ignore Prim.setTimer<system>(1_000_000_000, false, func() : async () { ticks += 1 });
+    ignore Prim.setTimer<system>(1_000_000_000, false, func() : async () { ticks += 1 })
   };
 
-  public query func count() : async Nat { ticks };
-};
+  public query func count() : async Nat { ticks }
+}

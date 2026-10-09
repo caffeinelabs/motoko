@@ -575,8 +575,8 @@ func @timer_helper() : async () {
   var failed : Nat64 = 0;
   // may run after an `await` below, i.e. on a changed tree: prune and expire each time
   func reinsert(job : () -> async ()) {
-    @timers := @prune @timers;
-    ignore (prim "global_timer_set" : Nat64 -> Nat64) 1;
+    @timers := @prune(@timers);
+    ignore (prim "global_timer_set" : Nat64 -> Nat64)(1);
     failed += 1;
     @timers := ?(
       switch @timers {
@@ -604,25 +604,27 @@ func @timer_helper() : async () {
 
   let jobs = Array_init<?(async ())>(gathered, null);
   var i = 0;
-  while (i < gathered) {
-    switch (thunks[i]) {
-      case (?thunk) try jobs[i] := ?thunk() catch _ reinsert thunk;
-      case null {};
+  while i < gathered {
+    switch thunks[i] {
+      case ?thunk { try { jobs[i] := ?thunk() } catch _ { reinsert(thunk) } }
+      case null {}
     };
-    i += 1;
+    i += 1
   };
 
   // a self-call rejected as transient (e.g. out of cycles) never ran its job: retry it
   i := 0;
-  while (i < gathered) {
+  while i < gathered {
     switch (jobs[i], thunks[i]) {
-      case (?job, ?thunk) try await job catch e {
-        if (@isTransient e) reinsert thunk;
-      };
-      case _ {};
+      case (?job, ?thunk) {
+        try { await job } catch e {
+          if @isTransient(e) { reinsert(thunk) }
+        }
+      }
+      case _ {}
     };
-    i += 1;
-  };
+    i += 1
+  }
 };
 
 func @isTransient(e : Error) : Bool {
@@ -634,12 +636,12 @@ func @isTransient(e : Error) : Bool {
     #canister_error;
     #system_unknown;
     #future : Nat32;
-    #call_error : { err_code : Nat32 };
+    #call_error : { err_code : Nat32 }
   };
-  switch (((prim "cast" : Error -> (Code, Text)) e).0) {
-    case (#system_transient) true;
-    case _ false;
-  };
+  switch ((prim "cast" : Error -> (Code, Text))(e)).0 {
+    case #system_transient { true }
+    case _ { false }
+  }
 };
 
 var @lastTimerId = 0;
