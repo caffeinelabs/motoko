@@ -1,6 +1,6 @@
 # Motoko compiler changelog
 
-## Next
+## 2.0.0 (2026-10-06)
 
 * Upgrading from `moc` 1.x? The [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
   lists every breaking change below with the message you will see and its fix (#6417).
@@ -239,6 +239,10 @@
       Mac, build from source. x86_64 Linux, aarch64 Linux and Apple Silicon
       binaries continue. The `motoko-base-library.tar.gz` artifact is also
       dropped; `motoko-core.tar.gz` is unaffected (#6355).
+
+    * feat: M0217 (redundant `persistent`) and M0269 (deprecated `.vals()`)
+      ship machine-applicable edits, so `mops check --fix` removes the
+      `persistent` and rewrites `.vals()` to `.values()` (#6439).
 
   * **Bug fixes**
 

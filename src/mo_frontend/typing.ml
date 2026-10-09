@@ -2364,7 +2364,7 @@ type 'a dot_callee_resolution =
 
 let warn_deprecated_vals env id fs =
   if id.it = "vals" && T.lookup_val_field_opt "values" fs <> None then
-    warn env id.at "M0269" "member `.vals()` is deprecated; use `.values()` instead"
+    warn env id.at "M0269" ~edits:[edit id.at "values"] "member `.vals()` is deprecated; use `.values()` instead"
 
 (* How a dot callee `e.f(...)` resolves: a function-typed field of the receiver shadows contextual dot.
    The single source of that precedence — [infer_callee] and the M0236 suggestion both resolve through it, so they cannot drift.
@@ -5048,7 +5048,7 @@ and check_stable_defaults env sort dec_fields =
   if declared_persistent then
     begin
       if sort.note.at <> no_region then
-        warn env sort.note.at "M0217" "redundant `persistent` keyword";
+        warn env sort.note.at "M0217" ~edits:[edit sort.note.at ""] "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable; at; _}, (LetD _ | VarD _) ->
