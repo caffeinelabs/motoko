@@ -515,6 +515,14 @@ func @nextExpiration(n : ?@Node) : Nat64 = switch n {
   };
 };
 
+// Called by the default timer handler before it sends `@timer_helper`, which replaces this
+// expiration when it runs: retries a lost helper, at most one extra per delay if it is late.
+// DO NOT RENAME without modifying compilation.
+func @timer_fallback() {
+  let now = (prim "time" : () -> Nat64)();
+  ignore (prim "global_timer_set" : Nat64 -> Nat64)(now + 5_000_000_000)
+};
+
 // Function called by backend to run eligible timed actions.
 // DO NOT RENAME without modifying compilation.
 func @timer_helper() : async () {
