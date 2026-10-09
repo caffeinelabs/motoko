@@ -1,0 +1,28 @@
+# APPLICATION-SUBNET
+# (system subnets charge no cycles, so nothing would starve)
+
+install $ID timer-starve/timer-starve.mo ""
+
+# The burn executes in the round the timer fires, after the timer sent its
+# dispatcher self-call but before that runs: the recurring timer must resume.
+ingress $ID start "DIDL\x00\x00"
+submit $ID burn "DIDL\x00\x00"
+tick 10
+query $ID count "DIDL\x00\x00"
+add_cycles $ID 10_000_000_000_000
+tick 10
+query $ID count "DIDL\x00\x00"
+
+# The rejected one-shot job must run exactly once.
+ingress $ID starve "DIDL\x00\x00"
+tick 10
+add_cycles $ID 10_000_000_000_000
+tick 10
+query $ID count "DIDL\x00\x00"
+
+# The rejected recurring job must not run an extra time.
+ingress $ID starveRecurring "DIDL\x00\x00"
+tick 10
+add_cycles $ID 10_000_000_000_000
+tick 10
+query $ID count "DIDL\x00\x00"
