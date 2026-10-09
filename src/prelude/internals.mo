@@ -620,11 +620,13 @@ func @timer_helper() : async () {
   };
 
   // a self-call rejected as transient (e.g. out of cycles) never ran its job: retry it
+  // `await?`: a plain await of a finished job yields via its own self-call, whose
+  // transient rejection would rerun a job that already ran
   i := 0;
   while i < gathered {
     switch (jobs[i], thunks[i]) {
       case (?job, ?thunk) {
-        try { await job } catch e {
+        try { await? job } catch e {
           if @isTransient(e) { reinsert(thunk) }
         }
       }
