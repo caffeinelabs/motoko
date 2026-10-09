@@ -63,3 +63,90 @@ error[M0116]: variant pattern cannot consume expected type
     │        ││     
     │        │help: did you mean tag #ok?
     │        expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:94:10
+ 93 │  switch (#sparrows(1) : { #sparrows : Nat; #geese; #ducks }) {
+    │          -------------------------------------------------- this expression has type `{#ducks; #geese; #sparrows : Nat}`
+ 94 │    case (#sparows(n)) { ignore n };
+    │          ^^^^^^^^^^^
+    │          ││         
+    │          │help: did you mean tag #sparrows?
+    │          expected `{#ducks; #geese; #sparrows : Nat}`, got `{#sparows : _}`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:95:10
+ 93 │  switch (#sparrows(1) : { #sparrows : Nat; #geese; #ducks }) {
+    │          -------------------------------------------------- this expression has type `{#ducks; #geese; #sparrows : Nat}`
+ 94 │    case (#sparows(n)) { ignore n };
+ 95 │    case (#gese) {};
+    │          ^^^^^ help: did you mean tag #geese?
+    │          │
+    │          expected `{#ducks; #geese; #sparrows : Nat}`, got `{#gese : _}`
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ pat-inconsistent.mo:96:27
+ 96 │    case (#ducks) { ignore ("ducks" : Nat) };
+    │                            ^^^^^^^ 
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:100:11
+ 99 │  switch ((#a, #b) : ({ #a }, { #b })) {
+    │          --------------------------- this expression has type `({#a}, {#b})`
+100 │    case ((#aa, #bb)) {};
+    │           ^^^ help: did you mean tag #a?
+    │           │
+    │           expected `{#a}`, got `{#aa : _}`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:100:16
+ 99 │  switch ((#a, #b) : ({ #a }, { #b })) {
+    │          --------------------------- this expression has type `({#a}, {#b})`
+100 │    case ((#aa, #bb)) {};
+    │                ^^^ help: did you mean tag #b?
+    │                │
+    │                expected `{#b}`, got `{#bb : _}`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:105:17
+105 │    try {} catch (#err) { ignore ("skipped" : Nat) };
+    │                  ^^^^ expected `Error`, got `{#err : _}`
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ pat-inconsistent.mo:106:11
+106 │    ignore ("checked" : Nat);
+    │            ^^^^^^^^^ 
+error[M0112]: tuple pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:110:7
+110 │    let (a, b) = 1;
+    │        ^^^^^^   - this expression has type `Nat`
+    │        │
+    │        expected `Nat`, got `(_, _)`
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:111:8
+111 │    let #okk(c) = r else { return 0 };
+    │        ^^^^^^^   - this expression has type `{#err : Text; #ok : Nat}`
+    │        ││     
+    │        │help: did you mean tag #ok?
+    │        expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ pat-inconsistent.mo:112:17
+112 │    let d : Nat = "checked";
+    │                  ^^^^^^^^^ 
+error[M0112]: tuple pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:116:14
+116 │  func _params((a, b) : Nat, ?c : Nat) : Nat { a + b + c + "checked" };
+    │               ^^^^^^ expected `Nat`, got `(_, _)`
+error[M0115]: option pattern cannot consume expected type
+    ┌─ pat-inconsistent.mo:116:28
+116 │  func _params((a, b) : Nat, ?c : Nat) : Nat { a + b + c + "checked" };
+    │                             ^^ expected `Nat`, got `?_`
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ pat-inconsistent.mo:116:58
+116 │  func _params((a, b) : Nat, ?c : Nat) : Nat { a + b + c + "checked" };
+    │                                                           ^^^^^^^^^ 

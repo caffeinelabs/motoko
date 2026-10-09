@@ -1,4 +1,8 @@
 error[M0121]: duplicate field a in object pattern
+    ┌─ objpat-duplicate.mo:12:13
+ 12 │  let {a = x; a = y} = o;
+    │              ^^^^^ 
+error[M0121]: duplicate field a in object pattern
     ┌─ objpat-duplicate.mo:4:19
   4 │    case {a = x; b; a} {}
     │                    ^ 

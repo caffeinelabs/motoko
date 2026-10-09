@@ -84,6 +84,13 @@ cannot consume expected type
  67 │    case (x : Nat, y : Nat) {};
     │          ^^^^^^^ 
 error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:67:18
+ 67 │    case (x : Nat, y : Nat) {};
+    │                   ^^^^^^^ 
+error[M0117]: pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
   {a : Int; b : Int}
@@ -104,6 +111,13 @@ cannot consume expected type
     ┌─ pat-subtyping-fail.mo:77:13
  77 │    case {a = _ : Nat; b = _ : Nat} {};
     │              ^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:77:26
+ 77 │    case {a = _ : Nat; b = _ : Nat} {};
+    │                           ^^^^^^^ 
 error[M0117]: pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
