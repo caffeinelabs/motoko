@@ -36,5 +36,13 @@ actor Self {
     ignore Prim.setTimer<system>(1_000_000_000, false, func() : async () { ticks += 1 })
   };
 
+  // A recurring job starved the same way is not retried: like an overdue run,
+  // the missed run is skipped.
+  public func starveRecurring() : async () {
+    ticks := 0;
+    ignore Prim.setTimer<system>(5_000_000_000, false, func() : async () { burnAll<system>() });
+    recurring := Prim.setTimer<system>(5_000_000_000, true, func() : async () { ticks += 1 })
+  };
+
   public query func count() : async Nat { ticks }
 }

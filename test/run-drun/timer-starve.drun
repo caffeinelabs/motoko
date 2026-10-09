@@ -19,3 +19,10 @@ tick 10
 add_cycles $ID 10_000_000_000_000
 tick 10
 query $ID count "DIDL\x00\x00"
+
+# The rejected recurring job must not run an extra time.
+ingress $ID starveRecurring "DIDL\x00\x00"
+tick 10
+add_cycles $ID 10_000_000_000_000
+tick 10
+query $ID count "DIDL\x00\x00"

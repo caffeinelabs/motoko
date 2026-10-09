@@ -88,7 +88,7 @@ to `.wasm` and put that file name into the script before passing it to `drun`.
 
 Besides `install`, `upgrade`, `ingress` and `query`, a script can `submit` an
 ingress call without awaiting it, `tick` a number of rounds (one second each)
-and `add_cycles` to a canister; see `test-runner/src/test_runner.rs`. A leading
+and `add_cycles` to a canister; see `test-runner/src/test_runner.rs`. An
 `# APPLICATION-SUBNET` line runs it on an application subnet, which, unlike the
 default system subnet, charges cycles.
 

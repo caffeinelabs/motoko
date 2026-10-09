@@ -533,6 +533,7 @@ func @timer_helper() : async () {
 
   var gathered = 0;
   let thunks = Array_init<?(() -> async ())>(10, null); // we want max 10
+  let recurring = Array_init<Bool>(10, false);
 
   func gatherExpired(n : ?@Node) = switch n {
     case null ();
@@ -546,6 +547,7 @@ func @timer_helper() : async () {
           switch (n.delay) {
             case (null or ?0) n.expire[0] := 0;
             case (?delay) {
+              recurring[gathered] := true;
               // re-add the node, skipping past expirations
               let expire = pivot + delay * (1 + (now - pivot) / delay);
               n.expire[0] := 0;
@@ -580,7 +582,7 @@ func @timer_helper() : async () {
   if (exp == 0) @timers := null;
 
   var failed : Nat64 = 0;
-  // may run after an `await` below, i.e. on a changed tree: prune and expire each time
+  // may run after an `await` below, i.e. on a changed tree: prune and rearm each time
   func reinsert(job : () -> async ()) {
     @timers := @prune(@timers);
     ignore (prim "global_timer_set" : Nat64 -> Nat64)(1);
@@ -619,7 +621,8 @@ func @timer_helper() : async () {
     i += 1
   };
 
-  // a self-call rejected as transient (e.g. out of cycles) never ran its job: retry it
+  // a self-call rejected as transient (e.g. out of cycles) never ran its job: retry it,
+  // unless recurring, which skips the missed run as it skips past expirations
   // `await?`: a plain await of a finished job yields via its own self-call, whose
   // transient rejection would rerun a job that already ran
   i := 0;
@@ -627,7 +630,7 @@ func @timer_helper() : async () {
     switch (jobs[i], thunks[i]) {
       case (?job, ?thunk) {
         try { await? job } catch e {
-          if @isTransient(e) { reinsert(thunk) }
+          if not recurring[i] and @isTransient(e) { reinsert(thunk) }
         }
       }
       case _ {}
