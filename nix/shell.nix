@@ -46,6 +46,7 @@ pkgs.mkShell {
         pkgs.rlwrap # for `rlwrap moc`
         pkgs.moreutils # `chronic` for `make -C test quick`
         pkgs.wabt # `wasm-validate` for `run-test`
+        pkgs.binaryen # `wasm-opt` for `run-test`'s feature-aware validation
         pkgs.openjdk
         pkgs.difftastic
         pkgs.pocket-ic.server
