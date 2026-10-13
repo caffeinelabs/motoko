@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  Blob
+    ┌─ blob-argument.mo:4:25
+  4 │  ignore Prim.fixtureEcho(123);
+    │                          ^^^ 

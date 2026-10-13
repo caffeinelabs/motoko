@@ -1,0 +1,4 @@
+error[M0279]: fixtureApply expects 2 explicit type arguments
+    ┌─ callback-type-arity.mo:4:25
+  4 │  ignore Prim.fixtureApply<Nat>(func (n : Nat) : Nat { n }, 0);
+    │                          ^^^^^ 

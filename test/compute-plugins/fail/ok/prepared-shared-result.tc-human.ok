@@ -1,0 +1,5 @@
+error[M0032]: shared function has non-shared return type
+  {key : Prim.PreparedA}
+    ┌─ prepared-shared-result.mo:4:15
+  4 │  type Remote = shared () -> async { key : Prim.PreparedA };
+    │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

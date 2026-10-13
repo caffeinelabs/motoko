@@ -450,6 +450,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   last_env := env;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
+  | PrimE _ when Option.is_some
+      (Compute_plugin.intrinsic exp.note.note_typ) -> k V.unit
   | PrimE s ->
     k (V.Func (CC.call_conv_of_typ exp.note.note_typ,
        Prim.prim { Prim.trap = trap exp.at "%s" } s
@@ -631,6 +633,26 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       | T.Shared _ -> make_message env name exp.note.note_typ v
       | T.Local -> v
     in k v'
+  | CallE (par, callee, inst, (parenthesized, args))
+    when Option.is_some (Compute_plugin.intrinsic callee.note.note_typ) ->
+    let id = Option.get (Compute_plugin.intrinsic callee.note.note_typ) in
+    interpret_par env par (fun _ ->
+    interpret_exp env callee (fun _ ->
+      interpret_exp env !args (fun v ->
+        let argument_type = (!args).note.note_typ in
+        let argument_types, vs = match (!args).it with
+          | TupE _ when not parenthesized ->
+            T.seq_of_tup argument_type, V.as_tup v
+          | _ -> [argument_type], [v]
+        in
+        let specialization = Compute_plugin.{
+          type_arguments = inst.note;
+          argument_types;
+          result_type = exp.note.note_typ;
+        } in
+        Compute_plugin.evaluate (context env) id specialization vs (function
+        | Ok value -> k value
+        | Error message -> trap exp.at "%s" message))))
   | CallE (par, exp1, typs, (_, exp2)) ->
     let exp2 = !exp2 in
     interpret_par env par

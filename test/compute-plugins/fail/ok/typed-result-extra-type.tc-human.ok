@@ -1,0 +1,4 @@
+error[M0279]: fixtureDecode expects 1 explicit type argument
+    ┌─ typed-result-extra-type.mo:4:26
+  4 │  ignore Prim.fixtureDecode<Text, Nat>("text");
+    │                           ^^^^^^^^^^^ 

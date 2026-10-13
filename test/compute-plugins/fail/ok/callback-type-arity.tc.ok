@@ -1,0 +1,1 @@
+callback-type-arity.mo:4.25-4.30: type error [M0279], fixtureApply expects 2 explicit type arguments

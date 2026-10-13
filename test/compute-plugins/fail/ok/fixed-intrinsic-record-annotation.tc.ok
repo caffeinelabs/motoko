@@ -1,0 +1,7 @@
+fixed-intrinsic-record-annotation.mo:5.35-5.43: type error [M0096], expression of type
+  {echo : intrinsic fixture_echo}
+cannot produce expected type
+  {echo : Blob -> Blob}
+because of incompatible function controls: compute intrinsic fixture_echo
+ does not match regular function or one-shot shared function
+ in `echo`

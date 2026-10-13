@@ -228,6 +228,7 @@ let error_codes : (string * string option) list =
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
     "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
+    "M0279", Some([%blob "lang_utils/error_codes/M0279.md"]); (* Invalid compute plugin call or declaration *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

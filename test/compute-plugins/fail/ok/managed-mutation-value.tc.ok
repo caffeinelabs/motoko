@@ -1,0 +1,8 @@
+managed-mutation-value.mo:3.37-3.42: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat
+managed-mutation-value.mo:4.46-4.51: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat

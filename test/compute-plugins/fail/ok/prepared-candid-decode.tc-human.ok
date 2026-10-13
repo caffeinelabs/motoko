@@ -1,0 +1,5 @@
+error[M0174]: from_candid produces an optional shared type, not type
+  ?Prim.PreparedA
+    ┌─ prepared-candid-decode.mo:4:33
+  4 │  let decoded : ?Prim.PreparedA = from_candid(to_candid("bytes" : Blob));
+    │                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,2 @@
+prepared-stable.mo:5.7-5.10: type error [M0131], variable key is declared stable but has non-stable type
+  Prim.PreparedA

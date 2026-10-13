@@ -1,5 +1,29 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * Add experimental native compute compiler plugins via `--plugin`, with
+    typed specialization, statically linked Wasm, and interpreter reference
+    implementations and compatibility diagnostics. Support explicit output
+    type specialization and managed record/variant results through a single
+    typed binding API, generic opaque parameters, synchronous Motoko callbacks,
+    scalar ordering helpers, and allocation-free argument and tuple-result
+    passing. Compiler-proven scalar comparators can select native plugin
+    operations through ordinary callback APIs. Codegen-only plugins need no
+    runtime module. Typed managed array and record mutation uses the
+    compiler's ordinary GC barriers. Plugins can declare protected prepared
+    types backed by immutable managed bytes, avoiding repeated validation and
+    precomputation while retaining normal GC ownership. Plugin implementations
+    are maintained in the separate
+    [motoko_plugins](https://github.com/Neutrinomic/motoko_plugins) repository
+    (#6443).
+  * Support isolated exports when linking multiple Wasm runtime libraries
+    and decode Wasm64 function tables. Reject incompatible relocation
+    targets, out-of-bounds indices and segments, and malformed `dylink.0`
+    subsection lengths with normal diagnostics (#6443).
+
 ## 2.0.0 (2026-10-06)
 
 * Upgrading from `moc` 1.x? The [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)

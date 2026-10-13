@@ -1,0 +1,2 @@
+prepared-candid-encode.mo:4.8-4.64: type error [M0173], to_candid argument must have shared type, but instead has non-shared type
+  {keys : [PreparedA]}

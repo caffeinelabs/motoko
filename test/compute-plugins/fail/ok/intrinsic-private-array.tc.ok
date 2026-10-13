@@ -1,0 +1,1 @@
+intrinsic-private-array.mo:4.8-4.40: type error [M0279], fixtureShape requires shared argument types

@@ -1,0 +1,4 @@
+error[M0279]: fixtureDecode supports Text, Blob, Nat, or {value : Text; count : Nat64}
+    ┌─ typed-result-unsupported.mo:4:8
+  4 │  ignore Prim.fixtureDecode<[Nat]>("text");
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

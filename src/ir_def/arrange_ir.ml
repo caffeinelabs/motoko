@@ -86,6 +86,11 @@ and prim = function
   | ThrowPrim         -> Atom "ThrowPrim"
   | ShowPrim t        -> "ShowPrim" $$ [typ t]
   | SerializePrim t   -> "SerializePrim" $$ List.map typ t
+  | ComputePrim (i, s) -> "ComputePrim" $$ [id i;
+      "TypeArguments" $$ List.map typ s.Mo_values.Compute_plugin.type_arguments;
+      "Arguments" $$ List.map typ s.Mo_values.Compute_plugin.argument_types;
+      typ s.Mo_values.Compute_plugin.result_type]
+  | ComputeValuePrim i -> "ComputeValuePrim" $$ [id i]
   | DeserializePrim t -> "DeserializePrim" $$ List.map typ t
   | DeserializeOptPrim t -> "DeserializeOptPrim" $$ List.map typ t
   | NumConvWrapPrim (t1, t2) -> "NumConvWrapPrim" $$ [prim_ty t1; prim_ty t2]

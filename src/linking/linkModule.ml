@@ -301,6 +301,8 @@ let remove_non_ic_exports (em : extended_module) : extended_module =
 
   map_module (fun m -> { m with exports = List.filter keep_export m.exports }) em
 
+let finalize = remove_non_ic_exports
+
 (* Generic linking logic *)
 
 type renumbering = int32 -> int32
@@ -647,6 +649,16 @@ let join_modules
       (em1 : extended_module) (m2 : module_') (ns2 : name_section)
       (type_indices : (Wasm_exts.Types.func_type, int32) Hashtbl.t) : extended_module =
   let m1 = em1.module_ in
+  let exports =
+    List.fold_left (fun exports (export : export) ->
+      match List.find_opt (fun (other : export) -> other.it.name = export.it.name) exports with
+      | None -> exports @ [export]
+      | Some other when other.it.edesc.it = export.it.edesc.it -> exports
+      | Some _ ->
+        raise (LinkError (Printf.sprintf "Conflicting export %s when linking modules"
+          (Lib.Utf8.encode export.it.name)))
+    ) m1.exports m2.exports
+  in
   let joined = 
     { em1 with
       module_ = {
@@ -659,7 +671,7 @@ let join_modules
         elems = m1.elems @ m2.elems;
         datas = m1.datas @ m2.datas;
         imports = m1.imports @ m2.imports;
-        exports = m1.exports @ m2.exports;
+        exports;
       };
       name = {
         em1.name with
@@ -699,9 +711,23 @@ let check_global_typ =
 
 
 let align_i32 p n =
-  let open Int32 in
-  let p = to_int p in
-  shift_left (shift_right_logical (add n (sub (shift_left 1l p) 1l)) p) p
+  if p < 0l || p > 30l then
+    raise (LinkError "Unsupported alignment in dylink.0 memory-info");
+  let mask = Int64.pred (Int64.shift_left 1L (Int32.to_int p)) in
+  let aligned = Int64.logand
+    (Int64.add (I64_convert.extend_i32_u n) mask) (Int64.lognot mask)
+  in
+  if aligned > Int64.of_int32 Int32.max_int then
+    raise (LinkError "Size overflow while aligning a linked library");
+  Int64.to_int32 aligned
+
+let add_i32_size left right =
+  let sum = Int64.add
+    (I64_convert.extend_i32_u left) (I64_convert.extend_i32_u right)
+  in
+  if sum > Int64.of_int32 Int32.max_int then
+    raise (LinkError "Size overflow in dylink.0 memory-info");
+  Int64.to_int32 sum
 
 let find_fun_export (name : name) (exports : export list) : var option =
   List.find_map (fun (export : export) ->
@@ -813,7 +839,8 @@ let collect_got_imports (m : module_') : got_import list =
       to be patched. *)
       let continue_index =
         if is_global_import import.it.idesc.it then 
-          (assert allow_normal_globals;    
+          (if not allow_normal_globals then
+            raise (LinkError "Imported globals must precede GOT globals");
           next_index)
         else global_index
       in
@@ -938,9 +965,187 @@ let replace_got_imports (lib_memory_base : int32) (table_size : int32) (imports:
     globals = new_globals @ m.globals (* globals preceed existing globals to keep ordering *)
   }
 
+let validate_compute_plugin (em : extended_module) =
+  let open Wasm_exts.Types in
+  let m = em.module_ in
+  let reject message = raise (LinkError ("Compute plugin: " ^ message)) in
+  let mem_info =
+    match List.filter_map (function MemInfo info -> Some info | _ -> None) em.dylink0 with
+    | [info] -> info
+    | _ -> reject "expected exactly one dylink.0 memory-info section"
+  in
+  List.iter (function
+    | Needed (_ :: _) -> reject "runtime must not depend on other dynamic libraries"
+    | _ -> ()
+  ) em.dylink0;
+  if mem_info.memory_size < 0l || mem_info.memory_size > 524288l ||
+     mem_info.table_size < 0l || mem_info.table_size > 1048576l ||
+     mem_info.memory_alignment < 0l || mem_info.memory_alignment > 19l ||
+     mem_info.table_alignment < 0l || mem_info.table_alignment > 30l then
+    reject "unsupported dylink.0 size or alignment";
+  if m.memories <> [] || m.tables <> [] then
+    reject "runtime must import the compiler's memory and table";
+  if m.start <> None then reject "runtime must not have a start function";
+  List.iter (fun global ->
+    match global.it.gtype with
+    | GlobalType (_, Mutable) ->
+      reject "runtime must not define mutable globals"
+    | _ -> ()
+  ) m.globals;
+  let seen_imports = ref [] in
+  let seen_exports = ref [] in
+  let stack_pointer = ref None in
+  let memory_base = ref None in
+  let table_base = ref None in
+  let global_index = ref 0l in
+  let memory_count = ref 0 in
+  let table_count = ref 0 in
+  let check_function_type typ expected =
+    let index = Int32.to_int typ.it in
+    match if index < 0 then None else List.nth_opt m.types index with
+    | Some actual when actual.it = expected -> ()
+    | _ -> reject "host function has an incompatible signature"
+  in
+  List.iter (fun import ->
+    let module_name = Lib.Utf8.encode import.it.module_name in
+    let item_name = Lib.Utf8.encode import.it.item_name in
+    let key = module_name, item_name in
+    if List.mem key !seen_imports then
+      reject ("duplicate import " ^ module_name ^ "." ^ item_name);
+    seen_imports := key :: !seen_imports;
+    begin match module_name, item_name, import.it.idesc.it with
+    | "env", "compute_plugin_alloc", FuncImport typ ->
+      check_function_type typ (FuncType ([I64Type; I64Type], [I64Type]))
+    | "env", "compute_plugin_trap", FuncImport typ ->
+      check_function_type typ (FuncType ([I64Type; I64Type], []))
+    | "env", "memory", MemoryImport (MemoryType ({max = None; _}, I64IndexType)) ->
+      incr memory_count
+    | "env", "__indirect_function_table", TableImport (HugeTableType _) ->
+      incr table_count
+    | "env", "__stack_pointer", GlobalImport (GlobalType (I64Type, Mutable)) ->
+      stack_pointer := Some !global_index
+    | "env", "__memory_base", GlobalImport (GlobalType (I64Type, Immutable)) ->
+      memory_base := Some !global_index
+    | "env", "__table_base", GlobalImport (GlobalType (I64Type, Immutable)) ->
+      table_base := Some !global_index
+    | ("GOT.func" | "GOT.mem"), _, GlobalImport (GlobalType (I64Type, Mutable)) -> ()
+    | _ -> reject ("unsupported import " ^ module_name ^ "." ^ item_name)
+    end;
+    if is_global_import import.it.idesc.it then
+      global_index := Int32.succ !global_index
+  ) m.imports;
+  if !memory_count <> 1 then reject "expected one imported Wasm64 memory";
+  if !table_count > 1 || (!table_count = 0 && (m.elems <> [] || mem_info.table_size <> 0l)) then
+    reject "expected one imported Wasm64 table for function pointers";
+  List.iter (fun name ->
+    if not (List.mem ("env", name) !seen_imports) then
+      reject ("missing PIC global env." ^ name)
+  ) ["__memory_base"; "__table_base"];
+  let check_index kind length index =
+    if index < 0l || Int32.to_int index >= length then
+      reject (kind ^ " index is out of bounds")
+  in
+  let function_count =
+    Int32.to_int (count_imports is_fun_import m) + List.length m.funcs in
+  let global_count = Int32.to_int !global_index + List.length m.globals in
+  List.iter (fun func ->
+    check_index "function type" (List.length m.types) func.it.ftype.it
+  ) m.funcs;
+  List.iter (fun (export : export) ->
+    if List.mem export.it.name !seen_exports then
+      reject ("duplicate export " ^ Lib.Utf8.encode export.it.name);
+    seen_exports := export.it.name :: !seen_exports;
+    begin match export.it.edesc.it with
+    | MemoryExport _ | TableExport _ ->
+      reject "runtime must not export memory or tables"
+    | FuncExport index -> check_index "exported function" function_count index.it
+    | GlobalExport index ->
+      check_index "exported global" global_count index.it;
+      if Some index.it = !memory_base || Some index.it = !table_base then
+        reject "runtime must not re-export PIC base globals"
+    end;
+    let name = Lib.Utf8.encode export.it.name in
+    if List.mem name ["__wasm_call_ctors"; "__wasm_apply_data_relocs"] then
+      match export.it.edesc.it with
+      | FuncExport index when get_fun_typ index.it m = FuncType ([], []) -> ()
+      | _ -> reject ("runtime initializer " ^ name ^
+          " must be a function of type () -> ()")
+  ) m.exports;
+  (* LLVM PIC offsets are the imported base, optionally plus constant offsets.
+     Check them before relocating: valid Wasm alone does not guarantee that a
+     segment fits the library's dylink reserve rather than another library. *)
+  let segment_offset kind base limit (offset : const) =
+    let invalid () = reject (kind ^ " offset must be relative to its PIC base") in
+    let stack = List.fold_left (fun stack instruction ->
+      match instruction.it, stack with
+      | GlobalGet index, _ when Some index.it = base -> (1, 0L) :: stack
+      | Const {it = Wasm_exts.Values.I64 value; _}, _
+        when value >= 0L && value <= limit -> (0, value) :: stack
+      | Binary (Wasm_exts.Values.I64 I64Op.Add), (b1, n1) :: (b2, n2) :: rest
+        when b1 + b2 <= 1 && n1 <= Int64.sub limit n2 ->
+        (b1 + b2, Int64.add n1 n2) :: rest
+      | _ -> invalid ()
+    ) [] offset.it in
+    match stack with [1, value] -> value | _ -> invalid ()
+  in
+  let check_segment kind base size offset length =
+    let limit = Int64.of_int32 size in
+    let offset = segment_offset kind base limit offset in
+    if Int64.of_int length > Int64.sub limit offset then
+      reject (kind ^ " segment exceeds its dylink.0 reserve")
+  in
+  List.iter (fun segment ->
+    match segment.it.dmode.it with
+    | Active {index; offset} when index.it = 0l ->
+      check_segment "data" !memory_base mem_info.memory_size offset
+        (String.length segment.it.dinit)
+    | _ -> reject "runtime data must use active segments in memory zero"
+  ) m.datas;
+  List.iter (fun segment ->
+    if segment.it.index.it <> 0l then
+      reject "runtime elements must use table zero";
+    check_segment "element" !table_base mem_info.table_size segment.it.offset
+      (List.length segment.it.init);
+    List.iter (fun index -> check_index "element function" function_count index.it)
+      segment.it.init
+  ) m.elems;
+  let rec check_instruction instruction =
+    match instruction.it with
+    | MemoryGrow | StableSize | StableGrow | StableRead | StableWrite ->
+      reject "runtime memory must be managed through the compute allocator"
+    | MemoryInit _ ->
+      reject "runtime must not initialize passive data segments"
+    | GlobalSet index when Some index.it <> !stack_pointer ->
+      reject "runtime may only mutate its imported stack pointer"
+    | Block (_, body) | Loop (_, body) -> List.iter check_instruction body
+    | If (_, yes, no) ->
+      List.iter check_instruction yes;
+      List.iter check_instruction no
+    | _ -> ()
+  in
+  List.iter (fun func -> List.iter check_instruction func.it.body) m.funcs;
+  (* Besides requiring local GOT definitions, this checks the global ordering
+     required when GOT imports are replaced by definitions during linking. *)
+  let got_imports = collect_got_imports m in
+  List.iter (function
+    | {kind = GotMem {exported_global_index}; _} ->
+      if exported_global_index < !global_index then
+        reject "GOT.mem target must be a defined relative data offset";
+      let index = Int32.to_int (Int32.sub exported_global_index !global_index) in
+      let target = List.nth m.globals index in
+      begin match target.it.gtype, target.it.value.it with
+      | GlobalType (I64Type, Immutable),
+        [{it = Const {it = Wasm_exts.Values.I64 offset; _}; _}]
+        when offset >= 0L && offset <= Int64.of_int32 mem_info.memory_size -> ()
+      | _ -> reject "GOT.mem target must be an immutable i64 relative data offset"
+      end
+    | _ -> ()
+  ) got_imports
+
 (* The first argument specifies the global of the first module indicating the
 start of free memory *)
-let link (em1 : extended_module) libname (em2 : extended_module) =
+let link ?(finalize = true) ?(keep_exports = true)
+    (em1 : extended_module) libname (em2 : extended_module) =
 
   let global_exports1 = find_exports is_global_export em1.module_ in
 
@@ -961,19 +1166,17 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   (* Beginning of unused space *)
   let old_heap_start = read_global heap_global em1.module_ in
   let lib_heap_start = align_i32 dylink0_mem_info.memory_alignment old_heap_start in
-  let new_heap_start = align_i32 8l (Int32.add lib_heap_start dylink0_mem_info.memory_size) in
+  let new_heap_start = align_i32 8l (add_i32_size lib_heap_start dylink0_mem_info.memory_size) in
 
   if uses_memory64 em1.module_ then
   begin
-    (* The RTS data segments must fit below 4.5MB according to the persistent heap layout. 
-      The first 4MB are reserved for the Rust call stack such that RTS data segments are limited to 512KB. *)
+    (* All linked data must fit below 4.5MB in the persistent heap layout.
+       The first 4MB are reserved for the Rust call stack, leaving a shared
+       512KB reserve for the RTS and compute plugins. *)
     let max_rts_stack_size = 4 * 1024 * 1024 in
     let max_rts_data_segment_size = 512 * 1024 in
-    (if (Int32.to_int new_heap_start) > max_rts_stack_size + max_rts_data_segment_size then
-      (raise (TooLargeDataSegments (Printf.sprintf "The Wasm data segment size exceeds the supported maxmimum of %nMB." max_rts_data_segment_size)))
-    else
-      ()
-    )
+    if Int32.to_int new_heap_start > max_rts_stack_size + max_rts_data_segment_size then
+      raise (TooLargeDataSegments "Linked Wasm data segments exceed the 512KB static reserve.")
   end else ();
 
   (* Rust requires a table offset of at least 1 as elem[0] is considered invalid. 
@@ -1100,7 +1303,8 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     let got_func_imports = List.filter (function 
     | { kind = GotFunc _; _ } -> true
     | _ -> false) got_imports in
-    Int32.add (Int32.add lib_table_start dylink0_mem_info.table_size) (Int32.of_int (List.length got_func_imports))
+    add_i32_size (add_i32_size lib_table_start dylink0_mem_info.table_size)
+      (Int32.of_int (List.length got_func_imports))
   in
 
   (* Rust generates active data segments for the runtime system code that are not supported with orthogonal persistence.
@@ -1121,6 +1325,7 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   in
 
   let load_rts_data_segments numbering_offset data_segments : module_' -> module_' = fun m ->
+      if data_segments = [] then m else
       let imported_functions = Int32.to_int (count_imports is_fun_import m) in
       let start_index = Int32.to_int (match m.start with
       | Some index -> index.it
@@ -1183,6 +1388,10 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     |> rename_globals globals2
     |> remove_export is_fun_export "__wasm_call_ctors"
     |> remove_export is_fun_export "__wasm_apply_data_relocs"
+    (* Plugin exports serve only this library's imports and GOT. Their indices
+       have already been captured; discarding the names now preserves library
+       namespaces without hiding the base module's exports from later links. *)
+    |> (fun m -> if keep_exports then m else {m with exports = []})
     )
     ( em2.name
     |> remove_fun_imports_name_section fun_resolved21
@@ -1191,7 +1400,6 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     type_indices
   |> add_initial_call "__wasm_call_ctors" (* second call *)
   |> add_initial_call "__wasm_apply_data_relocs" (* very first call before `__wasm_call_ctors` *)
-  |> remove_non_ic_exports (* only sane if no additional files get linked in *)
   |> (if uses_memory64 then map_module (load_rts_data_segments dm2_data_segment_offset dm2.datas) else (fun m -> m))
   in
 
@@ -1214,7 +1422,8 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   in
 
   (* Replace GOT imports with globals referring to implementing functions or data pointers *)
-  let table_size = Int32.add lib_table_start dylink0_mem_info.table_size in
+  let table_size = add_i32_size lib_table_start dylink0_mem_info.table_size in
   let final = replace_got_imports lib_heap_start table_size got_imports merged.module_ in
 
-  { merged with module_ = final }
+  let linked = { merged with module_ = final } in
+  if finalize then remove_non_ic_exports linked else linked

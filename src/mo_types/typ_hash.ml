@@ -128,7 +128,9 @@ let rec go = function
     ( ( TwoSeq (List.length ts1),
         "F" ^
         (match s with Local -> "" | Shared Query -> "q" | Shared Write -> "s" | Shared Composite -> "C") ^
-        (match c with Returns -> "" | Promises -> "p" | Replies -> "r")
+        (match c with
+         | Returns -> "" | Promises -> "p" | Replies -> "r"
+         | Intrinsic id -> "i" ^ string_of_int (String.length id) ^ ":" ^ id)
       )
     , ts1 @ ts2
     )

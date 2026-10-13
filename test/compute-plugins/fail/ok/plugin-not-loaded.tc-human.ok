@@ -1,0 +1,4 @@
+error[M0072]: field fixtureShape does not exist in module.
+    ┌─ plugin-not-loaded.mo:3:13
+  3 │  ignore Prim.fixtureShape(1 : Nat);
+    │              ^^^^^^^^^^^^ 

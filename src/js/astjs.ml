@@ -94,7 +94,8 @@ module Make (Cfg : Config) = struct
     (match c with
     | Returns -> "Returns"
     | Promises -> "Promises"
-    | Replies -> "Replies")
+    | Replies -> "Replies"
+    | Intrinsic id -> "Intrinsic " ^ id)
     |> js_string
 
   let region_js r =

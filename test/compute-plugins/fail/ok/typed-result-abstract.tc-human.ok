@@ -1,0 +1,4 @@
+error[M0279]: fixtureDecode requires concrete type arguments
+    ┌─ typed-result-abstract.mo:5:3
+  5 │    Prim.fixtureDecode<T>(text)
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,4 @@
+error[M0279]: fixtureShape requires shared argument types
+    ┌─ intrinsic-local-function.mo:4:8
+  4 │  ignore Prim.fixtureShape(func () : () {});
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

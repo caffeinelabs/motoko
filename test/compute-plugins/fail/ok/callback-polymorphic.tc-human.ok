@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  <T>(value : T) -> T
+cannot produce expected type
+  Nat -> Nat
+    ┌─ callback-polymorphic.mo:5:36
+  5 │  ignore Prim.fixtureApply<Nat, Nat>(identity, 0);
+    │                                     ^^^^^^^^ 

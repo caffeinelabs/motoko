@@ -1,5 +1,12 @@
 (library
   (name linking)
+  (modules (:standard \ test_linkModule))
   (libraries lib wasm_exts)
   (instrumentation (backend bisect_ppx --bisect-silent yes))
+)
+
+(test
+  (name test_linkModule)
+  (modules test_linkModule)
+  (libraries linking wasm_exts lib)
 )

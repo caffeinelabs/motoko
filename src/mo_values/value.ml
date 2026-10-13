@@ -177,6 +177,7 @@ let semi ppf () = fprintf ppf ";@ "
 let rec pp_val_nullary d ppf (t, v : T.typ * value) =
   match T.normalize t with
   | T.Any -> pr ppf "<any>"
+  | T.Con _ -> pr ppf "<opaque>"
   | t ->
     match v with
     | Null -> pr ppf "null"
@@ -239,6 +240,7 @@ and pp_field d ppf (lab, t, v) =
 and pp_val d ppf (t, v) =
   match T.normalize t with
   | T.Any -> pr ppf "<any>"
+  | T.Con _ -> pr ppf "<opaque>"
   | t ->
     match v with
     | Int i -> pr ppf (Int.to_pretty_string i)

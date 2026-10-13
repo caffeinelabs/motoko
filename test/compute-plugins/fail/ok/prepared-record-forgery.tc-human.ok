@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  {bytes : Blob}
+cannot produce expected type
+  PreparedA
+    ┌─ prepared-record-forgery.mo:4:31
+  4 │  let forged : Prim.PreparedA = { bytes = "unvalidated bytes" : Blob };
+    │                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,4 @@
+prepared-blob-forgery.mo:4.31-4.50: type error [M0050], literal of type
+  Text
+does not have expected type
+  PreparedA

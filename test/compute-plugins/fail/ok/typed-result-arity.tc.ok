@@ -1,0 +1,5 @@
+typed-result-arity.mo:4.32-4.51: type error [M0096], expression of type
+  (Text, Text)
+cannot produce expected type
+  Text
+typed-result-arity.mo:4.8-4.51: type error [M0279], fixtureDecode expects arguments of type Text

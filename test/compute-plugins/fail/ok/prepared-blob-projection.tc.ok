@@ -1,0 +1,2 @@
+prepared-blob-projection.mo:5.8-5.11: type error [M0070], expected object type, but expression produces type
+  PreparedA

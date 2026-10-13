@@ -1,0 +1,4 @@
+callback-contravariance.mo:5.42-5.49: type error [M0117], pattern of type
+  Nat
+cannot consume expected type
+  Any

@@ -1,0 +1,65 @@
+name: compute-plugins
+
+on:
+  push:
+    branches: [master]
+  pull_request: {}
+  merge_group: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  compute-plugins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: nix develop --command bash --noprofile --norc -euo pipefail {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: ic-hs-test
+          skipPush: true
+
+      - name: Build RTS, compiler, and test fixtures
+        run: |
+          make -C rts
+          test/compute-plugins/build.sh
+
+      - name: Test source, IR, Wasm, diagnostics, and GC integration
+        run: |
+          test-runner -b test/compute-plugins/run
+          test-runner -b test/compute-plugins/fail
+          test-runner -b test/compute-plugins/trap
+          test-runner -b test/compute-plugins/run-drun
+
+      - name: Test package compatibility
+        run: |
+          python3 test/compute-plugins/packaging.py
+          python3 test/compute-plugins/comparator_codegen.py
+          python3 test/compute-plugins/prepared_types.py
+
+      - name: Test linker and execute composed Wasm fixtures
+        run: |
+          # build.sh's OCaml 5.4 Bigarray metadata override is local to its
+          # subprocess; reuse it for this separate Dune invocation.
+          if [[ -f _build/ocaml-compat/bigarray/META ]]; then
+            export OCAMLPATH="$PWD/_build/ocaml-compat${OCAMLPATH:+:$OCAMLPATH}"
+          fi
+          dune runtest --root src --profile=release linking
+          mkdir -p _build/compute-plugin-tests/linker-tests
+          plugin_fixture=_build/compute-plugin-tests/linker-tests/linked.wasm
+          src/_build/default/linking/test_linkModule.exe "$plugin_fixture"
+          for plugin_wasm in "$plugin_fixture" "$plugin_fixture.namespaced.wasm"; do
+            wasm-validate --enable-memory64 "$plugin_wasm"
+            wasmtime run -W memory64 "$plugin_wasm"
+          done

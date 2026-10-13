@@ -1,0 +1,4 @@
+error[M0279]: fixtureDecode expects 1 explicit type argument
+    ┌─ typed-result-missing-type.mo:4:39
+  4 │  let _ : { #ok : Text; #err : Text } = Prim.fixtureDecode("text");
+    │                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,11 @@
+error[M0096]: expression of type
+  Blob
+cannot produce expected type
+  PreparedA
+    ┌─ prepared-blob-consumer.mo:4:27
+  4 │  ignore Prim.preparedReadA("unvalidated bytes" : Blob);
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0279]: preparedReadA expects arguments of type PreparedA
+    ┌─ prepared-blob-consumer.mo:4:8
+  4 │  ignore Prim.preparedReadA("unvalidated bytes" : Blob);
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

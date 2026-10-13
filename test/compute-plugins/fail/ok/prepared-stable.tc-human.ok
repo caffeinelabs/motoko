@@ -1,0 +1,5 @@
+error[M0131]: variable key is declared stable but has non-stable type
+  Prim.PreparedA
+    ┌─ prepared-stable.mo:5:7
+  5 │    var key : Prim.PreparedA = Prim.preparedA("prepared bytes");
+    │        ^^^ 

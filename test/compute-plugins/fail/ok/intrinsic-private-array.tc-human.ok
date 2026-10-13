@@ -1,0 +1,4 @@
+error[M0279]: fixtureShape requires shared argument types
+    ┌─ intrinsic-private-array.mo:4:8
+  4 │  ignore Prim.fixtureShape([var 1, 2, 3]);
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

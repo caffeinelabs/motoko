@@ -1,0 +1,1 @@
+plugin callbacks retained async values without awaiting

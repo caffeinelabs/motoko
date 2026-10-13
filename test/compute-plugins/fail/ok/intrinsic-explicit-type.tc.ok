@@ -1,0 +1,1 @@
+intrinsic-explicit-type.mo:4.25-4.30: type error [M0279], fixtureShape expects 0 explicit type arguments

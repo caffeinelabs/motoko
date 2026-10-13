@@ -1,0 +1,2 @@
+prepared-shared-result.mo:4.15-4.58: type error [M0032], shared function has non-shared return type
+  {key : Prim.PreparedA}

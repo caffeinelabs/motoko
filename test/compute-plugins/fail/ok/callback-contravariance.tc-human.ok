@@ -1,0 +1,7 @@
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Any
+    ┌─ callback-contravariance.mo:5:42
+  5 │  ignore Prim.fixtureApply<Any, Nat>(func (n : Nat) : Nat { n }, "wrong");
+    │                                           ^^^^^^^ 

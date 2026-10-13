@@ -1,0 +1,4 @@
+blob-argument.mo:4.25-4.28: type error [M0050], literal of type
+  Nat
+does not have expected type
+  Blob

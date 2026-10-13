@@ -1,0 +1,9 @@
+error[M0096]: expression of type
+  intrinsic fixture_shape
+cannot produce expected type
+  () -> Blob
+because of incompatible function controls: compute intrinsic fixture_shape
+ does not match regular function or one-shot shared function
+    ┌─ intrinsic-annotation.mo:4:22
+  4 │  let _ : () -> Blob = Prim.fixtureShape;
+    │                       ^^^^^^^^^^^^^^^^^ 

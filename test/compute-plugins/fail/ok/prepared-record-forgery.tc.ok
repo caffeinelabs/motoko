@@ -1,0 +1,4 @@
+prepared-record-forgery.mo:4.31-4.69: type error [M0096], expression of type
+  {bytes : Blob}
+cannot produce expected type
+  PreparedA

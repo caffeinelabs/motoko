@@ -1,0 +1,4 @@
+callback-argument.mo:4.64-4.71: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat

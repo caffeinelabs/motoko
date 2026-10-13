@@ -1,0 +1,10 @@
+error[M0157]: block contains non-productive definitions Loop, Other
+    ┌─ prepared-recursive-alias.mo:2:1
+  1 │    //MOC-FLAG --plugin ../../../_build/compute-plugin-tests/prepared
+  2 │ ╭  import Prim "mo:⛔";
+  3 │ │  
+    · │  
+  7 │ │  let unused : ?Leaf = null;
+  8 │ │  ignore unused;
+    │ ╰────────────────^ 
+  9 │    

@@ -17,6 +17,7 @@ module Make (Cfg : Config) = struct
     | Returns -> "Returns"
     | Promises -> "Promises"
     | Replies -> "Replies"
+    | Intrinsic id -> "Intrinsic " ^ id
 
   let obj_sort = function
     | Object -> Atom "Object"

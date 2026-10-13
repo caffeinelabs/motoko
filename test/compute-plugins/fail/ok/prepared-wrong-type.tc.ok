@@ -1,0 +1,13 @@
+prepared-wrong-type.mo:4.27-4.64: type error [M0096], expression of type
+  PreparedB
+cannot produce expected type
+  PreparedA
+because type variable 
+  PreparedB
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  PreparedA
+prepared-wrong-type.mo:4.8-4.65: type error [M0279], preparedReadA expects arguments of type PreparedA

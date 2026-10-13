@@ -69,6 +69,7 @@ let transform prog =
       T.Def (t_binds typ_binds, t_typ typ)
 
   and t_con c =
+    if Mo_values.Compute_plugin.Prepared.is_con c then c else
     match Cons.kind c with
     | T.Def ([], T.Prim _) -> c
     | _ ->

@@ -187,19 +187,27 @@ let func_type s =
     FuncType (ins, out)
   | _ -> error s (pos s - 1) "malformed function type"
 
-let limits vu s =
+let limits_flags s =
   let flags = u8 s in
   require (flags land 0xfa = 0) s (pos s - 1) "malformed limits flags";
   let has_max = (flags land 1 = 1) in
   let is64 = (flags land 4 = 4) in
+  has_max, is64
+
+let limits_body vu has_max s =
   let min = vu s in
   let max = opt vu has_max s in
-  {min; max}, is64
+  {min; max}
+
+let limits vu s =
+  let has_max, is64 = limits_flags s in
+  limits_body vu has_max s, is64
 
 let table_type s =
   let t = elem_type s in
-  let lim, is64 = limits vu32 s in
-  TableType (lim, t)
+  let has_max, is64 = limits_flags s in
+  if is64 then HugeTableType (limits_body vu64 has_max s, t)
+  else TableType (limits_body vu32 has_max s, t)
 
 let memory_type s =
   let lim, is64 = limits vu64 s in
@@ -789,23 +797,29 @@ let icp_custom_section n (f : int -> stream -> 'a) (default : (bool * 'a) option
 let rec dylink0 sec_end s =
   let dylink0_subsection s =
     let subsection_type = vu8 s in
-    let subsection_size = Int32.to_int (vu32 s) in
-    let subsection_end = pos s + subsection_size in
+    let subsection_size = len32 s in
+    let subsection_start = pos s in
+    require (subsection_start <= sec_end &&
+      subsection_size <= sec_end - subsection_start)
+      s subsection_start "dylink.0 subsection length out of bounds";
+    let subsection_end = subsection_start + subsection_size in
     match subsection_type with
     | 0x01l -> (* mem_info *)
       let memory_size = vu32 s in
       let memory_alignment = vu32 s in
       let table_size = vu32 s in
       let table_alignment = vu32 s in
-      assert (pos s = subsection_end);
+      require (pos s = subsection_end) s subsection_start
+        "dylink.0 subsection size mismatch";
       MemInfo { memory_size; memory_alignment; table_size; table_alignment }
     | 0x02l -> (* needed *)
       let dynlibs = vec string s in
-      assert (pos s = subsection_end);
+      require (pos s = subsection_end) s subsection_start
+        "dylink.0 subsection size mismatch";
       Needed dynlibs
     | _ -> error s (pos s - 1) "unsupported dylink.0 subsection"
   in
-  assert (pos s <= sec_end);
+  require (pos s <= sec_end) s (pos s) "dylink.0 section size mismatch";
   if pos s = sec_end then []
   else
     let subsection = dylink0_subsection s in

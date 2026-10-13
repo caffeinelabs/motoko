@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Text
+does not have expected type
+  PreparedA
+    ┌─ prepared-alias-forgery.mo:8:22
+  8 │  let forged : Alias = "unvalidated bytes";
+    │                       ^^^^^^^^^^^^^^^^^^^ 

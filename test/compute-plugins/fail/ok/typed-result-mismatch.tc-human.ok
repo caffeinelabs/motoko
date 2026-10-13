@@ -1,0 +1,11 @@
+error[M0096]: expression of type
+  {#err : Text; #ok : Text}
+cannot produce expected type
+  {#err : Text; #ok : Nat}
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+    ┌─ typed-result-mismatch.mo:4:38
+  4 │  let _ : { #ok : Nat; #err : Text } = Prim.fixtureDecode<Text>("text");
+    │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

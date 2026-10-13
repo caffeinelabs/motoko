@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  Text
+    ┌─ typed-result-argument.mo:4:33
+  4 │  ignore Prim.fixtureDecode<Text>(42);
+    │                                  ^^ 

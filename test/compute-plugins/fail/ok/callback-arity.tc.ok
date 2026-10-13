@@ -1,0 +1,9 @@
+callback-arity.mo:6.42-6.46: type error [M0096], expression of type
+  (value : Pair) -> Nat
+cannot produce expected type
+  (Nat, Nat) -> Nat
+because the type 
+  Nat
+ is not compatible with type 
+  (Nat, Nat)
+ in `Pair` (used by `(value : _)` in arguments)

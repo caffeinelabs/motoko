@@ -1,7 +1,8 @@
 (executable
  (name moc)
  (modules moc)
- (libraries pipeline source_id)
+ (libraries pipeline source_id dynlink)
+ (link_flags (:standard -linkall))
  (instrumentation (backend bisect_ppx --bisect-silent yes))
 )
 (executable

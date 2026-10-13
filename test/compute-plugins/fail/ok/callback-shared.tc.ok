@@ -1,0 +1,6 @@
+callback-shared.mo:7.35-7.41: type error [M0096], expression of type
+  shared (_n : Nat) -> async ()
+cannot produce expected type
+  Nat -> ()
+because of incompatible function modifiers: shared 
+ does not match 

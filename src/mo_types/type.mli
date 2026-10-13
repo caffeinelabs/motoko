@@ -8,7 +8,7 @@ type var = string
 type name = string
 type mig_lab = string
 
-type control = Returns | Promises | Replies
+type control = Returns | Promises | Replies | Intrinsic of string
 type obj_sort = Object | Actor | Mixin | Module | Memory
 type async_sort = Fut | Cmp
 type await_sort = AwaitFut of bool | AwaitCmp

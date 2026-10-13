@@ -1,0 +1,10 @@
+error[M0096]: expression of type
+  {shape : intrinsic fixture_shape}
+cannot produce expected type
+  {shape : () -> Blob}
+because of incompatible function controls: compute intrinsic fixture_shape
+ does not match regular function or one-shot shared function
+ in `shape`
+    ┌─ intrinsic-record-annotation.mo:5:34
+  5 │  let _ : { shape : () -> Blob } = inferred;
+    │                                   ^^^^^^^^ 

@@ -126,7 +126,8 @@ let rec exp lvl (env : env) e : Lbool.t =
       all (List.map (fun e -> exp lvl env e) es)
     | PrimE (DotPrim _, [e1] | ProjPrim _, [e1] | OptPrim, [e1] | TagPrim _, [e1]) ->
       exp lvl env e1
-    | LitE _ ->
+    | LitE _
+    | PrimE (ComputeValuePrim _, []) ->
       surely_true
 
     (* All the following expressions cannot be const, but we still need to descend *)

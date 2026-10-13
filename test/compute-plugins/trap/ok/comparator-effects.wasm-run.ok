@@ -1,0 +1,12 @@
+custom comparator effect
+Error: failed to run main module `_out/comparator-effects.wasm`
+
+Caused by:
+    0: failed to invoke command default
+    1: error while executing at wasm backtrace:
+    0:    0x - <unknown>!compare
+    1:    0x - <unknown>!plugin_comparator_dispatch
+    2:    0x - <unknown>!init
+    3:    0x - <unknown>!_start
+    2: wasm trap: unreachable
+

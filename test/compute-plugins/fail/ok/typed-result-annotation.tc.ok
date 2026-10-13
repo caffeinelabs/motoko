@@ -1,0 +1,6 @@
+typed-result-annotation.mo:4.52-4.70: type error [M0096], expression of type
+  intrinsic fixture_decode
+cannot produce expected type
+  Text -> {#err : Text; #ok : Text}
+because of incompatible function controls: compute intrinsic fixture_decode
+ does not match regular function or one-shot shared function

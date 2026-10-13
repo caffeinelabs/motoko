@@ -1,0 +1,2 @@
+prepared-candid-decode.mo:4.33-4.71: type error [M0174], from_candid produces an optional shared type, not type
+  ?Prim.PreparedA

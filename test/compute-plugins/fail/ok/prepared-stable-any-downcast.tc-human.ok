@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  Any
+cannot produce expected type
+  PreparedA
+    ┌─ prepared-stable-any-downcast.mo:6:45
+  6 │    transient let restored : Prim.PreparedA = state.key;
+    │                                              ^^^^^^^^^ 

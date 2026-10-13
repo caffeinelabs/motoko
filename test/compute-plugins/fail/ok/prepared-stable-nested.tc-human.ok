@@ -1,0 +1,5 @@
+error[M0131]: variable keys is declared stable but has non-stable type
+  {var cache : [?Prim.PreparedA]}
+    ┌─ prepared-stable-nested.mo:5:7
+  5 │    var keys : { var cache : [?Prim.PreparedA] } = { var cache = [] };
+    │        ^^^^ 

@@ -1,0 +1,5 @@
+error[M0063]: show is not defined for operand type
+  Any
+    ┌─ prepared-show.mo:4:8
+  4 │  ignore debug_show(Prim.preparedA("secret prepared bytes"));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

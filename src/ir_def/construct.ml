@@ -102,6 +102,8 @@ let primE prim es =
     | CastPrim (t1, t2) -> t2
     | RelPrim _ -> T.bool
     | SerializePrim _ -> T.blob
+    | ComputePrim (_, s) -> s.Mo_values.Compute_plugin.result_type
+    | ComputeValuePrim id -> Mo_values.Compute_plugin.intrinsic_type id
     | SystemCyclesAvailablePrim
     | SystemCyclesAcceptPrim
     | SystemCyclesBurnPrim -> T.nat

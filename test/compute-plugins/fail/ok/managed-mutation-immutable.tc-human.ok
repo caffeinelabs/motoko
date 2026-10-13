@@ -1,0 +1,11 @@
+error[M0091]: immutable array expression cannot produce expected type
+  [var Nat]
+    ┌─ managed-mutation-immutable.mo:3:25
+  3 │  Prim.fixtureMutSet<Nat>([1, 2], 0, 3);
+    │                          ^^^^^^ 
+error[M0149]: expected mutable 'var' field value of type
+  Nat
+but found immutable field (insert 'var'?)
+    ┌─ managed-mutation-immutable.mo:4:29
+  4 │  Prim.fixtureMutWrite<Nat>({ value = 1 }, 2);
+    │                              ^^^^^^^^^ 

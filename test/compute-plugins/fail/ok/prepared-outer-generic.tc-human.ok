@@ -1,0 +1,4 @@
+error[M0137]: type Escaped = {key : PreparedA; value : T} references type parameter T from an outer scope
+    ┌─ prepared-outer-generic.mo:5:3
+  5 │    type Escaped = { key : Prim.PreparedA; value : T };
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

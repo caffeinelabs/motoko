@@ -1,0 +1,5 @@
+error[M0070]: expected object type, but expression produces type
+  PreparedA
+    ┌─ prepared-blob-projection.mo:5:8
+  5 │  ignore key.size();
+    │         ^^^ 

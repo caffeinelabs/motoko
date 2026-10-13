@@ -12,6 +12,7 @@ type control =
   | Returns        (* regular local function or one-shot shared function *)
   | Promises       (* shared function producing a future value upon call *)
   | Replies        (* (IR only): responds asynchronously using `reply` *)
+  | Intrinsic of string (* compiler-specialized compute plugin *)
 
 type obj_sort =
    Object
@@ -131,6 +132,7 @@ let tag_control = function
   | Returns -> 0
   | Promises -> 1
   | Replies -> 2
+  | Intrinsic _ -> 3
 
 let tag = function
   | Prim _ -> 0
@@ -155,8 +157,11 @@ let compare_prim p1 p2 =
   if d > 0 then 1 else if d < 0 then -1 else 0
 
 let compare_control c1 c2 =
-  let d = tag_control c1 - tag_control c2 in
-  if d > 0 then 1 else if d < 0 then -1 else 0
+  match c1, c2 with
+  | Intrinsic a, Intrinsic b -> String.compare a b
+  | _ ->
+    let d = tag_control c1 - tag_control c2 in
+    if d > 0 then 1 else if d < 0 then -1 else 0
 
 let compare_async_sort s1 s2 =
   match s1, s2 with
@@ -424,7 +429,7 @@ let seq = function [t] -> t | ts -> Tup ts
 
 let codom c to_scope ts2 =  match c with
   | Promises -> Async (Fut, to_scope(), seq ts2)
-  | Returns -> seq ts2
+  | Returns | Intrinsic _ -> seq ts2
   | Replies -> Tup []
 
 (* Coercions *)
@@ -2173,6 +2178,8 @@ and sequence pp ppf ts =
 
 and pp_typ_nobin vs ppf t =
   match t with
+  | Func (Local, Intrinsic id, [], [], []) ->
+    fprintf ppf "@[<2>intrinsic %s@]" id
   | Func (s, c, tbs, ts1, ts2) ->
     let sugar = can_sugar t in
     let vs' = vars_of_binds vs tbs in
@@ -2200,7 +2207,7 @@ and pp_control_cod sugar c vs ppf ts =
     fprintf ppf "@[<2>async%s@ %a@]" (string_of_async_sort s) (pp_typ_pre vs) t
   | Promises, ts ->
     fprintf ppf "@[<2>async@ %a@]" (sequence (pp_typ_pre vs)) ts
-  | Returns, _ ->
+  | (Returns | Intrinsic _), _ ->
     sequence (pp_typ_nobin vs) ppf ts
   | Replies, _ ->
     fprintf ppf "@[<2>replies@ %a@]" (sequence (pp_typ_nobin vs)) ts
@@ -2478,6 +2485,7 @@ let rec string_of_explanation explanation =
       | Returns -> "regular function or one-shot shared function"
       | Promises -> "shared function that returns a future"
       | Replies -> "compiler-internal reply function"
+      | Intrinsic id -> "compute intrinsic " ^ id
     in
     Format.asprintf "of incompatible function controls: %s\n does not match %s%s" (string_of_control c1) (string_of_control c2) (string_of_context "in" context)
   | IncompatibleFuncs (context, t1, t2) ->

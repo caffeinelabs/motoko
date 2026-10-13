@@ -1,0 +1,4 @@
+prepared-any-downcast.mo:5.33-5.39: type error [M0096], expression of type
+  Any
+cannot produce expected type
+  PreparedA

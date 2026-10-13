@@ -1,0 +1,4 @@
+prepared-stable-any-downcast.mo:6.45-6.54: type error [M0096], expression of type
+  Any
+cannot produce expected type
+  PreparedA

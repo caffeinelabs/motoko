@@ -1,0 +1,5 @@
+error[M0031]: shared function has non-shared parameter type
+  Prim.PreparedA = PreparedA
+    ┌─ prepared-shared-argument.mo:4:22
+  4 │  type Remote = shared Prim.PreparedA -> async ();
+    │                       ^^^^^^^^^^^^^^ 

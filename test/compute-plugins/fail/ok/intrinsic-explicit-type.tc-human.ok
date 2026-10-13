@@ -1,0 +1,4 @@
+error[M0279]: fixtureShape expects 0 explicit type arguments
+    ┌─ intrinsic-explicit-type.mo:4:25
+  4 │  ignore Prim.fixtureShape<Nat>(1);
+    │                          ^^^^^ 

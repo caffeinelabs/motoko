@@ -34,9 +34,41 @@ let valid_metadata_names =
      "motoko:stable-types";
      "motoko:compiler"]
 
+let load_compute_plugin path =
+  let unsupported message =
+    fail "unsupported compute plugin %S: %s\n\
+      Use a plugin built for this compiler (moc %s; OCaml %s) \
+      and host platform."
+      path message Source_id.banner Sys.ocaml_version
+  in
+  try Codegen.Plugin_codegen.load Dynlink.loadfile_private path
+  with
+  | Codegen.Plugin_codegen.Unsupported message
+  | Dynlink.Error (Dynlink.Library's_module_initializers_failed
+      (Codegen.Plugin_codegen.Unsupported message)) ->
+    unsupported message
+  | Dynlink.Error (Dynlink.Library's_module_initializers_failed error) ->
+    fail "compute plugin %S: initialization failed: %s"
+      path (Printexc.to_string error)
+  | Dynlink.Error ((Dynlink.Not_a_bytecode_file _
+      | Dynlink.Inconsistent_import _
+      | Dynlink.Inconsistent_implementation _
+      | Dynlink.Unavailable_unit _
+      | Dynlink.Unsafe_file
+      | Dynlink.Linking_error _
+      | Dynlink.Corrupted_interface _
+      | Dynlink.Cannot_open_dynamic_library _) as error) ->
+    unsupported (Dynlink.error_message error)
+  | Dynlink.Error error ->
+    fail "compute plugin %S: %s" path (Dynlink.error_message error)
+  | Invalid_argument message | Sys_error message ->
+    fail "compute plugin %S: %s" path message
+
 let argspec =
   Args.ai_args
   @ [
+  "--plugin", Arg.String load_compute_plugin,
+    "<directory|cmxs>  load a trusted native compute compiler plugin";
   "-c", Arg.Unit (set_mode Compile), " compile a program to WebAssembly";
   "-g", Arg.Set Flags.debug_info, " generate a DWARF line table (.debug_line)";
   "-r", Arg.Unit (set_mode Run), " interpret a program";
@@ -320,12 +352,13 @@ let () =
   process_metadata_names "public" !Flags.public_metadata_names;
   process_metadata_names "omit" !Flags.omit_metadata_names;
   try
-    match process_files !args with
-      (* TODO: Find a better place to gracefully handle the input-dependent linker error *)
-    | exception Linking.LinkModule.TooLargeDataSegments error_message ->
-      Printf.eprintf "Error: %s" error_message; ()
-    | () -> ()
+    process_files !args
   with
+  | Linking.LinkModule.LinkError msg
+  | Linking.LinkModule.TooLargeDataSegments msg
+  | Codegen.Compile_common.CodegenError msg ->
+    eprintf "moc: %s\n" msg;
+    exit 1
   | Sys_error msg ->
     (* IO error *)
     eprintf "%s\n" msg;

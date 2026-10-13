@@ -1,0 +1,14 @@
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ managed-mutation-value.mo:3:37
+  3 │  Prim.fixtureMutSet<Nat>([var 1], 0, "bad");
+    │                                      ^^^^^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ managed-mutation-value.mo:4:46
+  4 │  Prim.fixtureMutWrite<Nat>({ var value = 1 }, "bad");
+    │                                               ^^^^^ 

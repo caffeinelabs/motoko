@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ callback-argument.mo:4:64
+  4 │  ignore Prim.fixtureApply<Nat, Nat>(func (n : Nat) : Nat { n }, "wrong");
+    │                                                                 ^^^^^^^ 

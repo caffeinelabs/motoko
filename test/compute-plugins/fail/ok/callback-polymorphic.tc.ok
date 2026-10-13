@@ -1,0 +1,4 @@
+callback-polymorphic.mo:5.36-5.44: type error [M0096], expression of type
+  <T>(value : T) -> T
+cannot produce expected type
+  Nat -> Nat

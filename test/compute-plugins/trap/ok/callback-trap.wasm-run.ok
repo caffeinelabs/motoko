@@ -1,0 +1,11 @@
+callback trap propagates
+Error: failed to run main module `_out/callback-trap.wasm`
+
+Caused by:
+    0: failed to invoke command default
+    1: error while executing at wasm backtrace:
+    0:    0x - <unknown>!@anon-func-4.36
+    1:    0x - <unknown>!init
+    2:    0x - <unknown>!_start
+    2: wasm trap: unreachable
+

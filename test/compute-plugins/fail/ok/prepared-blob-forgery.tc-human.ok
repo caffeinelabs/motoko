@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Text
+does not have expected type
+  PreparedA
+    ┌─ prepared-blob-forgery.mo:4:31
+  4 │  let forged : Prim.PreparedA = "unvalidated bytes";
+    │                                ^^^^^^^^^^^^^^^^^^^ 

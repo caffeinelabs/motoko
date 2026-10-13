@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  Blob
+cannot produce expected type
+  PreparedA
+    ┌─ prepared-generic-forgery.mo:5:33
+  5 │  ignore identity<Prim.PreparedA>("unvalidated bytes" : Blob);
+    │                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 

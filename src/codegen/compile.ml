@@ -430,6 +430,8 @@ module E = struct
     imports : Imports.t;
     exports : export Table.t ref;
     func_ptrs : int32 FunEnv.t ref;
+    scalar_comparators : Type.prim FunEnv.t ref;
+    comparator_dispatches : (unit -> unit) list ref;
     end_of_table : int32 ref;
     globals : (global Lib.Promise.t * string) Table.t ref;
     global_names : int32 NameEnv.t ref;
@@ -489,6 +491,8 @@ module E = struct
     imports = Imports.empty ();
     exports = ref Table.empty;
     func_ptrs = ref FunEnv.empty;
+    scalar_comparators = ref FunEnv.empty;
+    comparator_dispatches = ref [];
     end_of_table = ref 0l;
     globals = ref Table.empty;
     global_names = ref NameEnv.empty;
@@ -4469,6 +4473,20 @@ module Arr = struct
       Tagged.load_forwarding_pointer env ^^
       G.i (Binary (Wasm_exts.Values.I64 I64Op.Add))
     )
+
+  (* Synchronous plugin traversals contain no GC safepoint. Resolve forwarding once
+     and retain the element cursor across iterations, including allocations
+     that can grow Wasm memory but cannot move Motoko objects. *)
+  let for_each env get_array get_length body =
+    let set_cursor, get_cursor = new_local env "array_cursor" in
+    let set_end, get_end = new_local env "array_end" in
+    get_array ^^ compile_unboxed_zero ^^ unsafe_idx env ^^ set_cursor ^^
+    get_cursor ^^ get_length ^^ compile_mul_const element_size ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) ^^ set_end ^^
+    compile_while env
+      (get_cursor ^^ get_end ^^ compile_comparison I64Op.LtU)
+      (body (get_cursor ^^ load_ptr) ^^
+       get_cursor ^^ compile_add_const element_size ^^ set_cursor)
 
   (* Dynamic array access. Returns the address (not the value) of the field.
      Does bounds checking *)
@@ -9547,6 +9565,450 @@ module GCRoots = struct
 end (* GCRoots *)
 
 (* This comes late because it also deals with messages *)
+(* Synchronous compute plugins use ordinary managed values. Borrowed raw
+   pointers remain valid only until the generated call returns; these helpers
+   introduce no GC safepoint. Temporary Rust allocations follow the RTS
+   EphemeralAllocator: unrooted Blob payloads reclaimed by a later GC, after
+   the plugin has discarded every raw pointer. *)
+module ComputePlugins = struct
+  let scalar_comparators env =
+    E.FunEnv.bindings !(env.E.scalar_comparators) |>
+    List.filter_map (fun (fi, prim) ->
+      Option.map (fun fp -> fp, prim)
+        (E.FunEnv.find_opt fi !(env.E.func_ptrs)))
+
+  (* Dispatch bodies can introduce other dispatches and ordinary shared
+     helpers. Finish these before freezing static objects or type descriptors. *)
+  let define_comparator_dispatches env =
+    let rec drain () = match !(env.E.comparator_dispatches) with
+      | [] -> ()
+      | pending ->
+        env.E.comparator_dispatches := [];
+        List.iter (fun define -> define ()) (List.rev pending);
+        drain ()
+    in
+    drain ();
+    Func.define_built_in env "plugin_comparator_kind"
+      ["comparator", I64Type] [I64Type] (fun env ->
+        let set_pointer, get_pointer = new_local env "comparator_pointer" in
+        G.i (LocalGet (nr 0l)) ^^
+        Tagged.load_forwarding_pointer env ^^
+        Tagged.load_field env Closure.funptr_field ^^ set_pointer ^^
+        List.fold_right (fun (pointer, prim) rest ->
+          get_pointer ^^ compile_eq_const (Int64.of_int32 pointer) ^^
+          E.if1 I64Type (compile_unboxed_const (Scalar_compare.tag prim)) rest
+        ) (scalar_comparators env) compile_unboxed_zero)
+
+  open Plugin_codegen
+  let register_imports env =
+    List.iter (fun {Plugin_codegen.plugin; _} ->
+      List.iter (fun (name, args, results) ->
+        E.add_func_import env (Plugin_codegen.module_name plugin)
+          name args results) plugin.imports
+    ) (Plugin_codegen.installed ())
+
+  let ensure_support env =
+    let exported name = List.exists (fun (e : export) ->
+      e.Wasm.Source.it.name = Lib.Utf8.decode name) (E.get_exports env) in
+    let export name params results body =
+      if not (exported name) then begin
+        let fi = E.add_fun env name (Func.of_body env params results body) in
+        E.add_export env (nr {
+          name = Lib.Utf8.decode name;
+          edesc = nr (FuncExport (nr fi))
+        })
+      end
+    in
+    export "compute_plugin_alloc"
+      ["size", I64Type; "align", I64Type] [I64Type] (fun env ->
+        let size = G.i (LocalGet (nr 0l)) in
+        let align = G.i (LocalGet (nr 1l)) in
+        size ^^ compile_unboxed_const (Int64.sub Int64.max_int 65_536L) ^^
+        compile_comparison I64Op.GtU ^^
+        E.then_trap_with env "compute plugin allocation size overflow" ^^
+        align ^^ compile_eq_const 0L ^^
+        E.then_trap_with env "compute plugin allocation alignment is zero" ^^
+        align ^^ compile_unboxed_const 65_536L ^^
+        compile_comparison I64Op.GtU ^^
+        E.then_trap_with env "compute plugin allocation alignment is too large" ^^
+        align ^^ align ^^ compile_add_const (-1L) ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.And)) ^^
+        compile_eq_const 0L ^^
+        E.else_trap_with env "compute plugin allocation alignment is invalid" ^^
+        align ^^ compile_unboxed_const 8L ^^
+        compile_comparison I64Op.LtU ^^
+        E.if0 (compile_unboxed_const 8L ^^ G.i (LocalSet (nr 1l))) G.nop ^^
+        compile_unboxed_const Tagged.(int_of_tag (Blob B)) ^^
+        size ^^ align ^^ compile_add_const (-8L) ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) ^^
+        E.call_rts env "alloc_blob" ^^
+        Blob.payload_ptr_unskewed env ^^
+        align ^^ compile_add_const (-1L) ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) ^^
+        compile_unboxed_zero ^^ align ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.And)));
+    export "compute_plugin_trap" ["ptr", I64Type; "len", I64Type] []
+      (fun env -> G.i (LocalGet (nr 0l)) ^^ G.i (LocalGet (nr 1l)) ^^
+        IC.trap_ptr_len env)
+
+  module Backend (Owner : sig val name : string end) :
+    Plugin_codegen.Backend with type env = E.t = struct
+    type env = E.t
+    let compile_unboxed_const = compile_unboxed_const
+    let compile_const_32 = compile_const_32
+    let compile_unboxed_zero = compile_unboxed_zero
+    let compile_unboxed_one = compile_unboxed_one
+    let compile_add_const = compile_add_const
+    let compile_mul_const = compile_mul_const
+    let compile_eq_const = compile_eq_const
+    let compile_comparison = compile_comparison
+    let compile_comparison_f32 = compile_comparison_f32
+    let compile_comparison_f64 = compile_comparison_f64
+    let new_local = new_local
+    let new_local_ = new_local_
+    let from_0_to_n = from_0_to_n
+    let call env plugin name =
+      ensure_support env;
+      E.call_import env ("compute." ^ plugin) name
+    let alloc_blob env = Blob.alloc env Tagged.B
+    let unbox_float32 env =
+      StackRep.adjust env SR.Vanilla SR.UnboxedFloat32
+    let box_float32 env =
+      StackRep.adjust env SR.UnboxedFloat32 SR.Vanilla
+    let buffer_size = Serialization.buffer_size
+    let candid_primitive = Serialization.to_idl_prim Serialization.Candid
+    let sort_by_hash = Serialization.sort_by_hash
+    module E = E
+    module Func = Func
+    module Call = struct
+      let local env typ closure arguments =
+        match Type.promote typ with
+        | Type.Func (Type.Local, Type.Returns, [], ins, outs)
+          when List.length ins = List.length arguments ->
+          let set_closure, get_closure = new_local env "plugin_callback" in
+          closure ^^ set_closure ^^
+          get_closure ^^ Closure.prepare_closure_call env ^^
+          G.concat arguments ^^
+          get_closure ^^
+          Closure.call_closure env (List.length ins) (List.length outs) ^^
+          (match outs with [_] -> G.nop | _ -> Tuple.from_stack env (List.length outs))
+        | _ -> invalid_arg
+            "compute plugin callback requires an instantiated synchronous local function"
+    end
+    module Compare = struct
+      let dispatch env ~comparator_index arguments results body =
+        let arity = List.length arguments in
+        if comparator_index < 0 || comparator_index >= arity then
+          invalid_arg "compute plugin comparator index is out of bounds";
+        let fi, fill = E.reserve_fun env "plugin_comparator_dispatch" in
+        let define () =
+          let primitives = scalar_comparators env |> List.map snd |>
+            List.sort_uniq (fun a b ->
+              Int64.compare (Scalar_compare.tag a) (Scalar_compare.tag b)) in
+          let parameters = List.init arity (fun i ->
+            "arg" ^ string_of_int i, I64Type) in
+          fill (Func.of_body env parameters results (fun env ->
+            let getters = List.init arity (fun i ->
+              G.i (LocalGet (nr (Int32.of_int i)))) in
+            let fallback = body env None getters in
+            match primitives with
+            | [] -> fallback
+            | _ ->
+              let set_kind, get_kind = new_local env "comparator_kind" in
+              List.nth getters comparator_index ^^
+              G.i (Call (nr (E.built_in env "plugin_comparator_kind"))) ^^
+              set_kind ^^
+              List.fold_right (fun prim rest ->
+                get_kind ^^ compile_eq_const (Scalar_compare.tag prim) ^^
+                MultiVal.if_ env results (body env (Some prim) getters) rest
+              ) primitives fallback))
+        in
+        env.E.comparator_dispatches :=
+          define :: !(env.E.comparator_dispatches);
+        G.concat arguments ^^ G.i (Call (nr fi)) ^^ MultiVal.load env results
+
+      let scalar env prim =
+        match prim with
+        | Type.Text ->
+          let set_b, get_b = new_local env "plugin_compare_b" in
+          let set_a, get_a = new_local env "plugin_compare_a" in
+          set_b ^^ set_a ^^
+          get_a ^^ Tagged.load_forwarding_pointer env ^^
+          get_b ^^ Tagged.load_forwarding_pointer env ^^
+          E.call_rts env "text_compare"
+        | Type.Blob | Type.Principal -> Blob.compare env None
+        | Type.Nat | Type.Int ->
+          let set_b, get_b = new_local env "plugin_compare_b" in
+          let set_a, get_a = new_local env "plugin_compare_a" in
+          set_b ^^ set_a ^^
+          get_a ^^ get_b ^^ BigNum.compile_relop env Lt ^^
+          E.if1 I64Type (compile_unboxed_const (-1L))
+            (get_a ^^ get_b ^^ BigNum.compile_eq env ^^
+             E.if1 I64Type compile_unboxed_zero compile_unboxed_one)
+        | Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Nat64
+        | Type.Int8 | Type.Int16 | Type.Int32 | Type.Int64
+        | Type.Bool | Type.Char ->
+          let unbox, signed = match prim with
+            | Type.Nat64 -> BoxedWord64.unbox env prim, false
+            | Type.Int64 -> BoxedWord64.unbox env prim, true
+            (* Same-type small scalars have identical low tags and ordered
+               high payloads, so comparisons need no representation shift. *)
+            | Type.Int8 | Type.Int16 | Type.Int32 -> G.nop, true
+            | Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Char -> G.nop, false
+            | Type.Bool -> Bool.from_int64, false
+            | _ -> G.nop, false
+          in
+          let set_b, get_b = new_local env "plugin_compare_b" in
+          let set_a, get_a = new_local env "plugin_compare_a" in
+          unbox ^^ set_b ^^ unbox ^^ set_a ^^
+          get_a ^^ get_b ^^ compile_comparison (if signed then I64Op.LtS else I64Op.LtU) ^^
+          E.if1 I64Type (compile_unboxed_const (-1L))
+            (get_a ^^ get_b ^^ compile_comparison I64Op.Eq ^^
+             E.if1 I64Type compile_unboxed_zero compile_unboxed_one)
+        | _ -> invalid_arg "unsupported compute plugin scalar ordering"
+    end
+    module Prepared = struct
+      let check f =
+        try f () with Invalid_argument message -> fatal "%s" message
+      let wrap descriptor code =
+        check (fun () -> Mo_values.Compute_plugin.Prepared.check_owner
+          ~owner:Owner.name descriptor);
+        code
+      let unwrap descriptor typ code =
+        check (fun () ->
+          Mo_values.Compute_plugin.Prepared.check_owner
+            ~owner:Owner.name descriptor;
+          Mo_values.Compute_plugin.Prepared.check_type descriptor typ);
+        code
+    end
+    module Blob = Blob
+    module Arr = struct
+      include Arr
+
+      let get env = Arr.idx env ^^ load_ptr
+
+      let set env array_type value_type array index value =
+        let element_type = match Type.normalize array_type with
+          | Type.Array (Type.Mut typ) -> typ
+          | _ -> fatal "compute plugin Arr.set requires a mutable array"
+        in
+        if not (Type.sub value_type element_type) then
+          fatal "compute plugin Arr.set value type does not match the element";
+        let set_value, get_value = new_local env "plugin_array_value" in
+        array ^^ index ^^ value ^^ set_value ^^ Arr.idx env ^^
+        (if potential_pointer element_type then
+          compile_add_const ptr_unskew ^^ get_value ^^
+          Tagged.write_with_barrier env
+        else get_value ^^ store_ptr)
+
+      let tabulate_with_sort env sort length element =
+        let set_len, get_len = new_local env "plugin_array_length" in
+        let set_array, get_array = new_local env "plugin_array" in
+        let set_cursor, get_cursor = new_local env "plugin_array_cursor" in
+        length ^^ set_len ^^
+        Arr.alloc env sort get_len ^^ set_array ^^
+        get_array ^^ compile_unboxed_zero ^^ Arr.unsafe_idx env ^^
+        compile_add_const ptr_unskew ^^ set_cursor ^^
+        (* An element decoder may return early on malformed input. Make the
+           entire allocation valid before invoking it, including during an
+           incremental GC, then use the normal pointer write barrier. *)
+        get_cursor ^^
+        compile_const_32 0l ^^
+        get_len ^^ compile_mul_const Arr.element_size ^^
+        G.i MemoryFill ^^
+        get_array ^^ Tagged.allocation_barrier env ^^ G.i Drop ^^
+        (* Like Arr.for_each, element construction cannot reach a GC safepoint,
+           so the cursor remains valid across allocations and local callbacks. *)
+        get_len ^^ from_0_to_n env (fun get_index ->
+          get_cursor ^^ element get_index ^^ Tagged.write_with_barrier env ^^
+          get_cursor ^^ compile_add_const Arr.element_size ^^ set_cursor) ^^
+        get_array
+
+      let tabulate env = tabulate_with_sort env Tagged.I
+      let tabulate_mut env = tabulate_with_sort env Tagged.M
+    end
+    module Tuple = Tuple
+    module Object = struct
+      include Object
+
+      let lit_raw env fields =
+        (* Evaluate fields before allocating, so a recoverable error cannot
+           abandon a partially initialized object. *)
+        let fields = List.map (fun (label, value) ->
+          let set, get = new_local env ("plugin_field_" ^ label) in
+          value () ^^ set, (label, fun () -> get)) fields in
+        G.concat_map fst fields ^^
+        Object.lit_raw env (List.map snd fields)
+
+      let fields typ = match Type.normalize typ with
+        | Type.Obj (Type.Object, fields, []) -> fields
+        | _ -> fatal "compute plugin Object requires a concrete record type"
+
+      let field_type typ label =
+        match List.find_opt (fun f -> f.Type.lab = label) (fields typ) with
+        | Some field -> field.Type.typ
+        | None -> fatal "compute plugin Object has no field %s" label
+
+      let load env typ label =
+        ignore (field_type typ label);
+        Object.load_idx env typ label
+
+      let set env typ label value_type object_ value =
+        let payload_type = match Type.normalize (field_type typ label) with
+          | Type.Mut typ -> typ
+          | _ -> fatal "compute plugin Object.set requires a mutable field"
+        in
+        if not (Type.sub value_type payload_type) then
+          fatal "compute plugin Object.set value type does not match the field";
+        let set_value, get_value = new_local env "plugin_field_value" in
+        object_ ^^ value ^^ set_value ^^ Object.idx env typ label ^^
+        (if potential_pointer payload_type then
+          compile_add_const ptr_unskew ^^ get_value ^^
+          Tagged.write_with_barrier env
+        else get_value ^^ store_ptr)
+
+      let lit env typ values =
+        let expected = fields typ in
+        let labels = List.map (fun (label, _, _) -> label) values in
+        if List.sort String.compare labels <>
+           List.sort String.compare (List.map (fun f -> f.Type.lab) expected)
+        then fatal "compute plugin Object.lit fields do not match the record";
+        let values = List.map (fun (label, value_type, value) ->
+          let field_type = field_type typ label in
+          let mutable_, payload_type = match Type.normalize field_type with
+            | Type.Mut typ -> true, typ
+            | typ -> false, typ
+          in
+          if not (Type.sub value_type payload_type) then
+            fatal "compute plugin Object.lit value type does not match field %s"
+              label;
+          let set, get = new_local env ("plugin_field_" ^ label) in
+          value () ^^ set, (label, fun () ->
+            if mutable_ then Tagged.obj env Tagged.MutBox [get] else get)) values
+        in
+        (* No callback or recoverable early return can abandon an uninitialized
+           record or mutable cell: evaluate every payload before allocating. *)
+        G.concat_map fst values ^^
+        Object.lit_raw env (List.map snd values)
+    end
+    module Variant = struct
+      include Variant
+
+      let inject env label payload =
+        let set_payload, get_payload = new_local env "plugin_variant" in
+        payload ^^ set_payload ^^ Variant.inject env label get_payload
+    end
+    module Opt = Opt
+    module Text = struct
+      include Text
+      let lit env = Blob.lit env Tagged.T
+    end
+    module Principal = struct
+      let of_ptr_size env =
+        Func.share_code2 Func.Always env "plugin_principal_of_ptr_size"
+          (("ptr", I64Type), ("size", I64Type)) [I64Type]
+          (fun env get_ptr get_size ->
+            let set_value, get_value = new_local env "principal" in
+            get_size ^^ compile_unboxed_const 29L ^^
+            compile_comparison I64Op.LeU ^^
+            E.else_trap_with env "compute plugin principal is too long" ^^
+            Blob.alloc env Tagged.P get_size ^^ set_value ^^
+            get_value ^^ Blob.payload_ptr_unskewed env ^^
+            get_ptr ^^ get_size ^^ Heap.memcpy env ^^
+            get_value)
+    end
+    module Float = Float
+    module BoxedWord64 = BoxedWord64
+    module TaggedSmallWord = TaggedSmallWord
+    module BitTagged = BitTagged
+    module BigNum = struct
+      include BigNum
+
+      let to_leb128 env signed =
+        let name = if signed then "plugin_sleb128" else "plugin_leb128" in
+        Func.share_code1 Func.Always env name ("value", I64Type) [I64Type]
+          (fun env get_value ->
+            let size = if signed then BigNum.compile_data_size_signed
+                       else BigNum.compile_data_size_unsigned in
+            let write = if signed then BigNum.compile_store_to_data_buf_signed
+                        else BigNum.compile_store_to_data_buf_unsigned in
+            let set_blob, get_blob = new_local env "integer_bytes" in
+            Blob.alloc env Tagged.B (get_value ^^ size env) ^^ set_blob ^^
+            get_blob ^^ Blob.payload_ptr_unskewed env ^^
+            get_value ^^ write env ^^ G.i Drop ^^
+            get_blob)
+
+      let of_leb128 env signed =
+        let name = if signed then "plugin_of_sleb128"
+                   else "plugin_of_leb128" in
+        Func.share_code2 Func.Always env name
+          (("ptr", I64Type), ("size", I64Type)) [I64Type]
+          (fun env get_ptr get_size ->
+            ReadBuf.alloc env (fun get_buf ->
+              ReadBuf.set_ptr get_buf get_ptr ^^
+              ReadBuf.set_size get_buf get_size ^^
+              BigNum.compile_load_from_data_buf env get_buf signed))
+    end
+    module BigNumLibtommath = BigNumLibtommath
+    module Bool = Bool
+    module I32Leb = I32Leb
+    module Strm = Serialization.Strm
+  end
+
+  let compile env id ts arguments =
+    match Plugin_codegen.generator id with
+    | None -> fatal "compute plugin generator is unavailable: %s" id
+    | Some (owner, generator) ->
+      let module Generator = (val generator : Plugin_codegen.Generator) in
+      let module Specialized =
+        Generator.Make (Backend (struct let name = owner end)) in
+      let {code; representation} = Specialized.compile env ts arguments in
+      let sr = match representation with
+        | Managed -> SR.Vanilla
+        | Tuple n ->
+          (match Type.normalize ts.Mo_values.Compute_plugin.result_type with
+          | Type.Tup fields when (n = 0 || n >= 2) && List.length fields = n ->
+            StackRep.of_arity n
+          | _ -> fatal "compute plugin %s returned invalid result representation Tuple %d for %s"
+            id n (Type.string_of_typ ts.Mo_values.Compute_plugin.result_type))
+      in
+      sr, code
+
+  let link (emodule : Wasm_exts.CustomModule.extended_module) rts =
+    let used = List.filter (fun {Plugin_codegen.plugin; _} ->
+      List.exists (fun (i : import) ->
+        i.Wasm.Source.it.module_name =
+          Lib.Utf8.decode (Plugin_codegen.module_name plugin))
+        emodule.Wasm_exts.CustomModule.module_.imports
+    ) (Plugin_codegen.installed ()) in
+    let linked = Linking.LinkModule.link ~finalize:false emodule "rts" rts in
+    let result = List.fold_left (fun base {Plugin_codegen.plugin; runtime_path} ->
+      let runtime_path = match runtime_path with
+        | Some path -> path
+        | None -> fatal "compute plugin %s has imports but no runtime" plugin.name
+      in
+      let bytes = try In_channel.with_open_bin runtime_path In_channel.input_all
+        with Sys_error message -> fatal "compute plugin %s: %s" plugin.name message
+      in
+      let runtime = try Wasm_exts.CustomModuleDecode.decode runtime_path bytes
+        with Wasm_exts.CustomModuleDecode.Code (_, message) ->
+          fatal "compute plugin %s: invalid runtime Wasm: %s"
+            plugin.name message
+      in
+      Linking.LinkModule.validate_compute_plugin runtime;
+      Linking.LinkModule.link ~finalize:false ~keep_exports:false base
+        (Plugin_codegen.module_name plugin) runtime
+    ) linked used |> Linking.LinkModule.finalize in
+    List.iter (fun (i : import) ->
+      let module_name = Lib.Utf8.encode i.Wasm.Source.it.module_name in
+      if module_name = "env" || String.starts_with ~prefix:"compute." module_name
+      then fatal "unresolved compute plugin import: %s.%s"
+        module_name (Lib.Utf8.encode i.Wasm.Source.it.item_name)
+    ) result.Wasm_exts.CustomModule.module_.imports;
+    result
+end
+
 module FuncDec = struct
   let bind_args env ae0 first_arg args =
     let rec go i ae = function
@@ -9648,7 +10110,8 @@ module FuncDec = struct
     ))
 
   (* Compile a closed function declaration (captures no local variables) *)
-  let closed pre_env sort control name args mk_body fun_rhs ret_tys at =
+  let closed ?scalar_compare pre_env sort control name args mk_body fun_rhs
+      ret_tys at =
     if Type.is_shared_sort sort
     then begin
       let (fi, fill) = E.reserve_fun pre_env name in
@@ -9659,7 +10122,14 @@ module FuncDec = struct
       assert (control = Type.Returns);
       let lf = E.make_lazy_function pre_env name in
       let fun_id = E.get_constant_function_id pre_env in
-      ( Const.Fun (fun_id, (fun () -> Lib.AllocOnUse.use lf), fun_rhs), fun env ae ->
+      let function_index () =
+        let fi = Lib.AllocOnUse.use lf in
+        Option.iter (fun prim ->
+          pre_env.E.scalar_comparators :=
+            E.FunEnv.add fi prim !(pre_env.E.scalar_comparators)) scalar_compare;
+        fi
+      in
+      ( Const.Fun (fun_id, function_index, fun_rhs), fun env ae ->
         let restore_no_env _env ae _ = ae, unmodified in
         Lib.AllocOnUse.def lf (lazy (compile_local_function env ae restore_no_env args mk_body ret_tys at))
       )
@@ -11487,7 +11957,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     let return_arity = match control with
       | Type.Returns -> List.length ret_tys
       | Type.Replies -> 0
-      | Type.Promises -> assert false in
+      | Type.Promises | Type.Intrinsic _ -> assert false in
 
     let fun_sr, code1 = compile_exp env ae e1 in
 
@@ -11870,6 +12340,19 @@ and compile_prim_invocation (env : E.t) ae p es at =
       compile_shl_const (Int64.of_int num_bits)
     | _ -> SR.Unreachable, todo_trap env "compile_prim_invocation" (Arrange_ir.prim p)
     end
+
+  | ComputeValuePrim _, [] ->
+    SR.Vanilla, Tuple.compile_unit env
+
+  | ComputePrim (id, ts), [e] ->
+    let arguments = List.mapi (fun i _ ->
+      new_local env ("compute_argument" ^ string_of_int i))
+      ts.Mo_values.Compute_plugin.argument_types in
+    let inputs =
+      compile_exp_as env ae (StackRep.of_arity (List.length arguments)) e ^^
+      G.concat_map fst (List.rev arguments) in
+    let sr, code = ComputePlugins.compile env id ts (List.map snd arguments) in
+    sr, inputs ^^ code
 
   | SerializePrim ts, [e] ->
     SR.Vanilla,
@@ -13022,7 +13505,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let return_tys = match control with
       | Type.Returns -> res_tys
       | Type.Replies -> []
-      | Type.Promises -> assert false in
+      | Type.Promises | Type.Intrinsic _ -> assert false in
     let return_arity = List.length return_tys in
     let mk_body env1 ae1 = compile_exp_as env1 ae1 (StackRep.of_arity return_arity) e in
     FuncDec.lit env ae x sort control captured args mk_body return_tys exp.at
@@ -13445,14 +13928,31 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
     let return_tys = match control with
       | Type.Returns -> res_tys
       | Type.Replies -> []
-      | Type.Promises -> assert false in
+      | Type.Promises | Type.Intrinsic _ -> assert false in
     let mk_body env ae =
       List.iter (fun v ->
         if not (VarEnv.NameEnv.mem v ae.VarEnv.vars)
         then fatal "internal error: const \"%s\": captures \"%s\", not found in static environment\n" name v
       ) (Freevars.M.keys (Freevars.exp e));
       compile_exp_as env ae (StackRep.of_arity (List.length return_tys)) e in
-    FuncDec.closed env sort control name args mk_body fun_rhs return_tys exp.at
+    let rec constant_value expression = match expression.it with
+      | VarE (Const, name) ->
+        (match VarEnv.NameEnv.find_opt name pre_ae.VarEnv.vars with
+        | Some (VarEnv.Const value, _) -> Some value
+        | _ -> None)
+      | PrimE (DotPrim label, [object_]) ->
+        (match constant_value object_ with
+        | Some (Const.Obj fields) -> List.assoc_opt label fields
+        | _ -> None)
+      | _ -> None
+    in
+    let resolve_prim expression = match constant_value expression with
+      | Some (Const.Fun (_, _, Const.PrimWrapper prim)) -> Some prim
+      | _ -> None
+    in
+    let scalar_compare = Scalar_compare.recognize ~resolve_prim exp in
+    FuncDec.closed ?scalar_compare env sort control name args mk_body fun_rhs
+      return_tys exp.at
   | BlockE (decs, e) ->
     let (extend, fill1) = compile_const_decs env pre_ae decs in
     let ae' = extend pre_ae in
@@ -13491,6 +13991,7 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
       | _ -> fatal "compile_const_exp/ProjE: not a static tuple" in
     (List.nth cs i, fill)
   | LitE l -> Const.(Lit (const_lit_of_lit l)), (fun _ _ -> ())
+  | PrimE (ComputeValuePrim _, [])
   | PrimE (TupPrim, []) -> Const.Unit, (fun _ _ -> ())
   | PrimE (ArrayPrim (Const, _), es) ->
     let (cs, fills) = List.split (List.map (compile_const_exp env pre_ae) es) in
@@ -13771,6 +14272,8 @@ and conclude_module env set_serialization_globals =
   FuncDec.export_gc_trigger_method env;
   FuncDec.export_stabilization_limits env;
 
+  ComputePlugins.define_comparator_dispatches env;
+
   (* See Note [Candid subtype checks] *)
   Serialization.create_global_type_descriptor env set_serialization_globals;
 
@@ -13865,7 +14368,7 @@ and conclude_module env set_serialization_globals =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
-  Linking.LinkModule.link emodule "rts" (E.get_rts env)
+  ComputePlugins.link emodule (E.get_rts env)
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
@@ -13886,6 +14389,7 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
 
   IC.system_imports env;
   RTS.system_imports env;
+  ComputePlugins.register_imports env;
 
   compile_init_func env prog;
 
