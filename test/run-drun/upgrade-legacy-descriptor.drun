@@ -1,0 +1,14 @@
+# `old.wasm` stores a legacy type descriptor, see note.txt.
+install $ID upgrade-legacy-descriptor/old.wasm ""
+ingress $ID peek "DIDL\x00\x00"
+# A legacy descriptor still rejects changes to what it encodes unambiguously.
+upgrade $ID upgrade-legacy-descriptor/version2.mo ""
+upgrade $ID upgrade-legacy-descriptor/version3.mo ""
+# It accepts either reading of what it encodes alike.
+upgrade $ID upgrade-legacy-descriptor/version0.mo ""
+ingress $ID peek "DIDL\x00\x00"
+# The new descriptor tells `[var T]` and `var [T]` apart, and older compilers reject it.
+upgrade $ID upgrade-legacy-descriptor/version0.mo ""
+upgrade $ID upgrade-legacy-descriptor/version1.mo ""
+upgrade $ID upgrade-legacy-descriptor/old.wasm ""
+ingress $ID peek "DIDL\x00\x00"
