@@ -1,1 +1,2 @@
 M0118.mo:1.5-1.11: type error [M0118], tuple pattern has 2 components but expected type has 0
+M0118.mo:1.1-1.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

@@ -22,3 +22,42 @@ expected `{#a; #b}`, got `{#c : _}`
 pat-inconsistent.mo:88.7-88.14: type error [M0116], variant pattern cannot consume expected type
 expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
 help: did you mean tag #ok?
+pat-inconsistent.mo:94.9-94.20: type error [M0116], variant pattern cannot consume expected type
+expected `{#ducks; #geese; #sparrows : Nat}`, got `{#sparows : _}`
+help: did you mean tag #sparrows?
+pat-inconsistent.mo:95.9-95.14: type error [M0116], variant pattern cannot consume expected type
+expected `{#ducks; #geese; #sparrows : Nat}`, got `{#gese : _}`
+help: did you mean tag #geese?
+pat-inconsistent.mo:96.27-96.34: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat
+pat-inconsistent.mo:100.10-100.13: type error [M0116], variant pattern cannot consume expected type
+expected `{#a}`, got `{#aa : _}`
+help: did you mean tag #a?
+pat-inconsistent.mo:100.15-100.18: type error [M0116], variant pattern cannot consume expected type
+expected `{#b}`, got `{#bb : _}`
+help: did you mean tag #b?
+pat-inconsistent.mo:105.17-105.21: type error [M0116], variant pattern cannot consume expected type
+expected `Error`, got `{#err : _}`
+pat-inconsistent.mo:106.11-106.20: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat
+pat-inconsistent.mo:110.7-110.13: type error [M0112], tuple pattern cannot consume expected type
+expected `Nat`, got `(_, _)`
+pat-inconsistent.mo:111.7-111.14: type error [M0116], variant pattern cannot consume expected type
+expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+help: did you mean tag #ok?
+pat-inconsistent.mo:112.17-112.26: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat
+pat-inconsistent.mo:116.14-116.20: type error [M0112], tuple pattern cannot consume expected type
+expected `Nat`, got `(_, _)`
+pat-inconsistent.mo:116.28-116.30: type error [M0115], option pattern cannot consume expected type
+expected `Nat`, got `?_`
+pat-inconsistent.mo:116.58-116.67: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat

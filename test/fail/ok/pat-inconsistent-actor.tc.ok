@@ -1,0 +1,7 @@
+pat-inconsistent-actor.mo:3.7-3.14: type error [M0116], variant pattern cannot consume expected type
+expected `{#err : Text; #ok : Nat}`, got `{#okk : _}`
+help: did you mean tag #ok?
+pat-inconsistent-actor.mo:4.37-4.46: type error [M0050], literal of type
+  Text
+does not have expected type
+  Nat

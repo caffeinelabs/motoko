@@ -35,6 +35,10 @@ pat-subtyping-fail.mo:67.9-67.16: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
+pat-subtyping-fail.mo:67.18-67.25: type error [M0117], pattern of type
+  Nat
+cannot consume expected type
+  Int
 pat-subtyping-fail.mo:71.9-71.31: type error [M0117], pattern of type
   {a : Nat; b : Nat}
 cannot consume expected type
@@ -44,6 +48,10 @@ pat-subtyping-fail.mo:74.9-74.36: type error [M0117], pattern of type
 cannot consume expected type
   {a : Int; b : Int}
 pat-subtyping-fail.mo:77.13-77.20: type error [M0117], pattern of type
+  Nat
+cannot consume expected type
+  Int
+pat-subtyping-fail.mo:77.26-77.33: type error [M0117], pattern of type
   Nat
 cannot consume expected type
   Int
