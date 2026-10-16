@@ -247,16 +247,13 @@ actor A {
     func t8() : async () {
         try {
             debugPrint "IN8";
-            // await* async* throw error "IN8"
-            // https://github.com/dfinity/motoko/issues/4578
-            await* async* { throw error "IN8"; () }
+            await* async* { throw error "IN8" }
         }
         catch _ { debugPrint "CAUGHT8" }
         finally { debugPrint "OUT8" };
     };
 
     func t8i() : async () {
-        // see: https://github.com/dfinity/motoko/issues/4578
         func inner() : async* () { throw error "IN8i" };
 
         try {

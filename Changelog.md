@@ -10,6 +10,11 @@
     even after a top-up. A one-shot timer whose job was rejected that way is
     now retried instead of dropped (#6440).
 
+  * bugfix: the compiler no longer crashes with "Ill-typed intermediate code
+    after Async Lowering" when an `async` or `async*` value is widened, for
+    example from `async (Nat, Nat)` to `async Any`, or from `async* None` to
+    `async* ()` as in `await* async* throw e` (#6451).
+
 ## 2.0.0 (2026-10-06)
 
 * Upgrading from `moc` 1.x? The [moc v1 → v2 migration guide](doc/md/moc-v2-migration.md)
