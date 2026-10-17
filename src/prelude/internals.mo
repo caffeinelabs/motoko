@@ -294,6 +294,9 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
   let w_null = func(r : @Refund, t : T) {};
   let r_null = func(_ : Error) {};
   var result : ?(@Result<T>) = null;
+  // A reply callback can trap before fulfill/fail, even without a waiter.
+  // Keep this separate from result so cleanup need not allocate a result.
+  var trapped = false;
   var ws : @Waiter<T> = w_null;
   var rs : @Cont<Error> = r_null;
   let getRefund = @cycles != 0;
@@ -332,6 +335,11 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
     #schedule : () -> ();
   } {
     cleanup := b;
+    if trapped {
+      // Use the usual scheduling path: await commits before cleanup, while
+      // await? can bail out immediately. Neither resumes k nor rejects via r.
+      return #schedule(b);
+    };
     switch result {
       case null {
         let ws_ = ws;
@@ -359,7 +367,14 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
     };
   };
 
-  (enqueue, fulfill, fail, func() = cleanup());
+  (enqueue, fulfill, fail, func() {
+    // The trapping callback was rolled back, including any fulfillment.
+    // Remember its failure for awaiters that have not registered yet.
+    trapped := true;
+    ws := w_null;
+    rs := r_null;
+    cleanup();
+  });
 };
 
 // Subset of IC management canister interface required for our use
