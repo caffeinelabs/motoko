@@ -1,0 +1,11 @@
+error[M0095]: function return type
+  ?Text
+does not match expected return type
+  ?Nat
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+    ┌─ parenthetical-decoder-mismatch.mo:4:52
+  4 │    public (with decoder = func (_ : Blob) : ?Text = ?"oops") func go(_ : ?Nat) : async () {};
+    │                                                     ^^^^^^^ 
