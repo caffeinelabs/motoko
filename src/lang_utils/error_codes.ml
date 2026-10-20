@@ -228,6 +228,7 @@ let error_codes : (string * string option) list =
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
     "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
+    "M0279", None; (* Field in a codec parenthetical must be effect-free *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -279,7 +280,6 @@ let warning_codes = [
   "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
   "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
   "M0278", None, "File in the migration directory is not a migration module";
-  "M0279", None, "Field in a codec parenthetical must be effect-free";
 ]
 
 let try_find_explanation code =
