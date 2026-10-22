@@ -7,8 +7,7 @@
   * `public (with encoder = e; decoder = d) func m(…) : async T` replaces
     Candid on the wire for that actor method: `encoder : T -> Blob` produces
     the reply, and `decoder : Blob -> args` reads the arguments from the raw
-    message data. Either can be given alone; both must be effect-free
-    (M0279) (#6467).
+    message data. Either can be given alone; both must be effect-free (#6467).
 
 ## 2.2.3 (2026-11-17)
 
