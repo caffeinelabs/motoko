@@ -12891,7 +12891,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
         Serialization.serialize env ts
       | Some enc_exp ->
         (* user-supplied `encoder : T -> Blob` replaces Candid on the reply *)
-        let (set_enc, get_enc) = new_local env "encoder" in
+        let set_enc, get_enc = new_local env "encoder" in
         compile_exp_vanilla env ae enc_exp ^^
         set_enc ^^
         get_enc ^^ Closure.prepare_closure_call env ^^
