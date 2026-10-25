@@ -9,6 +9,11 @@
     below 2^32 and amounts up to 32 that silently wrapped larger results,
     e.g. `shiftLeft(2 ** 30, 32)` gave `0`; the interpreter was right (#6447).
 
+  * bugfix: a canister with more than about 20,000 static allocations (for
+    example, that many distinct text literals) no longer fails to install with
+    `IC0505` (function complexity exceeds the maximum allowed). Static variables
+    are now initialized by several functions instead of one (#6480).
+
 ## 2.1.0 (2026-10-21)
 
 * motoko (`moc`)

@@ -757,8 +757,13 @@ module E = struct
       Printf.eprintf "\npool report = %s" profile
     end
 
-  let iterate_object_pool (env : t) f =
-    G.concat_mapi f (List.map (fun (l, a) -> a) (Table.to_list !(env.object_pool.objects)))
+  (* The pool's allocations in index order, cut into consecutive chunks of at most [n]. *)
+  let chunk_object_pool (env : t) n =
+    let rec chunks = function
+      | [] -> []
+      | xs -> let chunk, rest = Lib.List.split_at n xs in chunk :: chunks rest in
+    chunks (List.mapi (fun index (_, allocation) -> (index, allocation))
+      (Table.to_list !(env.object_pool.objects)))
 
   let collect_garbage env force =
     let name = "incremental_gc" in
@@ -9543,12 +9548,19 @@ module GCRoots = struct
       let length = Int64.of_int (E.object_pool_size env) in
       compile_unboxed_const length ^^
       E.call_rts env "initialize_static_variables" ^^
-      E.iterate_object_pool env (fun index allocation ->
-      Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
-            compile_unboxed_const (Int64.of_int index) ^^
-            allocation env ^^
-              E.call_rts env "set_static_variable")
-      )
+      (* One call per static allocation lands in the caller, and the IC rejects any Wasm
+         function whose complexity exceeds 1,000,000 (a call counts about 50), so a single
+         caller caps a canister at about 20,000 static allocations. Calls are grouped into
+         chunk functions so no function in the chain grows with the pool size. *)
+      G.concat_mapi (fun chunk allocations ->
+        Func.share_code0 Func.Always env (Printf.sprintf "initialize_root_array_%i" chunk) [] (fun env ->
+          G.concat_map (fun (index, allocation) ->
+            Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
+              compile_unboxed_const (Int64.of_int index) ^^
+              allocation env ^^
+                E.call_rts env "set_static_variable")
+          ) allocations)
+      ) (E.chunk_object_pool env 8192)
     )
 end (* GCRoots *)
 
