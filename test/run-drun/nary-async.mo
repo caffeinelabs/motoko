@@ -106,7 +106,60 @@ actor a {
       };
     };
   };
+
+  /* n-ary async values under subtyping */
+  type Pair = (Int, Bool);
+  type Unit = ();
+
+  func never() : async* None { throw Prim.error("never") };
+
+  public func go3() : async () {
+    do {
+      let f : async (Int, Bool) = g0_2();
+      let fa : async Any = f;
+      ignore await fa;
+      let (x, y) = await f;
+      assert x == 1 and y;
+      let u : async Any = g0_0();
+      ignore await u;
+      Prim.debugPrint("shared")
+    };
+
+    do {
+      let p : async Pair = async { (1, true) };
+      let pa : async Any = p;
+      ignore await pa;
+      let (x, y) = await p;
+      assert x == 1 and y;
+      let u : async Unit = async {};
+      let ua : async Any = u;
+      ignore await ua;
+      await u;
+      let n : async None = async { throw Prim.error("none") };
+      let np : async (Int, Bool) = n;
+      try { ignore await np } catch _ { Prim.debugPrint("caught async None") };
+      Prim.debugPrint("async")
+    };
+
+    do {
+      let c : async* Pair = async* { (1, true) };
+      let ca : async* Any = c;
+      ignore await* ca;
+      let (x, y) = await* c;
+      assert x == 1 and y;
+      let u : async* Unit = async* {};
+      let ua : async* Any = u;
+      ignore await* ua;
+      await* u;
+      let np : async* (Int, Bool) = never();
+      try { ignore await* np } catch _ { Prim.debugPrint("caught async* None") };
+      let nu : async* () = never();
+      try { await* nu } catch _ { Prim.debugPrint("caught async* None") };
+      Prim.debugPrint("async*")
+    }
+  }
 };
 
 ignore(a.go1()); //OR-CALL ingress go1 "DIDL\x00\x00"
 ignore(a.go2()); //OR-CALL ingress go2 "DIDL\x00\x00"
+ignore a.go3() //OR-CALL ingress go3 "DIDL\x00\x00"

@@ -3,6 +3,8 @@
 //   OtherPrim "costCall"
 //   OtherPrim "costCreateCanister"
 //   OtherPrim "costHttpRequest"
+//   OtherPrim "costHttpRequestV2"
+//   OtherPrim "subnetSelfNodeCount"
 //   OtherPrim "costSignWithEcdsa"
 //   OtherPrim "costSignWithSchnorr"
 //   OtherPrim "costVetkdDeriveKey"
@@ -35,6 +37,21 @@ actor {
 
     // OtherPrim "costHttpRequest"
     Prim.debugPrint(debug_show (Prim.costHttpRequest(15, 2000)) # " -- cost_http_request");
+
+    // OtherPrim "costHttpRequestV2": the argument is the Candid encoding of the
+    // parameter record; the price is subnet-dependent, so only its sign is shown
+    let params = to_candid ({
+      request_bytes = 100 : Nat64;
+      http_roundtrip_time_ms = 1_000 : Nat64;
+      raw_response_bytes = 1_000 : Nat64;
+      transformed_response_bytes = 1_000 : Nat64;
+      transform_instructions = 1_000_000 : Nat64;
+      outcall_type = null : ?{};
+    });
+    Prim.debugPrint(debug_show (Prim.costHttpRequestV2(params) > 0) # " -- cost_http_request_v2");
+
+    // OtherPrim "subnetSelfNodeCount": every subnet has at least one node
+    Prim.debugPrint(debug_show (Prim.subnetSelfNodeCount() > 0) # " -- subnet_self_node_count");
 
     // OtherPrim "costSignWithEcdsa" / "costSignWithSchnorr" / "costVetkdDeriveKey"
     // drun has empty key sets; all queries produce error codes

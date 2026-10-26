@@ -102,6 +102,7 @@ error[M0119]: object field setTimer is not contained in expected type
     costCall : (methodNameSize : Nat64, payloadSize : Nat64) -> Nat;
     costCreateCanister : () -> Nat;
     costHttpRequest : (requestSize : Nat64, maxResBytes : Nat64) -> Nat;
+    costHttpRequestV2 : (params : Blob) -> Nat;
     costSignWithEcdsa :
       (keyName : Text, curveEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
@@ -283,6 +284,7 @@ error[M0119]: object field setTimer is not contained in expected type
     shiftLeft : (x : Nat, shift : Nat32) -> Nat;
     shiftRight : (x : Nat, shift : Nat32) -> Nat;
     sin : (f : Float) -> Float;
+    subnetSelfNodeCount : () -> Nat32;
     tan : (f : Float) -> Float;
     textCompare : (t1 : Text, t2 : Text) -> Int8;
     textLowercase : (t : Text) -> Text;

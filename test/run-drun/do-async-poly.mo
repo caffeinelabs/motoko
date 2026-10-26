@@ -1,8 +1,6 @@
 import P "mo:prim";
 // test polymorphic async compilation
 // Currently rejected because type parameters aren't shared.
-// If we (in future) allow type parameters in async types, then we should enforce that  `T` in async* `T` is a manifest tuple
-// so that async arity is invariant under substition.
 actor a {
 
   private func doUnit<T>(t : T) : async* T {

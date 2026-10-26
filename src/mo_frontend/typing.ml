@@ -2541,10 +2541,25 @@ and infer_exp'' env exp : T.typ =
       let t = Operator.type_relop op (T.lub ~src_fields:env.srcs (T.promote t1) (T.promote t2)) in
       if not (Operator.has_relop op t) then
         error_bin_op env exp.at t1 t2;
-      if T.singleton t then
+      (* operands that already have the single-valued type were declared so on purpose,
+         but a literal-like operand only takes its type from the other one *)
+      let checked = is_explicit_exp exp1 <> is_explicit_exp exp2 in
+      if checked && eq env exp.at t T.Any then
         warn env exp.at "M0276"
-          "this comparison always has the same result, because it is performed at type%a\nwhich has a single value"
+          "this comparison always has the same result, because both operands are compared at type%a\nwhich has a single value"
           display_typ_expand t
+      else if T.singleton t && not (eq env exp1.at t t1 && eq env exp2.at t t2) then
+        if eq env exp.at t1 t2 then
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares abstract type%a\nto itself at supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t
+        else
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares type%a\nwith type%a\nat their common supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t2
+            display_typ_expand t
       else if not (eq env exp1.at t t1 || eq env exp2.at t t2) && not (sub env exp1.at T.nat t1 && sub env exp2.at T.nat t2) then
         if eq env exp.at t1 t2 then
           warn env exp.at "M0061"

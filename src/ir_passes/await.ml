@@ -7,7 +7,10 @@ module R = Rename
 module T = Type
 open Construct
 
-let fresh_cont typ ans_typ = fresh_var "k" (contT typ ans_typ)
+(* Success continuations take one argument, even a tuple, the way an async value passes its result *)
+let unary_contT typ ans_typ = T.(Func (Local, Returns, [], [typ], as_seq ans_typ))
+
+let fresh_cont typ ans_typ = fresh_var "k" (unary_contT typ ans_typ)
 
 let fresh_err_cont ans_typ  = fresh_var "r" (err_contT ans_typ)
 
@@ -61,12 +64,13 @@ module PatEnv = Env.Make(String)
 type label_sort = Cont of var | Label
 
 let precompose vthunk k =
-  let typ0 = match typ_of_var k with
-    | T.(Func (Local, Returns, [], ts1, _)) -> T.seq ts1
+  let ts1 = match typ_of_var k with
+    | T.(Func (Local, Returns, [], ts1, _)) -> ts1
     | _ -> assert false in
-  let v = fresh_var "v" typ0 in
+  let v = fresh_var "v" (T.seq ts1) in
   let e = blockE [expD (varE vthunk -*- unitE ())] (varE k -*- varE v) in
-  let k' = fresh_cont typ0 (typ e) in
+  (* keep k's arity, which is nullary for the cleanup continuation *)
+  let k' = fresh_var "k" T.(Func (Local, Returns, [], ts1, as_seq (typ e))) in
   (k', funcD k' v e)
 
 let preconts context vthunk scope =
@@ -286,7 +290,7 @@ and c_loop context k e1 =
   | T.Triv ->
     assert false
   | T.Await ->
-    let loop = fresh_var "loop" (contT T.unit T.unit) in
+    let loop = fresh_var "loop" (unary_contT T.unit T.unit) in
     let v1 = fresh_var "v" T.unit in
     blockE
       [funcD loop v1 (c_exp context e1 (ContVar loop))]
