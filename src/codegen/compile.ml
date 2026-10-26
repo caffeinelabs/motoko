@@ -2471,7 +2471,7 @@ module BoxedWord64 = struct
 
   let compile_box env pty compile_elem : G.t =
     let (set_i, get_i) = new_local env "boxed_i64" in
-    let size = 4L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size (heap_tag env pty) ^^
     set_i ^^
     get_i ^^ compile_elem ^^ Tagged.store_field env payload_field ^^
@@ -2831,7 +2831,7 @@ module Float = struct
 
   let box env = Func.share_code1 Func.Never env "box_f64" ("f", F64Type) [I64Type] (fun env get_f ->
     let (set_i, get_i) = new_local env "boxed_f64" in
-    let size = Int64.add Tagged.header_size 2L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size Tagged.(Bits64 F) ^^
     set_i ^^
     get_i ^^ get_f ^^ Tagged.store_field_float64 env payload_field ^^
@@ -3269,8 +3269,10 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   (*
     Note [left shifting compact Nat]
-    For compact Nats with a number fitting in 32 bits (in scalar value representation) and a shift amount of
-    less or equal 32, we perform a fast shift. Otherwise, the bignum shift via RTS is applied.
+    When the result is known to fit the compact range, i.e. `n << amount < 2^sbits`, we perform a fast
+    shift. For a non-negative `n` that holds exactly when `clz n >= amount + (64 - sbits)`, which also
+    keeps `amount` below 64, where Wasm would take it modulo 64. Otherwise, the bignum shift via RTS is
+    applied. Bounding the operands instead of the result admits products the tag would silently wrap.
    *)
   let compile_lsh env =
     Func.share_code2 Func.Always env "B_lsh" (("n", I64Type), ("amount", I64Type)) [I64Type]
@@ -3282,11 +3284,9 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
       begin
         (* see Note [left shifting compact Nat] *)
         get_n ^^ BitTagged.untag __LINE__ env Type.Int ^^ set_n ^^
-        get_n ^^
-        compile_bitand_const 0xFFFF_FFFF_0000_0000L ^^
-        compile_eq_const 0L ^^
-        get_amount ^^ compile_rel_const I64Op.LeU 32L ^^
-        G.i (Binary (Wasm_exts.Values.I64 I64Op.And)) ^^
+        get_n ^^ G.i (Unary (Wasm_exts.Values.I64 I64Op.Clz)) ^^
+        get_amount ^^ compile_add_const (Int64.of_int (64 - BitTagged.sbits_of Type.Int)) ^^
+        compile_comparison I64Op.GeU ^^
         E.if1 I64Type
         begin
           get_n ^^
