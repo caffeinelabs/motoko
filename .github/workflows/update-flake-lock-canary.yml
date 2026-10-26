@@ -1,0 +1,67 @@
+name: Update nixpkgs canary
+on:
+  workflow_dispatch:
+  schedule:
+    # The 1st and 15th of each month, i.e. roughly biweekly
+    - cron: "17 3 1,15 * *"
+
+permissions:
+  contents: read
+
+# Rebuilds the canary branch (draft PR #6455) from `master`: its only change is
+# the flake's `nixpkgs.url`, which is carried over, and the lock is regenerated
+# for `nixpkgs` and `rust-overlay`. The force-push triggers the PR's CI.
+env:
+  CANARY_BRANCH: gabor/canary-nixpkgs-unstable
+
+jobs:
+  canary-updater:
+    name: "Rebase canary onto master and bump flake.lock"
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - name: Install Determinate Nix
+        uses: DeterminateSystems/nix-installer-action@1d87d45818068401a10cf16bdc5f00b24994a83f # main
+      - name: Rebuild canary branch
+        run: |
+          set -euo pipefail
+          if ! git fetch origin "$CANARY_BRANCH"; then
+            echo "::notice::$CANARY_BRANCH no longer exists, nothing to do"
+            exit 0
+          fi
+          old=$(git rev-parse FETCH_HEAD)
+          url=$(git show "$old:flake.nix" | sed -n 's/^ *nixpkgs\.url = "\(.*\)";$/\1/p')
+          if [ -z "$url" ]; then
+            echo "::error::no nixpkgs.url in flake.nix on $CANARY_BRANCH"
+            exit 1
+          fi
+
+          git checkout -B "$CANARY_BRANCH" origin/master
+          sed -i "s|^\( *nixpkgs\.url = \)\".*\";\$|\1\"$url\";|" flake.nix
+          nix flake update nixpkgs rust-overlay 2> "$RUNNER_TEMP/update.log"
+          sed -i 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/update.log"
+          cat "$RUNNER_TEMP/update.log"
+
+          if git diff --quiet origin/master; then
+            echo "::notice::canary would equal master, not pushing"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          { printf 'canary: build against `%s`\n\n' "${url#github:NixOS/nixpkgs/}"
+            sed -n '/^• /,$p' "$RUNNER_TEMP/update.log"
+          } > "$RUNNER_TEMP/msg"
+          git commit -a -q -F "$RUNNER_TEMP/msg"
+          git push --force-with-lease="$CANARY_BRANCH:$old" origin "HEAD:$CANARY_BRANCH"
