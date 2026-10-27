@@ -2907,6 +2907,13 @@ This form is `try <block-or-exp1> (catch <pat> <block-or-exp2>)? finally <block-
 
 :::danger
 
+If a future's reply callback traps before the future is awaited (for example,
+while decoding an incompatible Candid reply), the failure is remembered.
+A later `await` or `await?` terminates the awaiting computation and executes
+its enclosing `finally` clauses; it does not resume normally or turn the trap
+into a catchable error. Plain `await` schedules this cleanup in a later message,
+whereas `await?` executes it immediately for an already failed future.
+
 The code within a `finally` block should terminate promptly and not trap.
 A trapping finally block will fail to free its callback table slot which
 can prevent a future upgrade.

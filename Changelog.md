@@ -4,10 +4,28 @@
 
 * motoko (`moc`)
 
-  * Added `Prim.subnetSelfNodeCount() : Nat32` and
+  * bugfix: `Prim.shiftLeft` on `Nat` (`Nat.bitshiftLeft`) returns the right
+    result when it exceeds 2^61. Compiled code took a fast path for operands
+    below 2^32 and amounts up to 32 that silently wrapped larger results,
+    e.g. `shiftLeft(2 ** 30, 32)` gave `0`; the interpreter was right (#6447).
+
+  * bugfix: boxed `Nat64`, `Int64` and `Float` values now allocate 3 words (24 bytes)
+    on the heap instead of 4, matching their RTS layout. The fourth word was
+    an oversight and never used (#6475).
+
+## 2.1.0 (2026-10-21)
+
+* motoko (`moc`)
+
+  * feat: added `Prim.subnetSelfNodeCount() : Nat32` and
     `Prim.costHttpRequestV2(params : Blob) : Nat`, exposing
     `ic0.subnet_self_node_count` and `ic0.cost_http_request_v2` for
     pay-as-you-go HTTPS outcall pricing (#6461).
+
+  * bugfix: an `await` or `await?` of a future whose reply callback already
+    trapped now runs the awaiting computation's `finally` clauses instead
+    of suspending forever. This includes Candid decoding failures before
+    a waiter was registered (#5909, #6469).
 
   * bugfix: timers no longer stop for good when a canister runs short of
     cycles. If the self-call that dispatches expired timers was rejected
@@ -38,6 +56,13 @@
     tables transposed, which could read past the end of the cache or wrongly
     accept an incompatible upgrade once the two versions had different
     type-table sizes (#6463).
+
+  * M0276 no longer reports a comparison whose operands both already have the
+    single-valued type, such as `status == #active` with
+    `status : { #active }`: the type was declared that way on purpose. It
+    still reports operands of different types compared at `Any` or `{}`, and
+    a literal compared with an `Any` value, as in `x == 10`. Its message now
+    names the operand types (#6470).
 
 ## 2.0.0 (2026-10-06)
 
