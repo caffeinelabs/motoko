@@ -464,9 +464,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     `moc` still accepts a bare branch after a single-atom head (`if (v >= 0) v else -v`),
     a bare `case` body (`case null 0`), and an expression function body
     (`func succ(x : Nat) : Nat = x + 1`). All three are legacy forms on their way out;
-    do not write them in new code. The one place `= e` is still needed is a local
-    function that forwards an already-computed `async` value, which a block body would
-    re-wrap.
+    do not write them in new code. An `= e` body means the same as `{ e }`, an `async`
+    one included, so the block form always works.
 
 -   Use "C-style" layout for braced sub-expressions stretching multiple lines.
 
