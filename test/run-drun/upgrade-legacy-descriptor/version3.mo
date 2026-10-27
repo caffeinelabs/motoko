@@ -8,7 +8,7 @@ actor {
       d : [var [var Nat]] = [var [var 4]];
       e : [var Char] = [var];
       f : [var Char] = [var 'f'];
-      g : Nat32 = 7;
+      g : Nat32 = 0xFFFF_FFFF;
       h : () = ();
       i : Null = null;
       j : { #on; #off } = #on;

@@ -12,3 +12,8 @@ upgrade $ID upgrade-legacy-descriptor/version0.mo ""
 upgrade $ID upgrade-legacy-descriptor/version1.mo ""
 upgrade $ID upgrade-legacy-descriptor/old.wasm ""
 ingress $ID peek "DIDL\x00\x00"
+# A legacy descriptor can't tell a stored `Nat32` from a `Char`, so it accepts reading one as the other,
+# here yielding a garbage code point; `moc --stable-compatible` rejects this upgrade.
+reinstall $ID upgrade-legacy-descriptor/old.wasm ""
+upgrade $ID upgrade-legacy-descriptor/version4.mo ""
+ingress $ID peek "DIDL\x00\x00"
