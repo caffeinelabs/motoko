@@ -27,7 +27,7 @@ module {
 	   label sends loop {
 	     switch next {
 	       case null { break sends }
-	       case (?n) {
+	       case ?n {
 		 if n.head.id != id { n.head.client(message) };
 		 next := n.tail;
 	       }
@@ -45,11 +45,11 @@ module {
      loop {
        switch next {
 	 case null { return }
-	 case (?n) {
+	 case ?n {
 	   if n.head.id == id {
 	     switch prev {
 	       case null { clients := n.tail }
-	       case (?p) { p.tail := n.tail }
+	       case ?p { p.tail := n.tail }
 	     };
 	     Prim.debugPrint "(unsubscribe "; Prim.debugPrintInt id; Prim.debugPrint ")\n";
 	     return;

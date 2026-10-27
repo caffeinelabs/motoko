@@ -887,7 +887,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     Use `ignore` to explicitly drop results. Do *not* use `ignore` when it’s not needed.
 
     ``` motoko no-repl
-    ignore async f();  // fire of a computation
+    ignore async { f() };  // fire of a computation
     ```
 
 -   Motoko allows to omit the `return` at the end of a function, because a block evaluates to its last expression.

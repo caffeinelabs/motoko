@@ -164,7 +164,7 @@ If the block produces a non-`()` result, as in this minor refactoring, the `brea
 
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
-  label result : Int {
+  label result : Int do {
     var prod : Int = 1;
     for number in numbers.values() {
       prod *= number;

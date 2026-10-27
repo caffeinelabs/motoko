@@ -110,7 +110,7 @@ import Debug "mo:core/Debug";
 
 let pairs = [(1, 2), (3, 4)];
 
-for ((fst, snd) in pairs.values()) {
+for (fst, snd) in pairs.values() {
   Debug.print(debug_show(fst + snd));
 };
 ```

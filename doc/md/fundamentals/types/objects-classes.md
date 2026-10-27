@@ -180,7 +180,7 @@ printBalance(_premiumAccount);
 import Debug "mo:core/Debug";
 func withdrawFromAccount(account : { withdraw : Nat -> Bool }) {
   let success = account.withdraw(100);
-  Debug.print(if success "Withdrawal successful" else "Insufficient funds");
+  Debug.print(if success { "Withdrawal successful" } else { "Insufficient funds" });
 };
 
 // Works only for premiumAccount, fails for others

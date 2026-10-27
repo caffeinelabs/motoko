@@ -343,7 +343,7 @@ A `catch` block can be inserted inside a `try/finally` expression to catch an er
 ```motoko no-repl
     try {
     // Code that might throw an error
-    } catch (e) {
+    } catch e {
     // Handle the error
     } finally {
     // Cleanup code that always runs
@@ -357,7 +357,7 @@ When `catch` is used, the `finally` clause is optional. The `catch` block only c
 ```motoko no-repl
     try {
         throw Error.reject("Intentional error");
-    } catch (e) {
+    } catch e {
         // This will catch the explicitly thrown error
     }
 ```
@@ -367,7 +367,7 @@ When `catch` is used, the `finally` clause is optional. The `catch` block only c
 ```motoko no-repl
     try {
         let result = await someAsyncFunction(); // If this returns an error
-    } catch (e) {
+    } catch e {
         // The error will be caught here
     }
 ```

@@ -82,7 +82,7 @@ func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = func() : @Iter<Nat8> = object {
   type BlobIter = Any; // not exposed
   let i = (prim "blob_vals_iter" : Blob -> BlobIter) xs;
   public func next() : ?Nat8 {
-    if ((prim "blob_iter_done" : BlobIter -> Bool) i) { null } else { ?((prim "blob_iter_next" : BlobIter -> Nat8) i) };
+    if (prim "blob_iter_done" : BlobIter -> Bool)(i) { null } else { ?((prim "blob_iter_next" : BlobIter -> Nat8) i) };
   };
 };
 func @text_size(xs : Text) : () -> Nat = func() : Nat = (prim "text_len" : Text -> Nat) xs;
@@ -90,7 +90,7 @@ func @text_chars(xs : Text) : () -> @Iter<Char> = func() : @Iter<Char> = object 
   type TextIter = Any; // not exposed
   let i = (prim "text_iter" : Text -> TextIter) xs;
   public func next() : ?Char {
-    if ((prim "text_iter_done" : TextIter -> Bool) i) { null } else { ?((prim "text_iter_next" : TextIter -> Char) i) };
+    if (prim "text_iter_done" : TextIter -> Bool)(i) { null } else { ?((prim "text_iter_next" : TextIter -> Char) i) };
   };
 };
 
@@ -199,7 +199,7 @@ func @text_has_parens(t : Text) : Bool {
 
 func @text_needs_parens(t : Text) : Bool {
   switch t.chars().next() {
-    case (?('+' or '-' or '?' or '#')) { true }
+    case ?('+' or '-' or '?' or '#') { true }
     case _ { false }
   };
 };
@@ -364,7 +364,7 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
       case ?#ok(r, t) {
         #schedule(func() { @refund := r; k(t) });
       }
-      case (?#error e) {
+      case ?#error(e) {
         #schedule(func _ = r(e));
       }
     };
@@ -563,7 +563,7 @@ func @timer_helper() : async () {
           // not expunged yet
           thunks[gathered] := ?(n.job);
           switch n.delay {
-            case (null or ?0) { n.expire[0] := 0 }
+            case null or ?0 { n.expire[0] := 0 }
             case ?delay {
               recurring[gathered] := true;
               // re-add the node, skipping past expirations
@@ -670,8 +670,8 @@ func @isTransient(e : Error) : Bool {
     #call_error : { err_code : Nat32 }
   };
   switch ((prim "cast" : Error -> (Code, Text)) e).0 {
-    case #system_transient true;
-    case _ false
+    case #system_transient { true }
+    case _ { false }
   }
 };
 
@@ -902,7 +902,7 @@ func @dedup(b : Blob) : Blob {
 
 // envvar-indirection for principals
 func @envvar_principal(envvar : Text) : Blob =
-  switch ((prim "env_var" : Text -> ?Text) envvar) {
+  switch (prim "env_var" : Text -> ?Text)(envvar) {
     case ?envvar { (prim "decode_principal" : Text -> Blob) envvar }
     case _ { (prim "trap" : Text -> None)("envvar `" # envvar # "` not set") }
   };
