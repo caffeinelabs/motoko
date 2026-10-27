@@ -70,7 +70,7 @@ import Debug "mo:core/Debug";
 
 let arr : [Nat] = [1, 2, 3, 4, 5];
 
-for (i in arr.keys()) {
+for i in arr.keys() {
   Debug.print(debug_show(arr[i]));
 }
 ```
@@ -94,7 +94,7 @@ Motoko supports passing collections to a function, ensuring that all arguments a
 import Debug "mo:core/Debug"
 
 func printAllStrings(strings : [Text]) {
-  for (s in strings.values()) {
+  for s in strings.values() {
     Debug.print(s);
   }
 };
@@ -163,11 +163,11 @@ actor Chess{
     let board : [[Text]] = Array.tabulate<[Text]>(size, func(r : Nat) : [Text] {
       Array.tabulate<Text>(size, func(c : Nat) : Text {
           switch (r, c) {
-            case (0, 0) {"♜"}; case (0, 1) {"♞"}; case (0, 2) {"♝"}; case (0, 3) {"♛"}; case (0, 4) { "♚"};
-            case (0, 5) {"♝"}; case (0, 6) {"♞"}; case (0, 7) {"♜"}; case (1, _) {"♟"}; // Pawns on row 1
-            case (6, _) {"♙"}; // Pawns on row 6
-            case (7, 0) {"♖"}; case (7, 1) {"♘"}; case (7, 2) {"♗"}; case (7, 3) {"♕"};
-            case (7, 4) {"♔"}; case (7, 5) {"♗"}; case (7, 6) {"♘"}; case (7, 7) { "♖"}; case (_, _) {"."} // Empty squares
+            case (0, 0) {"♜"} case (0, 1) {"♞"} case (0, 2) {"♝"} case (0, 3) {"♛"} case (0, 4) { "♚"}
+            case (0, 5) {"♝"} case (0, 6) {"♞"} case (0, 7) {"♜"} case (1, _) {"♟"} // Pawns on row 1
+            case (6, _) {"♙"} // Pawns on row 6
+            case (7, 0) {"♖"} case (7, 1) {"♘"} case (7, 2) {"♗"} case (7, 3) {"♕"}
+            case (7, 4) {"♔"} case (7, 5) {"♗"} case (7, 6) {"♘"} case (7, 7) { "♖"} case (_, _) {"."} // Empty squares
             }
           }
         )
@@ -180,7 +180,7 @@ actor Chess{
   let chessboard : [[Text]] = generateChessboard();
 
   // Display the board
-  for (row in chessboard.values()) {
+  for row in chessboard.values() {
     let rowText = Array.foldLeft<Text, Text>(row, "", func(acc, square) = acc # square # " ");
     Debug.print(rowText)
   }

@@ -843,6 +843,15 @@ let checked_body_kind sort typ_opt s tbs ts2 =
   | Async _, [{T.sort = T.Scope; _}] when s = T.Local -> Some kind
   | _ -> None
 
+(* Whether checking against [t] alone makes the body of a function without a return type async *)
+let async_body_from_expected sort typ_opt t =
+  match typ_opt, t with
+  | None, T.Func (s, _, tbs, _, ts2) ->
+    (match checked_body_kind sort typ_opt s tbs ts2 with
+     | Some (Async _) -> true
+     | _ -> false)
+  | _ -> false
+
 (* Adds the implicit scope binder and `async` that the kind calls for, and records them for the interpreter and lowering *)
 let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
   let typ_binds' =
@@ -3792,8 +3801,10 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
         to_fix := (exp, target_type') :: !to_fix;
         target_type'
       (* Future work: more cases to decompose, e.g. T.Opt, T.Obj, T.Variant... *)
-      | FuncE (_, _, _, pat, _, _, _), normalized_target when not (is_explicit_pat pat) ->
-        (* Cannot infer unannotated func, defer it *)
+      | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _, _), normalized_target
+        when not (is_explicit_pat pat)
+          || typ_binds = [] && async_body_from_expected shared_pat.it typ_opt normalized_target ->
+        (* Cannot infer unannotated func, nor one that only the target makes async, defer it *)
         deferred := (exp, target_type) :: !deferred;
         must_solve := (* Inputs of deferred functions must be solved first *)
           (match normalized_target with

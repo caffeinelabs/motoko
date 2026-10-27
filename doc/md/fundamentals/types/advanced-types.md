@@ -99,14 +99,14 @@ func reverseNat(l : List) : List {
   var rev : List = null;
 
   loop {
-    switch (current) {
-      case (?(head, tail)) {
+    switch current {
+      case ?(head, tail) {
         rev := ?(head, rev);
         current := tail;
-      };
-      case (null) {
+      }
+      case null {
         return rev;
-      };
+      }
     };
   };
 };
@@ -128,14 +128,14 @@ func reverse<T>(l : List<T>) : List<T> {
   var current = l;
   var rev : List<T> = null;
   loop {
-    switch (current) {
-      case (?(head, tail)) {
+    switch current {
+      case ?(head, tail) {
         rev := ?(head, rev);
         current := tail;
-      };
-      case (null) {
+      }
+      case null {
         return rev;
-      };
+      }
     };
   };
 };
@@ -189,7 +189,7 @@ For example, it is possible to constrain a generic type to be a subtype of a pri
 
 ```motoko no-repl
 func max<T <: Int>(x : T, y : T) : T {
-  if (x <= y) y else x
+  if x <= y { y } else { x }
 };
 max<Int>(-5, -10);  // returns -5  : Int
 ```
@@ -266,17 +266,17 @@ actor Publisher {
     stable var subscribers : [Principal] = [];
 
     public shared func subscribe(subscriber : Principal) : async () {
-        if (Array.find<Principal>(subscribers, func(s) { s == subscriber }) == null) {
+        if Array.find<Principal>(subscribers, func(s) { s == subscriber }) == null {
             let newSubscribers = Array.tabulate<Principal>(
                 subscribers.size() + 1,
-                func(i) { if (i < subscribers.size()) subscribers[i] else subscriber }
+                func(i) { if i < subscribers.size() { subscribers[i] } else { subscriber } }
             );
             subscribers := newSubscribers;
         };
     };
 
     public shared func publish(message : Text) : async () {
-        for (sub in subscribers.values()) {
+        for sub in subscribers.values() {
             let subActor = actor(Principal.toText(sub)) : actor { notify : (Text) -> async () };
             await subActor.notify(message);
         };

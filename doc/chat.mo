@@ -9,11 +9,11 @@ actor Server = {
     var next = clients;
     loop {
       switch next {
-        case null return;
-        case (?l) {
+        case null { return }
+        case ?l {
           l.head.send(message);
           next := l.tail;
-        };
+        }
       };
     };
   };
