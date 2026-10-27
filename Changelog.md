@@ -9,6 +9,10 @@
     below 2^32 and amounts up to 32 that silently wrapped larger results,
     e.g. `shiftLeft(2 ** 30, 32)` gave `0`; the interpreter was right (#6447).
 
+  * bugfix: boxed `Nat64`, `Int64` and `Float` values now allocate 3 words (24 bytes)
+    on the heap instead of 4, matching their RTS layout. The fourth word was
+    an oversight and never used (#6475).
+
   * bugfix: in a generic call that expects an `async` or `async*` function,
     a function argument with typed or no parameters, such as `func() { 7 }`,
     is asynchronous, as one with untyped parameters already was (#6478).
