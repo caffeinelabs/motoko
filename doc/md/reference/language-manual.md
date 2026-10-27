@@ -877,6 +877,8 @@ Computation types typically appear as the result type of a `local` function that
 
 They cannot be used as the return types of `shared` functions.
 
+Unlike a future's result, a computation's result type need not be shared, because the computation runs in the context that awaits it.
+
 ### Tuple types
 
 `( ((<id> :)? <typ>),* )` specifies the type of a tuple with zero or more ordered components.

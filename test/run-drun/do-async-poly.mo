@@ -107,7 +107,16 @@ actor a {
     assert arr4[0] == 0;
     let c3 = await* async* { counter() };
     c3.inc();
-    assert c3.count == 1
+    assert c3.count == 1;
+
+    // futures and computations as results, awaited in the scope that created them
+    let mk = async* { async { 1 } };
+    assert (await (await* mk)) == 1;
+    let mkStar = async* { async* { 2 } };
+    assert (await* (await* mkStar)) == 2;
+    let fut = async { 3 };
+    assert (await (await* doReturn<async Nat>(fut))) == 3;
+    assert (await* (await* doExit<async* Nat>(async* { 4 }))) == 4
   }
 
 };
