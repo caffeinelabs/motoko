@@ -72,13 +72,13 @@ func @mut_array_vals<A>(xs : [var A]) : () -> @Iter<A> = func() : @Iter<A> = obj
   };
 };
 func @blob_size(b : Blob) : () -> Nat = func() : Nat = (prim "blob_size" : Blob -> Nat) b;
-func @blob_keys(b : Blob) : () -> @Iter<Nat> = func() : @Iter<Nat> = object {
+func @blob_keys(b : Blob) : () -> @Iter<Nat> = class() {
   var i = 0;
   let l = (prim "blob_size" : Blob -> Nat) b;
   public func next() : ?Nat { if (i >= l) null else { let j = i; i += 1; ?j } };
 };
 func @blob_get(b : Blob) : Nat -> Nat8 = func(n : Nat) : Nat8 = b[n];
-func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = func() : @Iter<Nat8> = object {
+func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = class() {
   type BlobIter = Any; // not exposed
   let i = (prim "blob_vals_iter" : Blob -> BlobIter) xs;
   public func next() : ?Nat8 {
@@ -86,7 +86,7 @@ func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = func() : @Iter<Nat8> = object {
   };
 };
 func @text_size(xs : Text) : () -> Nat = func() : Nat = (prim "text_len" : Text -> Nat) xs;
-func @text_chars(xs : Text) : () -> @Iter<Char> = func() : @Iter<Char> = object {
+func @text_chars(xs : Text) : () -> @Iter<Char> = class() {
   type TextIter = Any; // not exposed
   let i = (prim "text_iter" : Text -> TextIter) xs;
   public func next() : ?Char {
