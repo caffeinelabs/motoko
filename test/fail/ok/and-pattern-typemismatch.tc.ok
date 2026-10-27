@@ -2,3 +2,5 @@ and-pattern-typemismatch.mo:4.20-4.28: type error [M0117], pattern of type
   Text
 cannot consume expected type
   Nat
+and-pattern-typemismatch.mo:5.1-5.9: warning [M0089], redundant ignore, operand already has type ()
+and-pattern-typemismatch.mo:6.1-6.9: warning [M0089], redundant ignore, operand already has type ()

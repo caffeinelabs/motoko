@@ -91,26 +91,32 @@ func count(r : { #ok : Nat; #err : Text }) : Nat {
 
 // Every ill-typed pattern of a switch is reported and the other cases are still checked, but not its coverage
 switch (#sparrows(1) : { #sparrows : Nat; #geese; #ducks }) {
-  case (#sparows(n)) { ignore n };
-  case (#gese) {};
-  case (#ducks) { ignore ("ducks" : Nat) };
+  case #sparows(n) { ignore n }
+  case #gese {}
+  case #ducks { ignore ("ducks" : Nat) }
 };
 
 switch ((#a, #b) : ({ #a }, { #b })) {
-  case ((#aa, #bb)) {};
-  case _ {};
+  case (#aa, #bb) {}
+  case _ {}
 };
 
 func _handler() : async () {
-  try {} catch (#err) { ignore ("skipped" : Nat) };
-  ignore ("checked" : Nat);
+  try {} catch #err { ignore ("skipped" : Nat) };
+  ignore ("checked" : Nat)
 };
 
 func _lets(r : { #ok : Nat; #err : Text }) : Nat {
   let (a, b) = 1;
-  let #okk(c) = r else { return 0 };
+  let #okk(c) = r else do { return 0 };
   let d : Nat = "checked";
   a + b + c + d
 };
 
 func _params((a, b) : Nat, ?c : Nat) : Nat { a + b + c + "checked" };
+
+// A pattern binding a type field still stops its block, as the type has no fallback
+func _type_field() {
+  let { type T; w } = 5;
+  let _x : T = 1
+}

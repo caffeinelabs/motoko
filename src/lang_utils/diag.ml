@@ -71,6 +71,7 @@ let rec fold : ('a -> 'b -> 'a result) -> 'a -> 'b list -> 'a result = fun f acc
   | x :: xs -> bind (f acc x) (fun y -> fold f y xs)
 
 type msg_store = messages ref
+let new_msg_store () : msg_store = ref []
 let add_msg s m =
   if m.sev = Warning && Flags.is_warning_disabled m.code then () else
   s := m :: !s

@@ -5,3 +5,11 @@ cannot consume expected type
     ┌─ and-pattern-typemismatch.mo:4:20
   4 │  let (x : Nat) and (y : Text) = 5;
     │                     ^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ and-pattern-typemismatch.mo:5:1
+  5 │  ignore x;
+    │  ^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ and-pattern-typemismatch.mo:6:1
+  6 │  ignore y
+    │  ^^^^^^^^ 

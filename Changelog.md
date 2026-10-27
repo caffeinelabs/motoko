@@ -17,6 +17,13 @@
     a function argument with typed or no parameters, such as `func() { 7 }`,
     is asynchronous, as one with untyped parameters already was (#6478).
 
+  * bugfix: an ill-typed pattern no longer hides other type errors. Each bad
+    case of a `switch` or `try` is reported, and checking goes on after a bad
+    `let`, `let ... else` or function parameter, so later declarations and
+    actor fields are checked too. A case whose pattern is ill-typed has its
+    body skipped, and coverage (M0145, M0146, M0243) is not checked on
+    ill-typed patterns (#6430).
+
 ## 2.1.0 (2026-10-21)
 
 * motoko (`moc`)
@@ -264,13 +271,6 @@
       the second `1` in `let (1 or 1) = n else { ... }`, is warning M0146, as
       in a `switch`. In any pattern, an unreached pattern nested inside
       another one is no longer reported a second time (#6429).
-
-    * bugfix: an ill-typed pattern no longer hides other type errors. Every
-      bad pattern of a `switch` or `try` is reported, and checking goes on
-      after a bad `let`, `let ... else` or function parameter, so later
-      declarations and actor fields are checked too. A case whose pattern is
-      ill-typed has its body skipped, and coverage (M0145, M0146, M0243) is
-      not checked on ill-typed patterns (#6430).
 
   * **Command line and tooling**
 

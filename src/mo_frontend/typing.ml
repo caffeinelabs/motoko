@@ -71,8 +71,6 @@ type env =
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
-    (* Set when the pattern being checked is ill-typed, see check_pat_ok *)
-    pat_error : bool ref;
     enhanced_migration : string option;
     (* --stable-baseline stab sig; None if flag unset. *)
     stable_baseline_sig : T.stab_sig option;
@@ -116,7 +114,6 @@ let env_of_scope msgs scope =
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
     closest_scrutinee = None;
-    pat_error = ref false;
     enhanced_migration = None;
     stable_baseline_sig = None;
     enclosing_removal = false;
@@ -329,15 +326,6 @@ let error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
 let local_error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
   Format.kasprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s notes spans edits))
-    fmt
-
-(* An ill-typed pattern does not abort checking, so the other patterns of a switch are still checked.
-   Its subpatterns are checked against `None`, which every pattern accepts.
-   Only the full pass reports it, so it is reported once. *)
-let pat_error ?(spans = []) env at code fmt =
-  Format.kasprintf env (fun s ->
-      env.pat_error := true;
-      if not env.pre then Diag.add_msg env.msgs (type_error at code s [] spans []))
     fmt
 
 let warn ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
@@ -557,6 +545,42 @@ let eq_kind env at k1 k2 =
   try T.eq_kind ~src_fields:env.srcs k1 k2 with T.Undecided ->
     error env at "M0200" "cannot decide type constructor equality"
 
+(* Ill-typed patterns *)
+
+(* Whether checking typed every subpattern, which it does not below an ill-typed one *)
+let rec pat_typed pat =
+  pat.note <> T.Pre &&
+  match pat.it with
+  | WildP | VarP _ | LitP _ | SignP _ -> true
+  | TupP pats -> List.for_all pat_typed pats
+  | ObjP pfs ->
+    pfs |> List.for_all (fun pf ->
+      match pf.it with
+      | ValPF (_, pat1) -> pat_typed pat1
+      | TypPF _ -> true)
+  | TagP (_, pat1) | OptP pat1 | AnnotP (pat1, _) | ParP pat1 -> pat_typed pat1
+  | AltP (pat1, pat2) | AndP (pat1, pat2) -> pat_typed pat1 && pat_typed pat2
+
+(* The variables of a pattern at `None`, the fallback for an ill-typed one.
+   None if it binds a type field, as its type constructor would stay undefined. *)
+let rec non_vals ?(val_kind = Scope.Declaration) pat : Scope.val_env option =
+  let union ves =
+    ves |> List.fold_left (fun ve1 ve2 ->
+      Lib.Option.map2 (T.Env.union (fun _ v _ -> Some v)) ve1 ve2
+    ) (Some T.Env.empty) in
+  match pat.it with
+  | WildP | LitP _ | SignP _ -> Some T.Env.empty
+  | VarP id -> Some (T.Env.singleton id.it (T.Non, id.at, val_kind))
+  | TupP pats -> union (List.map (fun pat1 -> non_vals pat1) pats)
+  | ObjP pfs ->
+    pfs |> List.map (fun pf ->
+      match pf.it with
+      | ValPF (_, pat1) -> non_vals ~val_kind:(kind_of_field_pattern pf) pat1
+      | TypPF _ -> None
+    ) |> union
+  | TagP (_, pat1) | OptP pat1 | AnnotP (pat1, _) | ParP pat1 -> non_vals pat1
+  | AltP (pat1, pat2) | AndP (pat1, pat2) -> union [non_vals pat1; non_vals pat2]
+
 (* Coverage *)
 
 let warn_unreached env unreached =
@@ -572,17 +596,21 @@ let coverage' warnOrError category env f x t at =
       display_typ_expand t
       (String.concat " or\n  " uncovered)
 
+(* Coverage is not checked on ill-typed patterns, which have to change anyway *)
 let coverage_cases category env cases t at =
-  coverage' warn category env Coverage.check_cases cases t at
+  if List.for_all (fun (case : case) -> pat_typed case.it.pat) cases then
+    coverage' warn category env Coverage.check_cases cases t at
 
 let coverage_pat warnOrError env pat t =
-  coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
+  if pat_typed pat then
+    coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
 
 let coverage_let_else env pat t =
-  let uncovered, unreached = Coverage.check_pat pat t in
-  warn_unreached env unreached;
-  if uncovered = [] then
-    warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause"
+  if pat_typed pat then
+    let uncovered, unreached = Coverage.check_pat pat t in
+    warn_unreached env unreached;
+    if uncovered = [] then
+      warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause"
 
 (* Types *)
 
@@ -2834,16 +2862,16 @@ and infer_exp'' env exp : T.typ =
     t
   | SwitchE (exp1, cases) ->
     let t1 = infer_exp_promote env exp1 in
-    let t, pats_ok = infer_cases env t1 T.Non cases in
-    if not env.pre && pats_ok then
+    let t = infer_cases env t1 T.Non cases in
+    if not env.pre then
       coverage_cases "switch" env cases t1 exp.at;
     t
   | TryE (exp1, cases, exp2_opt) ->
     let t1 = infer_exp env exp1 in
-    let t2, pats_ok = infer_cases env T.catch T.Non cases in
+    let t2 = infer_cases env T.catch T.Non cases in
     if not env.pre then begin
       check_ErrorCap env "try" exp.at;
-      if cases <> [] && pats_ok then
+      if cases <> [] then
         coverage_cases "try handler" env cases T.catch exp.at;
       Option.iter (check_exp_strong { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } T.unit) exp2_opt
     end;
@@ -3263,13 +3291,14 @@ and check_exp' env0 t exp : T.typ =
   | SwitchE (exp1, cases), _ ->
     let t1 = infer_exp_promote env exp1 in
     let env' = { env with closest_scrutinee = Some (exp1.at, t1) } in
-    if check_cases env' t1 t cases then
-      coverage_cases "switch" env cases t1 exp.at;
+    check_cases env' t1 t cases;
+    coverage_cases "switch" env cases t1 exp.at;
     t
   | TryE (exp1, cases, exp2_opt), _ ->
     check_ErrorCap env "try" exp.at;
     check_exp env t exp1;
-    if check_cases env T.catch t cases && cases <> []
+    check_cases env T.catch t cases;
+    if cases <> []
     then coverage_cases "try handler" env cases T.catch exp.at;
     if not env.pre then
       Option.iter (check_exp_strong { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } T.unit) exp2_opt;
@@ -4002,20 +4031,14 @@ and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
 
 (* Cases *)
 
-(* A case with an ill-typed pattern is skipped: its variables could only be bound at `None`, which can cause follow-on errors in its body.
-   The cases tell whether all their patterns are well-typed, as only then is coverage checked. *)
+and infer_cases env t_pat t cases : T.typ =
+  List.fold_left (infer_case env t_pat) t cases
 
-and infer_cases env t_pat t cases : T.typ * bool =
-  cases |> List.fold_left (fun (t, ok) case ->
-    match infer_case env t_pat t case with
-    | Some t' -> t', ok
-    | None -> t, false
-  ) (t, true)
-
-and infer_case env t_pat t case : T.typ option =
+(* A case with an ill-typed pattern is skipped, as its variables at `None` can cause follow-on errors in its body *)
+and infer_case env t_pat t case =
   let {pat; exp} = case.it in
-  match check_case_pat env t_pat pat with
-  | None -> None
+  match recover_pat env (fun env -> check_pat env t_pat pat) with
+  | None -> t
   | Some ve ->
     let initial_usage = enter_scope env in
     let t' = recover_with T.Non (infer_exp (adjoin_vals env ve)) exp in
@@ -4027,26 +4050,19 @@ and infer_case env t_pat t case : T.typ option =
         display_typ t''
         display_typ_expand t
         display_typ_expand t';
-    Some t''
+    t''
 
-and check_cases env t_pat t cases : bool =
-  List.fold_left (fun ok case -> check_case env t_pat t case && ok) true cases
+and check_cases env t_pat t cases =
+  List.iter (check_case env t_pat t) cases
 
-and check_case env t_pat t case : bool =
+and check_case env t_pat t case =
   let {pat; exp} = case.it in
-  match check_case_pat env t_pat pat with
-  | None -> false
+  match recover_pat env (fun env -> check_pat env t_pat pat) with
+  | None -> ()
   | Some ve ->
     let initial_usage = enter_scope env in
     recover (check_exp (adjoin_vals env ve) t) exp;
-    leave_scope env ve initial_usage;
-    true
-
-(* The bindings of a well-typed case pattern *)
-and check_case_pat env t pat : Scope.val_env option =
-  match recover_opt (check_pat_ok env t) pat with
-  | Some (ve, true) -> Some ve
-  | Some (_, false) | None -> None
+    leave_scope env ve initial_usage
 
 and inconsistent t ts =
   T.opaque t && not (List.exists T.opaque ts)
@@ -4055,9 +4071,8 @@ and inconsistent t ts =
 (* Patterns *)
 
 and infer_pat_exhaustive warnOrError env pat : T.typ * Scope.val_env =
-  let pat_error = ref false in
-  let t, ve = infer_pat true { env with pat_error } pat in
-  if not env.pre && not !pat_error then
+  let t, ve = infer_pat true env pat in
+  if not env.pre then
     coverage_pat warnOrError env pat t;
   t, ve
 
@@ -4143,7 +4158,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
     in
     T.Env.iter (fun k _ ->
       if T.Env.mem k ve2 then
-        pat_error env pat.at "M0260"
+        error env pat.at "M0260"
           "variable `%s` bound in both branches of and-pattern" k
     ) ve1;
     t, T.Env.union (fun _ v _ -> Some v) ve1 ve2
@@ -4152,7 +4167,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
     T.Named (id.it, t), check_pat env t pat1
   | AnnotP (pat1, typ) ->
     let t = check_typ env typ in
-    t, check_pat env t pat1
+    t, check_pat_or_non env t pat1
   | ParP pat1 ->
     infer_pat name_types env pat1
 
@@ -4205,16 +4220,24 @@ and check_class_shared_pat env shared_pat obj_sort : Scope.val_env =
 
 
 and check_pat_exhaustive warnOrError env t pat : Scope.val_env =
-  let ve, ok = check_pat_ok env t pat in
-  if not env.pre && ok then
+  let ve = check_pat_or_non env t pat in
+  if not env.pre then
     coverage_pat warnOrError env pat t;
   ve
 
-(* The bindings of a pattern, and whether it is well-typed *)
-and check_pat_ok env t pat : Scope.val_env * bool =
-  let pat_error = ref false in
-  let ve = check_pat { env with pat_error } t pat in
-  ve, not !pat_error
+(* Checks a pattern, or returns None if it is ill-typed, so checking goes on.
+   The pre-pass is silent, as the full pass reports the error again. *)
+and recover_pat env f =
+  recover_opt f (if env.pre then { env with msgs = Diag.new_msg_store () } else env)
+
+(* The bindings of a pattern, or its variables at `None` if it is ill-typed *)
+and check_pat_or_non env t pat : Scope.val_env =
+  match non_vals pat with
+  | None -> check_pat env t pat
+  | Some ve_non ->
+    match recover_pat env (fun env -> check_pat env t pat) with
+    | Some ve -> ve
+    | None -> ve_non
 
 and check_pat env t pat : Scope.val_env =
   check_pat_aux env t pat Scope.Declaration
@@ -4241,17 +4264,21 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
   | LitP lit ->
     if not env.pre then begin
       if T.opaque t then
-        pat_error env pat.at "M0110" "literal pattern cannot consume expected type%a"
-          display_typ_expand t
-      else check_lit_pat env t lit pat.at
+        error env pat.at "M0110" "literal pattern cannot consume expected type%a"
+          display_typ_expand t;
+      if sub env pat.at t T.Non
+      then ignore (infer_lit env lit pat.at)
+      else check_lit env t lit pat.at false
     end;
     T.Env.empty
   | SignP (op, lit) ->
     if not env.pre then begin
       if not (Operator.has_unop op (T.promote t)) then
-        pat_error env pat.at "M0111" "operator pattern cannot consume expected type%a"
-          display_typ_expand t
-      else check_lit_pat env t lit pat.at
+        error env pat.at "M0111" "operator pattern cannot consume expected type%a"
+          display_typ_expand t;
+      if sub env pat.at t T.Non
+      then ignore (infer_lit env lit pat.at)
+      else check_lit env t lit pat.at false
     end;
     T.Env.empty
   | TupP pats ->
@@ -4260,8 +4287,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
         | [] -> ""
         | _::xs -> List.fold_left (fun acc _ -> acc ^ ", _") "_" xs in
       let spans = add_error_ctx [primary env pat.at "expected `%a`, got `(%s)`" display_typ_expand_inline t tup_spine] in
-      pat_error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type";
-      List.map (fun _ -> T.Non) pats
+      error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
     check_obj_pat_aux env t pat pfs
@@ -4271,8 +4297,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       | T.Non -> T.Non
       | _ ->
         let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
-        pat_error env pat.at "M0115" ~spans "option pattern cannot consume expected type";
-        T.Non
+        error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
     let tfs = try T.as_variant_sub id.it t with Invalid_argument _ -> [] in
@@ -4285,21 +4310,19 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
             (Suggest.suggest_id ~sigil:"#" "tag" id.it (List.map (fun tf -> tf.T.lab) tfs)) in
         let spans = add_error_ctx
           (primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it :: suggestion) in
-        pat_error env pat.at "M0116" ~spans "variant pattern cannot consume expected type";
-        T.Non
+        error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
     in check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in
     let ve2 = check_pat env t pat2 in
     if T.Env.keys ve1 <> T.Env.keys ve2 then
-      pat_error env pat.at "M0189" "different set of bindings in pattern alternatives"
-    else
-      T.Env.(iter (fun k (t1, _, _) ->
-        let (t2, _, _) = find k ve2 in
-        warn_lossy_bind_type env pat.at k t1 t2)
-      ) ve1;
+      error env pat.at "M0189" "different set of bindings in pattern alternatives";
+    T.Env.(iter (fun k (t1, _, _) ->
+      let (t2, _, _) = find k ve2 in
+      warn_lossy_bind_type env pat.at k t1 t2)
+    ) ve1;
     let merge_entries (t1, at1, kind1) (t2, at2, kind2) = (T.lub ~src_fields:env.srcs t1 t2, at1, kind1) in
-    T.Env.union (fun _ e1 e2 -> Some (merge_entries e1 e2)) ve1 ve2
+    T.Env.merge (fun _ -> Lib.Option.map2 merge_entries) ve1 ve2
   | AndP (pat1, pat2) ->
     (* Both legs must match the scrutinee; bindings from both are
        available in the body. Overlap in binding names is an error. *)
@@ -4307,14 +4330,14 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     let ve2 = check_pat env t pat2 in
     T.Env.iter (fun k _ ->
       if T.Env.mem k ve2 then
-        pat_error env pat.at "M0260"
+        error env pat.at "M0260"
           "variable `%s` bound in both branches of and-pattern" k
     ) ve1;
     T.Env.union (fun _ v _ -> Some v) ve1 ve2
   | AnnotP (pat1, typ) ->
     let t' = check_typ env typ in
     if not (sub env pat.at t t') then
-      pat_error env pat.at "M0117"
+      error env pat.at "M0117"
         "pattern of type%a\ncannot consume expected type%a"
         display_typ_expand t'
         display_typ_expand t;
@@ -4365,18 +4388,10 @@ and check_pats env ts pats ve at : Scope.val_env =
       let ve' = disjoint_union env at "M0017" "duplicate binding for %s in pattern" ve ve1 in
       go ts' pats' ve'
     | _, _ ->
-      pat_error env at "M0118" "tuple pattern has %i components but expected type has %i"
-        pats_len ts_len;
-      go (List.map (fun _ -> T.Non) pats) pats ve
+      error env at "M0118" "tuple pattern has %i components but expected type has %i"
+        pats_len ts_len
   in
   go ts pats ve
-
-and check_lit_pat env t lit at =
-  try
-    if sub env at t T.Non
-    then ignore (infer_lit env lit at)
-    else check_lit env t lit at false
-  with Recover -> env.pat_error := true
 
 (* Common work for an object-pattern check. *)
 and check_obj_pat_aux env t pat pfs : Scope.val_env =
@@ -4384,17 +4399,18 @@ and check_obj_pat_aux env t pat pfs : Scope.val_env =
   let vpfs = List.filter_map (fun pf -> match pf.it with
     | TypPF _ -> None
     | ValPF(id, _) -> Some(id.it)) pfs' in
-  match T.as_obj_sub vpfs t with
-  | _, fs -> check_pat_fields env t fs pfs' T.Env.empty pat.at
-  | exception Invalid_argument _ ->
-    let base = [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
-    let spans = match env.closest_scrutinee with
-      | Some (exp_at, exp_ty) ->
-        secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: base
-      | None -> base
-    in
-    pat_error env pat.at "M0113" ~spans "object pattern cannot consume expected type";
-    check_pat_fields env t (snd (T.as_obj_sub vpfs T.Non)) pfs' T.Env.empty pat.at
+  let _, fs =
+    try T.as_obj_sub vpfs t
+    with Invalid_argument _ ->
+      let base = [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
+      let spans = match env.closest_scrutinee with
+        | Some (exp_at, exp_ty) ->
+          secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: base
+        | None -> base
+      in
+      error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
+  in
+  check_pat_fields env t fs pfs' T.Env.empty pat.at
 
 and check_pat_fields env t fs pfs ve at : Scope.val_env =
   let cmp (tf : T.field) (id, _, _) = String.compare tf.T.lab id.it in
@@ -4410,26 +4426,21 @@ and check_pat_fields env t fs pfs ve at : Scope.val_env =
   Lib.List.align cmp fs value_pfs |>
   Seq.fold_left (fun ve -> function
     | Lib.This _ -> ve
-    | Lib.That (id, pat, pf) ->
-      let ve1 = check_pat_aux env T.Non pat (kind_of_field_pattern pf) in
-      if String.equal !last_field id.it then begin
-        pat_error env pf.at "M0121" "duplicate field %s in object pattern" id.it;
-        (* Not disjoint, or a punned duplicate is reported twice *)
-        T.Env.union (fun _ v _ -> Some v) ve ve1
-      end else begin
-        pat_error env pf.at "M0119"
+    | Lib.That (id, _, pf) ->
+      if String.equal !last_field id.it then
+        error env pf.at "M0121" "duplicate field %s in object pattern" id.it
+      else
+        error env pf.at "M0119"
           "object field %s is not contained in expected type%a"
           id.it
-          display_typ_expand t;
-        disjoint_union env at "M0017" "duplicate binding for %s in pattern" ve ve1
-      end
+          display_typ_expand t
     | Lib.Both(T.{ lab; typ; src }, (id, pat, pf)) ->
       last_field := lab;
       if T.is_mut typ then
-        pat_error env pf.at "M0120" "cannot pattern match mutable field %s" lab;
+        error env pf.at "M0120" "cannot pattern match mutable field %s" lab;
       check_deprecation env pf.at "field" lab src.T.depr;
       let val_kind = kind_of_field_pattern pf in
-      let ve1 = check_pat_aux env (T.as_immut typ) pat val_kind in
+      let ve1 = check_pat_aux env typ pat val_kind in
       disjoint_union env at "M0017" "duplicate binding for %s in pattern" ve ve1
   ) ve
 
@@ -5727,8 +5738,8 @@ and infer_dec_valdecs env dec : Scope.t =
      let ve' = match fail with
        | None -> check_pat_exhaustive warn env' t pat
        | Some _ ->
-          let ve, ok = check_pat_ok env' t pat in
-          if not env.pre && ok then coverage_let_else env pat t;
+          let ve = check_pat_or_non env' t pat in
+          if not env.pre then coverage_let_else env pat t;
           ve
      in
      Scope.{empty with val_env = ve'}
