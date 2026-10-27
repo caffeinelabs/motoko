@@ -165,7 +165,7 @@ class BlobIterator(hash : [var __List]) {
           case ?weakRef {
             let deref = weakGet(weakRef.ref);
             switch deref {
-              case ?deref {}
+              case ?_ {}
               case null { len += 1 }
             };
           }
@@ -314,7 +314,7 @@ class BlobIterator(hash : [var __List]) {
       let list = hashArray[index];
       // Special case for the first list node.
       let pruned = pruneFirstElement(list, b, index);
-      if pruned == false {
+      if not pruned {
         // If we're here, we know that the blob is not the first list node.
         // So we can advance to the next list node.
         var prev = ?list;

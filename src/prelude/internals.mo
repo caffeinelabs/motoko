@@ -25,7 +25,7 @@ func @add_cycles<system>() {
       @timeout := null;
       (prim "timeoutSet" : Nat32 -> ()) timeout;
     }
-    case null { () }
+    case null {}
   };
 };
 
@@ -554,14 +554,14 @@ func @timer_helper() : async () {
   let recurring = Array_init<Bool>(10, false);
 
   func gatherExpired(n : ?@Node) = switch n {
-    case null { () }
+    case null {}
     case ?n {
       let pivot = n.expire[0];
       if pivot > 0 { gatherExpired(n.pre) }; // by corollary
       if pivot <= now and gathered < thunks.size() {
         if pivot > 0 {
           // not expunged yet
-          thunks[gathered] := ?(n.job);
+          thunks[gathered] := ?n.job;
           switch n.delay {
             case null or ?0 { n.expire[0] := 0 }
             case ?delay {
@@ -580,7 +580,9 @@ func @timer_helper() : async () {
                 }
                 case ?m {
                   assert m.expire[0] != 0;
-                  if expire < m.expire[0] { { m with pre = ?reinsert(m.pre) } } else {
+                  if expire < m.expire[0] {
+                    { m with pre = ?reinsert(m.pre) }
+                  } else {
                     { m with post = ?reinsert(m.post) }
                   };
                 }
@@ -701,7 +703,9 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
     }
     case ?n {
       assert n.expire[0] != 0;
-      if expire < n.expire[0] { { n with pre = ?insert(n.pre) } } else {
+      if expire < n.expire[0] {
+        { n with pre = ?insert(n.pre) }
+      } else {
         { n with post = ?insert(n.post) }
       };
     }
