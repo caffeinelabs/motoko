@@ -752,7 +752,7 @@ let as_codomT sort t =
   | _ -> T.Returns, as_domT t
 
 let check_shared_binds env at tbs =
-  (* should be ensured by desugaring parser *)
+  (* ensured by elab_func_body *)
   assert (List.length tbs > 0 &&
             (List.hd(tbs)).T.sort = T.Scope);
   (* shared functions can't have user declared type parameters *)
@@ -818,7 +818,7 @@ let infer_async_cap env sort cs tbs body_opt at =
     { env with typs = Env.add default_scope_var c env.typs;
                scopes = ConEnv.add c at env.scopes;
                async = C.CompositeCap c }
-  | Shared _, _, _ -> assert false (* impossible given sugaring *)
+  | Shared _, _, _ -> assert false (* impossible: elab_func_body adds the scope binder *)
   | Local, c::_,  { sort = Scope; _ }::_ ->
     let async = match body_opt with
       | Some exp when not (is_asyncE exp) -> C.SystemCap c
@@ -828,6 +828,86 @@ let infer_async_cap env sort cs tbs body_opt at =
                scopes = ConEnv.add c at env.scopes;
                async }
   | _ -> { env with async = C.NullCap }
+
+(* What a function's return type makes of its body, written as a block or as `= e` alike *)
+type body_kind =
+  | Plain
+  | Async of T.async_sort (* the body runs as `async { ... }` or `async* { ... }` *)
+  | Oneway                (* the body of a one-way shared function runs as `ignore async { ... }` *)
+
+let annotated_body_kind sort typ_opt =
+  match sort, typ_opt with
+  | _, Some {it = AsyncT (s, _, _); _} -> Async s
+  | T.Shared _, (None | Some {it = TupT []; _}) -> Oneway
+  | _ -> Plain
+
+(* The body kind of a local function without type parameters that is checked against
+   [Func (s, _, tbs, _, ts2)]: an unannotated function takes its kind from [ts2].
+   [None] if the binders do not fit the kind, which then leaves the function to inference. *)
+let checked_body_kind sort typ_opt s tbs ts2 =
+  if T.is_shared_sort sort then None else
+  let kind = match typ_opt, ts2 with
+    | None, [T.Async (s', _, _)] -> Async s'
+    | _ -> annotated_body_kind sort typ_opt
+  in
+  match kind, tbs with
+  | Plain, [] -> Some kind
+  | Async _, [{T.sort = T.Scope; _}] when s = T.Local -> Some kind
+  | _ -> None
+
+(* Whether checking against [t] alone makes the body of a function without a return type async *)
+let async_body_from_expected sort typ_opt t =
+  match typ_opt, t with
+  | None, T.Func (s, _, tbs, _, ts2) ->
+    (match checked_body_kind sort typ_opt s tbs ts2 with
+     | Some (Async _) -> true
+     | _ -> false)
+  | _ -> false
+
+(* Adds the implicit scope binder and `async` that the kind calls for, and records them for the interpreter and lowering *)
+let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
+  let typ_binds' =
+    if kind <> Plain || T.is_shared_sort sort then ensure_scope_bind "" typ_binds else typ_binds in
+  let spelled_out = match kind, body.it with
+    | Async s, AsyncE (par, s', _, inner) when s = s' -> Some (par, inner)
+    | Oneway, IgnoreE {it = AsyncE (par, T.Fut, _, inner)
+                          | AnnotE ({it = AsyncE (par, T.Fut, _, inner); _}, _); _} -> Some (par, inner)
+    | _ -> None
+  in
+  let redundant = Option.is_some spelled_out in
+  if redundant && not env.pre then begin
+    let par, edits = match spelled_out with
+      | Some (par, inner) ->
+        let left = match typ_opt with Some t -> t.at.right | None -> pat.at.right in
+        (* `= async <inner>` and `= ignore (async <inner>)` become ` { <inner> }`, or just ` <inner>` for a block *)
+        let opening, closing = match inner.it with BlockE _ -> " ", "" | _ -> " { ", " }" in
+        let trailing = { left = inner.at.right; right = body.at.right } in
+        par, (match par with
+          | Some _ -> []
+          | None ->
+            edit { left; right = inner.at.left } opening ::
+            (if closing = "" && trailing.left = trailing.right then [] else [edit trailing closing]))
+      | None -> None, []
+    in
+    let notes = if par = None then [] else
+      ["A parenthetical goes at the call site instead, e.g. `(with cycles = 1_000) f()`."] in
+    match kind with
+    | Async s ->
+      let async = match s with T.Fut -> "async" | T.Cmp -> "async*" in
+      local_error ~notes ~edits env body.at "M0277"
+        "redundant `%s`: the body of a function returning `%s` is already `%s`" async async async
+    | _ ->
+      local_error ~notes ~edits env body.at "M0277"
+        "redundant `ignore async`: the body of a one-way shared function is already `ignore async`"
+  end;
+  let body' = match kind with
+    | _ when redundant -> body
+    | Plain -> body
+    | Async s -> asyncE s (scope_bind name body.at) body
+    | Oneway -> ignore_asyncE (scope_bind name body.at) body
+  in
+  if not env.pre then note.elab <- Some (typ_binds', body');
+  typ_binds', body'
 
 let check_AsyncCap env s at : T.typ * (T.con -> C.async_cap) =
    match env.async with
@@ -1154,6 +1234,8 @@ and infer_inst env sort tbs typs t_ret at =
   match tbs, typs with
   | {T.bound; sort = T.Scope; _}::tbs', typs' ->
     assert (List.for_all (fun tb -> tb.T.sort = T.Type) tbs');
+    let local_async () =
+      match t_ret with T.Async (T.Cmp, _, _) -> "async*" | _ -> "async" in
     (match env.async with
      | cap when sort = T.Local && not (T.is_async t_ret) ->
        begin
@@ -1176,10 +1258,18 @@ and infer_inst env sort tbs typs t_ret at =
          match sort with
          | T.(Shared (Composite | Query)) ->
            (T.Con(c, [])::ts, at::ats)
-         | T.(Shared Write | Local) ->
+         | T.(Shared Write) ->
            error env at "M0187"
              "send capability required, but not available\n  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)"
+         | T.Local ->
+           error env at "M0187"
+             "send capability required, but not available\n  (cannot call a local `%s` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)"
+             (local_async ())
        end
+     | C.(ErrorCap | QueryCap _) when sort = T.Local ->
+        error env at "M0188"
+         "send capability required, but not available\n  (cannot call a local `%s` function from a `query` function, since such functions may call `shared` functions)"
+         (local_async ())
      | C.ErrorCap
      | C.QueryCap _ ->
         error env at "M0188"
@@ -1774,7 +1864,7 @@ module SynthesizeWrapper = struct
   let thunk body =
     let unit_pat = TupP [] @! no_region in
     let sort_pat = T.Local @@ no_region in
-    mk (FuncE ("", sort_pat, [], unit_pat, None, false, body))
+    mk (FuncE ("", sort_pat, [], unit_pat, None, func_note false, body))
   let call path arg =
     mk (CallE (None, path, inst (), (false, ref arg)))
   let func_ ~name param_names body =
@@ -1782,7 +1872,7 @@ module SynthesizeWrapper = struct
     let pat = match param_names with
       | [p] -> var_pat p
       | ps -> TupP (List.map var_pat ps) @! no_region in
-    mk (FuncE (name, sort_pat, [], pat, None, false, body))
+    mk (FuncE (name, sort_pat, [], pat, None, func_note false, body))
 
   (** Wraps resolved implicit paths into a function that calls [candidate_path],
       threading explicit params through and substituting implicits. *)
@@ -2295,7 +2385,7 @@ type 'a dot_callee_resolution =
 
 let warn_deprecated_vals env id fs =
   if id.it = "vals" && T.lookup_val_field_opt "values" fs <> None then
-    warn env id.at "M0269" "member `.vals()` is deprecated; use `.values()` instead"
+    warn env id.at "M0269" ~edits:[edit id.at "values"] "member `.vals()` is deprecated; use `.values()` instead"
 
 (* How a dot callee `e.f(...)` resolves: a function-typed field of the receiver shadows contextual dot.
    The single source of that precedence — [infer_callee] and the M0236 suggestion both resolve through it, so they cannot drift.
@@ -2472,10 +2562,25 @@ and infer_exp'' env exp : T.typ =
       let t = Operator.type_relop op (T.lub ~src_fields:env.srcs (T.promote t1) (T.promote t2)) in
       if not (Operator.has_relop op t) then
         error_bin_op env exp.at t1 t2;
-      if T.singleton t then
+      (* operands that already have the single-valued type were declared so on purpose,
+         but a literal-like operand only takes its type from the other one *)
+      let checked = is_explicit_exp exp1 <> is_explicit_exp exp2 in
+      if checked && eq env exp.at t T.Any then
         warn env exp.at "M0276"
-          "this comparison always has the same result, because it is performed at type%a\nwhich has a single value"
+          "this comparison always has the same result, because both operands are compared at type%a\nwhich has a single value"
           display_typ_expand t
+      else if T.singleton t && not (eq env exp1.at t t1 && eq env exp2.at t t2) then
+        if eq env exp.at t1 t2 then
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares abstract type%a\nto itself at supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t
+        else
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares type%a\nwith type%a\nat their common supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t2
+            display_typ_expand t
       else if not (eq env exp1.at t t1 || eq env exp2.at t t2) && not (sub env exp1.at T.nat t1 && sub env exp2.at T.nat t2) then
         if eq env exp.at t1 t2 then
           warn env exp.at "M0061"
@@ -2626,7 +2731,7 @@ and infer_exp'' env exp : T.typ =
           "expected array type or Blob, but expression produces type%a"
           display_typ_expand t1
     end
-  | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _sugar, exp1) ->
+  | FuncE (name, shared_pat, typ_binds, pat, typ_opt, note, exp1) ->
     if not env.pre && not in_actor && T.is_shared_sort shared_pat.it then begin
       error_in Flags.[WASIMode] env exp1.at "M0076"
         "shared functions are not supported";
@@ -2640,12 +2745,8 @@ and infer_exp'' env exp : T.typ =
       | Some typ -> typ
       | None -> {it = TupT []; at = no_region; note = T.Pre}
     in
-    begin match exp1.it with
-    | AsyncE (Some par, _, _, _) when not env.pre && T.is_shared_sort shared_pat.it ->
-      local_error env par.at "M0213"
-        "parenthetical notes aren't allowed on shared functions"
-    | _ -> ()
-    end;
+    let kind = annotated_body_kind shared_pat.it typ_opt in
+    let typ_binds, exp1 = elab_func_body env name shared_pat.it kind (pat, typ_opt) typ_binds exp1 note in
     let sort, ve = check_shared_pat env shared_pat in
     let cs, tbs, te, ce = check_typ_binds env typ_binds in
     let c, ts2 = as_codomT sort typ in
@@ -2680,14 +2781,8 @@ and infer_exp'' env exp : T.typ =
               display_typ_expand t;
         ) ts2;
         match c, ts2 with
-        | T.Returns, [] when sort = T.Shared T.Write ->
-          if not (is_ignore_asyncE exp1) then
-            error env exp1.at "M0078"
-              "shared function with () result type has unexpected body:\n  the body must either be of sugared form '{ ... }' \n  or explicit form '= ignore ((async ...) : async ())'"
-        | T.Promises, _ ->
-          if not (is_asyncE exp1) then
-            error env exp1.at "M0079"
-              "shared function with async result type has non-async body"
+        | T.Returns, [] when sort = T.Shared T.Write -> ()
+        | T.Promises, _ -> ()
         | _ ->
           error env typ.at "M0041" "shared function has non-async result type%a"
             display_typ_expand codom
@@ -3179,17 +3274,21 @@ and check_exp' env0 t exp : T.typ =
     if not env.pre then
       Option.iter (check_exp_strong { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } T.unit) exp2_opt;
     t
-  (* TODO: allow shared with one scope par *)
-  | FuncE (_, shared_pat,  [], pat, typ_opt, _sugar, exp), T.Func (s, c, [], ts1, ts2) ->
-    let env', t2, codom = check_func_step env0.in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2) in
-    check_sub_explained env no_region t2 codom (fun explanation ->
-      error env exp.at "M0095"
-        "function return type%a\ndoes not match expected return type%a%a"
-        display_typ_expand t2
-        display_typ_expand codom
-        (display_explanation t2 codom) explanation);
-    check_exp_strong env' t2 exp;
-    t
+  | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2) ->
+    begin match checked_body_kind shared_pat.it typ_opt s tbs ts2 with
+    | None -> check_inferred env0 env t (infer_exp env0 exp) exp
+    | Some kind ->
+      let env', t2, codom, body =
+        check_func_step env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
+      check_sub_explained env no_region t2 codom (fun explanation ->
+        error env body.at "M0095"
+          "function return type%a\ndoes not match expected return type%a%a"
+          display_typ_expand t2
+          display_typ_expand codom
+          (display_explanation t2 codom) explanation);
+      check_exp_strong env' t2 body;
+      t
+    end
   | CallE (par_opt, exp1, inst, exp2), _ ->
     let t' = infer_call env exp1 inst exp2 exp.at (Some t) in
     check_sub_explained env exp1.at t' t (fun explanation ->
@@ -3299,18 +3398,27 @@ and check_exp_field env (ef : exp_field) fts =
       Field_sources.add_src env.srcs id.at;
     ignore (infer_exp env exp);
 
-(** Performs the first step of checking that the given [FuncE (_, shared_pat, [], pat, typ_opt, _, exp)] expression has type [T.Func (s, c, [], ts1, ts2)].
-  Used to prepare the new env for checking the [exp] (body of the function).
+(** Performs the first step of checking that the given [FuncE (_, shared_pat, [], pat, typ_opt, _, body)] expression has type [T.Func (s, c, tbs, ts1, ts2)],
+  where [kind] is what [checked_body_kind] gives for [tbs].
+  Used to prepare the new env for checking the elaborated body of the function.
   Returns:
-  - the env for the body of the function ([exp]),
-  - [exp_typ], the expected type of the body,
-  - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom].
+  - the env for the elaborated body,
+  - [exp_typ], the expected type of the elaborated body,
+  - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom],
+  - the elaborated body.
  *)
-and check_func_step in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2) : env * T.typ * T.typ =
+and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) kind at (s, c, ts1, ts2) : env * T.typ * T.typ * exp =
   let sort, ve = check_shared_pat env shared_pat in
   if not env.pre && not in_actor && T.is_shared_sort sort then
-    error_in Flags.[ICMode] env exp.at "M0077"
+    error_in Flags.[ICMode] env body.at "M0077"
       "a shared function is only allowed as a public field of an actor";
+  let typ_binds, body = elab_func_body env name shared_pat.it kind (pat, typ_opt) [] body note in
+  let cs, tbs, te, ce = check_typ_binds env typ_binds in
+  (* the function's own scope, if any, stands for the expected type's binder *)
+  let scopes = List.map (fun c -> T.Con (c, [])) cs in
+  let ts1 = List.map (T.open_ scopes) ts1 in
+  let ts2 = List.map (T.open_ scopes) ts2 in
+  let env = infer_async_cap (adjoin_typs env te ce) sort cs tbs (Some body) at in
   let ve1 = check_pat_exhaustive (if T.is_shared_sort sort then local_error else warn) env (T.seq ts1) pat in
   let ve2 = T.Env.adjoin ve ve1 in
   let codom = T.codom c (fun () -> assert false) ts2 in
@@ -3319,17 +3427,16 @@ and check_func_step in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2
     | Some typ -> check_typ env typ
   in
   if sort <> s then
-    error env exp.at "M0094"
+    error env body.at "M0094"
       "%sshared function does not match expected %sshared function type"
       (if sort = T.Local then "non-" else "")
       (if s = T.Local then "non-" else "");
   let env' =
     { env with
       labs = T.Env.empty;
-      rets = Ret exp_typ;
-      async = C.NullCap; }
+      rets = Ret exp_typ; }
   in
-  (adjoin_vals env' ve2), exp_typ, codom
+  (adjoin_vals env' ve2), exp_typ, codom, body
 
 and check_loop_body env body (flags : loop_flags) ~loop_typ =
   let env' = { env with closest_loop = Some (flags, loop_typ) } in
@@ -3705,12 +3812,15 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
         to_fix := (exp, target_type') :: !to_fix;
         target_type'
       (* Future work: more cases to decompose, e.g. T.Opt, T.Obj, T.Variant... *)
-      | FuncE (_, _, _, pat, _, _, _), normalized_target when not (is_explicit_pat pat) ->
-        (* Cannot infer unannotated func, defer it *)
+      | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _, _), normalized_target
+        when not (is_explicit_pat pat)
+          || typ_binds = [] && async_body_from_expected shared_pat.it typ_opt normalized_target ->
+        (* Cannot infer unannotated func, nor one that only the target makes async, defer it *)
         deferred := (exp, target_type) :: !deferred;
         must_solve := (* Inputs of deferred functions must be solved first *)
           (match normalized_target with
-          | T.Func (_, _, _, ts1, _) -> ts1 @ !must_solve
+          (* the inputs stay under the function's own binders, such as an async function's scope, so their indices stay valid *)
+          | T.Func (s, c, tbs, ts1, _) -> T.Func (s, c, tbs, ts1, []) :: !must_solve
           | _ -> normalized_target :: !must_solve);
         target_type
       | HoleE _, normalized_target ->
@@ -3775,29 +3885,34 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       (* Substitute fixed type variables *)
       let typ = T.open_ ts typ in
       match exp.it, T.normalize typ with
-      | FuncE (_, shared_pat, [], pat, typ_opt, _, body), T.Func (s, c, [], ts1, ts2) ->
-        (* Check that all type variables in the function input type are fixed, fail otherwise *)
-        Bi_match.fail_when_types_are_not_closed remaining ts1;
-        (* Check the function input type and prepare for inferring the body *)
-        let env', body_typ, codom = check_func_step false env (shared_pat, pat, typ_opt, body) (s, c, ts1, ts2) in
-        (* [codom] comes from [ts2] which might contain unsolved type variables. *)
-        let closed_codom = Bi_match.is_closed remaining codom in
-        (* Closed [codom] implies closed [body_typ]. [body_typ] is closed when it comes from [typ_opt] *)
-        let closed_body_typ = closed_codom || Option.is_some typ_opt in
-        let env' = if closed_body_typ then env' else { env' with rets = BimatchRet (infer_body body_typ) } in
-        if closed_body_typ && not env.pre then begin
-          assert (Bi_match.is_closed remaining body_typ);
-          check_exp env' body_typ body;
-        end;
+      | FuncE (name, shared_pat, [], pat, typ_opt, note, body), T.Func (s, c, tbs, ts1, ts2) ->
+        begin match checked_body_kind shared_pat.it typ_opt s tbs ts2 with
+        | None -> subs := (infer_exp env exp, typ, exp.at) :: !subs
+        | Some kind ->
+          (* Check that all type variables in the function input type are fixed, fail otherwise *)
+          Bi_match.fail_when_types_are_not_closed remaining ts1;
+          (* Check the function input type and prepare for inferring the body *)
+          let env', body_typ, codom, body =
+            check_func_step false env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
+          (* [codom] comes from [ts2] which might contain unsolved type variables. *)
+          let closed_codom = Bi_match.is_closed remaining codom in
+          (* Closed [codom] implies closed [body_typ]. [body_typ] is closed when it comes from [typ_opt] *)
+          let closed_body_typ = closed_codom || Option.is_some typ_opt in
+          let env' = if closed_body_typ then env' else { env' with rets = BimatchRet (infer_body body_typ) } in
+          if closed_body_typ && not env.pre then begin
+            assert (Bi_match.is_closed remaining body_typ);
+            check_exp env' body_typ body;
+          end;
 
-        (* When [codom] is open, we need to solve it *)
-        if not closed_codom then
-          if body_typ <> codom then
-            (* [body_typ] is closed, body is already checked above, we just need to solve the subtype problem *)
-            subs := (body_typ, codom, body.at) :: !subs
-          else begin
-            (* We just have open [codom], we need to infer the body *)
-            infer_body body_typ env' body;
+          (* When [codom] is open, we need to solve it *)
+          if not closed_codom then
+            if body_typ <> codom then
+              (* [body_typ] is closed, body is already checked above, we just need to solve the subtype problem *)
+              subs := (body_typ, codom, body.at) :: !subs
+            else begin
+              (* We just have open [codom], we need to infer the body *)
+              infer_body body_typ env' body;
+            end
         end
       | HoleE _, _ -> () (* check after the last round *)
       | _ ->
@@ -5006,7 +5121,7 @@ and check_stable_defaults env sort dec_fields =
   if declared_persistent then
     begin
       if sort.note.at <> no_region then
-        warn env sort.note.at "M0217" "redundant `persistent` keyword";
+        warn env sort.note.at "M0217" ~edits:[edit sort.note.at ""] "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable; at; _}, (LetD _ | VarD _) ->
@@ -5473,10 +5588,9 @@ and gather_typ_id env scope id : Scope.t =
   type constructors on type pattern fields we need to record them here *)
   let pre_k = T.Def ([], T.Pre) in
   let c = Cons.fresh id.it pre_k in
-  { scope with
-    typ_env = T.Env.add id.it c scope.typ_env;
-    con_env = T.ConSet.disjoint_add c scope.con_env;
-  }
+  (* The field binds an existing constructor, so this placeholder is never defined
+     and stays out of `con_env`, which is checked for productivity. *)
+  { scope with typ_env = T.Env.add id.it c scope.typ_env }
 
 (* Pass 2 and 3: infer type definitions *)
 and infer_block_typdecs env decs : Scope.t =

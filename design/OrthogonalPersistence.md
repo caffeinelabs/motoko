@@ -55,7 +55,7 @@ More specifically, it comprises:
 Upgrades are only permitted if the new program version is compatible with the old version, such that the runtime system guarantees a compatible memory structure.
 
 Compatible changes for immutable types are largely analogous to the allowed Motoko subtype relation, e.g.
-* Adding or removing actor fields.
+* Adding actor fields. Removing an actor field requires an explicit migration function.
 * Removing object fields.
 * Adding variant fields.
 * `Nat` to `Int`.

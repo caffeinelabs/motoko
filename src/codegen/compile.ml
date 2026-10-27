@@ -2471,7 +2471,7 @@ module BoxedWord64 = struct
 
   let compile_box env pty compile_elem : G.t =
     let (set_i, get_i) = new_local env "boxed_i64" in
-    let size = 4L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size (heap_tag env pty) ^^
     set_i ^^
     get_i ^^ compile_elem ^^ Tagged.store_field env payload_field ^^
@@ -2831,7 +2831,7 @@ module Float = struct
 
   let box env = Func.share_code1 Func.Never env "box_f64" ("f", F64Type) [I64Type] (fun env get_f ->
     let (set_i, get_i) = new_local env "boxed_f64" in
-    let size = Int64.add Tagged.header_size 2L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size Tagged.(Bits64 F) ^^
     set_i ^^
     get_i ^^ get_f ^^ Tagged.store_field_float64 env payload_field ^^
@@ -3269,8 +3269,10 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   (*
     Note [left shifting compact Nat]
-    For compact Nats with a number fitting in 32 bits (in scalar value representation) and a shift amount of
-    less or equal 32, we perform a fast shift. Otherwise, the bignum shift via RTS is applied.
+    When the result is known to fit the compact range, i.e. `n << amount < 2^sbits`, we perform a fast
+    shift. For a non-negative `n` that holds exactly when `clz n >= amount + (64 - sbits)`, which also
+    keeps `amount` below 64, where Wasm would take it modulo 64. Otherwise, the bignum shift via RTS is
+    applied. Bounding the operands instead of the result admits products the tag would silently wrap.
    *)
   let compile_lsh env =
     Func.share_code2 Func.Always env "B_lsh" (("n", I64Type), ("amount", I64Type)) [I64Type]
@@ -3282,11 +3284,9 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
       begin
         (* see Note [left shifting compact Nat] *)
         get_n ^^ BitTagged.untag __LINE__ env Type.Int ^^ set_n ^^
-        get_n ^^
-        compile_bitand_const 0xFFFF_FFFF_0000_0000L ^^
-        compile_eq_const 0L ^^
-        get_amount ^^ compile_rel_const I64Op.LeU 32L ^^
-        G.i (Binary (Wasm_exts.Values.I64 I64Op.And)) ^^
+        get_n ^^ G.i (Unary (Wasm_exts.Values.I64 I64Op.Clz)) ^^
+        get_amount ^^ compile_add_const (Int64.of_int (64 - BitTagged.sbits_of Type.Int)) ^^
+        compile_comparison I64Op.GeU ^^
         E.if1 I64Type
         begin
           get_n ^^
@@ -4890,6 +4890,7 @@ module IC = struct
     E.add_func_import env "ic0" "root_key_copy" (is 3) [];
     E.add_func_import env "ic0" "root_key_size" [] [i];
     E.add_func_import env "ic0" "in_replicated_execution" [] [I32Type];
+    E.add_func_import env "ic0" "subnet_self_node_count" [] [I32Type];
     E.add_func_import env "ic0" "is_controller" (is 2) [I32Type];
     E.add_func_import env "ic0" "subnet_self_copy" (is 3) [];
     E.add_func_import env "ic0" "subnet_self_size" [] [i];
@@ -4907,6 +4908,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_call" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_create_canister" [i] [];
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
+    E.add_func_import env "ic0" "cost_http_request_v2" [i; i; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
@@ -5057,6 +5059,10 @@ module IC = struct
 
   let replicated_execution env =
     ic_system_call "in_replicated_execution" env ^^
+    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+
+  let subnet_self_node_count env =
+    ic_system_call "subnet_self_node_count" env ^^
     G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
 
   let canister_version env = ic_system_call "canister_version" env
@@ -10766,6 +10772,20 @@ module Cost = struct
         )
       )
 
+  let http_request_v2 env =
+    Func.share_code1 Func.Always env "cost_http_request_v2"
+      ("params", IC.i)
+      [IC.i]
+      (fun env get_params ->
+        Stack.with_words env "dst" 2L (fun get_dst ->
+          get_params ^^ Blob.as_ptr_len env ^^
+          get_dst ^^
+          IC.ic_system_call "cost_http_request_v2" env ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
+
   let sign_with_ecdsa env =
     Func.share_code2 Func.Always env "cost_sign_with_ecdsa"
       (("key_name", IC.i), ("curve", I32Type))
@@ -12431,6 +12451,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.UnboxedWord64 Type.Nat64,
     IC.canister_version env
 
+  | OtherPrim "subnetSelfNodeCount", [] ->
+    SR.UnboxedWord64 Type.Nat32,
+    IC.subnet_self_node_count env ^^
+    TaggedSmallWord.msb_adjust Type.Nat32
+
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
     compile_exp_vanilla env ae e ^^
@@ -12824,6 +12849,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) request_size ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) max_res_bytes ^^
     Cost.http_request env
+  | OtherPrim "costHttpRequestV2", [params] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae params ^^
+    Cost.http_request_v2 env
   | OtherPrim "costSignWithEcdsa", [key_name; curve] ->
     SR.UnboxedTuple 2,
     compile_exp_vanilla env ae key_name ^^

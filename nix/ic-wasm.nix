@@ -22,5 +22,5 @@ pkgs: with pkgs.llvmPackages_21; pkgs.rustPlatform.buildRustPackage rec {
   # provide. Without this, the final link picks `-lc++` from the SDK and
   # fails with "Undefined symbols for architecture arm64". Force the
   # linker to resolve `-lc++` against `llvmPackages_21.libcxx`.
-  NIX_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-L${libcxx}/lib";
+  NIX_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "-L${libcxx}/lib";
 }

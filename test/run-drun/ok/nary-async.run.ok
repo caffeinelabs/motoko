@@ -1,8 +1,14 @@
 0_0
 0_0
+shared
 1_0
 0_1
 2_0
 0_2
+caught async None
+async
+caught async* None
+caught async* None
+async*
 3_0
 0_3

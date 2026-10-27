@@ -19,5 +19,5 @@ actor {
     assert (live.size() == 192);
   };
 
-  public func size() : async Nat = async live.size();
+  public func size() : async Nat { live.size() };
 }

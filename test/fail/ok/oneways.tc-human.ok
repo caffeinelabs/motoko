@@ -1,15 +1,15 @@
-error[M0078]: shared function with () result type has unexpected body:
-  the body must either be of sugared form '{ ... }' 
-  or explicit form '= ignore ((async ...) : async ())'
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
     ┌─ oneways.mo:8:30
-  8 │   public func wrong1() : () = ();
-    │                               ^^ 
-error[M0078]: shared function with () result type has unexpected body:
-  the body must either be of sugared form '{ ... }' 
-  or explicit form '= ignore ((async ...) : async ())'
+  8 │   public func wrong1() : () = ignore ((async ()) : async ());
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
     ┌─ oneways.mo:9:30
   9 │   public func wrong2() : () = ignore async ();
     │                               ^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore async` with ` { `
+    = help: insert ` }`
 error[M0242]: this declares an implicit oneway function.
   if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
     ┌─ oneways.mo:12:21
@@ -18,32 +18,28 @@ error[M0242]: this declares an implicit oneway function.
 error[M0242]: this declares an implicit oneway function.
   if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
     ┌─ oneways.mo:13:23
- 13 │  shared func warn2() = ignore ((async ()) : async ()) ;
-    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-error[M0242]: this declares an implicit oneway function.
-  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
-    ┌─ oneways.mo:14:23
- 14 │  shared func warn3() = ignore ((async return) : async ()) ;
-    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+ 13 │  shared func warn2() = ();
+    │                        ^^ 
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
+    ┌─ oneways.mo:16:29
+ 16 │  shared func wrong1() : () = ignore ((async ()) : async ()) ;
+    │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
+    ┌─ oneways.mo:17:29
+ 17 │  shared func wrong2() : () = ignore ((async return) : async ()) ;
+    │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore ((async` with ` { `
+    = help: replace `) : async ())` with ` }`
 error[M0242]: this declares an implicit oneway function.
   if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
     ┌─ oneways.mo:18:24
- 18 │  shared func wrong1() = ();
-    │                         ^^ 
-error[M0078]: shared function with () result type has unexpected body:
-  the body must either be of sugared form '{ ... }' 
-  or explicit form '= ignore ((async ...) : async ())'
+ 18 │  shared func wrong3() = ignore async ();
+    │                         ^^^^^^^^^^^^^^^ 
+error[M0277]: redundant `ignore async`: the body of a one-way shared function is already `ignore async`
     ┌─ oneways.mo:18:24
- 18 │  shared func wrong1() = ();
-    │                         ^^ 
-error[M0242]: this declares an implicit oneway function.
-  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
-    ┌─ oneways.mo:19:24
- 19 │  shared func wrong2() = ignore async ();
+ 18 │  shared func wrong3() = ignore async ();
     │                         ^^^^^^^^^^^^^^^ 
-error[M0078]: shared function with () result type has unexpected body:
-  the body must either be of sugared form '{ ... }' 
-  or explicit form '= ignore ((async ...) : async ())'
-    ┌─ oneways.mo:19:24
- 19 │  shared func wrong2() = ignore async ();
-    │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `= ignore async` with ` { `
+    = help: insert ` }`

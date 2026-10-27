@@ -5,9 +5,9 @@ composite-query-fail.mo:31.13-31.16: type error [M0187], send capability require
 composite-query-fail.mo:35.6-35.9: type error [M0187], send capability required, but not available
   (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
 composite-query-fail.mo:39.13-39.16: type error [M0187], send capability required, but not available
-  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+  (cannot call a local `async` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)
 composite-query-fail.mo:43.13-43.16: type error [M0187], send capability required, but not available
-  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+  (cannot call a local `async*` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)
 composite-query-fail.mo:47.13-47.21: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
 composite-query-fail.mo:52.13-52.22: type error [M0037], misplaced async expression; a composite query cannot contain an async expression
 composite-query-fail.mo:52.6-52.22: type error [M0222], ignored argument of `async*` type has no effect
@@ -19,3 +19,7 @@ composite-query-fail.mo:63.22-63.26: type error [M0186], composite send capabili
   (cannot call a `composite query` function from a non-`composite query` function)
 composite-query-fail.mo:68.14-68.18: type error [M0188], send capability required, but not available
   (cannot call a `shared` function from a `query` function)
+composite-query-fail.mo:72.14-72.17: type error [M0188], send capability required, but not available
+  (cannot call a local `async` function from a `query` function, since such functions may call `shared` functions)
+composite-query-fail.mo:76.14-76.17: type error [M0188], send capability required, but not available
+  (cannot call a local `async*` function from a `query` function, since such functions may call `shared` functions)

@@ -607,13 +607,13 @@ let rec check_exp env (exp:Ir.exp) : unit =
         with _ -> error env exp.at "CPSAwait expect async arg, found %s" (T.string_of_typ (typ a))
       in
       (match cont_typ with
-       | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
+       | T.Func(T.Local, T.Returns, [], [t2], ts2) ->
          begin
            (match ts2 with
             | [] -> ()
             | _ -> error env exp.at "CPSAwait answer type error");
            typ krb <: T.(Tup Construct.[cont_typ; err_contT (seq ts2); bail_contT]);
-           t1 <: T.seq ts1;
+           t1 <: t2;
            T.seq ts2 <: t;
          end;
        | _ -> error env exp.at "CPSAwait bad cont");
@@ -622,12 +622,12 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | CPSAsync (s, t0), [exp] ->
       (match typ exp with
        | T.Func (T.Local, T.Returns, [tb],
-                 T.[Func (Local, Returns, [], ts1, []);
+                 T.[Func (Local, Returns, [], [t1], []);
                     Func (Local, Returns, [], [t_error], []);
                     Func (Local, Returns, [], [], [])],
                  []) ->
           T.catch <: t_error;
-          T.Async(s, t0, T.open_ [t0] (T.seq ts1)) <: t
+          T.Async(s, t0, T.open_ [t0] t1) <: t
        | _ -> error env exp.at "CPSAsync unexpected typ");
       check (not (env.flavor.has_await)) "CPSAsync await flavor";
       check (env.flavor.has_async_typ) "CPSAsync in post-async flavor";

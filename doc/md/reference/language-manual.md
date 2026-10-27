@@ -2462,6 +2462,18 @@ The function expression `<shared-pat>? func < X0 <: T0, …​, Xn <: Tn > <pat1
 
 -   Expression `<block-or-exp>` has type return type `U2` under the assumption that `<pat1>` has type `U1`.
 
+The body of a function returning `async U` (or `async* U`) is implicitly asynchronous: it is treated as `async <block-or-exp>` (or `async* <block-or-exp>`), so it has type `U`, not `async U`.
+Likewise, the body of a one-way `shared` function, returning `()`, is treated as `ignore (async <block-or-exp>)`.
+Writing the body as a block or as `= <exp>` makes no difference; a body that is already an explicit `async` expression is rejected as redundant.
+
+A local function without type parameters that is checked against an expected function type, for example as an argument of a call, takes the types of its unannotated parameters and its return type from the expected type.
+If that return type is `async U` (or `async* U`), the function is asynchronous as if its return type were written:
+
+```motoko no-repl
+func run(f : Nat -> async Nat) : async Nat { await f(1) };
+func g() : async Nat { await run(func(n) { n + 1 }) };
+```
+
 `<shared-pat>? func <typ-params>? <pat1> (: <typ>)? =? <block-or-exp>` evaluates to a function value denoted `<shared-pat>? func <typ-params>? <pat1> = <exp>`, that stores the code of the function together with the bindings from the current evaluation environment needed to evaluate calls to the function value.
 
 Note that a `<shared-pat>` function may itself be `shared <pat>` or `shared query <pat>` or  `shared composite query <pat>`.
@@ -2894,6 +2906,13 @@ The preceding `catch` clause may be omitted in the presence of a `finally` claus
 This form is `try <block-or-exp1> (catch <pat> <block-or-exp2>)? finally <block-or-exp3>`, and evaluation proceeds as above with the crucial addition that every control-flow path leaving `<block-or-exp1>` or `<block-or-exp2>` will execute the unit-valued `<block-or-exp3>` before the entire `try` expression produces its result. The cleanup expression will additionally also be executed when the processing after an intervening `await` (directly, or indirectly as `await*`) traps.
 
 :::danger
+
+If a future's reply callback traps before the future is awaited (for example,
+while decoding an incompatible Candid reply), the failure is remembered.
+A later `await` or `await?` terminates the awaiting computation and executes
+its enclosing `finally` clauses; it does not resume normally or turn the trap
+into a catchable error. Plain `await` schedules this cleanup in a later message,
+whereas `await?` executes it immediately for an already failed future.
 
 The code within a `finally` block should terminate promptly and not trap.
 A trapping finally block will fail to free its callback table slot which

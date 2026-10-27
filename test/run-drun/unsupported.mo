@@ -12,7 +12,7 @@ actor Counter {
 
     public func ok() : async () {};
 
-    public func ok_explicit() : async () = async {};
+    public func ok_explicit() : async () {};
 
     public func ok_call() : async () {
         ignore (ok()); // supported intercanister messaging

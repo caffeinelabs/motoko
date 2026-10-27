@@ -285,10 +285,11 @@ struct
   let of_string s =
     big_int_of_string (String.concat "" (String.split_on_char '_' s))
 
-  let max_int = big_int_of_int max_int
+  (* Compiled code takes the exponent as a 32-bit word *)
+  let max_exp = big_int_of_int64 0xFFFF_FFFFL
 
   let pow x y =
-    if gt y max_int
+    if gt y max_exp
     then raise (Invalid_argument "Int.pow")
     else power_big_int_positive_int x (to_int y)
 end

@@ -111,7 +111,7 @@ let actor_methods env occs actor =
       match M.normalize t' with
       | M.Obj (M.Actor, fs, _) ->
         Diag.print_messages [Diag.warning_message at "M0185" "import"
-          "importing Candid service constructor as instantiated service"];
+          "Candid service constructor imported as a service; its initialization arguments are ignored"];
         fs
       | _ -> assert false
     end

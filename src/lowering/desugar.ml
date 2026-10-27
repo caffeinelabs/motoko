@@ -157,7 +157,8 @@ and exp' at note = function
     I.PrimE (I.ArrayPrim (mut m, T.as_immut t), exps es)
   | S.IdxE (e1, e2) when e1.note.S.note_typ = T.blob -> I.PrimE (I.IdxBlobPrim, [exp e1; exp e2])
   | S.IdxE (e1, e2) -> I.PrimE (I.IdxPrim, [exp e1; exp e2])
-  | S.FuncE (name, sp, tbs, p, _t_opt, _, e) ->
+  | S.FuncE (name, sp, tbs, p, _t_opt, fn, e) ->
+    let tbs, e = S.func_elab fn tbs e in
     let s, po = match sp.it with
       | T.Local -> (T.Local, None)
       | T.Shared (ss, {it = S.WildP; _} ) -> (* don't bother with ctxt pat *)
@@ -926,8 +927,12 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
          (match call_system_func_opt "timer" es obj_typ with
           | Some call -> call
           | None when !Mo_config.Flags.global_timer ->
+            (* only @timer_helper sets the next expiration, and its self-call can be
+               rejected before it runs (e.g. out of cycles): expire again later anyway *)
             blockE
-              [ expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
+              [ expD T.(callE (varE (var "@timer_fallback" (Func (Local, Returns, [], [], [])))) []
+                  (unitE()));
+                expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
               (unitE())
           | None -> tupE []);
        inspect =

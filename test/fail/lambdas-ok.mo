@@ -96,3 +96,22 @@ module MustSolveComplex {
 //SKIP run-drun
 //SKIP run-ir
 //SKIP run-low
+
+// Async lambdas take their parameter types and their `async` from the expected type
+module AsyncLambdas {
+  func run(f : () -> async Nat) : async Nat { await f() };
+  func runStar(f : () -> async* Nat) : async* Nat { await* f() };
+  func apply(f : Nat -> async Nat) : async Nat { await f(1) };
+  func forEach<A>(xs : [A], f : A -> async ()) : async () { for x in xs.values() { await f(x) } };
+  func _main() : async () {
+    let _ = await run(func() { 1 });
+    let _ = await run(func() = 1); // `= e` bodies too
+    let _ = await run(func() : async Nat { 1 });
+    let _ = await run(func() { await run(func() { 1 }) });
+    let _ = await apply(func(n) { n + 1 });
+    let _ = await apply(func(n) : async Nat { n + 1 });
+    let _ = await* runStar(func() { await run(func() { 1 }) });
+    await forEach([1, 2], func(x) { ignore x + 1 }); // A=Nat from the array
+    let _ : () -> async Nat = func() { 1 };
+  };
+};
