@@ -40,7 +40,7 @@ While all shared types are stable, the reverse is not true. Some stable types ca
 | Actor references                                                                             | Yes    | Yes    |
 | Regions                                                                                      | Yes    | No     |
 | Error type (`Error`)                                                                         | No     | No     |
-| Non-shared functions and futures (`async* T`)                                                | No     | No     |
+| Non-shared functions, futures (`async T`), and computations (`async* T`)                     | No     | No     |
 
 \* provided `T` is stable.
 \** provided `T` is shared.
