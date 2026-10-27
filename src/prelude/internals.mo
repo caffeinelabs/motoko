@@ -571,11 +571,13 @@ func @timer_helper() : async () {
               n.expire[0] := 0;
               // N.B. reinsert only works on pruned nodes
               func reinsert(m : ?@Node) : @Node = switch m {
-                case null { ({
-                  n with expire = [var expire];
-                  pre = null;
-                  post = null;
-                }) }
+                case null {
+                  {
+                    n with expire = [var expire];
+                    pre = null;
+                    post = null;
+                  }
+                }
                 case ?m {
                   assert m.expire[0] != 0;
                   if expire < m.expire[0] { { m with pre = ?reinsert(m.pre) } } else {
@@ -609,23 +611,25 @@ func @timer_helper() : async () {
       switch @timers {
         case ?{ id = 0; pre; post; job = j; expire; delay } {
           // push top node's contents into pre
-          ({
+          {
             expire = [var failed];
             id = 0;
             delay;
             job;
             post;
             pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
-          })
+          }
         }
-        case _ { ({
-          expire = [var failed];
-          id = 0;
-          delay = null;
-          job;
-          pre = null;
-          post = @timers;
-        }) }
+        case _ {
+          {
+            expire = [var failed];
+            id = 0;
+            delay = null;
+            job;
+            pre = null;
+            post = @timers;
+          }
+        }
       }
     );
   };
@@ -685,14 +689,16 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
   let delay = if recurring { ?delayNanos } else { null };
   // only works on pruned nodes
   func insert(n : ?@Node) : @Node = switch n {
-    case null { ({
-      expire = [var expire];
-      id;
-      delay;
-      job;
-      pre = null;
-      post = null;
-    }) }
+    case null {
+      {
+        expire = [var expire];
+        id;
+        delay;
+        job;
+        pre = null;
+        post = null;
+      }
+    }
     case ?n {
       assert n.expire[0] != 0;
       if expire < n.expire[0] { { n with pre = ?insert(n.pre) } } else {
