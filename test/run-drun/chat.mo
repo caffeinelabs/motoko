@@ -4,7 +4,7 @@ type List<T> = ?{head : T; var tail : List<T>};
 type Post = shared Text -> ();
 
 actor class Server() = {
-  flexible var clients : List<Client> = null;
+  transient var clients : List<Client> = null;
 
   public func broadcast(message : Text) : () {
     var next = clients;
@@ -29,8 +29,8 @@ actor class Server() = {
 
 actor class Client() = this {
   // TODO: these should be constructor params once we can compile them
-  flexible var name : Text = "";
-  flexible var server : ?Server  = null;
+  transient var name : Text = "";
+  transient var server : ?Server  = null;
 
   public func go(n : Text, s : Server) : () {
     name := n;

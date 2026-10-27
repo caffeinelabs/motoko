@@ -113,19 +113,19 @@ func isLive(weak_ref : weak Any) : Bool {
   (prim "weak_ref_is_live" : weak Any -> Bool)(weak_ref);
 };
 
-func envVarNames<system>() : [Text] {
+func envVarNames() : [Text] {
   (prim "env_var_names" : () -> [Text])();
 };
 
-func envVar<system>(name : Text) : ?Text {
+func envVar(name : Text) : ?Text {
   (prim "env_var" : Text -> ?Text)(name);
 };
 
-func callerInfoSigner<system>() : Blob {
+func callerInfoSigner() : Blob {
   (prim "caller_info_signer" : () -> Blob)();
 };
 
-func callerInfoData<system>() : Blob {
+func callerInfoData() : Blob {
   (prim "caller_info_data" : () -> Blob)();
 };
 
@@ -651,12 +651,10 @@ func actorOfPrincipal<A <: actor {}>(p : Principal) : A = (prim "actorOfPrincipa
 func isController(p : Principal) : Bool = (prim "is_controller" : Principal -> Bool) p;
 func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)();
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
+func subnetSelfNodeCount() : Nat32 = (prim "subnetSelfNodeCount" : () -> Nat32)();
 func canisterSubnet() : Principal = (prim "canister_subnet" : () -> Principal)();
 func rootKey() : Blob = (prim "root_key" : () -> Blob)();
-func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Principal)();
-
-// Untyped dynamic actor creation from blobs
-let createActor : (wasm : Blob, argument : Blob) -> async Principal = @create_actor_helper;
+func getSelfPrincipal() : Principal = (prim "canister_self" : () -> Principal)();
 
 func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
 func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
@@ -679,6 +677,7 @@ func costCall(methodNameSize : Nat64, payloadSize : Nat64) : Nat = (prim "costCa
 func costCreateCanister() : Nat = (prim "costCreateCanister" : () -> Nat)();
 
 func costHttpRequest(requestSize : Nat64, maxResBytes : Nat64) : Nat = (prim "costHttpRequest" : (Nat64, Nat64) -> Nat)(requestSize, maxResBytes);
+func costHttpRequestV2(params : Blob) : Nat = (prim "costHttpRequestV2" : Blob -> Nat)(params);
 
 func costSignWithEcdsa(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithEcdsa" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
 
@@ -689,9 +688,6 @@ func costVetkdDeriveKey(keyName : Text, curveEncoding : Nat32) : (resultCode : N
 // certified data
 func setCertifiedData(data : Blob) = (prim "setCertifiedData" : Blob -> ()) data;
 func getCertificate() : ?Blob = (prim "getCertificate" : () -> ?Blob)();
-
-// Returns a query that computes the current actor's stable variable statistics (for now, the current size, in bytes, of serialized stable variable data).
-func stableVarQuery() : shared query () -> async { size : Nat64 } = (prim "stableVarQuery" : () -> (shared query () -> async { size : Nat64 }))();
 
 // stable regions
 
@@ -756,7 +752,7 @@ func setCandidLimits<system>({
   (prim "setCandidLimits" : (Nat32, Nat32, Nat32) -> ())(numerator, denominator, bias);
 };
 
-func getCandidLimits<system>() : {
+func getCandidLimits() : {
   numerator : Nat32;
   denominator : Nat32;
   bias : Nat32;
@@ -776,7 +772,7 @@ func setCandidTypeLimits<system>({
   (prim "setCandidTypeLimits" : (Nat32, Nat32) -> ())(scalar, bias);
 };
 
-func getCandidTypeLimits<system>() : {
+func getCandidTypeLimits() : {
   scalar : Nat32;
   bias : Nat32;
 } {

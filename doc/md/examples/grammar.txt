@@ -222,6 +222,8 @@
     <exp_un_ext>
 
 <exp_un_ext> ::= 
+    'do' <block>
+    'do' '?' <block>
     <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
@@ -278,8 +280,6 @@
     'for' '(' <pat> 'in' <exp> ')' <exp_nest>
     'for' <pat> 'in' <head> <block>
     'ignore' <exp_nest>
-    'do' <block>
-    'do' '?' <block>
 
 <exp_nonvar> ::= 
     <exp_nondec>
@@ -305,7 +305,7 @@
     <case> ';' <cases>
 
 <catch> ::= 
-    'catch' <pat_nullary> <exp_nest>
+    'catch' <case_pat> <exp_nest>
 
 <if_exp> ::= 
     'if' <exp_nullary> <exp_nest>
@@ -342,8 +342,6 @@
     'await' <exp_nest>
     'await?' <exp_nest>
     'await*' <exp_nest>
-    'do' <block>
-    'do' '?' <block>
 
 <exp_field> ::= 
     'var'? <id> (':' <typ>)?
@@ -360,7 +358,6 @@
 
 <stab> ::= 
     <empty>
-    'flexible'
     'stable'
     'transient'
 
@@ -394,10 +391,16 @@
     '(' <list(<pat_bin>, ',')> ')'
 
 <case_pat> ::= 
+    <case_pat_un>
+    <case_pat> 'or' <case_pat>
+    <case_pat> 'and' <case_pat>
+    <case_pat> ':' <typ>
+
+<case_pat_un> ::= 
     <pat_nullary>
     '#' <id>
     '#' <id> <pat_paren>
-    '?' <case_pat>
+    '?' <case_pat_un>
     <unop> <lit>
 
 <pat_field> ::= 

@@ -10,4 +10,4 @@ bad-actor.mo:8.1-8.38: type error [M0134], class body of type
   actor {}
 does not match expected type
   {}
-bad-actor.mo:9.1-9.31: warning [M0135], actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
+bad-actor.mo:9.1-9.31: type error [M0193], actor class has non-async return type

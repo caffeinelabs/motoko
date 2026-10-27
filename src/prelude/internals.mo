@@ -297,6 +297,9 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
   let w_null = func(r : @Refund, t : T) {};
   let r_null = func(_ : Error) {};
   var result : ?(@Result<T>) = null;
+  // A reply callback can trap before fulfill/fail, even without a waiter.
+  // Keep this separate from result so cleanup need not allocate a result.
+  var trapped = false;
   var ws : @Waiter<T> = w_null;
   var rs : @Cont<Error> = r_null;
   let getRefund = @cycles != 0;
@@ -335,6 +338,11 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
     #schedule : () -> ();
   } {
     cleanup := b;
+    if trapped {
+      // Use the usual scheduling path: await commits before cleanup, while
+      // await? can bail out immediately. Neither resumes k nor rejects via r.
+      return #schedule b;
+    };
     switch result {
       case null {
         let ws_ = ws;
@@ -362,7 +370,14 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
     };
   };
 
-  (enqueue, fulfill, fail, func() = cleanup());
+  (enqueue, fulfill, fail, func() {
+    // The trapping callback was rolled back, including any fulfillment.
+    // Remember its failure for awaiters that have not registered yet.
+    trapped := true;
+    ws := w_null;
+    rs := r_null;
+    cleanup();
+  });
 };
 
 // Subset of IC management canister interface required for our use
@@ -416,7 +431,7 @@ func @install_actor_helper(
   },
   wasm_module : Blob,
   arg : Blob,
-) : async* Principal = async* {
+) : async* Principal {
   let (mode, canister_id) = switch install_arg {
     case #new(settings) {
       let available = (prim "cyclesAvailable" : () -> Nat)();
@@ -447,29 +462,6 @@ func @install_actor_helper(
   };
   await @ic00.install_code {
     mode;
-    canister_id;
-    wasm_module;
-    arg;
-    sender_canister_version = ?(prim "canister_version" : () -> Nat64)();
-  };
-  return canister_id;
-};
-
-// It would be desirable if create_actor_helper can be defined
-// without paying the extra self-remote-call-cost
-// TODO: This helper is now only used by Prim.createActor and could be removed, except
-// that Prim.createActor was mentioned on the forum and might be in use. (#3420)
-func @create_actor_helper(wasm_module : Blob, arg : Blob) : async Principal = async {
-  let available = (prim "cyclesAvailable" : () -> Nat)();
-  let accepted = (prim "cyclesAccept" : Nat -> Nat)(available);
-  let sender_canister_version = ?(prim "canister_version" : () -> Nat64)();
-  @cycles += accepted;
-  let { canister_id } = await @ic00.create_canister {
-    settings = null;
-    sender_canister_version;
-  };
-  await @ic00.install_code {
-    mode = #install;
     canister_id;
     wasm_module;
     arg;
@@ -541,6 +533,13 @@ func @nextExpiration(n : ?@Node) : Nat64 = switch n {
   }
 };
 
+// Called by the default timer handler before it sends `@timer_helper`, which replaces this
+// expiration when it runs: retries a lost helper, at most one extra per delay if it is late.
+func @timer_fallback() {
+  let now = (prim "time" : () -> Nat64)();
+  ignore (prim "global_timer_set" : Nat64 -> Nat64)(now + 60_000_000_000)
+};
+
 // Function called by backend to run eligible timed actions.
 // DO NOT RENAME without modifying compilation.
 func @timer_helper() : async () {
@@ -552,6 +551,7 @@ func @timer_helper() : async () {
 
   var gathered = 0;
   let thunks = Array_init<?(() -> async ())>(10, null); // we want max 10
+  let recurring = Array_init<Bool>(10, false);
 
   func gatherExpired(n : ?@Node) = switch n {
     case null { () }
@@ -565,6 +565,7 @@ func @timer_helper() : async () {
           switch n.delay {
             case (null or ?0) { n.expire[0] := 0 }
             case ?delay {
+              recurring[gathered] := true;
               // re-add the node, skipping past expirations
               let expire = pivot + delay * (1 + (now - pivot) / delay);
               n.expire[0] := 0;
@@ -594,16 +595,15 @@ func @timer_helper() : async () {
 
   gatherExpired(@timers);
 
-  let exp = @nextExpiration @timers;
-  ignore (prim "global_timer_set" : Nat64 -> Nat64) exp;
+  let exp = @nextExpiration(@timers);
+  ignore (prim "global_timer_set" : Nat64 -> Nat64)(exp);
   if exp == 0 { @timers := null };
 
   var failed : Nat64 = 0;
+  // may run after an `await` below, i.e. on a changed tree: prune and rearm each time
   func reinsert(job : () -> async ()) {
-    if failed == 0 {
-      @timers := @prune @timers;
-      ignore (prim "global_timer_set" : Nat64 -> Nat64) 1;
-    };
+    @timers := @prune(@timers);
+    ignore (prim "global_timer_set" : Nat64 -> Nat64)(1);
     failed += 1;
     @timers := ?(
       switch @timers {
@@ -630,12 +630,49 @@ func @timer_helper() : async () {
     );
   };
 
-  for o in thunks.values() {
-    switch o {
-      case ?thunk { try ignore thunk() catch _ reinsert thunk }
-      case _ { return }
+  let jobs = Array_init<?(async ())>(gathered, null);
+  var i = 0;
+  while i < gathered {
+    switch thunks[i] {
+      case ?thunk { try { jobs[i] := ?thunk() } catch _ { reinsert(thunk) } }
+      case null {}
     };
+    i += 1
   };
+
+  // a self-call rejected as transient (e.g. out of cycles) never ran its job: retry it,
+  // unless recurring, which skips the missed run as it skips past expirations
+  // `await?`: a plain await of a finished job yields via its own self-call, whose
+  // transient rejection would rerun a job that already ran
+  i := 0;
+  while i < gathered {
+    switch (jobs[i], thunks[i]) {
+      case (?job, ?thunk) {
+        try { await? job } catch e {
+          if not recurring[i] and @isTransient(e) { reinsert(thunk) }
+        }
+      }
+      case _ {}
+    };
+    i += 1
+  }
+};
+
+func @isTransient(e : Error) : Bool {
+  type Code = {
+    #system_fatal;
+    #system_transient;
+    #destination_invalid;
+    #canister_reject;
+    #canister_error;
+    #system_unknown;
+    #future : Nat32;
+    #call_error : { err_code : Nat32 }
+  };
+  switch ((prim "cast" : Error -> (Code, Text)) e).0 {
+    case #system_transient true;
+    case _ false
+  }
 };
 
 var @lastTimerId = 0;

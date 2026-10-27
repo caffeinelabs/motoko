@@ -3,7 +3,7 @@
 module M = Map.Make(String)
 module S = Set.Make(String)
 
-type compile_mode = WasmMode | ICMode | RefMode | WASIMode
+type compile_mode = ICMode | WASIMode
 
 type instruction_limits = {
   upgrade: Int64.t;
@@ -21,7 +21,6 @@ let trace = ref false
 let verbose = ref false
 let print_warnings = ref true
 let warnings_are_errors = ref false
-let print_source_on_error = ref false
 let print_depth = ref 2
 let release_mode = ref false
 let compile_mode = ref ICMode
@@ -42,11 +41,6 @@ let max_stable_pages : int ref = ref max_stable_pages_default
 let measure_rts_stack = ref false
 let pre_ref : string option ref = ref None
 let post_ref : string option ref = ref None
-let profile = ref false
-let profile_verbose = ref false
-let profile_file = ref "profiling-counters.csv"
-let profile_line_prefix = ref ""
-let profile_field_names : string list ref = ref []
 let public_metadata_names : string list ref = ref []
 let omit_metadata_names : string list ref = ref []
 let compiled = ref false
@@ -57,7 +51,6 @@ let force_gc = ref false
 let global_timer = ref true
 let ocaml_js = ref false
 let js_project_root : string option ref = ref None
-let trap_on_call_error = ref false
 let use_stable_regions = ref false
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
@@ -84,6 +77,23 @@ let default_warning_levels = M.empty
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)
   |> M.add "M0237" Allow (* don't report redundant explicit arguments *)
   |> M.add "M0268" (Error : lint_level) (* diverging from the deployed migration history is a deployment hazard *)
+  |> M.add "M0278" (Error : lint_level) (* a skipped file in the migration directory never runs *)
+  (* each of these silently miscompiles intent or traps at runtime *)
+  |> M.add "M0005" (Error : lint_level) (* import case mismatch breaks on case-sensitive filesystems *)
+  |> M.add "M0128" (Error : lint_level) (* system method name without `system` is never called *)
+  |> M.add "M0145" (Error : lint_level) (* non-exhaustive pattern traps at runtime *)
+  |> M.add "M0210" (Error : lint_level) (* misplaced parenthetical is dropped *)
+  |> M.add "M0212" (Error : lint_level) (* unrecognised parenthetical attribute is dropped *)
+  |> M.add "M0215" (Error : lint_level) (* unexpected record field is dropped, e.g. a typo in `{ r with ... }` *)
+  |> M.add "M0222" (Error : lint_level) (* ignored `async*` never runs *)
+  |> M.add "M0242" (Error : lint_level) (* implicit oneway hides failures from callers *)
+  (* an inferred join to `Any` or meet to `None` yields an unusable type *)
+  |> M.add "M0074" (Error : lint_level) (* array elements joined into `Any` *)
+  |> M.add "M0081" (Error : lint_level) (* `if` branches joined into `Any` *)
+  |> M.add "M0101" (Error : lint_level) (* `switch` branches joined into `Any` *)
+  |> M.add "M0166" (Error : lint_level) (* type intersection collapses to `None` *)
+  |> M.add "M0167" (Error : lint_level) (* type union collapses to `Any` *)
+  |> M.add "M0276" (Error : lint_level) (* comparison at a single-valued type is constant *)
 
 let warning_levels = ref default_warning_levels
 

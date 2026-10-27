@@ -334,15 +334,10 @@ actor Main {
                     ???
                     (Query (VarP (ID test)))
                     @anon-func-7.12
-                    ($ (PrimT Any))
                     (TupP)
                     (AsyncT (PathT (IdH (ID $))) (PathT (IdH (ID Nat))))
 
-                    (AsyncE
-                      _
-                      ($@anon-func-7.12 (PrimT Any))
-                      (BlockE (ExpD (LitE (PreLit 123 Nat))))
-                    )
+                    (BlockE (ExpD (LitE (PreLit 123 Nat))))
                   )
                 )
                 Public
@@ -409,15 +404,10 @@ let%expect_test "test5" =
                 ???
                 (Query (VarP (ID test)))
                 @anon-func-5.12
-                ($ (PrimT Any))
                 (TupP)
                 (AsyncT (PathT (IdH (ID $))) (PathT (IdH (ID Nat))))
 
-                (AsyncE
-                  _
-                  ($@anon-func-5.12 (PrimT Any))
-                  (BlockE (ExpD (LitE (PreLit 123 Nat))))
-                )
+                (BlockE (ExpD (LitE (PreLit 123 Nat))))
               )
             )
             Public

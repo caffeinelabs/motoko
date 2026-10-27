@@ -7,7 +7,7 @@ actor {
                  bias = 3 : Nat32 };
 
   setCandidLimits<system>(limits);
-  assert getCandidLimits<system>() == limits;
+  assert getCandidLimits() == limits;
 
 
   setCandidLimits<system>(

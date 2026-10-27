@@ -30,6 +30,11 @@ let prim_typs = ["nat", Nat; "nat8", Nat8; "nat16", Nat16; "nat32", Nat32; "nat6
                  "null", Null; "reserved", Reserved; "empty", Empty]
 let is_prim_typs t = List.assoc_opt t prim_typs
 
+let nat_label at n =
+  match Uint32.of_string_opt n with
+  | Some id -> Id id @@ at
+  | None -> raise (ParseError (at, "field id out of range"))
+
 let hash = IdlHash.idl_hash
 let record_fields get_label fs =
   let open Uint32 in
@@ -106,7 +111,7 @@ ref_typ :
 
 field_typ :
   | n=NAT COLON t=data_typ
-    { { label = Id (Uint32.of_string n) @@ at $loc(n); typ = t } @@ at $sloc }
+    { { label = nat_label (at $loc(n)) n; typ = t } @@ at $sloc }
   | name=name COLON t=data_typ
     { { label = Named name.it @@ at $loc(name); typ = t } @@ at $sloc }
 
@@ -120,7 +125,7 @@ variant_typ :
   | name=name
     { { label = Named name.it @@ at $loc(name); typ = PrimT Null @@ no_region } @@ at $sloc }
   | n=NAT
-    { { label = Id (Uint32.of_string n) @@ at $loc(n); typ = PrimT Null @@ no_region } @@ at $sloc }
+    { { label = nat_label (at $loc(n)) n; typ = PrimT Null @@ no_region } @@ at $sloc }
 
 record_typs :
   | LCURLY fs=seplist(record_typ, SEMICOLON) RCURLY
@@ -249,17 +254,17 @@ value :
 
 variant_value :
   | n=NAT EQ v=value
-    { (Id (Uint32.of_string n) @@ at $loc(n), v ) @@ at $sloc }
+    { (nat_label (at $loc(n)) n, v) @@ at $sloc }
   | name=name EQ v=value
     { (Named name.it @@ at $loc(name), v) @@ at $sloc }
   | n=NAT
-    { (Id (Uint32.of_string n) @@ at $loc(n), NullV @@ no_region) @@ at $sloc }
+    { (nat_label (at $loc(n)) n, NullV @@ no_region) @@ at $sloc }
   | name=name
     { (Named name.it @@ at $loc(name), NullV @@ no_region) @@ at $sloc }
 
 field_value :
   | n=NAT EQ v=value
-    { fun _ -> (Id (Uint32.of_string n) @@ at $loc(n), v) @@ at $sloc }
+    { fun _ -> (nat_label (at $loc(n)) n, v) @@ at $sloc }
   | name=name EQ v=value
     { fun _ -> (Named name.it @@ at $loc(name), v) @@ at $sloc }
   | v=value

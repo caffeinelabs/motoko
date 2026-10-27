@@ -20,6 +20,7 @@
 
 export const sidebar = [
   { slug: "index", label: "Overview" },
+  { slug: "moc-v2-migration" },
   {
     label: "Fundamentals",
     collapsed: false,

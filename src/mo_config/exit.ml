@@ -14,6 +14,6 @@ let fail fmt =
     if !Flags.ocaml_js then
       raise (Exit msg)
     else begin
-      Printf.eprintf "%s" msg;
+      Printf.eprintf "%s\n" msg;
       Stdlib.exit 1
     end) fmt

@@ -1,18 +1,18 @@
-par-effects.mo:23.15-23.40: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:24.15-24.53: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:26.15-26.40: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:27.15-27.53: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:28.15-28.40: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:29.15-29.53: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:30.15-30.32: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:32.15-32.40: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:33.15-33.53: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:35.9-35.34: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:36.9-36.47: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:37.9-37.50: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:38.27-38.38: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-par-effects.mo:38.9-38.70: warning [M0212], unrecognised attribute moot in parenthetical
-par-effects.mo:39.28-39.39: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-par-effects.mo:39.32-39.36: warning [M0215], public field `moot` is provided but not expected in object of type
+par-effects.mo:24.15-24.40: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:25.15-25.53: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:27.15-27.40: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:28.15-28.53: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:29.15-29.40: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:30.15-30.53: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:31.15-31.32: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:33.15-33.40: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:34.15-34.53: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:36.9-36.34: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:37.9-37.47: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:38.9-38.50: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:39.27-39.38: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+par-effects.mo:39.9-39.70: warning [M0212], unrecognised attribute moot in parenthetical
+par-effects.mo:40.28-40.39: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+par-effects.mo:40.32-40.36: warning [M0215], public field `moot` is provided but not expected in object of type
   {}
-par-effects.mo:40.28-40.40: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+par-effects.mo:41.28-41.40: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

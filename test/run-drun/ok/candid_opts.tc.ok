@@ -1,216 +1,216 @@
-candid_opts.mo:5.15-5.18: warning [M0145], this pattern of type
+candid_opts.mo:6.15-6.18: warning [M0145], this pattern of type
   ?{x : ?Nat32}
 does not cover value
   null
-candid_opts.mo:6.15-6.18: warning [M0145], this pattern of type
+candid_opts.mo:7.15-7.18: warning [M0145], this pattern of type
   ?{x : ??Nat32}
 does not cover value
   null
-candid_opts.mo:7.15-7.18: warning [M0145], this pattern of type
+candid_opts.mo:8.15-8.18: warning [M0145], this pattern of type
   ?{x : ???Nat32}
 does not cover value
   null
-candid_opts.mo:19.7-19.10: warning [M0145], this pattern of type
-  ?{x : ?Null}
-does not cover value
-  null
 candid_opts.mo:20.7-20.10: warning [M0145], this pattern of type
-  ?{x : ??Null}
+  ?{x : ?Null}
 does not cover value
   null
 candid_opts.mo:21.7-21.10: warning [M0145], this pattern of type
-  ?{x : ???Null}
+  ?{x : ??Null}
 does not cover value
   null
-candid_opts.mo:34.7-34.10: warning [M0145], this pattern of type
-  ?{x : ?Null}
+candid_opts.mo:22.7-22.10: warning [M0145], this pattern of type
+  ?{x : ???Null}
 does not cover value
   null
 candid_opts.mo:35.7-35.10: warning [M0145], this pattern of type
-  ?{x : ??Null}
-does not cover value
-  null
-candid_opts.mo:36.7-36.10: warning [M0145], this pattern of type
-  ?{x : ???Null}
-does not cover value
-  null
-candid_opts.mo:49.7-49.10: warning [M0145], this pattern of type
   ?{x : ?Null}
 does not cover value
   null
-candid_opts.mo:50.7-50.10: warning [M0145], this pattern of type
+candid_opts.mo:36.7-36.10: warning [M0145], this pattern of type
   ?{x : ??Null}
 does not cover value
   null
-candid_opts.mo:51.7-51.10: warning [M0145], this pattern of type
+candid_opts.mo:37.7-37.10: warning [M0145], this pattern of type
   ?{x : ???Null}
 does not cover value
   null
-candid_opts.mo:63.7-63.10: warning [M0145], this pattern of type
-  ?{x : ?Nat64}
+candid_opts.mo:50.7-50.10: warning [M0145], this pattern of type
+  ?{x : ?Null}
+does not cover value
+  null
+candid_opts.mo:51.7-51.10: warning [M0145], this pattern of type
+  ?{x : ??Null}
+does not cover value
+  null
+candid_opts.mo:52.7-52.10: warning [M0145], this pattern of type
+  ?{x : ???Null}
 does not cover value
   null
 candid_opts.mo:64.7-64.10: warning [M0145], this pattern of type
-  ?{x : ??Nat64}
+  ?{x : ?Nat64}
 does not cover value
   null
 candid_opts.mo:65.7-65.10: warning [M0145], this pattern of type
-  ?{x : ???Nat64}
+  ?{x : ??Nat64}
 does not cover value
   null
-candid_opts.mo:77.7-77.10: warning [M0145], this pattern of type
-  ?{x : ?Any}
+candid_opts.mo:66.7-66.10: warning [M0145], this pattern of type
+  ?{x : ???Nat64}
 does not cover value
   null
 candid_opts.mo:78.7-78.10: warning [M0145], this pattern of type
-  ?{x : ??Any}
+  ?{x : ?Any}
 does not cover value
   null
 candid_opts.mo:79.7-79.10: warning [M0145], this pattern of type
-  ?{x : ???Any}
+  ?{x : ??Any}
 does not cover value
   null
-candid_opts.mo:91.7-91.10: warning [M0145], this pattern of type
-  ?{x : ?Any}
+candid_opts.mo:80.7-80.10: warning [M0145], this pattern of type
+  ?{x : ???Any}
 does not cover value
   null
 candid_opts.mo:92.7-92.10: warning [M0145], this pattern of type
-  ?{x : ??Any}
+  ?{x : ?Any}
 does not cover value
   null
 candid_opts.mo:93.7-93.10: warning [M0145], this pattern of type
-  ?{x : ???Any}
+  ?{x : ??Any}
 does not cover value
   null
-candid_opts.mo:108.7-108.10: warning [M0145], this pattern of type
-  ?{x : ?Any}
+candid_opts.mo:94.7-94.10: warning [M0145], this pattern of type
+  ?{x : ???Any}
 does not cover value
   null
 candid_opts.mo:109.7-109.10: warning [M0145], this pattern of type
-  ?{x : ??Any}
-does not cover value
-  null
-candid_opts.mo:110.7-110.10: warning [M0145], this pattern of type
-  ?{x : ???Any}
-does not cover value
-  null
-candid_opts.mo:123.7-123.10: warning [M0145], this pattern of type
   ?{x : ?Any}
 does not cover value
   null
-candid_opts.mo:124.7-124.10: warning [M0145], this pattern of type
+candid_opts.mo:110.7-110.10: warning [M0145], this pattern of type
   ?{x : ??Any}
 does not cover value
   null
-candid_opts.mo:125.7-125.10: warning [M0145], this pattern of type
+candid_opts.mo:111.7-111.10: warning [M0145], this pattern of type
   ?{x : ???Any}
 does not cover value
   null
-candid_opts.mo:139.7-139.10: warning [M0145], this pattern of type
-  ?{x : ?Nat64}
+candid_opts.mo:124.7-124.10: warning [M0145], this pattern of type
+  ?{x : ?Any}
+does not cover value
+  null
+candid_opts.mo:125.7-125.10: warning [M0145], this pattern of type
+  ?{x : ??Any}
+does not cover value
+  null
+candid_opts.mo:126.7-126.10: warning [M0145], this pattern of type
+  ?{x : ???Any}
 does not cover value
   null
 candid_opts.mo:140.7-140.10: warning [M0145], this pattern of type
-  ?{x : ??Nat64}
+  ?{x : ?Nat64}
 does not cover value
   null
 candid_opts.mo:141.7-141.10: warning [M0145], this pattern of type
-  ?{x : ???Nat64}
+  ?{x : ??Nat64}
 does not cover value
   null
-candid_opts.mo:154.7-154.10: warning [M0145], this pattern of type
-  ?{x : ?Nat64}
+candid_opts.mo:142.7-142.10: warning [M0145], this pattern of type
+  ?{x : ???Nat64}
 does not cover value
   null
 candid_opts.mo:155.7-155.10: warning [M0145], this pattern of type
-  ?{x : ??Nat64}
-does not cover value
-  null
-candid_opts.mo:156.7-156.10: warning [M0145], this pattern of type
-  ?{x : ???Nat64}
-does not cover value
-  null
-candid_opts.mo:169.7-169.10: warning [M0145], this pattern of type
   ?{x : ?Nat64}
 does not cover value
   null
-candid_opts.mo:170.7-170.10: warning [M0145], this pattern of type
+candid_opts.mo:156.7-156.10: warning [M0145], this pattern of type
   ?{x : ??Nat64}
 does not cover value
   null
-candid_opts.mo:171.7-171.10: warning [M0145], this pattern of type
+candid_opts.mo:157.7-157.10: warning [M0145], this pattern of type
   ?{x : ???Nat64}
 does not cover value
   null
-candid_opts.mo:183.7-183.10: warning [M0145], this pattern of type
-  ?{x : ?Int}
+candid_opts.mo:170.7-170.10: warning [M0145], this pattern of type
+  ?{x : ?Nat64}
+does not cover value
+  null
+candid_opts.mo:171.7-171.10: warning [M0145], this pattern of type
+  ?{x : ??Nat64}
+does not cover value
+  null
+candid_opts.mo:172.7-172.10: warning [M0145], this pattern of type
+  ?{x : ???Nat64}
 does not cover value
   null
 candid_opts.mo:184.7-184.10: warning [M0145], this pattern of type
-  ?{x : ??Int}
+  ?{x : ?Int}
 does not cover value
   null
 candid_opts.mo:185.7-185.10: warning [M0145], this pattern of type
-  ?{x : ???Int}
+  ?{x : ??Int}
 does not cover value
   null
-candid_opts.mo:198.7-198.10: warning [M0145], this pattern of type
-  ?{x : ?Int}
+candid_opts.mo:186.7-186.10: warning [M0145], this pattern of type
+  ?{x : ???Int}
 does not cover value
   null
 candid_opts.mo:199.7-199.10: warning [M0145], this pattern of type
-  ?{x : ??Int}
-does not cover value
-  null
-candid_opts.mo:200.7-200.10: warning [M0145], this pattern of type
-  ?{x : ???Int}
-does not cover value
-  null
-candid_opts.mo:212.7-212.10: warning [M0145], this pattern of type
   ?{x : ?Int}
 does not cover value
   null
-candid_opts.mo:213.7-213.10: warning [M0145], this pattern of type
+candid_opts.mo:200.7-200.10: warning [M0145], this pattern of type
   ?{x : ??Int}
 does not cover value
   null
-candid_opts.mo:214.7-214.10: warning [M0145], this pattern of type
+candid_opts.mo:201.7-201.10: warning [M0145], this pattern of type
   ?{x : ???Int}
 does not cover value
   null
-candid_opts.mo:227.7-227.10: warning [M0145], this pattern of type
-  ?{x : ?Nat}
+candid_opts.mo:213.7-213.10: warning [M0145], this pattern of type
+  ?{x : ?Int}
+does not cover value
+  null
+candid_opts.mo:214.7-214.10: warning [M0145], this pattern of type
+  ?{x : ??Int}
+does not cover value
+  null
+candid_opts.mo:215.7-215.10: warning [M0145], this pattern of type
+  ?{x : ???Int}
 does not cover value
   null
 candid_opts.mo:228.7-228.10: warning [M0145], this pattern of type
-  ?{x : ??Nat}
+  ?{x : ?Nat}
 does not cover value
   null
 candid_opts.mo:229.7-229.10: warning [M0145], this pattern of type
-  ?{x : ???Nat}
+  ?{x : ??Nat}
 does not cover value
   null
-candid_opts.mo:242.7-242.10: warning [M0145], this pattern of type
-  ?{x : ?Nat}
+candid_opts.mo:230.7-230.10: warning [M0145], this pattern of type
+  ?{x : ???Nat}
 does not cover value
   null
 candid_opts.mo:243.7-243.10: warning [M0145], this pattern of type
-  ?{x : ??Nat}
-does not cover value
-  null
-candid_opts.mo:244.7-244.10: warning [M0145], this pattern of type
-  ?{x : ???Nat}
-does not cover value
-  null
-candid_opts.mo:257.7-257.10: warning [M0145], this pattern of type
   ?{x : ?Nat}
 does not cover value
   null
-candid_opts.mo:258.7-258.10: warning [M0145], this pattern of type
+candid_opts.mo:244.7-244.10: warning [M0145], this pattern of type
   ?{x : ??Nat}
 does not cover value
   null
+candid_opts.mo:245.7-245.10: warning [M0145], this pattern of type
+  ?{x : ???Nat}
+does not cover value
+  null
+candid_opts.mo:258.7-258.10: warning [M0145], this pattern of type
+  ?{x : ?Nat}
+does not cover value
+  null
 candid_opts.mo:259.7-259.10: warning [M0145], this pattern of type
+  ?{x : ??Nat}
+does not cover value
+  null
+candid_opts.mo:260.7-260.10: warning [M0145], this pattern of type
   ?{x : ???Nat}
 does not cover value
   null

@@ -1,21 +1,19 @@
 module Top {
- public module Nested {
-   public let zero : Nat = 0;
-   public let one : Nat = 1;
- };
- public let zero : Nat = 0;
- public let one : Nat = 1;
+  public module A { public let zero : Nat = 0 };
+  public module B { public let zero : Nat = 0 };
+  public module Nested {
+    public let one : Nat = 1;
+    public let two : Nat = 2;
+  };
+  public let one : Nat = 1;
 };
 
-let one : Nat = 1;
+let two : Nat = 2;
 
-func f(zero : (implicit : Nat)) : Nat {
-  zero
-};
+func f(zero : (implicit : Nat)) : Nat = zero;
+func g(one : (implicit : Nat)) : Nat = one;
+func h(two : (implicit : Nat)) : Nat = two;
 
-func g(one : (implicit : Nat)) : Nat {
-  one
-};
-
-ignore g(); // Fine, top-level candidates win over module candidates
-ignore f(); // Error, candidates from nested modules conflict with candidates from top-level modules
+ignore h(); // Fine, the local value wins over module candidates
+ignore g(); // Fine, the direct field Top.one wins over the nested Top.Nested.one
+ignore f(); // Error, two candidates from nested modules conflict

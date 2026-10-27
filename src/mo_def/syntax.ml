@@ -166,15 +166,6 @@ type inst = ((bool * typ list) option, Type.typ list) annotated_phrase (* For im
 
 type sort_pat = (Type.shared_sort * pat) Type.shared phrase
 
-type sugar = bool (* Is the source of a function body a block `<block>`,
-                     subject to further desugaring during parse,
-                     or the invariant form `= <exp>`.
-                     In the final output of the parser, the exp in FuncE is
-                     always in its fully desugared form and the
-                     value of the sugar field is irrelevant.
-                     This flag is used to correctly desugar an actor's
-                     public functions as oneway, shared functions *)
-
 type loop_flags = { mutable has_break : bool; mutable has_continue : bool }
 
 let new_loop_flags () : loop_flags = { has_break = false; has_continue = false }
@@ -221,7 +212,7 @@ and exp' =
   | AssignE of exp * exp                       (* assignment *)
   | ArrayE of mut * exp list                   (* array *)
   | IdxE of exp * exp                          (* array indexing *)
-  | FuncE of string * sort_pat * typ_bind list * pat * typ option * sugar * exp  (* function *)
+  | FuncE of string * sort_pat * typ_bind list * pat * typ option * func_note * exp  (* function *)
   | CallE of exp option * exp * inst * arg_exp     (* function call *)
   | BlockE of dec list                         (* block (with type after avoidance) *)
   | NotE of exp                                (* negation *)
@@ -266,6 +257,14 @@ and case' = {pat : pat; exp : exp}
 (* When `Some`, this holds the expression that produces the function to apply to the receiver.
    eg. when `x.f(args...)` desugars to `M.f(x, args...)` the note will hold `M.f` *)
 and contextual_dot_note = exp option ref
+
+(* What the typechecker made of a function, whose `FuncE` holds the binders and body as written.
+   A function returning `async`, or a one-way shared function, gets an implicit scope binder and an implicit `async` around its body,
+   decided from the annotation or the expected type; [elab] holds the binders and body extended with them. *)
+and func_note = {
+  braced : bool; (* written as `{ ... }` rather than `= <exp>`, which types and runs the same *)
+  mutable elab : (typ_bind list * exp) option;
+}
 
 (* Declarations *)
 
@@ -396,6 +395,17 @@ let is_any t =
 let scopeT at =
   PathT (IdH {it = Type.default_scope_var; at; note = ()} @= at, []) @! at
 
+let scope_bind x at =
+  { var = Type.scope_var x @@ at;
+    sort = Type.Scope @@ at;
+    bound = PrimT "Any" @! at
+  } @= at
+
+let ensure_scope_bind var tbs =
+  match tbs with
+  | tb::_ when tb.it.sort.it = Type.Scope -> tbs
+  | _ -> scope_bind var no_region :: tbs
+
 
 (* Expressions *)
 
@@ -415,17 +425,17 @@ let is_postfix_exp (e : exp) = match e.it with
   | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
   | _ -> false
 
+let func_note braced = { braced; elab = None }
+
+(* The type binders and body of a function as elaborated by the typechecker, or as written before typing *)
+let func_elab note tbs body =
+  match note.elab with
+  | Some elab -> elab
+  | None -> tbs, body
+
 let is_asyncE e =
   match e.it with
   | AsyncE _ -> true
-  | _ -> false
-
-let is_ignore_asyncE e =
-  match e.it with
-  | IgnoreE
-      {it = AnnotE ({it = AsyncE (None, Type.Fut, _, _); _},
-        {it = AsyncT (Type.Fut, _, {it = TupT []; _}); _}); _} ->
-    true
   | _ -> false
 
 let contextual_dot_args e1 e2 dot_note =

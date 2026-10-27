@@ -9,3 +9,6 @@ func apply(x : Nat, nestedDouble : (implicit : Nat -> Nat)) : Nat {
 };
 
 ignore apply(3);
+
+// Likewise for contextual dot
+ignore (3 : Nat).nestedTriple();

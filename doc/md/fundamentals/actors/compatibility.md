@@ -11,7 +11,7 @@ When upgrading a canister, it is important to verify that the upgrade can procee
 -   Breaking clients due to a Candid interface change.
 
 `dfx` checks these properties statically before attempting the upgrade.
-Moreover, with [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations.
+Moreover, thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations.
 
 ## Upgrade example
 
@@ -120,7 +120,7 @@ This version is neither compatible to stable type declarations, nor to the Candi
 - The change in the return type of `read` is also not safe.
   If the change were accepted, then existing clients of the `read` method, that still expect to receive integers, would suddenly start receiving incompatible floats.
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko actively rejects any upgrades that require type-incompatible state changes.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), Motoko actively rejects any upgrades that require type-incompatible state changes.
 
 This is to guarantee that the stable state is always kept safe.
 
@@ -177,16 +177,18 @@ The code for the migration function is self-contained and can be placed in its o
 
 The migration function takes a record of stable fields as input and produces a record of stable fields as output.
 
-The input fields extend or override the types of any stable fields in the actor's
-stable signature.
-The output fields must be declared in the actor's stable signature, and have types that can be consumed by the corresponding declaration in the stable signature.
-
-* All values for the input fields must
-be present and of compatible type in the old actor, otherwise the
-upgrade traps and rolls back.
-* The fields output by the migration
-function determine the values of the corresponding stable variables in the
-new actor.
+* Each input field names a stable variable of the old actor. Its value must be
+present and of compatible type in the old actor, otherwise the upgrade traps and
+rolls back. The input type is checked against the old actor only: the new actor
+may declare the variable with a different type, or not at all.
+* An input field is consumed: its old value is not transferred to the new actor.
+* Each output field must be declared in the new actor, with a type that can be
+consumed by that declaration. The output value becomes the variable's value in
+the new actor.
+* A consumed field that the new actor declares but the migration function does
+not produce is initialized by running its initialization expression, like a
+newly declared field (warning M0206). A consumed field that is neither produced
+nor declared is dropped (warning M0207).
 * All other stable variables of the actor, i.e. those neither consumed nor
 produced by the migration function are initialized in the usual way,
 either by transfer from the upgraded actor, if declared in that actor, or, if newly declared,
@@ -365,7 +367,7 @@ cannot be consumed at new type
   var Float
 ```
 
-With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
+Thanks to [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
 
 ## Adding record fields
 

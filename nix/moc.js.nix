@@ -33,5 +33,4 @@ in
 {
   moc = mk "moc";
   moc_interpreter = mk "moc_interpreter";
-  didc = mk "didc";
 }

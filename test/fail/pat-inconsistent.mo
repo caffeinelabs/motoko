@@ -54,7 +54,7 @@ switch (true : Bool) {
   case (#geese) {};
 };
 
-// Coverage check for disjoint variants
+// Tags the expected type lacks
 switch (#sparrows : { #sparrows }) {
   case (#geese) {};
 };
@@ -70,4 +70,21 @@ func bad_pat() {
 
 func nested_bad_pat() {
   let ((_, _), _) = (10, 20);
+};
+
+// Misspelled tags
+switch (#sparrows : { #sparrows; #geese }) {
+  case (#sparows) {};
+  case _ {};
+};
+
+// No suggestion for a one-letter tag
+switch (#a : { #a; #b }) {
+  case (#c) {};
+  case _ {};
+};
+
+func count(r : { #ok : Nat; #err : Text }) : Nat {
+  let #okk(n) = r else { return 0 };
+  n
 };

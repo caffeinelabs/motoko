@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 let a = actor {
-  flexible var c = 0;
+  transient var c = 0;
   public func incn(n : Nat) : async () {
     c += n;
     Prim.debugPrintNat(c);

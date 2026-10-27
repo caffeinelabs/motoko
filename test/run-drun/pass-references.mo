@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor a {
-  public func foo() : async Text = async "a";
+  public func foo() : async Text { "a" };
 
   public func pass_func(f : shared () -> async Text) : () {
     Prim.debugPrint (await f());
@@ -12,7 +12,7 @@ actor a {
 
   public func go() : () {
     actor b {
-      public func foo() : async Text = async "b";
+      public func foo() : async Text { "b" };
     };
     pass_func(foo);
     pass_func(b.foo);

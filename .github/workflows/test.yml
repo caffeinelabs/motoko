@@ -71,7 +71,7 @@ jobs:
       # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
         if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
@@ -96,7 +96,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
           name: ic-hs-test
@@ -107,7 +107,7 @@ jobs:
       # https://github.com/actions/upload-artifact/issues/92
       - run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
       - name: upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: moc-${{ matrix.os }}
           path: ${{ env.UPLOAD_PATH }}
@@ -174,7 +174,7 @@ jobs:
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token-for-approvals
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}

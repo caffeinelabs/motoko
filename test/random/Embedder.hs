@@ -17,12 +17,11 @@ import Data.IORef
 
 data WasmAPI = DontPrint | WASI
 
-data Embedder = Reference | WasmTime WasmAPI | Drun
+data Embedder = WasmTime WasmAPI | Drun
 
-instance Arbitrary Embedder where arbitrary = elements [Reference, WasmTime DontPrint, WasmTime WASI, Drun]
+instance Arbitrary Embedder where arbitrary = elements [WasmTime DontPrint, WasmTime WASI, Drun]
 instance Arbitrary WasmAPI where arbitrary = elements [DontPrint, WASI]
 
-embedderCommand Reference = "wasm"
 embedderCommand (WasmTime _) = "wasmtime"
 embedderCommand Drun = "drun"
 
@@ -31,18 +30,15 @@ isHealthy e = do
   (res, _) <- shellStrict (embedderCommand e <> " --help") empty
   pure $ res == ExitSuccess
 
-addCompilerArgs Reference = ("-no-system-api" :)
 addCompilerArgs (WasmTime _) = ("-wasi-system-api" :)
 addCompilerArgs Drun = id
 
-addEmbedderArgs Reference = id
 addEmbedderArgs (WasmTime _) = \args -> ["-C", "cache=n", "-W", "nan-canonicalization=y", "-W", "memory64", "-W", "multi-memory", "-W", "bulk-memory"] <> args
 addEmbedderArgs Drun = ("--extra-batches" :) . ("10" :)
 
 embedderInvocation :: Embedder -> [Text] -> [Text]
 embedderInvocation e args = embedderCommand e : addEmbedderArgs e args
 
-embedderMassageResult Reference res = res
 embedderMassageResult (WasmTime DontPrint) (stat, _, stderr) = (stat, "", stderr)
 embedderMassageResult (WasmTime _) res = res
 embedderMassageResult Drun res = res

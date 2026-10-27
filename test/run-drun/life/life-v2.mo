@@ -138,8 +138,8 @@ actor Life {
     #v2 { size = n; bits = words };
   };
 
-  flexible var src = Grid(state);
-  flexible var dst = Grid(state);
+  transient var src = Grid(state);
+  transient var dst = Grid(state);
 
   func update(c : Nat) {
     var i = c;

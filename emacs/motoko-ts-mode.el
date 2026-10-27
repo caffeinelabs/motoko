@@ -30,7 +30,7 @@
       "module" "not" "object" "or" "label" "let" "loop"
       "private" "public" "return" "shared"
       "try" "throw" "query" "switch" "type"
-      "var" "while" "with" "stable" "flexible" "system"
+      "var" "while" "with" "stable" "system"
       "assert" "ignore" "async" "async*" "persistent" "transient"]
      @font-lock-keyword-face)
 

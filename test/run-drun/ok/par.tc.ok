@@ -1,4 +1,3 @@
-par.mo:17.30-17.36: warning [M0211], redundant empty parenthetical note
 par.mo:52.11-52.55: warning [M0212], unrecognised attribute yeah in parenthetical
 par.mo:80.11-80.41: warning [M0212], unrecognised attribute moot in parenthetical
 par.mo:127.15-127.26: warning [M0211], redundant empty parenthetical note

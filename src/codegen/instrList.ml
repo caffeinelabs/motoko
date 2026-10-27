@@ -28,32 +28,14 @@ let combine_shifts const op = function
 (* This uses a zipper.*)
 let optimize : instr list -> instr list = fun is ->
   let rec go l r = match l, r with
-    (* Combine adjacent Metas *)
-    | {it = Meta m2; _} as n2 :: {it = Meta m1; _} :: l', r' ->
-      let combined =
-        let open Wasm_exts.Dwarf5.Meta in
-        match m1, m2 with
-        | StatementDelimiter _, StatementDelimiter _ -> m2
-        | StatementDelimiter _, Grouped (StatementDelimiter _ :: t) -> Grouped (m2 :: t)
-        | Grouped g1, Grouped g2 -> Grouped (g2 @ g1)
-        | Grouped g1, _ -> Grouped (m2 :: g1)
-        | _, Grouped g2 -> Grouped (g2 @ [m1])
-        | _, _ -> Grouped [m2; m1] in
-      go ({ n2 with it = Meta combined } :: l') r'
-
     (* Loading and dropping is pointless *)
     | { it = Const _ | LocalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' r'
-    (* Loading and dropping is pointless, even with intervening Meta *)
-    | { it = Meta _; _} as m :: { it = Const _ | LocalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' (m :: r')
     (* The following is not semantics preserving for general Wasm (due to out-of-memory)
        but should be fine for the code that we create *)
     | { it = Load _; _} :: l', { it = Drop; _ } :: _ -> go l' r
     (* Introduce LocalTee *)
     | { it = LocalSet n1; _} :: l', ({ it = LocalGet n2; _ } as i) :: r' when n1 = n2 ->
       go l' ({i with it = LocalTee n2 } :: r')
-    (* Introduce LocalTee with previously intervening Meta *)
-    | { it = Meta _; _} as m :: { it = LocalSet n1; _} :: l', ({ it = LocalGet n2; _ } as i) :: r' when n1 = n2 ->
-      go l' (m :: {i with it = LocalTee n2 } :: r')
     (* Eliminate LocalTee followed by Drop (good for confluence) *)
     | ({ it = LocalTee n; _} as i) :: l', { it = Drop; _ } :: r' ->
       go l' ({i with it = LocalSet n } :: r')
@@ -63,9 +45,8 @@ let optimize : instr list -> instr list = fun is ->
     | { it = GlobalGet n1; _} :: l', ({ it = GlobalSet n2; _ }) :: r' when n1 = n2 ->
       go l' r'
     (* Code after Return, Br, BrTable or Unreachable is dead *)
-    | _, ({ it = Return | Br _ | BrTable _ | Unreachable; _ } as i) :: t ->
-      (* see Note [funneling DIEs through Wasm.Ast] *)
-      List.(rev (i :: l) @ find_all (fun instr -> Wasm_exts.Ast.is_dwarf_like instr.it) t)
+    | _, ({ it = Return | Br _ | BrTable _ | Unreachable; _ } as i) :: _ ->
+      List.rev (i :: l)
     (* Equals zero has a dedicated operation (and works well with leg swapping) *)
     | ({it = Compare (I32 I32Op.Eq); _} as i) :: {it = Const {it = I32 0l; _}; _} :: l', r' ->
       go l' ({ i with it = Test (I32 I32Op.Eqz)} :: r')
@@ -267,77 +248,3 @@ let setter_for (getter : t) =
 
 let is_nop (is : t) =
   is 0l Wasm.Source.no_region [] = []
-
-(* DWARF tags and attributes: see Note [funneling DIEs through Wasm.Ast] *)
-
-open Wasm_exts.Dwarf5
-open Meta
-
-open Die
-
-(* Note [emit a DW_TAG]
-   ~~~~~~~~~~~~~~~~~~~~
-   There are two principal types of DWARF tags, those
-   which are intimately tied to the generated instructions
-   and those that are not. The latter ones include type
-   definitions which can be regarded as global, while
-   the former bracket or delimit instructions, like
-   scoping or variable definitions. These are required to
-   float with the instruction stream.
-
-   Another aspect of tags is whether a tag admits children.
-   When it admits children, these follow sequentially,
-   closed by dw_tag_close. The abbreviation table must
-   be consulted when deciding between
-   - dw_tag_no_children, or
-   - dw_tag.
-   The former is self-closing (no nested tags), and the
-   latter is high-level, straddling a region of code.
-   The low-level alternative to the latter is using the
-   dw_tag_open/dw_tag_close pair explicitly to demarcate
-   the enclosed instructions. This moves the burden of
-   balancing to the user.
-   See also: Note [funneling DIEs through Wasm.Ast]
- *)
-
-(* Note [locations for types]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~
-   Motoko uses a variety of formats to store data depending on its type
-   and even the actual value. Location  expressions are necessary to teach
-   the debugger where the data can be found.
-   - For short numeric types we have a location expression that LSB-aligns
-     and leaves the value on the expression stack. This is a workaround for
-     `lldb`'s insufficiency to understand basic types that are bitfields
-     (http://lists.llvm.org/pipermail/lldb-dev/2020-August/016393.html).
-     This also implies that setting of such variables in `lldb` won't work.
-   - 32/64 bit-sized integrals may be stored on the heap, we use `DW_OP_bra`
-     to guide the debugger after examining the indirection bit.
-     We can't use the pointer key to be a discriminator for DW_TAG_variant_part
-     because of lldb (link above), and probably displaying issues.
-   - For arbitrary-precision integrals, we cannot inspect the multi-precision
-     heap representation yet
-   - Variants with no payload map to C-like `enum`s, the location expression
-     takes care of focussing on the hash value
-   - Variants map to `DW_TAG_variant_*` directly
-   - Tuples may use Rust-like decoding
-   - Objects need field search for members (when encoded as structure members)
-   - The `Any` type will need fully dynamic resolution by `lldb`
-   - Parameter types for polymorphic types/functions will be treated as `Any`.
-   - `Text` will be treated as `Any` as it needs pretty-printing in the presence
-     of concatenation nodes
-
- *)
-
-(* injecting a tag into the instruction stream, see Note [emit a DW_TAG] *)
-let dw_tag_open tag : t =
-  let metas = concat_map (fun die -> i (Meta die)) in
-  metas (tag_open tag)
-
-let dw_tag die body =
-  let dw_tag_close : t = i (Meta TagClose) in
-  dw_tag_open die ^^ body ^^ dw_tag_close
-let dw_tag_no_children = dw_tag_open (* self-closing *)
-
-(* Marker for statement boundaries *)
-let dw_statement { left; _ } =
-  i (Meta (StatementDelimiter left))

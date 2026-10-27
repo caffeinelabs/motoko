@@ -45,13 +45,10 @@
     (self: super: {
       # When you change the rust-nightly version,
       # make sure to change the rustStdDepsHash in ./rts.nix accordingly.
-      rust-nightly = self.rust-bin.nightly."2026-07-25".default.override {
+      rust-nightly = self.rust-bin.nightly."2026-10-10".default.override {
         extensions = [ "rust-src" ];
       };
     })
-
-    # wasm-profiler
-    (self: super: import ./wasm-profiler.nix self)
 
     # pocket-ic
     (self: super: { pocket-ic = import ./pocket-ic.nix self; })

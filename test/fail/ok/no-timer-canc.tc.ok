@@ -78,8 +78,8 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     btstNat64 : (w : Nat64, amount : Nat64) -> Bool;
     btstNat8 : (w : Nat8, amount : Nat8) -> Bool;
     call_raw : (p : Principal, m : Text, a : Blob) -> async Blob;
-    callerInfoData : <system>() -> Blob;
-    callerInfoSigner : <system>() -> Blob;
+    callerInfoData : () -> Blob;
+    callerInfoSigner : () -> Blob;
     canisterSubnet : () -> Principal;
     canisterVersion : () -> Nat64;
     charIsAlphabetic : (c : Char) -> Bool;
@@ -102,6 +102,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     costCall : (methodNameSize : Nat64, payloadSize : Nat64) -> Nat;
     costCreateCanister : () -> Nat;
     costHttpRequest : (requestSize : Nat64, maxResBytes : Nat64) -> Nat;
+    costHttpRequestV2 : (params : Blob) -> Nat;
     costSignWithEcdsa :
       (keyName : Text, curveEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
@@ -111,7 +112,6 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     costVetkdDeriveKey :
       (keyName : Text, curveEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
-    createActor : (wasm : Blob, argument : Blob) -> async Principal;
     ctzInt16 : (w : Int16) -> Int16;
     ctzInt32 : (w : Int32) -> Int32;
     ctzInt64 : (w : Int64) -> Int64;
@@ -132,8 +132,8 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     debugPrintNat : (x : Nat) -> ();
     decodeUtf8 : (b : Blob) -> ?Text;
     encodeUtf8 : (t : Text) -> Blob;
-    envVar : <system>(name : Text) -> ?Text;
-    envVarNames : <system>() -> [Text];
+    envVar : (name : Text) -> ?Text;
+    envVarNames : () -> [Text];
     error : (message : Text) -> Error;
     errorCode : (e : Error) -> ErrorCode;
     errorMessage : (e : Error) -> Text;
@@ -164,11 +164,11 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     floatToText : (x : Float) -> Text;
     floatTrunc : (f : Float) -> Float;
     getCandidLimits :
-      <system>() -> {bias : Nat32; denominator : Nat32; numerator : Nat32};
-    getCandidTypeLimits : <system>() -> {bias : Nat32; scalar : Nat32};
+      () -> {bias : Nat32; denominator : Nat32; numerator : Nat32};
+    getCandidTypeLimits : () -> {bias : Nat32; scalar : Nat32};
     getCertificate : () -> ?Blob;
     getDeadBlobs : () -> ?[Blob];
-    getSelfPrincipal : <system>() -> Principal;
+    getSelfPrincipal : () -> Principal;
     hashBlob : (b : Blob) -> Nat32;
     idlHash : (x : Text) -> Nat32;
     int16ToInt : (n : Int16) -> Int;
@@ -284,7 +284,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     shiftLeft : (x : Nat, shift : Nat32) -> Nat;
     shiftRight : (x : Nat, shift : Nat32) -> Nat;
     sin : (f : Float) -> Float;
-    stableVarQuery : () -> shared query () -> async {size : Nat64};
+    subnetSelfNodeCount : () -> Nat32;
     tan : (f : Float) -> Float;
     textCompare : (t1 : Text, t2 : Text) -> Int8;
     textLowercase : (t : Text) -> Text;

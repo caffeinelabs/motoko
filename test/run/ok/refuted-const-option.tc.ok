@@ -1,4 +1,4 @@
-refuted-const-option.mo:2.5-2.9: warning [M0145], this pattern of type
+refuted-const-option.mo:3.5-3.9: warning [M0145], this pattern of type
   ?Nat
 does not cover value
   ?(_)

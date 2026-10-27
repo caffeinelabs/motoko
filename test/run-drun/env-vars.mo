@@ -46,28 +46,28 @@ actor Self {
         value = "value";
       },
     ]);
-    Prim.debugPrint(debug_show Prim.envVarNames<system>());
-    assert Prim.envVarNames<system>() == ["TEST_ENV_VAR_NAME", "key"];
-    assert Prim.envVar<system>("TEST_ENV_VAR_NAME") == ?"Test environment variable value";
-    assert Prim.envVar<system>("key") == ?"value";
-    assert Prim.envVar<system>("OTHER_ENV_VAR_NAME") == null;
-    assert Prim.envVar<system>("") == null;
+    Prim.debugPrint(debug_show Prim.envVarNames());
+    assert Prim.envVarNames() == ["TEST_ENV_VAR_NAME", "key"];
+    assert Prim.envVar("TEST_ENV_VAR_NAME") == ?"Test environment variable value";
+    assert Prim.envVar("key") == ?"value";
+    assert Prim.envVar("OTHER_ENV_VAR_NAME") == null;
+    assert Prim.envVar("") == null;
 
     await* setEnvVars([{
       name = "NEW_ENV_VAR";
       value = "NEW_VALUE";
     }]);
-    Prim.debugPrint(debug_show Prim.envVarNames<system>());
-    assert Prim.envVarNames<system>() == ["NEW_ENV_VAR"];
-    assert Prim.envVar<system>("NEW_ENV_VAR") == ?"NEW_VALUE";
-    assert Prim.envVar<system>("TEST_ENV_VAR_NAME") == null;
-    assert Prim.envVar<system>("key") == null;
+    Prim.debugPrint(debug_show Prim.envVarNames());
+    assert Prim.envVarNames() == ["NEW_ENV_VAR"];
+    assert Prim.envVar("NEW_ENV_VAR") == ?"NEW_VALUE";
+    assert Prim.envVar("TEST_ENV_VAR_NAME") == null;
+    assert Prim.envVar("key") == null;
 
     await* setEnvVars([]);
-    Prim.debugPrint(debug_show Prim.envVarNames<system>());
-    assert Prim.envVarNames<system>() == [];
-    assert Prim.envVar<system>("TEST_ENV_VAR_NAME") == null;
-    assert Prim.envVar<system>("NEW_ENV_VAR") == null;
+    Prim.debugPrint(debug_show Prim.envVarNames());
+    assert Prim.envVarNames() == [];
+    assert Prim.envVar("TEST_ENV_VAR_NAME") == null;
+    assert Prim.envVar("NEW_ENV_VAR") == null;
   };
 
 };

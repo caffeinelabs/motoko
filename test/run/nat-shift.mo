@@ -22,6 +22,17 @@ class range(x : Nat32, y : Nat32) {
 for (i in range(0, 200)) { checkShiftLeft(1, i) };
 for (i in range(0, 200)) { checkShiftLeft(42, i) };
 
+// results crossing the compact range limit (2^61), bases around each power of two
+var ones = 0; // 2^k - 1
+for (k in range(0, 33)) {
+  for (i in range(0, 63)) {
+    checkShiftLeft(ones, i);
+    checkShiftLeft(ones + 1, i);
+    checkShiftLeft(ones + 2, i)
+  };
+  ones := 2 * ones + 1
+};
+
 func checkShiftRight(base : Nat, amount : Nat32) =
          assert base / 2 ** nat32ToNat amount == shiftRight(base, amount);
 

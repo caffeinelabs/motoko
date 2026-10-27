@@ -22,13 +22,13 @@ bounds-mismatch.mo:38.5-38.24: type error [M0096], expression of type
   <A <: Int>() -> ()
 cannot produce expected type
   <A <: Nat>() -> ()
-bounds-mismatch.mo:50.11-50.36: warning [M0074], this array has type
+bounds-mismatch.mo:50.11-50.36: type error [M0074], this array has type
   [Any]
 because elements have inconsistent types
-bounds-mismatch.mo:54.11-54.46: warning [M0074], this array has type
+bounds-mismatch.mo:54.11-54.46: type error [M0074], this array has type
   [Any]
 because elements have inconsistent types
-bounds-mismatch.mo:58.11-58.53: warning [M0074], this array has type
+bounds-mismatch.mo:58.11-58.53: type error [M0074], this array has type
   [Any]
 because elements have inconsistent types
 bounds-mismatch.mo:75.21-75.22: type error [M0096], expression of type
@@ -63,6 +63,6 @@ bounds-mismatch.mo:120.21-120.22: type error [M0096], expression of type
   A = <X, Y <: {f : () -> Nat}>X -> X
 cannot produce expected type
   <X <: Nat, Y <: C<X>>X -> X
-bounds-mismatch.mo:125.21-128.4: warning [M0074], this array has type
+bounds-mismatch.mo:125.21-128.4: type error [M0074], this array has type
   [Any]
 because elements have inconsistent types

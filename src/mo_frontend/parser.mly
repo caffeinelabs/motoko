@@ -32,23 +32,6 @@ let syntax_error at code msg =
 
 let persistent bool at = { it = bool; at = at; note = [] }
 
-let scope_bind x at =
-  { var = Type.scope_var x @@ at;
-    sort = Type.Scope @@ at;
-    bound = PrimT "Any" @! at
-  } @= at
-
-let ensure_scope_bind var tbs =
-  match tbs with
-  | tb::_ when tb.it.sort.it = Type.Scope -> tbs
-  | _ -> scope_bind var no_region :: tbs
-
-let ensure_async_typ t_opt =
-  match t_opt with
-  | None -> t_opt
-  | Some { it = AsyncT _; _} -> t_opt
-  | Some t -> Some (AsyncT(Type.Fut, scopeT no_region, t) @! no_region)
-
 let funcT (sort, tbs, t1, t2) =
   match sort.it, t2.it with
   | Type.Local, AsyncT _ -> FuncT (sort, ensure_scope_bind "" tbs, t1, t2)
@@ -121,24 +104,8 @@ let is_sugared_func_or_module dec = match dec.it with
   | _ -> false
 
 
-let func_exp f s tbs p t_opt is_sugar e =
-  match s.it, t_opt, e with
-  | Type.Local, Some {it = AsyncT _; _}, {it = AsyncE _; _}
-  | Type.Shared _, _, _ ->
-    FuncE(f, s, ensure_scope_bind "" tbs, p, t_opt, is_sugar, e)
-  | _ ->
-    FuncE(f, s, tbs, p, t_opt, is_sugar, e)
-
-let desugar_func_body sp x t_opt (is_sugar, e) =
-  if not is_sugar then
-    false, e (* body declared as EQ e *)
-  else (* body declared as immediate block *)
-    match sp.it, t_opt with
-    | _, Some {it = AsyncT (s, _, _); _} ->
-      true, asyncE s (scope_bind x.it e.at) e
-    | Type.Shared _, (None | Some { it = TupT []; _}) ->
-      true, ignore_asyncE (scope_bind x.it e.at) e
-    | _, _ -> (true, e)
+let func_exp f s tbs p t_opt braced e =
+  FuncE(f, s, tbs, p, t_opt, func_note braced, e)
 
 let share_typ t =
   match t.it with
@@ -154,11 +121,8 @@ let share_typfield (tf : typ_field) = { tf with it = share_typfield' tf.it }
 
 let share_exp e =
   match e.it with
-  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p,
-    ((None | Some { it = TupT []; _ }) as t_opt), true, e) ->
-    func_exp x {sp with it = Type.Shared (Type.Write, WildP @! sp.at)} tbs p t_opt true (ignore_asyncE (scope_bind x e.at) e) @? e.at
-  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p, t_opt, s, e) ->
-    func_exp x {sp with it = Type.Shared (Type.Write, WildP @! sp.at)} tbs p t_opt s e @? e.at
+  | FuncE (x, ({it = Type.Local; _} as sp), tbs, p, t_opt, note, e1) ->
+    FuncE (x, {sp with it = Type.Shared (Type.Write, WildP @! sp.at)}, tbs, p, t_opt, note, e1) @? e.at
   | _ -> e
 
 let share_dec d =
@@ -256,7 +220,7 @@ and objblock eo s id ty dec_fields =
 %token WRAPADDASSIGN WRAPSUBASSIGN WRAPMULASSIGN WRAPPOWASSIGN
 %token NULL
 %token NULLCOALESCE
-%token FLEXIBLE STABLE
+%token STABLE
 %token TRANSIENT PERSISTENT
 %token<string> DOT_NUM
 %token<string> NAT
@@ -328,7 +292,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.case list> cases
 %type<Mo_def.Syntax.typ option> annot_opt
 %type<Mo_def.Syntax.path> path
-%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat pat_paren
+%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat case_pat_un pat_paren
 %type<Mo_def.Syntax.pat_field> pat_field
 %type<Mo_def.Syntax.typ list option> option(typ_args)
 %type<unit option> option(EQ)
@@ -816,8 +780,13 @@ exp_un(B, R) :
   | e=exp_un_ext(B, R)
     { e }
 
-(* The prefix forms (variant, `?`, unary and `not`, parenthetical notes, Candid conversions), shared with exp_head_un *)
+(* The prefix forms (variant, `?`, unary and `not`, parenthetical notes, Candid conversions, `do`), shared with exp_head_un.
+   `do { }` is an operand at this level, so no postfix form follows it: `do { r }.a` reads as if `.a` were inside the block. *)
 %inline exp_un_ext(B, R) :
+  | DO e=block
+    { e.it @? at $sloc }
+  | DO QUEST e=block
+    { DoOptE(e) @? at $sloc }
   | par=parenthetical e=exp_post(B, R)
      { match e.it with
        | CallE (None, e1, inst, args) ->
@@ -971,10 +940,6 @@ exp_un(B, R) :
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
   | IGNORE e=legacy_operand(R)
     { IgnoreE(e) @? at $sloc }
-  | DO e=block
-    { e.it @? at $sloc }
-  | DO QUEST e=block
-    { DoOptE(e) @? at $sloc }
 
 exp_nonvar(B, R) :
   | e=exp_nondec(B, R)
@@ -1024,7 +989,7 @@ cases :
   | c=case semicolon cs=cases { c::cs }
 
 catch(R) :
-  | CATCH p=pat_nullary e=legacy_body(R)
+  | CATCH p=case_pat e=legacy_body(R)
     { {pat = p; exp = e} @@ at $sloc }
 
 (* `if` has two coupled shapes.
@@ -1092,10 +1057,6 @@ exp_head :
     { AwaitE(Type.AwaitFut true, e) @? at $sloc }
   | AWAITSTAR e=legacy_operand(bl)
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
-  | DO e=block
-    { e.it @? at $sloc }
-  | DO QUEST e=block
-    { DoOptE(e) @? at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt
@@ -1120,7 +1081,6 @@ vis :
 
 stab :
   | (* empty *) { None }
-  | FLEXIBLE { Some (Flexible @@ at $sloc) }
   | STABLE { Some (Stable @@ at $sloc) }
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
@@ -1183,16 +1143,27 @@ pat_paren :
   | lpar ps=seplist(pat_bin, COMMA) RPAR
     { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
 
-(* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`.
-   Anything else still needs parentheses around the whole pattern. *)
+(* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`,
+   and `or`/`and`/`: T` over those, as in `case #less or #equal { ... }` — no expression starts with `or`, `and`, or `:`.
+   A variant payload always takes parentheses, `#tag(p)`, like a call. *)
 case_pat :
+  | p=case_pat_un
+    { p }
+  | p1=case_pat OR p2=case_pat
+    { AltP(p1, p2) @! at $sloc }
+  | p1=case_pat AND p2=case_pat
+    { AndP(p1, p2) @! at $sloc }
+  | p=case_pat COLON t=typ
+    { AnnotP(p, t) @! at $sloc }
+
+case_pat_un :
   | p=pat_nullary
     { p }
   | hash x=id %prec EXP_NO_JUXTA
     { TagP(x, TupP [] @! at $sloc) @! at $sloc }
   | hash x=id p=pat_paren
     { TagP(x, p) @! at $sloc }
-  | QUEST p=case_pat
+  | QUEST p=case_pat_un
     { OptP(p) @! at $sloc }
   | op=unop l=lit
     { match op, l with
@@ -1243,13 +1214,10 @@ dec_nonvar(R) :
     { TypD(x, tps, t) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body(R)
-    { (* This is a hack to support local func declarations that return a computed async.
-         These should be defined using RHS syntax EQ e to avoid the implicit AsyncE introduction
-         around bodies declared as blocks *)
-      let xf, tps, p = xf_tps_p in
+    { let xf, tps, p = xf_tps_p in
       let named, x = xf "func" $sloc in
-      let is_sugar, e = desugar_func_body sp x t fb in
-      let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
+      let braced, e = fb in
+      let_or_exp named x (func_exp x.it sp tps p t braced e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
   | MIXIN system=system_opt p=pat_plain dfs=obj_body {
      let dfs = List.map (share_dec_field (fun () -> Stable @@ no_region)) dfs in
@@ -1285,16 +1253,14 @@ obj_or_class_dec :
       let (_, id) = xf "class" $sloc in
       let cid = id.it @= id.at in
       let x, dfs = cb in
-      let dfs', tps', t' =
+      let dfs', tps' =
        if s.it = Type.Actor then
          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           (List.map (share_dec_field default_stab) dfs,
-           ensure_scope_bind "" tps,
-           (* Not declared async: insert AsyncT but deprecate in typing *)
-           ensure_async_typ t)
-        else (dfs, tps, t)
+           ensure_scope_bind "" tps)
+        else (dfs, tps)
       in
-      ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t', x, dfs') @? at $sloc }
+      ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t, x, dfs') @? at $sloc }
 
 dec :
   | d=dec_var(ob)
@@ -1315,8 +1281,8 @@ dec :
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 
 func_body(R) :
-  (* LEGACY(v3): `= e` bodies retire, a function body is a block (#6352). Open corner before the flip:
-     `= e` is also the way to forward a computed `async` without the implicit wrapper a block body adds. *)
+  (* LEGACY(v3): `= e` bodies retire, a function body is a block.
+     Both forms type and run the same, so the formatter can rewrite `= e` to `{ e }`. *)
   | EQ e=exp(R, R) { (false, e) }
   | e=block { (true, e) }
 

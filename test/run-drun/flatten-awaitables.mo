@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 import Prim "mo:⛔";
 // test flattening of awaitable, shared function arguments
 

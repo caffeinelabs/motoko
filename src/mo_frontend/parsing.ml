@@ -97,7 +97,12 @@ module I = Parser.MenhirInterpreter
 (*     let print_token t = print (Source_token.string_of_parser_token t) *)
 (*   end) *)
 
-module RecoveryTracer = MenhirRecoveryLib.DummyPrinter (I)
+module RecoveryTracer = struct
+  include MenhirRecoveryLib.DummyPrinter (I)
+  (* The dummy printer still walks the whole parser stack per call, and the recovery calls these per error and per candidate *)
+  let print_current_state _ = ()
+  let print_env _ = ()
+end
 
 module RecoveryConfig = struct
   include Recover_parser
@@ -150,7 +155,7 @@ let is_statement_start (token : Parser.token) =
 let is_declaration_start (token : Parser.token) =
   match token with
   | Parser.PUBLIC | Parser.PRIVATE | Parser.SYSTEM | Parser.SHARED
-  | Parser.STABLE | Parser.FLEXIBLE | Parser.TRANSIENT | Parser.PERSISTENT
+  | Parser.STABLE | Parser.TRANSIENT | Parser.PERSISTENT
   | Parser.IMPORT | Parser.INCLUDE | Parser.MODULE | Parser.MIXIN | Parser.ACTOR
   | Parser.CASE | Parser.CATCH | Parser.FINALLY | Parser.ELSE -> true
   | _ -> false

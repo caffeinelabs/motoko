@@ -1,6 +1,6 @@
 //MOC-FLAG -A=M0194
 actor class Counter(i : Int) {
-  flexible var j = i;
+  transient var j = i;
 
   public func dec() : () {
    showCounter(j);

@@ -68,4 +68,12 @@ actor Composites {
       ignore cq(); // reject
    };
 
+   public query func rf() : async () {
+      ignore f(); // reject local async call
+   };
+
+   public query func rs() : async () {
+      ignore s(); // reject local async* call
+   };
+
 }

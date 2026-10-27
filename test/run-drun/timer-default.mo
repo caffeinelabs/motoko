@@ -38,12 +38,12 @@ actor {
       this_should_warn();          // call should warn
   };
 
-  func _warn3() : async () = async {
+  func _warn3() : async () {
       this_should_warn<system>();   // OK: this line is fine
       this_should_warn();          // call should warn
   };
 
-  func _warn4() : async* () = async* {
+  func _warn4() : async* () {
       this_should_warn<system>();   // OK: this line is fine
       this_should_warn();          // call should warn
   };
@@ -55,7 +55,7 @@ actor {
       ignore await async 42
   };
 
-  func _gwerr() : async Int = async {
+  func _gwerr() : async Int {
       ignore setTimer(1_000_000, false, func () : async () { });
 
       await async 42

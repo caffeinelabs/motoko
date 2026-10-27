@@ -77,6 +77,12 @@ exception Cancel of string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
 
+(* Compares as a Nat first, as an index need not fit an OCaml int *)
+let index at n len =
+  if Numerics.Nat.lt n (Numerics.Nat.of_int len)
+  then Numerics.Nat.to_int n
+  else trap at "index out of bounds"
+
 let find id env =
   try V.Env.find id env
   with Not_found ->
@@ -442,7 +448,6 @@ let rec interpret_exp env exp (k : V.value V.cont) =
 and interpret_exp_mut env exp (k : V.value V.cont) =
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
   | PrimE s ->
@@ -607,16 +612,18 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | IdxE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k V.(let i = Numerics.Int.to_int (as_int v2) in
-             match v1 with
+        let n = V.as_int v2 in
+        k V.(match v1 with
              | Blob s ->
-               Nat8 (s.[i] |> Char.code |> Numerics.Nat8.of_int)
+               let c = s.[index exp.at n (String.length s)] in
+               Nat8 (Numerics.Nat8.of_int (Char.code c))
              | _ ->
-               try (as_array v1).(i)
-               with Invalid_argument s -> trap exp.at "%s" s)
+               let a = as_array v1 in
+               a.(index exp.at n (Array.length a)))
       )
     )
-  | FuncE (name, shared_pat, _typbinds, pat, _typ, _sugar, exp2) ->
+  | FuncE (name, shared_pat, typ_binds, pat, _typ, note, exp2) ->
+    let _, exp2 = func_elab note typ_binds exp2 in
     let f = interpret_func env name shared_pat pat (fun env' -> interpret_exp env' exp2) in
     let v = V.Func (CC.call_conv_of_typ exp.note.note_typ, f) in
     let v' =
@@ -743,7 +750,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     )
   | LabelE (id, _typ, exp1) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
-    Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
   | BreakE (kind, id_opt, exp1) ->
     interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)

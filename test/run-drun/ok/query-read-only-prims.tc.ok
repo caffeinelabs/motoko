@@ -1,0 +1,1 @@
+query-read-only-prims.mo:6.53-6.61: warning [M0196], `system` capability is not required by this function

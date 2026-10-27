@@ -114,7 +114,6 @@ and prim = function
   | CPSAsync (Type.Fut, t) -> "CPSAsync" $$ [typ t]
   | CPSAsync (Type.Cmp, t) -> "CPSAsync*" $$ [typ t]
   | ICArgDataPrim     -> Atom "ICArgDataPrim"
-  | ICStableSize t    -> "ICStableSize" $$ [typ t]
   | ICPerformGC       -> Atom "ICPerformGC"
   | ICReplyPrim ts    -> "ICReplyPrim" $$ List.map typ ts
   | ICRejectPrim      -> Atom "ICRejectPrim"

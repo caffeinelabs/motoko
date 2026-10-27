@@ -1,4 +1,0 @@
-or-pattern-binds.mo:4.14-4.19: warning [M0146], this pattern is never matched
-or-pattern-binds.mo:5.5-5.10: warning [M0146], this pattern is never matched
-or-pattern-binds.mo:7.15-7.20: warning [M0146], this pattern is never matched
-or-pattern-binds.mo:15.14-15.19: warning [M0146], this pattern is never matched

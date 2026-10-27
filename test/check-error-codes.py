@@ -30,11 +30,14 @@ known_untested_codes = {
     "M0053", # did not manage to trigger
     "M0054", # cannot infer type of primitive expression. Could be internal
     "M0068", # mode-specific
+    "M0078", # retired: one-way shared function bodies are implicitly `ignore async`, explicit ones are M0277
+    "M0079", # retired: async function bodies are implicitly `async`, explicit ones are M0277
     "M0084", # when would the return type be inferred?
     "M0094", # hard to trigger (check_exp only applies with no type variables, but shared functions have type variables)
     "M0099", # hard to trigger (syntactic checks hit first)
     "M0100", # hard to trigger (syntactic checks hit first)
     "M0108", # mode-specific
+    "M0135", # retired: actor classes with non-async return types are rejected with M0193
     "M0144", # bad import, but seems to be shadowed by non-static expression
     "M0162", # Candid service constructor type not supported as Motoko type
     "M0164", # unknown record or variant label in textual representation
@@ -43,6 +46,7 @@ known_untested_codes = {
     "M0181", # defunct viper error
     "M0191", # compiler warning about wasm features (hard to trigger)
     "M0199", # retired: ExperimentalStableMemory primitives removed, code kept reserved
+    "M0213", # retired: a parenthetical on an explicit `async` body is rejected with M0277
     "M0232", # cannot infer type of implicit argument
     }
 

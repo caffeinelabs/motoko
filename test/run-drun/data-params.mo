@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0215
 import Prim "mo:⛔";
 actor a {
   public func sendi(n : Int) : async () {

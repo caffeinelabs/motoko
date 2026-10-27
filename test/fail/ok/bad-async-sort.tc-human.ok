@@ -34,7 +34,7 @@ Use keyword 'async*' (not 'async') to produce the expected type.
     ┌─ bad-async-sort.mo:20:14
  20 │      ignore ((async {}) : async* ()); // reject
     │               ^^^^^^^^ 
-warning[M0222]: ignored argument of `async*` type has no effect
+error[M0222]: ignored argument of `async*` type has no effect
     ┌─ bad-async-sort.mo:20:5
  20 │      ignore ((async {}) : async* ()); // reject
     │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

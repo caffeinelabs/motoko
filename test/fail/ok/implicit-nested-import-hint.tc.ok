@@ -1,3 +1,6 @@
 implicit-nested-import-hint.mo:11.8-11.16: type error [M0230], Cannot determine implicit argument `nestedDouble` of type
   Nat -> Nat
 note: Did you mean to import mo:core/Nested?
+implicit-nested-import-hint.mo:14.9-14.16: type error [M0070], expected object type, but expression produces type
+  Nat
+Hint: Did you mean to import mo:core/Nested?

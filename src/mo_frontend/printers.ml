@@ -136,7 +136,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_GEOP) -> relop ">="
   | X (T T_FUNC) -> simple_token "func"
   | X (T T_FOR) -> simple_token "for"
-  | X (T T_FLEXIBLE) -> simple_token "flexible"
   | X (T T_FLOAT) -> simple_token "<float>"
   | X (T T_EQOP) -> relop "=="
   | X (T T_EQ) -> simple_token "="
@@ -239,6 +238,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_else_branch) -> "<else_branch>", "{}"
   | X (N N_if_braced) -> "<if_braced>", "if c {}"
   | X (N N_case_pat) -> "<case_pat>", eg_pat
+  | X (N N_case_pat_un) -> "<case_pat_un>", eg_pat
   | X (N N_pat_paren) -> "(<pat>)", "(" ^ eg_pat ^ ")"
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
   | X (N N_seplist_dec_semicolon_) -> seplist ("<dec>", eg_dec) semi

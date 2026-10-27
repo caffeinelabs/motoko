@@ -6,7 +6,6 @@ Base revision: WebAssembly/spec@a7a1856.
 
 The changes are:
  * Manual selective support for bulk-memory operations `memory_copy` and `memory_fill` (WebAssembly/spec@7fa2f20).
- * Pseudo-instruction Meta for debug information
  * StableMemory, StableGrow, StableRead, StableWrite instructions.
  * Support for passive data segments (incl. `MemoryInit`).
  * Support for table index in `call_indirect` (reference-types proposal).
@@ -125,9 +124,6 @@ and instr' =
   | Unary of unop                     (* unary numeric operator *)
   | Binary of binop                   (* binary numeric operator *)
   | Convert of cvtop                  (* conversion *)
-
-  (* Custom addition for debugging *)
-  | Meta of Dwarf5.Meta.die           (* debugging metadata *)
 
   (* Custom additions for emulating stable-memory, special cases
      of MemorySize, MemoryGrow and MemoryCopy
@@ -308,22 +304,6 @@ let string_of_name n =
   in
   List.iter escape n;
   Buffer.contents b
-
-(* is_dwarf_like indicates whether an AST meta instruction
-   prevents dead-code elimination. Elimination is forbidden,
-   if the instruction contributes to a DIE, i.e. establishes, augments
-   or closes a DWARF Tag.
- *)
-let rec is_dwarf_like' =
-  let open Dwarf5.Meta in
-  function
-  | Tag _ | TagClose | IntAttribute _ | StringAttribute _ | OffsetAttribute _ -> true
-  | Grouped parts -> List.exists is_dwarf_like' parts
-  | StatementDelimiter _ | FutureAttribute _ -> false
-let is_dwarf_like = function
-  | Meta m -> is_dwarf_like' m
-  | _ -> false
-
 
 (* AST traversals *)
 

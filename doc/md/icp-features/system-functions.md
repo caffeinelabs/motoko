@@ -60,7 +60,7 @@ actor MyCanister {
 ```
 
 :::danger
-If `preupgrade` traps, runs out of cycles, or hits any other IC computing limit, **the upgrade fails and the canister cannot be upgraded going forward** — it is stuck on the current version. Use of this hook is discouraged.
+If `preupgrade` traps, runs out of cycles, or hits any other IC computing limit, **the upgrade fails and the canister cannot be upgraded going forward** — it is stuck on the current version. This hook is deprecated (warning M0270) in favor of migration functions.
 :::
 
 With orthogonal persistence, `mo:core` data structures persist across upgrades automatically and this hook is rarely needed. For the (legacy) save-into-stable-storage pattern and the migration alternatives that replace it, see [Data persistence](../fundamentals/actors/data-persistence.md).
@@ -77,7 +77,7 @@ actor MyCanister {
 }
 ```
 
-`postupgrade` is rarely required: the same effect can usually be achieved with actor initialization expressions (`let` bindings and statements at the top of the actor body), which run on every install and upgrade. See [Data persistence](../fundamentals/actors/data-persistence.md) for the recommended patterns.
+`postupgrade` is deprecated (warning M0270) and rarely required: the same effect can usually be achieved with actor initialization expressions (`let` bindings and statements at the top of the actor body), which run on every install and upgrade. See [Data persistence](../fundamentals/actors/data-persistence.md) for the recommended patterns.
 
 ## `lowmemory()`
 

@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 actor a {
   public func A() : async () {
   };

@@ -52,7 +52,7 @@ error[M0208]: expected expression with field `migration`, but expression has typ
     ┌─ migration-bad.mo:37:1
  37 │  ({} with other = ())
     │  ^^^^^^^^^^^^^^^^^^^^ 
-warning[M0212]: unrecognised attribute extra in parenthetical note
+error[M0212]: unrecognised attribute extra in parenthetical note
     ┌─ migration-bad.mo:41:1
  40 │    
  41 │ ╭  (with migration = func ({}) : {}{{}};

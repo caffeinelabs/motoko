@@ -16,8 +16,11 @@ Use the Motoko compiler (`moc`) to compile Motoko programs into executable WebAs
 ### Basic usage
 
 ``` bash
-moc [option] [file ...]
+moc [option] [file]
+moc [option] --check [file ...]
 ```
+
+Imports are the way to combine several files into one program, so `moc` takes a single main file. Only `--check` takes several files, checking each one on its own.
 
 ### Options
 
@@ -31,10 +34,10 @@ You can use the following options with the `moc` command.
 | `--args <file>`                           | Read additional newline separated command line arguments from `<file>`.                                                                               |
 | `--args0 <file>`                          | Read additional `NUL` separated command line arguments from `<file>`.                                                                                 |
 | `-c`                                      | Compile to WebAssembly.                                                                                                                               |
-| `--check`                                 | Performs type checking only.                                                                                                                          |
+| `--check`                                 | Performs type checking only. Each given file is checked on its own; libraries they import are checked once.                                           |
 | `--debug`                                 | Respects debug expressions in the source (the default).                                                                                               |
-| `--enhanced-orthogonal-persistence`       | Use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory.                                      |
-| `--enhanced-migration <dir>`              | Enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence. The `motoko:stable-types` custom section is omitted from the wasm (the runtime system enforces stable-type compatibility at upgrade time); the `.most` file is still emitted under `--stable-types`. |
+| `--enhanced-orthogonal-persistence`       | Enhanced orthogonal persistence is always on: scalable and fast upgrades using a persistent 64-bit main memory. The flag is only needed to upgrade a canister from classical orthogonal persistence. |
+| `--enhanced-migration <dir>`              | Enable enhanced migration system: stable variables are declared without initializers and receive their values from the migration chain, disallows side-effects in actor bodies; cannot be used for the upgrade from classical orthogonal persistence. The `motoko:stable-types` custom section is omitted from the wasm (the runtime system enforces stable-type compatibility at upgrade time); the `.most` file is still emitted under `--stable-types`. |
 | `--error-detail <n>`                      | Set level of error message detail for syntax errors, n in \[0..3\] (default 2).                                                                       |
 | `-fno-shared-code`                        | Do not share low-level utility code: larger code size but decreased cycle consumption (default).                                                      |
 | `-fshared-code`                           | Do share low-level utility code: smaller code size but increased cycle consumption.                                                                   |
@@ -50,7 +53,6 @@ You can use the following options with the `moc` command.
 | `--implicit-derivation-depth <n>`         | Maximum recursion depth for [implicit](../fundamentals/implicit-parameters.md) argument derivation (default 100). Raise if a complex derivation is rejected as depth-limited.                                                                                                |
 | `--map`                                   | Outputs a JavaScript source map.                                                                                                                      |
 | `--max-stable-pages <n>`                  | Set maximum number of pages available to stable memory via the `Region` library (default 1638400, i.e. 100 GiB).                                                        |
-| `-no-system-api`                          | Disables system API imports.                                                                                                                          |
 | `-no-timer`                               | Disables timer API imports and hides timer primitives.                                                                                                |
 | `-o <file>`                               | Specifies the output file.                                                                                                                            |
 | `-p <n>`                                  | Sets the print depth.                                                                                                                                 |
@@ -58,12 +60,11 @@ You can use the following options with the `moc` command.
 | `--public-metadata <name>`                | Emit ICP custom section `<name>` (`candid:args` or `candid:service` or `motoko:stable-types` or `motoko:compiler`) as `public` (default is `private`).|
 | `--omit-metadata <name>`                  | Omit ICP custom section `<name>` (`candid:args` or `candid:service` or `motoko:stable-types` or `motoko:compiler`).                                   |
 | `--print-deps`                            | Prints the dependencies for a given source file.                                                                                                      |
-| `-r`                                      | Interprets programs.                                                                                                                                  |
+| `-r`                                      | Interprets a program.                                                                                                                                 |
 | `--release`                               | Ignores debug expressions in the source.                                                                                                              |
 | `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory.                                                                   |
 | `--stable-types`                          | Compile binary and emit signature of stable types to `.most` file.                                                                                    |
 | `--stable-compatible <pre> <post>`        | Test upgrade compatibility between stable-type signatures `<pre>` and `<post>`.                                                                       |
-| `--trap-on-call-error`                    | Trap, don't throw an [`Error`](https://mops.one/core/docs/Error), when an IC call fails due to destination queue full or freezing threshold is crossed. Emulates behavior of moc versions < 0.8.0.                                                                                                                                           |
 | `-t`                                      | Activates tracing in interpreter.                                                                                                                     |
 | `-v`                                      | Generates verbose output.                                                                                                                             |
 | `--version`                               | Displays version information.                                                                                                                         |

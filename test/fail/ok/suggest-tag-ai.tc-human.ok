@@ -1,0 +1,8 @@
+error[M0116]: variant pattern cannot consume expected type
+    ┌─ suggest-tag-ai.mo:4:12
+  3 │    switch s {
+    │           - this expression has type `{#active; #suspended}`
+  4 │      case (#suspnded) 1;
+    │            ^^^^^^^^^ The tag #suspnded is not available. Try something else?
+    │            │
+    │            expected `{#active; #suspended}`, got `{#suspnded : _}`

@@ -366,7 +366,7 @@ in one big record, for convenience).
 The fields fall into the following categories:
 
  1. Static global fields. Never change.
-    Example: whether we are compiling with -no-system-api
+    Example: whether we are compiling with -wasi-system-api
 
  2. Mutable global fields. Change only monotonically.
     These are used to register things like functions. This should be monotone
@@ -419,7 +419,7 @@ module E = struct
     (* Global fields *)
     (* Static *)
     mode : Flags.compile_mode;
-    rts : Wasm_exts.CustomModule.extended_module option; (* The rts. Re-used when compiling actors *)
+    rts : Wasm_exts.CustomModule.extended_module; (* The rts. Re-used when compiling actors *)
     trap_with : t -> string -> G.t;
       (* Trap with message; in the env for dependency injection *)
 
@@ -784,9 +784,9 @@ module E = struct
     then
       (env.requires_stable_memory := true;
        match mode env with
-       | Flags.ICMode | Flags.RefMode ->
+       | Flags.ICMode ->
           ()
-       | Flags.WASIMode | Flags.WasmMode ->
+       | Flags.WASIMode ->
           add_feature env "bulk-memory";
           add_feature env "multi-memory")
 
@@ -797,7 +797,7 @@ module E = struct
     nr {mtype = MemoryType ({min = initial_memory_pages; max = None}, I64IndexType)}
     ::
     match mode env with
-    | Flags.WASIMode | Flags.WasmMode when !(env.requires_stable_memory) ->
+    | Flags.WASIMode when !(env.requires_stable_memory) ->
       [ nr {mtype = MemoryType ({min = Int64.zero; max = None}, I64IndexType)} ]
     | _ -> []
 
@@ -1303,14 +1303,14 @@ module GC = struct
 
   let record_mutator_instructions env =
     match E.mode env with
-    | Flags.(ICMode | RefMode)  ->
+    | Flags.ICMode ->
       instruction_counter env ^^
       set_mutator_instructions env
     | _ -> G.nop
 
   let record_collector_instructions env =
     match E.mode env with
-    | Flags.(ICMode | RefMode)  ->
+    | Flags.ICMode ->
       instruction_counter env ^^
       get_mutator_instructions env ^^
       G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
@@ -1319,7 +1319,7 @@ module GC = struct
 
   let record_lifetime_instructions env =
     match E.mode env with
-    | Flags.(ICMode | RefMode)  ->
+    | Flags.ICMode ->
       get_mutator_instructions env ^^
       get_lifetime_instructions env ^^
       G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) ^^
@@ -2471,7 +2471,7 @@ module BoxedWord64 = struct
 
   let compile_box env pty compile_elem : G.t =
     let (set_i, get_i) = new_local env "boxed_i64" in
-    let size = 4L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size (heap_tag env pty) ^^
     set_i ^^
     get_i ^^ compile_elem ^^ Tagged.store_field env payload_field ^^
@@ -2831,7 +2831,7 @@ module Float = struct
 
   let box env = Func.share_code1 Func.Never env "box_f64" ("f", F64Type) [I64Type] (fun env get_f ->
     let (set_i, get_i) = new_local env "boxed_f64" in
-    let size = Int64.add Tagged.header_size 2L in
+    let size = Int64.add Tagged.header_size 1L in
     Tagged.alloc env size Tagged.(Bits64 F) ^^
     set_i ^^
     get_i ^^ get_f ^^ Tagged.store_field_float64 env payload_field ^^
@@ -3269,8 +3269,10 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   (*
     Note [left shifting compact Nat]
-    For compact Nats with a number fitting in 32 bits (in scalar value representation) and a shift amount of
-    less or equal 32, we perform a fast shift. Otherwise, the bignum shift via RTS is applied.
+    When the result is known to fit the compact range, i.e. `n << amount < 2^sbits`, we perform a fast
+    shift. For a non-negative `n` that holds exactly when `clz n >= amount + (64 - sbits)`, which also
+    keeps `amount` below 64, where Wasm would take it modulo 64. Otherwise, the bignum shift via RTS is
+    applied. Bounding the operands instead of the result admits products the tag would silently wrap.
    *)
   let compile_lsh env =
     Func.share_code2 Func.Always env "B_lsh" (("n", I64Type), ("amount", I64Type)) [I64Type]
@@ -3282,11 +3284,9 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
       begin
         (* see Note [left shifting compact Nat] *)
         get_n ^^ BitTagged.untag __LINE__ env Type.Int ^^ set_n ^^
-        get_n ^^
-        compile_bitand_const 0xFFFF_FFFF_0000_0000L ^^
-        compile_eq_const 0L ^^
-        get_amount ^^ compile_rel_const I64Op.LeU 32L ^^
-        G.i (Binary (Wasm_exts.Values.I64 I64Op.And)) ^^
+        get_n ^^ G.i (Unary (Wasm_exts.Values.I64 I64Op.Clz)) ^^
+        get_amount ^^ compile_add_const (Int64.of_int (64 - BitTagged.sbits_of Type.Int)) ^^
+        compile_comparison I64Op.GeU ^^
         E.if1 I64Type
         begin
           get_n ^^
@@ -4890,6 +4890,7 @@ module IC = struct
     E.add_func_import env "ic0" "root_key_copy" (is 3) [];
     E.add_func_import env "ic0" "root_key_size" [] [i];
     E.add_func_import env "ic0" "in_replicated_execution" [] [I32Type];
+    E.add_func_import env "ic0" "subnet_self_node_count" [] [I32Type];
     E.add_func_import env "ic0" "is_controller" (is 2) [I32Type];
     E.add_func_import env "ic0" "subnet_self_copy" (is 3) [];
     E.add_func_import env "ic0" "subnet_self_size" [] [i];
@@ -4907,6 +4908,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_call" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_create_canister" [i] [];
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
+    E.add_func_import env "ic0" "cost_http_request_v2" [i; i; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
@@ -4950,12 +4952,9 @@ module IC = struct
     match E.mode env with
     | Flags.ICMode ->
       import_ic0 env
-    | Flags.RefMode  ->
-      import_ic0 env
     | Flags.WASIMode ->
       (* Wasi function is still 32-bit based *)
-      E.add_func_import env "wasi_snapshot_preview1" "fd_write" [I32Type; I32Type; I32Type; I32Type] [I32Type];
-    | Flags.WasmMode -> ()
+      E.add_func_import env "wasi_snapshot_preview1" "fd_write" [I32Type; I32Type; I32Type; I32Type] [I32Type]
 
   let system_call env funcname = E.call_import env "ic0" funcname
 
@@ -4968,8 +4967,7 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", I64Type); ("len", I64Type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.nop
-        | Flags.ICMode | Flags.RefMode ->
+        | Flags.ICMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
           system_call env "debug_print"
@@ -5046,7 +5044,7 @@ module IC = struct
 
   let ic_system_call call env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env call
     | _ ->
       E.trap_with env Printf.(sprintf "cannot get %s when running locally" call)
@@ -5061,6 +5059,10 @@ module IC = struct
 
   let replicated_execution env =
     ic_system_call "in_replicated_execution" env ^^
+    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+
+  let subnet_self_node_count env =
+    ic_system_call "subnet_self_node_count" env ^^
     G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
 
   let canister_version env = ic_system_call "canister_version" env
@@ -5089,9 +5091,8 @@ module IC = struct
 
   let trap_ptr_len env =
     match E.mode env with
-    | Flags.WasmMode -> G.i Unreachable
     | Flags.WASIMode -> print_ptr_len env ^^ G.i Unreachable
-    | Flags.ICMode | Flags.RefMode -> ic_trap env ^^ G.i Unreachable
+    | Flags.ICMode -> ic_trap env ^^ G.i Unreachable
 
   let trap_with env s =
     (* TODO: instead of pre-allocating a shared constant, allocate
@@ -5117,7 +5118,7 @@ module IC = struct
     })
 
   let export_init env =
-    assert (E.mode env = Flags.ICMode || E.mode env = Flags.RefMode);
+    assert (E.mode env = Flags.ICMode);
     let empty_f = Func.of_body env [] [] (fun env ->
       Lifecycle.trans env Lifecycle.InInit ^^
       G.i (Call (nr (E.built_in env "init")))
@@ -5132,7 +5133,7 @@ module IC = struct
       })
 
   let export_heartbeat env =
-    assert (E.mode env = Flags.ICMode || E.mode env = Flags.RefMode);
+    assert (E.mode env = Flags.ICMode);
     let fi = E.add_fun env "canister_heartbeat"
       (Func.of_body env [] [] (fun env ->
         G.i (Call (nr (E.built_in env "heartbeat_exp"))) ^^
@@ -5145,7 +5146,7 @@ module IC = struct
 
   let export_timer env =
     assert !Flags.global_timer;
-    assert (E.mode env = Flags.ICMode || E.mode env = Flags.RefMode);
+    assert (E.mode env = Flags.ICMode);
     let fi = E.add_fun env "canister_global_timer"
       (Func.of_body env [] [] (fun env ->
         G.i (Call (nr (E.built_in env "timer_exp"))) ^^
@@ -5157,7 +5158,7 @@ module IC = struct
     })
 
   let export_inspect env =
-    assert (E.mode env = Flags.ICMode || E.mode env = Flags.RefMode);
+    assert (E.mode env = Flags.ICMode);
     let fi = E.add_fun env "canister_inspect_message"
       (Func.of_body env [] [] (fun env ->
         G.i (Call (nr (E.built_in env "inspect_exp"))) ^^
@@ -5170,7 +5171,7 @@ module IC = struct
     })
 
   let export_low_memory env =
-    assert (E.mode env = Flags.ICMode || E.mode env = Flags.RefMode);
+    assert (E.mode env = Flags.ICMode);
     let fi = E.add_fun env "canister_on_low_wasm_memory"
       (Func.of_body env [] [] (fun env ->
         G.i (Call (nr (E.built_in env "low_memory_exp"))) ^^
@@ -5216,7 +5217,7 @@ module IC = struct
       })
 
   let export_upgrade_methods env =
-    if E.mode env = Flags.ICMode || E.mode env = Flags.RefMode then
+    if E.mode env = Flags.ICMode then
     let status_stopped = 3l in
     let pre_upgrade_fi = E.add_fun env "pre_upgrade" (Func.of_body env [] [] (fun env ->
       Lifecycle.trans env Lifecycle.InPreUpgrade ^^
@@ -5252,7 +5253,7 @@ module IC = struct
 
   let get_self_reference env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "canister_self" [I64Type] (fun env ->
         Blob.of_size_copy env Tagged.A
           (fun env ->
@@ -5266,7 +5267,7 @@ module IC = struct
 
   let get_subnet_reference env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "canister_subnet" [I64Type] (fun env ->
         Blob.of_size_copy env Tagged.A
           (fun env -> system_call env "subnet_self_size")
@@ -5278,7 +5279,7 @@ module IC = struct
 
   let get_root_key env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "root_key" [i] (fun env ->
         Blob.of_size_copy env Tagged.A
           (fun env -> system_call env "root_key_size")
@@ -5290,14 +5291,14 @@ module IC = struct
 
   let get_system_time env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       system_call env "time"
     | _ ->
       E.trap_with env "cannot get system time when running locally"
 
   let env_var_names env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "env_var_names" [i] (fun env ->
         let (set_len, get_len) = new_local env "len" in
         let (set_array, get_array) = new_local env "array" in
@@ -5332,7 +5333,7 @@ module IC = struct
 
   let env_var env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       Func.share_code1 Func.Never env "env_var" ("name", i) [i] (fun env get_name ->
         let (set_name_len, get_name_len) = new_local env "name_len" in
 
@@ -5367,7 +5368,7 @@ module IC = struct
 
   let caller env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Blob.of_size_copy env Tagged.P
         (fun env ->
           system_call env "msg_caller_size")
@@ -5379,7 +5380,7 @@ module IC = struct
 
   let caller_info_signer env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "msg_caller_info_signer" [I32Type] (fun env ->
         Blob.of_size_copy env Tagged.B
           (fun env -> system_call env "msg_caller_info_signer_size")
@@ -5391,7 +5392,7 @@ module IC = struct
 
   let caller_info_data env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.share_code0 Func.Never env "msg_caller_info_data" [I32Type] (fun env ->
         Blob.of_size_copy env Tagged.B
           (fun env -> system_call env "msg_caller_info_data_size")
@@ -5403,7 +5404,7 @@ module IC = struct
 
   let method_name env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Blob.of_size_copy env Tagged.T
         (fun env ->
           system_call env "msg_method_name_size")
@@ -5415,7 +5416,7 @@ module IC = struct
 
   let arg_data env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Blob.of_size_copy env Tagged.B
         (fun env ->
           system_call env "msg_arg_data_size")
@@ -5427,14 +5428,14 @@ module IC = struct
 
   let deadline env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "msg_deadline"
     | _ ->
       E.trap_with env "cannot get deadline when running locally"
 
   let reject env arg_instrs =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       arg_instrs ^^
       Text.to_blob env ^^
       Blob.as_ptr_len env ^^
@@ -5556,49 +5557,49 @@ module IC = struct
 
   let cycle_balance env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "canister_cycle_balance128"
     | _ ->
       E.trap_with env "cannot read balance when running locally"
 
   let cycles_add env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "call_cycles_add128"
     | _ ->
       E.trap_with env "cannot accept cycles when running locally"
 
   let cycles_accept env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "msg_cycles_accept128"
     | _ ->
       E.trap_with env "cannot accept cycles when running locally"
 
   let cycles_available env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "msg_cycles_available128"
     | _ ->
       E.trap_with env "cannot get cycles available when running locally"
 
   let cycles_refunded env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "msg_cycles_refunded128"
     | _ ->
       E.trap_with env "cannot get cycles refunded when running locally"
 
   let cycles_burn env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "cycles_burn128"
     | _ ->
       E.trap_with env "cannot burn cycles when running locally"
 
   let set_certified_data env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       Blob.as_ptr_len env ^^
       system_call env "certified_data_set"
     | _ ->
@@ -5606,7 +5607,7 @@ module IC = struct
 
   let get_certificate env =
     match E.mode env with
-    | Flags.(ICMode | RefMode) ->
+    | Flags.ICMode ->
       system_call env "data_certificate_present" ^^
       Bool.from_rts_int32 ^^
       E.if1 I64Type
@@ -5751,7 +5752,7 @@ module StableMem = struct
   let stable64_grow env =
     E.require_stable_memory env;
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
        IC.system_call env "stable64_grow"
     | _ ->
        Func.share_code1 Func.Always env "stable64_grow" ("pages", I64Type) [I64Type]
@@ -5774,7 +5775,7 @@ module StableMem = struct
   let stable64_size env =
     E.require_stable_memory env;
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
        IC.system_call env "stable64_size"
     | _ ->
        Func.share_code0 Func.Always env "stable64_size" [I64Type]
@@ -5784,7 +5785,7 @@ module StableMem = struct
   let stable64_read env =
     E.require_stable_memory env;
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
        IC.system_call env "stable64_read"
     | _ ->
        Func.share_code3 Func.Always env "stable64_read"
@@ -5798,7 +5799,7 @@ module StableMem = struct
   let stable64_write env =
     E.require_stable_memory env;
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
        IC.system_call env "stable64_write"
     | _ ->
        Func.share_code3 Func.Always env "stable64_write"
@@ -6238,9 +6239,9 @@ module RTS_Exports = struct
 
     let ic0_stable64_write_fi =
       match E.mode env with
-      | Flags.ICMode | Flags.RefMode ->
+      | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_write"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_write" (
           Func.of_body env ["offset", I64Type; "src", I64Type; "size", I64Type] []
             (fun env ->
@@ -6261,9 +6262,9 @@ module RTS_Exports = struct
 
     let ic0_stable64_read_fi =
       match E.mode env with
-      | Flags.ICMode | Flags.RefMode ->
+      | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_read"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_read" (
           Func.of_body env ["dst", I64Type; "offset", I64Type; "size", I64Type] []
             (fun env ->
@@ -6284,9 +6285,9 @@ module RTS_Exports = struct
 
     let ic0_stable64_size_fi =
       match E.mode env with
-      | Flags.ICMode | Flags.RefMode ->
+      | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_size"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_size" (
           Func.of_body env [] [I64Type]
             (fun env ->
@@ -6305,9 +6306,9 @@ module RTS_Exports = struct
 
     let ic0_stable64_grow_fi =
       match E.mode env with
-      | Flags.ICMode | Flags.RefMode ->
+      | Flags.ICMode ->
         E.reuse_import env "ic0" "stable64_grow"
-      | Flags.WASIMode | Flags.WasmMode ->
+      | Flags.WASIMode ->
         E.add_fun env "ic0_stable64_grow" (
           Func.of_body env ["newPages", I64Type] [I64Type]
             (fun env ->
@@ -6353,7 +6354,7 @@ module RTS_Exports = struct
         Func.of_body env ["pages", I64Type] []
           (fun env ->
             match E.mode env with
-            | Flags.ICMode | Flags.RefMode ->
+            | Flags.ICMode ->
                G.i (LocalGet (nr 0l)) ^^
                StableMem.set_mem_size env
             | _ ->
@@ -9066,7 +9067,7 @@ module OldStabilization = struct
   (* read and clear word32 from stable mem offset on stack *)
   let read_and_clear_word32 env =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.share_code1 Func.Always env "__stablemem_read_and_clear_word32"
         ("offset", I64Type) [I64Type]
         (fun env get_offset ->
@@ -9117,7 +9118,7 @@ module OldStabilization = struct
 
   let candid_destabilize env ty save_version =
     match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       let (set_pages, get_pages) = new_local env "pages" in
       StableMem.stable64_size env ^^
       set_pages ^^
@@ -9869,8 +9870,7 @@ module FuncDec = struct
   let ic_call_threaded env purpose get_meth_pair push_continuations
     add_data add_cycles =
     match E.mode env with
-    | Flags.ICMode
-    | Flags.RefMode ->
+    | Flags.ICMode ->
       let message = Printf.sprintf "could not perform %s" purpose in
       let (set_cb_index, get_cb_index) = new_local env "cb_index" in
       (* The callee *)
@@ -9902,9 +9902,6 @@ module FuncDec = struct
       (* save error code, cleanup on error *)
       E.if0
       begin (* send failed *)
-        if !Flags.trap_on_call_error then
-          E.trap_with env message
-        else
         (* Recall (don't leak) continuations *)
         get_cb_index ^^
         ContinuationTable.recall env ^^
@@ -9946,8 +9943,7 @@ module FuncDec = struct
 
   let ic_call_one_shot env ts get_meth_pair get_arg add_cycles =
     match E.mode env with
-    | Flags.ICMode
-    | Flags.RefMode ->
+    | Flags.ICMode ->
       (* The callee *)
       get_meth_pair ^^ Arr.load_field env 0L ^^ Blob.as_ptr_len env ^^
       (* The method name *)
@@ -9967,17 +9963,9 @@ module FuncDec = struct
       IC.system_call env "call_perform" ^^
       G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
       (* This is a one-shot function: just remember error code *)
-      (if !Flags.trap_on_call_error then
-         (* legacy: discard status, proceed as if all well *)
-         G.i Drop ^^
-         compile_unboxed_zero ^^
-         IC.set_call_perform_status env ^^
-         Blob.lit env Tagged.T "" ^^
-         IC.set_call_perform_message env
-       else
-         IC.set_call_perform_status env ^^
-         Blob.lit env Tagged.T "could not perform oneway" ^^
-         IC.set_call_perform_message env)
+      IC.set_call_perform_status env ^^
+      Blob.lit env Tagged.T "could not perform oneway" ^^
+      IC.set_call_perform_message env
 
     | _ -> assert false
 
@@ -10001,7 +9989,7 @@ module FuncDec = struct
   let export_async_method env =
     let name = IC.async_method_name in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         let (set_closure, get_closure) = new_local env "closure" in
 
@@ -10033,7 +10021,7 @@ module FuncDec = struct
   let export_gc_trigger_method env =
     let name = IC.gc_trigger_method_name in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         (* THe GC trigger is also blocked during incremental (de)stabilization.
            This is checked in `Lifecycle.trans` being called by `message_start` *)
@@ -10158,7 +10146,7 @@ module IncrementalGraphStabilization = struct
   let export_async_stabilization_method env =
     let name = async_stabilization_method_name in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         IC.assert_caller_self_or_controller env ^^
         (* All messages are blocked except this method and the upgrade. *)
@@ -10194,7 +10182,7 @@ module IncrementalGraphStabilization = struct
   let export_stabilize_before_upgrade_method env actor_type =
     let name = "__motoko_stabilize_before_upgrade" in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         IC.assert_caller_self_or_controller env ^^
         (* All messages are blocked except this method and the upgrade. *)
@@ -10288,7 +10276,7 @@ module IncrementalGraphStabilization = struct
   let export_async_destabilization_method env actor_type =
     let name = async_destabilization_method_name in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         IC.assert_caller_self_or_controller env ^^
         (* Stay in lifecycle state `InDestabilization` if not yet completed. *)
@@ -10328,7 +10316,7 @@ module IncrementalGraphStabilization = struct
   let export_destabilize_after_upgrade_method env =
     let name = "__motoko_destabilize_after_upgrade" in
     begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         (* All messages are blocked except this method. *)
         IC.assert_caller_self_or_controller env ^^
@@ -10779,6 +10767,20 @@ module Cost = struct
           get_max_res_bytes ^^
           get_dst ^^
           IC.ic_system_call "cost_http_request" env ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
+
+  let http_request_v2 env =
+    Func.share_code1 Func.Always env "cost_http_request_v2"
+      ("params", IC.i)
+      [IC.i]
+      (fun env get_params ->
+        Stack.with_words env "dst" 2L (fun get_dst ->
+          get_params ^^ Blob.as_ptr_len env ^^
+          get_dst ^^
+          IC.ic_system_call "cost_http_request_v2" env ^^
           get_dst ^^
           Cycles.from_word128_ptr env
         )
@@ -11945,10 +11947,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.unit,
     GC.collect_garbage env
 
-  | ICStableSize t, [e] ->
-    SR.UnboxedWord64 Type.Nat64,
-    E.trap_with env "Deprecated with enhanced orthogonal persistence"
-
   (* Other prims, unary *)
 
   | OtherPrim "array_len", [e] ->
@@ -12453,6 +12451,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.UnboxedWord64 Type.Nat64,
     IC.canister_version env
 
+  | OtherPrim "subnetSelfNodeCount", [] ->
+    SR.UnboxedWord64 Type.Nat32,
+    IC.subnet_self_node_count env ^^
+    TaggedSmallWord.msb_adjust Type.Nat32
+
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
     compile_exp_vanilla env ae e ^^
@@ -12633,11 +12636,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim ("arrayToBlob" | "arrayMutToBlob"), e ->
     const_sr SR.Vanilla (Arr.toBlob env)
 
-  | OtherPrim "stableVarQuery", [] ->
-    SR.Vanilla,
-    IC.get_self_reference env ^^
-    IC.actor_public_field env Type.(motoko_stable_var_info_fld.lab)
-
   | OtherPrim "canister_subnet", [] ->
     SR.Vanilla, IC.get_subnet_reference env
 
@@ -12754,7 +12752,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | ICReplyPrim ts, [e] ->
     SR.unit, begin match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
+    | Flags.ICMode ->
       compile_exp_vanilla env ae e ^^
       (* TODO: We can try to avoid the boxing and pass the arguments to
         serialize individually *)
@@ -12851,6 +12849,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) request_size ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) max_res_bytes ^^
     Cost.http_request env
+  | OtherPrim "costHttpRequestV2", [params] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae params ^^
+    Cost.http_request_v2 env
   | OtherPrim "costSignWithEcdsa", [key_name; curve] ->
     SR.UnboxedTuple 2,
     compile_exp_vanilla env ae key_name ^^
@@ -12911,7 +12913,8 @@ and simplify_cases e (cs : Ir.case list) =
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
      (with irrefutable subpattern) didn't match, and the pattern types line up *)
   | [{it={pat={it=TagP (l1, ip); _}; _}; _} as c1; {it={pat={it=TagP (l2, pat'); _} as pat2; exp}; _} as c2], Type.(Variant [{lab=el1; _}; {lab=el2; _}])
-       when Ir_utils.is_irrefutable ip
+       when l1 <> l2
+            && Ir_utils.is_irrefutable ip
             && (l1 = el1 || l1 = el2)
             && (l2 = el1 || l2 = el2) ->
      [c1; {c2 with it = {exp; pat = {pat2 with it = known_tag_pat pat'}}}]
@@ -13635,7 +13638,7 @@ and export_actor_field env  ae (f : Ir.field) =
 
   E.add_export env (nr {
     name = Lib.Utf8.decode (match E.mode env with
-      | Flags.ICMode | Flags.RefMode ->
+      | Flags.ICMode ->
         Mo_types.Type.(
         match normalize f.note with
         |  Func(Shared sort,_,_,_,_) ->
@@ -13789,7 +13792,7 @@ and metadata name value =
            List.mem name !Flags.public_metadata_names,
            value)
 
-and conclude_module env set_serialization_globals start_fi_o =
+and conclude_module env set_serialization_globals =
 
   RTS_Exports.system_exports env;
 
@@ -13813,15 +13816,11 @@ and conclude_module env set_serialization_globals start_fi_o =
   let dynamic_heap_start = Lifecycle.end_ () in
   set_heap_base dynamic_heap_start;
 
-  (* Wrap the start function with the RTS initialization *)
+  (* The Wasm start function initializes the RTS *)
   let rts_start_fi = E.add_fun env "rts_start" (Func.of_body env [] [] (fun env1 ->
     E.call_rts env ("initialize_incremental_gc") ^^
     GCRoots.register_static_variables env ^^
-    match start_fi_o with
-    | Some fi ->
-      G.i (Call fi)
-    | None ->
-      Lifecycle.set env Lifecycle.PreInit
+    Lifecycle.set env Lifecycle.PreInit
   )) in
 
   IC.default_exports env;
@@ -13895,9 +13894,7 @@ and conclude_module env set_serialization_globals start_fi_o =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
-  match E.get_rts env with
-  | None -> emodule
-  | Some rts -> Linking.LinkModule.link emodule "rts" rts
+  Linking.LinkModule.link emodule "rts" (E.get_rts env)
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
@@ -13925,14 +13922,8 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
      it here fills that slot, once nothing can change `requires_blob_dedup` anymore. *)
   BlobDedup.define_hook env;
 
-  let start_fi_o = match E.mode env with
-    | Flags.ICMode | Flags.RefMode ->
-      IC.export_init env;
-      None
-    | Flags.WASIMode ->
-      IC.export_wasi_start env;
-      None
-    | Flags.WasmMode ->
-      Some (nr (E.built_in env "init"))
-  in
-  conclude_module env set_serialization_globals start_fi_o
+  begin match E.mode env with
+  | Flags.ICMode -> IC.export_init env
+  | Flags.WASIMode -> IC.export_wasi_start env
+  end;
+  conclude_module env set_serialization_globals

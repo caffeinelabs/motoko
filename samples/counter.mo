@@ -4,7 +4,7 @@ persistent actor class Counter(i : Int) {
   transient var c = i;
 
   // Decrement counter
-  public func dec() {
+  public func dec() : () {
     show("dec", c);
     c -= 1;
   };

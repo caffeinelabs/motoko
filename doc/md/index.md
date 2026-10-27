@@ -95,6 +95,7 @@ For more, browse the full [Motoko examples collection](https://github.com/dfinit
 
 ## Further reading
 
+- [Migrating from moc 1 to moc 2](moc-v2-migration.md): the breaking changes in `moc` 2.0 and how to fix each one
 - [Quickstart](https://docs.internetcomputer.org/getting-started/quickstart): create and deploy your first canister
 - [core library API docs](https://mops.one/core/docs): standard library reference
 - [Orthogonal persistence](https://docs.internetcomputer.org/concepts/orthogonal-persistence): how persistent memory works at the platform level

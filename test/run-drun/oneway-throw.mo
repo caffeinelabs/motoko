@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor a {
-  flexible var committed = false;
+  transient var committed = false;
   public func throws() : () {
     Prim.debugPrint "throws()";
     committed := true;

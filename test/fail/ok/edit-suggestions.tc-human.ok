@@ -235,3 +235,37 @@ warning[M0236]: You can use the dot notation `s.size(...)` here
     │           ^^^^^^^^^^^^^^^ 
     = help: replace `Phantom` with `s`
     = help: remove `s`
+warning[M0236]: You can use the dot notation `data.find(...)` here
+    ┌─ edit-suggestions.mo:244:10
+243 │      // the trailing comma goes with the implicit
+244 │      ignore Impl.find(
+    │ ╭───────────^
+245 │ │      data,
+246 │ │      1,
+247 │ │      Nat.compare,
+248 │ │    ); // warn M0236 + M0237
+    │ ╰────^ 
+249 │    
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:247:5
+247 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0236]: You can use the dot notation `m.size(...)` here
+    ┌─ edit-suggestions.mo:251:10
+250 │      // the trailing comma goes with the receiver
+251 │      ignore Map.size(
+    │ ╭───────────^
+252 │ │      m,
+253 │ │    ); // warn M0236
+    │ ╰────^ 
+254 │    };
+    = help: replace `Map` with `m`
+    = help: remove `m,`
+warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:260:20
+260 │    ignore only<Nat> compare; // warn M0237
+    │                     ^^^^^^^ 
+    = help: replace `compare` with `()`

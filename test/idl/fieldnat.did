@@ -4,5 +4,7 @@ service Foo:
   bar : (record {"2" : int}) -> ();
   baz : (record {2: int; "2": nat}) -> ();
   bab : (two: int, "2": nat) -> ();
+  hex : (record {0x2a : int; 0xffff_ffff : nat}) -> ();
+  max : (variant {0x1_0; 4294967295 : nat}) -> ();
 }
 

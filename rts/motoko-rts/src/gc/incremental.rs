@@ -100,6 +100,8 @@ unsafe fn record_gc_stop<M: Memory>() {
 }
 
 // Persistent GC statistics used for scheduling and diagnostics.
+// Part of the persistent GC state: use a long-term representation by relying on C layout.
+#[repr(C)]
 struct Statistics {
     // Total number of allocation at the start of the last GC run.
     last_allocations: Bytes<u64>,
@@ -154,6 +156,8 @@ pub struct State {
 // An in-place EOP upgrade reinterprets these bytes, so reordering or resizing fields needs a `persistence::VERSION` bump.
 const _: () = assert!(core::mem::offset_of!(State, phase_inner) == 0);
 const _: () = assert!(core::mem::size_of::<Phase>() == 4);
+const _: () = assert!(core::mem::offset_of!(Statistics, last_allocations) == 0);
+const _: () = assert!(core::mem::offset_of!(Statistics, max_live) == core::mem::size_of::<u64>());
 
 #[cfg(feature = "ic")]
 unsafe extern "C" {

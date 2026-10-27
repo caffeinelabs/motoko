@@ -1,0 +1,5 @@
+variant-specials-bug3.mo:7.10-7.20: warning [M0146], this pattern is never matched
+variant-specials-bug3.mo:5.3-8.4: warning [M0145], this switch of type
+  {#admin : Text; #user : Nat}
+does not cover value
+  #user(_)
