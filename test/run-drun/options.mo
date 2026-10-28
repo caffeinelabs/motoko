@@ -1,4 +1,3 @@
-//MOC-FLAG -W M0276
 import Prim "mo:prim";
 
 // Test (type optimized) option injection and projection works correctly

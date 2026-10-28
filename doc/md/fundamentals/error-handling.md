@@ -101,7 +101,7 @@ Traps immediately stop execution and roll back [state](./actors/state.md). They 
 import Runtime "mo:core/Runtime";
 
 func divide(a : Nat, b : Nat) : Nat {
-    if (b == 0) {
+    if b == 0 {
         Runtime.trap("Cannot divide by zero");
     };
     return a / b;

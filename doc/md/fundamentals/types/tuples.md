@@ -93,7 +93,7 @@ type Point = (Float, Float);
 type Line = (Point, Point);
 func calculateGradient(line : Line) : ?Float {
   let ((x1, y1), (x2, y2)) = line;
-  if (x1 == x2) {
+  if x1 == x2 {
     null
     // Gradient is undefined for a vertical line
   } else {

@@ -31,8 +31,8 @@ When a Motoko value has type `?T`, it is either `null` or contains a value, writ
 ```motoko no-repl
 func displayName(option : ?Text) : Text {
   switch option {
-    case (?user) { user };
-    case null { "Guest" };
+    case ?user { user }
+    case null { "Guest" }
   }
 };
 displayName(username);
@@ -49,7 +49,7 @@ import Option "mo:core/Option";
 import Debug "mo:core/Debug";
 
 let value : ?Nat = ?5;
-if (Option.isSome(value)) {
+if Option.isSome(value) {
   Debug.print("Value is present.");
 }
 ```
@@ -72,7 +72,7 @@ Options can be used to catch expected failures instead of calling a [`trap`](../
 
 ```motoko no-repl
 func safeDivide(a : Int, b : Int) : ?Int {
-  if (b == 0) null else ?(a / b);
+  if b == 0 { null } else { ?(a / b) };
 };
 
 let result1 = safeDivide(10, 2); // ?5
@@ -100,8 +100,8 @@ The same logic can be expressed using a `switch`, though the result is more verb
 ```motoko no-repl
 func get<T>(option : ?T, defaultValue : T) : T {
   switch option {
-    case null defaultValue;
-    case (?value) value;
+    case null { defaultValue }
+    case ?value { value }
   }
 };
 ```
@@ -181,20 +181,23 @@ type Exp = {#Lit : Nat; #Div : (Exp, Exp); #If : (Exp, Exp, Exp)};
 func eval(e : Exp) : ? Nat {
   do ? {
     switch e {
-      case (#Lit n) { n };
-      case (#Div (e1, e2)) {
+      case #Lit(n) { n }
+      case #Div(e1, e2) {
         let v1 = eval e1 !;  // If eval e1 returns null, exit with null
         let v2 = eval e2 !;  // If eval e2 returns null, exit with null
-        if (v2 == 0)
+        if v2 == 0 {
           null !  // Explicitly exit with null for division by zero
-        else v1 / v2
-        };
-      case (#If (e1, e2, e3)) {
-        if (eval e1 ! == 0)  // Unwrap and check if zero
+        } else {
+          v1 / v2
+        }
+      }
+      case #If(e1, e2, e3) {
+        if eval(e1) ! == 0 {  // Unwrap and check if zero
           eval e2 !  // Return result of e2 (or null if it's null)
-        else
+        } else {
           eval e3 !  // Return result of e3 (or null if it's null)
-      };
+        }
+      }
     };
   };
 };
