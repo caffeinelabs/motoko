@@ -7250,14 +7250,23 @@ module Serialization = struct
     | Candid
     | Persistence
 
+  (* Persistence tells `Char` from `Nat32` and `()` from `Null`, as their runtime values differ, see Note [persistence type descriptor] *)
   let to_idl_prim mode = let open Type in function
-    | Prim Null | Tup [] -> Some 1l
+    | Prim Null -> Some 1l
+    | Tup [] ->
+      (match mode with
+      | Candid -> Some 1l
+      | Persistence -> None)
     | Prim Bool -> Some 2l
     | Prim Nat -> Some 3l
     | Prim Int -> Some 4l
     | Prim Nat8 -> Some 5l
     | Prim Nat16 -> Some 6l
-    | Prim (Nat32|Char) -> Some 7l
+    | Prim Nat32 -> Some 7l
+    | Prim Char ->
+      (match mode with
+      | Candid -> Some 7l
+      | Persistence -> Some 132l)
     | Prim Nat64 -> Some 8l
     | Prim Int8 -> Some 9l
     | Prim Int16 -> Some 10l
@@ -7290,7 +7299,34 @@ module Serialization = struct
   (* only used for memory compatibility checks *)
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
+  let idl_var_vec  = -133l
 
+  (*
+  Note [persistence type descriptor]
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Types whose values are represented differently in memory need different persistence descriptors.
+  On upgrade, the RTS compares the stored and the new descriptor (`memory_compatible` in rts/motoko-rts/src/idl.rs)
+  and lets the new program read the old values in place, so a shared encoding makes it misread them.
+  Candid mode can share encodings, as its values are decoded into fresh objects. Hence, unlike there:
+
+   * `[var t]` is `idl_var_vec t`, while a `var [t]` field is `alias (vec t)`.
+     A `[var t]` field points to the array, a `var [t]` field to a `MutBox` that points to the array.
+   * `Char` has its own code: its 21-bit code point is shifted left by 43 bits, a `Nat32` by 32, and their tags differ.
+   * `()` is the empty `idl_tuple`: its value is the `unit_tag` scalar, while `null` is the `null_vanilla_pointer`.
+
+  For example, the type `{var f : [Nat]; g : [var Nat]}` yields these type table entries,
+  with codes before their LEB128 encoding and fields sorted by hash:
+
+    0: record {f : 1; g : 3}   -20 2 <hash f> 1 <hash g> 3
+    1: alias 2                   1 2                           var [Nat]
+    2: vec nat                 -19 -3                          [Nat]
+    3: var_vec nat            -133 -3                          [var Nat]
+
+  Persistence descriptors start with "EOP1". Descriptors stored by older compilers start with "DIDL"
+  and encode each pair above alike, so the RTS accepts either reading of those.
+  This relies on each encoding meaning a subset of what it meant in those descriptors, unless the encoding is new.
+  *)
 
   (* TODO: use record *)
   let type_desc env mode ts :
@@ -7314,7 +7350,10 @@ module Serialization = struct
           | Tup ts -> List.iter go ts
           | Obj (_, fs, _) ->
             List.iter (fun f -> go f.typ) fs
-          | Array (Mut t) -> go (Array t)
+          | Array (Mut t) ->
+            (match mode with
+            | Candid -> go (Array t)
+            | Persistence -> go t)
           | Array t -> go t
           | Opt t -> go t
           | Variant vs -> List.iter (fun f -> go f.typ) vs
@@ -7402,7 +7441,9 @@ module Serialization = struct
           add_idx f.typ
         ) (sort_by_hash fs)
       | Array (Mut t) ->
-        add_sleb128 idl_alias; add_idx (Array t)
+        (match mode with
+        | Candid -> add_sleb128 idl_alias; add_idx (Array t)
+        | Persistence -> add_sleb128 idl_var_vec; add_idx t)
       | Array t ->
         add_sleb128 idl_vec; add_idx t
       | Opt t ->
@@ -7446,7 +7487,9 @@ module Serialization = struct
          add_sleb128 idl_weak; add_idx t
       | _ -> assert false in
 
-    Buffer.add_string buf "DIDL";
+    Buffer.add_string buf (match mode with
+      | Candid -> "DIDL"
+      | Persistence -> "EOP1");
     add_leb128 (List.length typs);
     let offsets = List.map (fun typ ->
       let offset = Buffer.length buf in
@@ -8945,7 +8988,7 @@ or
    for all other occurrences of v, where offset is the relative position of the
    above occurrences from this reference.
 
-We map Motoko types to this as follows:
+We map Motoko types to this as follows (persistence descriptors differ, see Note [persistence type descriptor]):
 
   e([var t]) = alias e([t]) = alias vec e(t)
   e({var field : t}) = record { field : alias e(t) }

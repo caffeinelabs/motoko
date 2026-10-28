@@ -18,6 +18,20 @@
     on the heap instead of 4, matching their RTS layout. The fourth word was
     an oversight and never used (#6475).
 
+  * bugfix: the upgrade check of enhanced orthogonal persistence now rejects
+    changing a record field between `var f : [T]` and `f : [var T]`, `Char`
+    to or from `Nat32`, and `()` to or from `Null` (or to `?T`). It used to
+    accept these upgrades, after which the new code misread the old heap. The
+    first upgrade from `moc` 2.1.0 or earlier still accepts them, as the
+    stable type those releases stored doesn't tell them apart. Before that
+    upgrade, run `moc --stable-compatible`, which rejects them: for example,
+    a stored `Nat32` read as a `Char` can become an invalid code point (a
+    surrogate or one above `0x10FFFF`), and a `var [T]` field read as
+    `[var T]` reads the heap out of bounds. Once upgraded, a canister whose
+    stable type contains `[var T]`, `Char`, or `()` (including tags without
+    payload, such as `#on`) fails to downgrade to `moc` 2.1.0 or earlier with
+    `Memory-incompatible program upgrade` (#6452).
+
   * bugfix: in a generic call that expects an `async` or `async*` function,
     a function argument with typed or no parameters, such as `func() { 7 }`,
     is asynchronous, as one with untyped parameters already was (#6478).
