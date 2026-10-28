@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * bugfix: `cancelTimer` cancels a one-shot timer whose job is waiting to be
+    retried after a failed dispatch, and `cancelTimer(0)` no longer cancels
+    such a retry. A recurring timer no longer runs an extra time after its job
+    could not be dispatched because the call queue was full (#6449).
+
   * feat: `async*` computations can now have non-shared result types,
     including type parameters, so generic helpers such as
     `retry<T>(call : () -> async* T) : async* T` compile. Futures

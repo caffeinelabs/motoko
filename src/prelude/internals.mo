@@ -479,6 +479,19 @@ func @call_raw(p : Principal, m : Text, a : Blob) : async Blob {
   await (prim "call_raw" : (Principal, Text, Blob) -> async Blob)(p, m, a);
 };
 
+// the codes of an `Error`, as laid out by `Type.catchErrorCodes` (type.ml); equal to `ErrorCode`
+// (prim.mo), as test/run/prim-error-code.mo checks
+type @ErrorCode = {
+  #system_fatal;
+  #system_transient;
+  #destination_invalid;
+  #canister_reject;
+  #canister_error;
+  #system_unknown;
+  #future : Nat32;
+  #call_error : { err_code : Nat32 }
+};
+
 // helpers for reifying ic0.call_perform failures as errors
 func @call_succeeded() : Bool {
   (prim "call_perform_status" : () -> Nat32)() == 0;
@@ -488,7 +501,7 @@ func @call_error() : Error {
   let status = (prim "call_perform_status" : () -> Nat32)();
   let message = (prim "call_perform_message" : () -> Text)();
   let code = #call_error({ err_code = status });
-  (prim "cast" : ({ #call_error : { err_code : Nat32 } }, Text) -> Error)(code, message);
+  (prim "cast" : (@ErrorCode, Text) -> Error)(code, message)
 };
 
 // default timer mechanism implementation
@@ -511,6 +524,22 @@ type @Node = {
 };
 
 var @timers : ?@Node = null;
+
+// one-shot jobs whose dispatch failed, retried in order before any expired timer,
+// under their own id so that `cancelTimer` still reaches them
+type @Retries = ?{ id : Nat; job : () -> async (); next : @Retries };
+var @retries : @Retries = null;
+
+func @retrying() : Bool = switch @retries { case null { false } case _ { true } };
+
+func @retry(id : Nat, job : () -> async ()) {
+  func append(r : @Retries) : @Retries = switch r {
+    case null { ?{ id; job; next = null } }
+    case ?r { ?{ r with next = append(r.next) } }
+  };
+  @retries := append @retries;
+  ignore (prim "global_timer_set" : Nat64 -> Nat64) 1
+};
 
 func @prune(n : ?@Node) : ?@Node = switch n {
   case null { null }
@@ -551,7 +580,21 @@ func @timer_helper() : async () {
 
   var gathered = 0;
   let thunks = Array_init<?(() -> async ())>(10, null); // we want max 10
+  let ids = Array_init<Nat>(10, 0);
   let recurring = Array_init<Bool>(10, false);
+
+  func gatherRetries() = switch @retries {
+    case ?r {
+      if gathered < thunks.size() {
+        thunks[gathered] := ?r.job;
+        ids[gathered] := r.id;
+        gathered += 1;
+        @retries := r.next;
+        gatherRetries()
+      }
+    }
+    case null {}
+  };
 
   func gatherExpired(n : ?@Node) = switch n {
     case null {}
@@ -562,6 +605,7 @@ func @timer_helper() : async () {
         if pivot > 0 {
           // not expunged yet
           thunks[gathered] := ?n.job;
+          ids[gathered] := n.id;
           switch n.delay {
             case null or ?0 { n.expire[0] := 0 }
             case ?delay {
@@ -597,50 +641,18 @@ func @timer_helper() : async () {
     }
   };
 
+  gatherRetries();
   gatherExpired(@timers);
 
   let exp = @nextExpiration(@timers);
-  ignore (prim "global_timer_set" : Nat64 -> Nat64)(exp);
+  ignore (prim "global_timer_set" : Nat64 -> Nat64)(if @retrying() { 1 } else { exp });
   if exp == 0 { @timers := null };
-
-  var failed : Nat64 = 0;
-  // may run after an `await` below, i.e. on a changed tree: prune and rearm each time
-  func reinsert(job : () -> async ()) {
-    @timers := @prune(@timers);
-    ignore (prim "global_timer_set" : Nat64 -> Nat64)(1);
-    failed += 1;
-    @timers := ?(
-      switch @timers {
-        case ?{ id = 0; pre; post; job = j; expire; delay } {
-          // push top node's contents into pre
-          {
-            expire = [var failed];
-            id = 0;
-            delay;
-            job;
-            post;
-            pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
-          }
-        }
-        case _ {
-          {
-            expire = [var failed];
-            id = 0;
-            delay = null;
-            job;
-            pre = null;
-            post = @timers;
-          }
-        }
-      }
-    );
-  };
 
   let jobs = Array_init<?(async ())>(gathered, null);
   var i = 0;
   while i < gathered {
     switch thunks[i] {
-      case ?thunk { try { jobs[i] := ?thunk() } catch _ { reinsert(thunk) } }
+      case ?thunk { try { jobs[i] := ?thunk() } catch _ { if not recurring[i] { @retry(ids[i], thunk) } } }
       case null {}
     };
     i += 1
@@ -655,7 +667,7 @@ func @timer_helper() : async () {
     switch (jobs[i], thunks[i]) {
       case (?job, ?thunk) {
         try { await? job } catch e {
-          if not recurring[i] and @isTransient(e) { reinsert(thunk) }
+          if not recurring[i] and @isTransient(e) { @retry(ids[i], thunk) }
         }
       }
       case _ {}
@@ -665,17 +677,7 @@ func @timer_helper() : async () {
 };
 
 func @isTransient(e : Error) : Bool {
-  type Code = {
-    #system_fatal;
-    #system_transient;
-    #destination_invalid;
-    #canister_reject;
-    #canister_error;
-    #system_unknown;
-    #future : Nat32;
-    #call_error : { err_code : Nat32 }
-  };
-  switch ((prim "cast" : Error -> (Code, Text)) e).0 {
+  switch ((prim "cast" : Error -> (@ErrorCode, Text)) e).0 {
     case #system_transient { true }
     case _ { false }
   }
@@ -714,7 +716,7 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
 
   let exp = @nextExpiration @timers;
   if exp == 0 { @timers := null };
-  ignore (prim "global_timer_set" : Nat64 -> Nat64) exp;
+  ignore (prim "global_timer_set" : Nat64 -> Nat64)(if @retrying() { 1 } else { exp });
 
   id;
 };
@@ -740,7 +742,13 @@ func @cancelTimer(id : Nat) {
 
   @timers := hunt @timers;
 
-  if @nextExpiration(@timers) == 0 {
+  func drop(r : @Retries) : @Retries = switch r {
+    case null { null }
+    case ?r { if r.id == id { drop(r.next) } else { ?{ r with next = drop(r.next) } } }
+  };
+  @retries := drop @retries;
+
+  if @nextExpiration(@timers) == 0 and not @retrying() {
     // no more expirations ahead
     ignore (prim "global_timer_set" : Nat64 -> Nat64) 0;
     @timers := null;
