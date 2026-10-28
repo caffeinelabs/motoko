@@ -106,7 +106,7 @@
       # dominates wall-clock — the `nightly-macos-test` schedule covers
       # darwin checks separately by building `.#rts-checked` directly.
       rts-checked = rts-set.checked;
-      rts = if pkgs.stdenv.isDarwin then rts-set.build else rts-checked;
+      rts = if pkgs.stdenv.hostPlatform.isDarwin then rts-set.build else rts-checked;
 
       commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml

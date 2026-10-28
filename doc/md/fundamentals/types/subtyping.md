@@ -98,7 +98,7 @@ func impossible() : None { loop {} };
 impossible() # impossible();  // Allowed, since `None <: Text`
 impossible() + impossible();  // Allowed, since `None <: Nat`
 
-if (false == true) impossible(); // Allowed, since `None <: ()`
+if false == true { impossible() }; // Allowed, since `None <: ()`
 ```
 
 Calling the function `impossible()` will force the program to enter an infinite loop and return no value.

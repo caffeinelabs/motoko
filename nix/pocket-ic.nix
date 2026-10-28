@@ -36,9 +36,9 @@ let
     dontUnpack = true;
 
     nativeBuildInputs = [ pkgs.gzip ]
-      ++ pkgs.lib.optional pkgs.stdenv.isLinux pkgs.autoPatchelfHook;
+      ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.autoPatchelfHook;
 
-    buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux [
+    buildInputs = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
       pkgs.stdenv.cc.cc.lib
       pkgs.zlib
       pkgs.openssl

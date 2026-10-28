@@ -42,7 +42,7 @@ actor {
   include Logger("[Greeter] ");
 
   public shared func greet(name : Text) : async Text {
-    if (name == "") {
+    if name == "" {
       logError("Saw an empty name");
     };
     "Hello, " # name # "!"

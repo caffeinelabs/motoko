@@ -7,8 +7,9 @@
   - [1. Update Changelog](#1-update-changelog)
   - [2. Open a release PR](#2-open-a-release-pr)
   - [3. Wait for the release to complete, and verify it](#3-wait-for-the-release-to-complete-and-verify-it)
-  - [4. Update `motoko-core`](#4-update-motoko-core)
-  - [Downstream](#downstream)
+  - [4. Tag `motoko-core`](#4-tag-motoko-core)
+  - [5. Merge the `node-motoko` and `vscode-motoko` updates](#5-merge-the-node-motoko-and-vscode-motoko-updates)
+  - [6. Update projects that pin `moc`](#6-update-projects-that-pin-moc)
 - [Making draft / pre-releases](#making-draft--pre-releases)
   - [Version](#version)
 - [Coverage report](#coverage-report)
@@ -248,9 +249,9 @@ the build artifacts for this revision. In this case, restart the GitHub Action
 on GitHub's UI.
 </details>
 
-### 4. Update `motoko-core`
+### 4. Tag `motoko-core`
 
-From the `main` branch, push a tag for the new `moc` version:
+In the [`motoko-core`](https://github.com/caffeinelabs/motoko-core) repository, push a tag for the new `moc` version from the `main` branch:
 
 ```bash
 git checkout main
@@ -259,26 +260,18 @@ git tag moc-$NEXT_MOC_VERSION
 git push origin moc-$NEXT_MOC_VERSION
 ```
 
-### Downstream
+### 5. Merge the `node-motoko` and `vscode-motoko` updates
 
-There are a few dependent actions to follow-up the release, e.g.
-- `motoko` NPM package
-- `vessel` package set
-- `vscode` plugin
-- ICP Ninja
+The release opens the follow-up PRs automatically. Watch for them and merge each one once its CI passes:
 
-These are generally triggered by mentioning the release in Slack.
+1. In [`node-motoko`](https://github.com/caffeinelabs/node-motoko), merge the "Update moc to X.Y.Z" PR. Merging it publishes a new version of the `motoko` npm package.
+2. In [`vscode-motoko`](https://github.com/caffeinelabs/vscode-motoko), merge the "Bump motoko npm to A.B.C" PR that the npm publish opens.
 
-Announcing the release towards SDK happens by triggering this GitHub action:
-https://github.com/dfinity/sdk/actions/workflows/update-motoko.yml
-Press the "Run workflow" button, filling in
-- Motoko version: `latest`
-- Open PR against this sdk branch: `master`
+If the `vscode-motoko` PR doesn't appear, check the runs of its `update-motoko` workflow. It fails with `ETARGET` when it runs before npm lists the new version. To recover, wait until `npm view motoko version` prints the new version, then run the workflow manually from the repository's **Actions** tab.
 
-and then hitting the green button. This will create a PR with all necessary hash changes against that branch. There is no
-need to do this immediately, you can leave the release soaking a few days. Use your own jugdement w.r.t. risk, urgency etc.
+### 6. Update projects that pin `moc`
 
-If you want to update the portal documentation, typically to keep in sync with a `dfx` release, follow the instructions in https://github.com/dfinity/portal/blob/master/MAINTENANCE.md.
+Update any downstream projects that pin a `moc` version, so they pick up the new release.
 
 ## Making draft / pre-releases
 

@@ -16,23 +16,24 @@ the Motoko RTS.
 
 ## Step-by-Step
 
-### 1. Switch branch and rebase
-```sh
-git checkout $USER/bump-nightly-rustc
-git rebase origin/master
-```
-Note: the previous bump usually lands on `master` via **squash-merge**, which
-leaves this branch's old bump commit orphaned (present locally, not an ancestor
-of `origin/master`, and often carrying a nightly date `master` already has). In
-that case don't rebase onto the stale commit — hard-reset the branch to master
-and redo the bump fresh:
+### 1. Reset the bump branch to master
+The branch is `<you>/bump-nightly-rustc`, with your usual branch prefix (e.g.
+`gabor/`). Don't derive it from `$USER`: on machines whose home directory
+follows company naming policy, the login (e.g. `gabor.greif`) differs from the
+prefix. Find the branch with `git branch -a --list '*bump-nightly-rustc'`.
+
+The previous bump normally landed on `master` via **squash-merge**, so the
+branch's old commits are orphaned: present locally, never ancestors of
+`origin/master`, carrying a nightly date `master` already has. Then reset and
+redo the bump fresh:
 ```sh
 git fetch origin master
-git checkout -B $USER/bump-nightly-rustc origin/master
+git checkout -B <you>/bump-nightly-rustc origin/master
 ```
-(Check first with `git merge-base --is-ancestor $USER/bump-nightly-rustc
-origin/master` — if it says the branch has unmerged commits *and* they're a real
-WIP, keep them; if they're just the last, already-merged bump, reset.)
+Only if `git log origin/master..<you>/bump-nightly-rustc` shows real WIP
+(rather than the last, already-merged bump, which
+`gh pr list --head <you>/bump-nightly-rustc --state merged` confirms) keep it
+and `git rebase origin/master` instead.
 
 ### 2. Update rust-overlay
 ```sh
@@ -69,6 +70,12 @@ bump that exact pin in `rts/motoko-rts/Cargo.toml` and re-run `cargo update foo`
 ### 6. Build and test
 ```sh
 nix build .#rts
+```
+`nix build` hides the compiler output; to check a newer nightly for new
+warnings (e.g. newly deprecated APIs), read the build log. It is colored, so
+strip the ANSI codes first, or `^warning` never matches:
+```sh
+nix log "$(nix path-info --derivation .#rts)" | sed 's/\x1b\[[0-9;]*m//g' | grep '^warning'
 ```
 Watch for compiler errors — common ones encountered and their fixes:
 
@@ -107,7 +114,7 @@ run it automatically (see step 9).
 **If `nightly-macos-test` jobs fail or time out**, re-trigger — each run
 caches more derivations, so subsequent runs make progress:
 ```sh
-gh workflow run nightly-macos-test --repo caffeinelabs/motoko --ref <branch>
+gh workflow run nightly-macos-test.yml --repo caffeinelabs/motoko --ref <you>/bump-nightly-rustc
 ```
 Two known failure modes that are *not* code regressions:
 
@@ -130,23 +137,28 @@ chore: bump rustc-nightly to YYYY-MM-DD
 - cargo update: motoko-rts, motoko-rts-tests
 ```
 
-### 9. Push and watch CI
+### 9. Push, open a PR and watch CI
 ```sh
-git push --force-with-lease origin $USER/bump-nightly-rustc
+git push --force-with-lease origin <you>/bump-nightly-rustc
 # nightly-macos-test does NOT run on push — dispatch it explicitly:
-gh workflow run nightly-macos-test.yml --ref $USER/bump-nightly-rustc
+gh workflow run nightly-macos-test.yml --repo caffeinelabs/motoko --ref <you>/bump-nightly-rustc
 gh run watch <run-id> --repo caffeinelabs/motoko
 ```
+Pushing the branch alone runs **no** Linux CI either: `test.yml` runs on
+`push` only for `master`, otherwise on `pull_request`. Open the PR (a draft
+until both sides are green) to get the Linux matrix.
+
 Gotcha — **first push after a reset (step 1)**: if the old remote branch was
 deleted when the previous bump merged, `--force-with-lease` fails with
-`! [rejected] ... (stale info)` because your local `origin/$USER/bump-nightly-rustc`
-tracking ref is stale (points at a branch that no longer exists remotely). Fix:
+`! [rejected] ... (stale info)` because your local
+`origin/<you>/bump-nightly-rustc` tracking ref is stale (points at a branch
+that no longer exists remotely). Fix:
 ```sh
 git remote prune origin
-git push -u origin $USER/bump-nightly-rustc   # plain push re-creates the branch
+git push -u origin <you>/bump-nightly-rustc   # plain push re-creates the branch
 ```
 
-## Makefile Structure (as of 2026-04-01)
+## Makefile Structure (as of 2026-10-16, unchanged since 2026-04-01)
 
 ```makefile
 RTS_COMPILE_FLAGS=-C target-feature=+bulk-memory
@@ -156,8 +168,9 @@ NIGHTLY_RELEASE_CARGO_OPTIONS=$(NIGHTLY_CARGO_OPTIONS) --release -Zbuild-std-fea
 ```
 
 ## Notes
-- `rustStdDepsHash` has been stable (`sha256-ZMCepUZNyqXZcR3EduSV38zFbI89WneU1iTXj3L38RA=`)
-  from at least 2026-02-15 through 2026-03-31.
+- `rustStdDepsHash` is stable across some bumps and changes at others; always
+  probe it (step 4). Observed: `ZMCepUZN…` for nightlies 2026-02-15 to
+  2026-03-31, `OTZ3LG84…` at 2026-07-25, `5WWAIRvi…` at 2026-10-10.
 - `libm` is exact-pinned (`=0.2.x`) in `motoko-rts/Cargo.toml` — bump it if
   `cargo update` in `motoko-rts-tests` moves it and the vendor fails.
 - The nix sandbox uses `pkgs.wasmtime` from the pinned nixpkgs rev — check

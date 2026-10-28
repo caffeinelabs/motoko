@@ -279,7 +279,7 @@ These diagnostics flag code that traps, or silently does something other than wh
 | M0128 | a function named like a system method, but not declared `system` | `func heartbeat() : async () { ... }` | `system func heartbeat() : async () { ... }`, or rename it |
 | M0242 | a `public func` without a return type, which is implicitly oneway | `public func log(t : Text) { ... }` | `public func log(t : Text) : () { ... }`, or `: async ()` |
 | M0005 | an import path whose letter case differs from the file name | `import L "lib";` for `Lib.mo` | `import L "Lib";` |
-| M0276 | a comparison at a type with a single value, such as `Any` or `{}`, whose result is constant | `user == order` for records that share no field | compare the fields you mean: `user.id == order.userId` |
+| M0276 | a comparison at a type with a single value, such as `Any` or `{}`, whose result is constant; operands that both already have that type, such as `status : { #active }` compared with `#active`, are fine | `user == order` for records that share no field | compare the fields you mean: `user.id == order.userId` |
 | M0278 | a file in the `--enhanced-migration` directory that does not export a public `migration` function, which never runs (was warning M0251) | `public func migrate(old : { ... }) : { ... }` | `public func migration(old : { ... }) : { ... }`, or move helper modules out of the directory |
 
 ### Inferred `Any` or `None`

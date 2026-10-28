@@ -77,7 +77,7 @@ pub(crate) unsafe fn probe_wasm_memory(memory_size: Bytes<usize>) -> bool {
     let total_pages_needed = (memory_size.as_usize() + page_size - 1) / page_size;
     let current_pages = wasm64::memory_size(0);
     if total_pages_needed > current_pages {
-        wasm64::memory_grow(0, total_pages_needed - current_pages) != core::usize::MAX
+        wasm64::memory_grow(0, total_pages_needed - current_pages) != usize::MAX
     } else {
         true
     }

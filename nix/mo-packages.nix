@@ -1,6 +1,6 @@
 { pkgs, commonBuildInputs, rts, officialRelease }:
 let
-  is_static = !pkgs.stdenv.isDarwin;
+  is_static = !pkgs.stdenv.hostPlatform.isDarwin;
 
   staticpkgs =
     if is_static
@@ -45,7 +45,7 @@ let
       installPhase = ''
         mkdir -p $out/bin
         cp --verbose --dereference ${bin} $out/bin
-      '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+      '' + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
         # there are references to darwin system libraries
         # in the binaries. But curiously, we can remove them
         # and the binaries still work. They are essentially static otherwise.
