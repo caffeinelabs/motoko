@@ -271,6 +271,8 @@ type @Cont<T> = T -> ();
 type @Async<T> = (@Cont<T>, @Cont<Error>, @BailCont) -> {
   #suspend;
   #schedule : () -> ();
+  // only for a future whose reply callback trapped: run the cleanup, also if that cannot be scheduled
+  #bail : () -> ();
 };
 
 type @Refund = Nat;
@@ -336,12 +338,14 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
   func enqueue(k : @Cont<T>, r : @Cont<Error>, b : @BailCont) : {
     #suspend;
     #schedule : () -> ();
+    #bail : () -> ();
   } {
     cleanup := b;
     if trapped {
-      // Use the usual scheduling path: await commits before cleanup, while
-      // await? can bail out immediately. Neither resumes k nor rejects via r.
-      return #schedule b;
+      // Like #schedule, await commits before cleanup and await? bails out immediately,
+      // but a failed or rejected scheduling self-call also bails out: neither resumes
+      // k nor rejects via r, so the trap stays uncatchable.
+      return #bail b;
     };
     switch result {
       case null {
