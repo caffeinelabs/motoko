@@ -25,3 +25,30 @@ do {
      async { object { public func foo() : Nat = 1; } }
   };
 };
+
+// A future's result must be shared, even when a computation produces it
+do {
+  func cell() : async* [var Nat] { [var 0] };
+  func invalid5() : async () {
+    ignore async { await* cell() }
+  }
+};
+
+// A type parameter is not shared
+do {
+  func invalid6<T>(x : T) : async T { x }
+};
+
+// A shared function's result must be shared
+do {
+  func invalid7(f : shared () -> async [var Nat]) {}
+};
+
+// A computation is not shared
+do {
+  func invalid8(f : shared (async* [var Nat]) -> ()) {}
+};
+
+do {
+  func invalid9(c : async* [var Nat]) : Blob { to_candid (c) }
+}

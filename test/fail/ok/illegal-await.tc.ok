@@ -39,3 +39,10 @@ because of incompatible async scopes:
   $
  does not match 
   $
+illegal-await.mo:55.26-55.27: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-53.10
+  scope $@anon-async-55.12 is illegal-await.mo:55.12-55.29
+  scope $@anon-async-53.10 is illegal-await.mo:53.10-56.4
+illegal-await.mo:55.12: info, start of scope $@anon-async-55.12 mentioned in error at illegal-await.mo:55.20-55.27
+illegal-await.mo:55.28: info, end of scope $@anon-async-55.12 mentioned in error at illegal-await.mo:55.20-55.27
+illegal-await.mo:53.10: info, start of scope $@anon-async-53.10 mentioned in error at illegal-await.mo:55.20-55.27
+illegal-await.mo:56.3: info, end of scope $@anon-async-53.10 mentioned in error at illegal-await.mo:55.20-55.27
