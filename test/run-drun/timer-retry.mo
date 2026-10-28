@@ -23,10 +23,10 @@ actor {
     cancelTimer 0;
 
     var rounds = 0;
-    while (rounds < 20) { ignore await raw_rand(); rounds += 1 };
-    debugPrint(debug_show { a; b });
-  };
-};
+    while rounds < 20 { ignore await raw_rand(); rounds += 1 };
+    debugPrint(debug_show { a; b })
+  }
+}
 
 //SKIP run
 //SKIP run-low
