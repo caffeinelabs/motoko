@@ -1,6 +1,6 @@
 error[M0001]: unexpected token 'async*', expected one of token or <phrase> sequence:
-  <obj_or_class_dec>
   <exp_post(ob)>
+  <obj_or_class_dec>
   async <exp_nest>
     ┌─ par-bad-asyncstar.mo:1:19
   1 │  (with cycles = 1) async* 42;
