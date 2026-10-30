@@ -8,6 +8,11 @@
     `switch (f())`, no longer allocates the tuple on the heap when every case
     is a tuple pattern (or a wildcard). Neither does a projection from a
     tuple-returning call like `f().0` (#NNNN).
+    
+  * bugfix: a late `await` of a future whose reply callback trapped now
+    terminates the awaiting computation even if the message that runs its
+    `finally` clauses can't be sent (for example, out of cycles) or is
+    rejected. Previously the `catch` ran and execution continued (#6471).
 
   * feat: `async*` computations can now have non-shared result types,
     including type parameters, so generic helpers such as
