@@ -7,7 +7,7 @@
   * Performance: a `switch` on a tuple, such as `switch (a, b)` or
     `switch (f())`, no longer allocates the tuple on the heap when every case
     is a tuple pattern (or a wildcard). Neither does a projection from a
-    tuple-returning call like `f().0` (#NNNN).
+    tuple-returning call like `f().0` (#6486).
     
   * bugfix: a late `await` of a future whose reply callback trapped now
     terminates the awaiting computation even if the message that runs its
