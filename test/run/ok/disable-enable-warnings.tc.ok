@@ -1,2 +1,2 @@
-disable-enable-warnings.mo:8.9-8.14: warning [M0154], field foo is deprecated:
-do not use foo anymore
+disable-enable-warnings.mo:8.9-8.14: warning [M0154], field foo is deprecated
+note: do not use foo anymore

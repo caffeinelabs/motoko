@@ -4,6 +4,7 @@ Error: failed to run main module `_out/outrange-nat16.wasm`
 Caused by:
     0: failed to invoke command default
     1: error while executing at wasm backtrace:
-         0: init
-         1: _start
+    0:    0x - <unknown>!init
+    1:    0x - <unknown>!_start
     2: wasm trap: unreachable
+

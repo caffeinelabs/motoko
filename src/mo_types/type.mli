@@ -138,6 +138,7 @@ val is_non : typ -> bool
 val is_prim : prim -> typ -> bool
 val is_obj : typ -> bool
 val is_module : typ -> bool
+val is_actor : typ -> bool
 val is_immutable_obj : typ -> bool
 val is_variant : typ -> bool
 val is_array : typ -> bool
@@ -362,7 +363,6 @@ val timeout_lab : lab
 (* Well-known fields *)
 
 val motoko_async_helper_fld : field
-val motoko_stable_var_info_fld : field
 val motoko_gc_trigger_fld : field
 val motoko_runtime_information_fld : field
 

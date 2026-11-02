@@ -1,8 +1,8 @@
 use crate::{
     gc::incremental::{
+        State,
         partitioned_heap::{PartitionedHeap, PartitionedHeapIterator},
         time::BoundedTime,
-        State,
     },
     mem_utils::memcpy_words,
     memory::Memory,

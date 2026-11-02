@@ -78,6 +78,7 @@ let rec pat env p = match p.it with
   | TupP pats -> List.fold_left pat env pats
   | ObjP pfs -> List.fold_left pat env (pats_of_obj_pat pfs)
   | AltP (pat1, _) | OptP pat1 | TagP (_, pat1) -> pat env pat1
+  | AndP (pat1, pat2) -> pat (pat env pat1) pat2
 
 let find v env = match M.find_opt v env with
   | None -> raise (Invalid_argument (Printf.sprintf "Unbound var: %s\n" v))
@@ -186,7 +187,7 @@ and gather_dec lvl scope dec : env =
   let mk_info const = { loc_known = lvl = TopLvl; const } in
   let ok = match dec.it with
   | LetD (p, _) -> Ir_utils.is_irrefutable p
-  | VarD _ | RefD _ -> false
+  | VarD _ -> false
   in
   M.fold (fun v _ scope ->
     if ok
@@ -205,8 +206,6 @@ and check_dec lvl env dec : Lbool.t = match dec.it with
     lb
   | VarD (_, _, e) | LetD (_, e) ->
     exp_ lvl env e;
-    surely_false
-  | RefD (_, _, _) ->
     surely_false
 
 and check_decs lvl env ds : Lbool.t =

@@ -1,6 +1,6 @@
 import Cycles "mo:core/Cycles";
 
-shared(msg) persistent actor class PiggyBank(
+shared(msg) actor class PiggyBank(
   benefit : shared () -> async (),
   capacity: Nat
   ) {
@@ -18,8 +18,8 @@ shared(msg) persistent actor class PiggyBank(
     let amount = Cycles.available();
     let limit : Nat = capacity - savings;
     let acceptable =
-      if (amount <= limit) amount
-      else limit;
+      if amount <= limit { amount }
+      else { limit };
     let accepted = Cycles.accept<system>(acceptable);
     assert (accepted == acceptable);
     savings += acceptable;

@@ -1,0 +1,16 @@
+{a = 5; b = 5}
+{s = ?7; x = 7}
+{x3 = 11; y3 = 11; z3 = 11}
+{m = #a(13); n = 13}
+{s4 = ?42; x4 = 42}
+none
+42-left: #Ok(42)
+ok 7
+err boom
+99-right
+ok 7
+42
+{a7 = 7; b7 = 7; c7 = "world"}
+{x8 = ?11; y8 = 11; z8 = ?11}
+null
+{t1v = 99; t2v = "type-and"}

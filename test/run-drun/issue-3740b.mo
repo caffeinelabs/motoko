@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 actor {
   type Pair = (Nat, Bool);
 

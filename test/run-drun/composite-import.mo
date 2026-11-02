@@ -4,16 +4,16 @@
 // this imports our own IDL, stored in actor-import
 
 // currently hard-codes the ic-ref self id
-// once we have actor aliases we can let run.sh set an alias.
+// once we have actor aliases we can let run-test set an alias.
 import Prim = "mo:⛔";
 import imported1 "ic:rwlgt-iiaaa-aaaaa-aaaaa-cai";
 import imported2 "canister:self";
 actor {
-  public func go1() : async (actor { cq : composite query () -> async () }) = async {
+  public func go1() : async (actor { cq : composite query () -> async () }) {
      imported1;
   };
 
-  public func go2() : async (actor { cq : composite query () -> async () }) = async {
+  public func go2() : async (actor { cq : composite query () -> async () }) {
      imported2;
   };
 

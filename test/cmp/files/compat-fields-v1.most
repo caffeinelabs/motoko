@@ -1,0 +1,4 @@
+// compatible_fields: Lib.This/Lib.That arms (missing field => false)
+actor {
+  stable var obj : {x : Nat; y : Text; z : Bool};
+};

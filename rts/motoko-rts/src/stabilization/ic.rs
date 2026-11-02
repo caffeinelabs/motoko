@@ -1,4 +1,4 @@
-mod metadata;
+pub mod metadata;
 mod performance;
 
 use motoko_rts_macros::ic_mem_fn;
@@ -7,12 +7,14 @@ use crate::{
     gc::incremental::{is_gc_stopped, resume_gc, stop_gc},
     memory::Memory,
     persistence::{
-        compatibility::{memory_compatible, TypeDescriptor},
+        compatibility::TypeDescriptor, get_dedup_table_ptr, get_migration_functions_ptr,
+        restore_stable_type, set_dedup_table_ptr, set_migration_functions_ptr,
         set_upgrade_instructions,
     },
     rts_trap_with,
     stabilization::ic::metadata::StabilizationMetadata,
-    stable_mem::{self, moc_stable_mem_set_size, PAGE_SIZE},
+    stabilization::serialization::SerializationRoots,
+    stable_mem::{self, PAGE_SIZE, moc_stable_mem_set_size},
     types::Value,
 };
 
@@ -25,8 +27,8 @@ struct StabilizationState {
     old_candid_data: Value,
     old_type_offsets: Value,
     completed: bool,
-    serialization: Serialization,
-    instruction_meter: InstructionMeter,
+    pub serialization: Serialization,
+    pub instruction_meter: InstructionMeter,
 }
 
 impl StabilizationState {
@@ -47,7 +49,7 @@ impl StabilizationState {
 
 static mut STABILIZATION_STATE: Option<StabilizationState> = None;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn is_graph_stabilization_started() -> bool {
     STABILIZATION_STATE.is_some()
 }
@@ -72,7 +74,12 @@ pub unsafe fn start_graph_stabilization<M: Memory>(
     assert!(is_gc_stopped());
     let stable_memory_pages = stable_mem::size(); // Backup the virtual size.
     let serialized_data_start = stable_memory_pages * PAGE_SIZE;
-    let serialization = Serialization::start(mem, stable_actor, serialized_data_start);
+    let serialization_roots = SerializationRoots {
+        actor: stable_actor,
+        dedup_table: *get_dedup_table_ptr(),
+        migrations_list: *get_migration_functions_ptr(),
+    };
+    let serialization = Serialization::start(mem, serialization_roots, serialized_data_start);
     STABILIZATION_STATE = Some(StabilizationState::new(
         serialization,
         old_candid_data,
@@ -126,7 +133,11 @@ unsafe fn write_metadata() {
         type_descriptor,
     };
     state.instruction_meter.stop();
-    metadata.store(&mut state.instruction_meter);
+    metadata.store(
+        &mut state.instruction_meter,
+        state.serialization.dedup_table_address,
+        state.serialization.migrations_list_address,
+    );
 }
 
 struct DestabilizationState {
@@ -140,33 +151,17 @@ static mut DESTABILIZATION_STATE: Option<DestabilizationState> = None;
 
 /// Starts the graph-copy-based destabilization process.
 /// This requires that the deserialization is subsequently run and completed.
-/// Also checks whether the new program version is compatible to the stored state by comparing the type
-/// tables of both the old and the new program version.
-/// The check is identical to enhanced orthogonal persistence, except that the metadata is obtained from
-/// stable memory and not the persistent main memory.
-/// The parameters encode the type table of the new program version to which that data is to be upgraded.
-/// `new_candid_data`: A blob encoding the Candid type as a table.
-/// `new_type_offsets`: A blob encoding the type offsets in the Candid type table.
-///   Type index 0 represents the stable actor object to be serialized.
-/// Traps if the stable state is incompatible with the new program version and the upgrade is not
-/// possible.
+/// The old type descriptor from stable memory is restored into `PersistentMetadata`
+/// so that `register_stable_type` can check compatibility when the migration chain
+/// runs after destabilization (inside `Persistence.load` / `ICStableRead`).
 #[ic_mem_fn(ic_only)]
-pub unsafe fn start_graph_destabilization<M: Memory>(
-    mem: &mut M,
-    new_candid_data: Value,
-    new_type_offsets: Value,
-) {
+pub unsafe fn start_graph_destabilization<M: Memory>(mem: &mut M) {
     assert!(DESTABILIZATION_STATE.is_none());
 
     let mut instruction_meter = InstructionMeter::new();
     instruction_meter.start();
-    let mut new_type_descriptor = TypeDescriptor::new(new_candid_data, new_type_offsets);
-    let (metadata, statistics) = StabilizationMetadata::load(mem);
-    let mut old_type_descriptor = metadata.type_descriptor;
-    if !memory_compatible(mem, &mut old_type_descriptor, &mut new_type_descriptor) {
-        rts_trap_with("Memory-incompatible program upgrade");
-    }
-    // Restore the virtual size.
+    let (metadata, last_page_record) = StabilizationMetadata::load(mem);
+    restore_stable_type(mem, &metadata.type_descriptor);
     moc_stable_mem_set_size(metadata.serialized_data_start / PAGE_SIZE);
 
     // Stop the GC until the incremental graph destabilization has been completed.
@@ -176,11 +171,13 @@ pub unsafe fn start_graph_destabilization<M: Memory>(
         mem,
         metadata.serialized_data_start,
         metadata.serialized_data_length,
+        last_page_record.dedup_table_address,
+        last_page_record.migrations_list_address,
     );
     instruction_meter.stop();
     DESTABILIZATION_STATE = Some(DestabilizationState {
         deserialization,
-        stabilization_statistics: statistics,
+        stabilization_statistics: last_page_record.statistics,
         completed: false,
         instruction_meter,
     });
@@ -214,6 +211,12 @@ pub unsafe fn graph_destabilization_increment<M: Memory>(mem: &mut M) -> bool {
         state.instruction_meter.stop();
         if state.deserialization.is_completed() {
             record_upgrade_costs();
+
+            // We need to put back in the metadata pointing to the
+            // helper GC roots for the dedup table and migration list.
+            set_dedup_table_ptr(mem, state.deserialization.dedup_table_address);
+            set_migration_functions_ptr(mem, state.deserialization.migrations_list_address);
+
             state.completed = true;
             memory_sanity_check(mem);
         }
@@ -226,7 +229,7 @@ unsafe fn memory_sanity_check<M: Memory>(_mem: &mut M) {
     {
         use crate::gc::incremental::{
             get_partitioned_heap,
-            sanity_checks::{check_memory, CheckerMode},
+            sanity_checks::{CheckerMode, check_memory},
         };
 
         let state = DESTABILIZATION_STATE.as_mut().unwrap();
@@ -256,7 +259,7 @@ unsafe fn record_upgrade_costs() {
 }
 
 /// Returns the deserialized stable actor root after the completed destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_graph_destabilized_actor() -> Value {
     let state = DESTABILIZATION_STATE.as_ref().unwrap();
     assert!(state.completed);
@@ -266,13 +269,13 @@ pub unsafe extern "C" fn get_graph_destabilized_actor() -> Value {
 /// Stop the GC before performing incremental graph-copy-based stabilzation or destabilization.
 /// This is only a safe-guard since the compiler must not schedule the GC during stabilization
 /// and destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn stop_gc_before_stabilization() {
     stop_gc();
 }
 
 /// Start the GC after completed incremental graph-copy-based destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn start_gc_after_destabilization() {
     resume_gc();
 }

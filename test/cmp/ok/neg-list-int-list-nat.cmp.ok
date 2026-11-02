@@ -1,5 +1,5 @@
-(unknown location): Compatibility error [M0170], the new type of stable variable `ln` is not compatible with the previous version.
- The previous type
+(unknown location): Compatibility error [M0170], stable variable `ln` is not compatible with the previous version.
+Previous type
   List<Int> = ?(Int, List<Int>)
  is not a subtype of
   List<Nat> = ?(Nat, List<Nat>)
@@ -8,9 +8,10 @@
  is not compatible with type 
   Nat
  in `List` (used by `ln`).
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
-(unknown location): Compatibility error [M0170], the new type of stable variable `lnn` is not compatible with the previous version.
- The previous type
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+(unknown location): Compatibility error [M0170], stable variable `lnn` is not compatible with the previous version.
+Previous type
   List<(Int, Int)> = ?((Int, Int), List<(Int, Int)>)
  is not a subtype of
   List<(Nat, Nat)> = ?((Nat, Nat), List<(Nat, Nat)>)
@@ -19,5 +20,6 @@
  is not compatible with type 
   Nat
  in `List` (used by `lnn`).
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE

@@ -1,0 +1,4 @@
+and-pattern-typemismatch.mo:4.20-4.28: type error [M0117], pattern of type
+  Text
+cannot consume expected type
+  Nat

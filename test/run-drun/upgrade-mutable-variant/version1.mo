@@ -12,8 +12,8 @@ actor {
         #Option2;
     };
 
-    stable let instance = [ var #Option1: OriginalVariant ];
-    stable let alias = [ var #Option1: ExtendedVariant ];
+    let instance = [ var #Option1: OriginalVariant ];
+    let alias = [ var #Option1: ExtendedVariant ];
 
     public func test() : async () {
         // Would break type safety if not rejected by the memory compatibility check of the upgrade.

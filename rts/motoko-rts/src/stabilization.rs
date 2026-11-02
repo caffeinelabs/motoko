@@ -28,12 +28,12 @@ use core::cmp::min;
 use crate::{
     constants::KB,
     rts_trap_with,
-    stable_mem::{self, ic0_stable64_write, PAGE_SIZE},
+    stable_mem::{self, PAGE_SIZE, ic0_stable64_write},
 };
 
 use self::layout::StableValue;
 
-extern "C" {
+unsafe extern "C" {
     pub fn moc_stabilization_instruction_limit() -> u64;
     pub fn moc_stable_memory_access_limit() -> u64;
     fn ic0_performance_counter(number: u32) -> u64;

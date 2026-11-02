@@ -1,4 +1,4 @@
-persistent actor {
+actor {
 
   var c = 0;
 
@@ -16,9 +16,9 @@ persistent actor {
         #reset : Any;
       }
     }) : Bool {
-    switch (msg) {
-      case ((#set _) or (#reset _)) { false };
-      case _ { true }; // allow inc and read
+    switch msg {
+      case #set(_) or #reset(_) { false }
+      case _ { true } // allow inc and read
     }
   }
 

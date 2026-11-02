@@ -1,7 +1,7 @@
 //MOC-FLAG -A=M0240
 actor class C() {
 
-  let _ : Any = C;
+  transient let _ : Any = C;
 
   public shared ctxt func m () : async () {
      let _ : actor {} = await C();

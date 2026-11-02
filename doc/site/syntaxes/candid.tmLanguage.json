@@ -1,0 +1,631 @@
+{
+  "author": "DFINITY",
+  "fileTypes": [
+    "Candid"
+  ],
+  "keyEquivalent": "^~D",
+  "name": "Candid",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#attribute"
+    },
+    {
+      "include": "#literal"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#type"
+    },
+    {
+      "include": "#boolean"
+    }
+  ],
+  "repository": {
+    "arithmetic-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])(\\+|\\-|\\*|\\/)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.arithmetic.candid"
+    },
+    "array-type": {
+      "begin": "\\b(Array)(<)",
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.array.candid"
+        },
+        "2": {
+          "name": "punctuation.array.begin.candid"
+        }
+      },
+      "end": "(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.array.end.candid"
+        }
+      },
+      "name": "meta.array.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "assignment-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])(\\+|\\-|\\*|\\/|%|<<>?|<?>>|&|\\^|\\||&&|\\|\\|)?=(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.assignment.candid"
+    },
+    "attribute": {
+      "comment": "attribute",
+      "name": "meta.attribute.candid",
+      "patterns": [
+        {
+          "begin": "((@)(\\B\\$[0-9]+|\\b[\\w^\\d][\\w\\d]*\\b|\\B`[\\w^\\d][\\w\\d]*`\\B))(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.modifier.attribute.candid"
+            },
+            "2": {
+              "name": "punctuation.definition.attribute.candid"
+            },
+            "3": {
+              "name": "punctuation.definition.attribute-arguments.begin.candid"
+            }
+          },
+          "contentName": "meta.attribute.arguments.candid",
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.attribute-arguments.end.candid"
+            }
+          },
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "storage.modifier.attribute.candid"
+            },
+            "2": {
+              "name": "punctuation.definition.attribute.candid"
+            }
+          },
+          "match": "((@)(\\B\\$[0-9]+|\\b[\\w^\\d][\\w\\d]*\\b|\\B`[\\w^\\d][\\w\\d]*`\\B))"
+        }
+      ]
+    },
+    "bitwise-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])(&|\\||\\^|<<>?|<?>>)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.bitwise.candid"
+    },
+    "block-comment": {
+      "begin": "/\\*",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.block.begin.candid"
+        }
+      },
+      "comment": "Block comment",
+      "end": "\\*/",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.block.end.candid"
+        }
+      },
+      "name": "comment.block.candid"
+    },
+    "boolean": {
+      "match": "\\b(true|false)\\b",
+      "name": "keyword.constant.boolean.candid"
+    },
+    "branch-statement-keyword": {
+      "name": "keyword.control.branch.candid",
+      "patterns": [
+        {
+          "include": "#if-statement-keyword"
+        },
+        {
+          "include": "#switch-statement-keyword"
+        }
+      ]
+    },
+    "catch-statement-keyword": {
+      "comment": "catch-statement",
+      "match": "\\b(catch|do)\\b",
+      "name": "kewyord.control.catch.candid"
+    },
+    "code-block": {
+      "begin": "(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.code-block.begin.candid"
+        }
+      },
+      "comment": "code-block",
+      "end": "(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.code-block.end.candid"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "comment": {
+      "comment": "All comment types",
+      "patterns": [
+        {
+          "include": "#documentation-comment"
+        },
+        {
+          "include": "#block-comment"
+        },
+        {
+          "include": "#in-line-comment"
+        }
+      ]
+    },
+    "comparative-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])((=|!)==?|(<|>)=?|~=)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.comparative.candid"
+    },
+    "control-transfer-statement-keyword": {
+      "comment": "control-transfer-statement",
+      "match": "\\b(continue|break|return)\\b",
+      "name": "keyword.control.transfer.candid"
+    },
+    "custom-operator": {
+      "patterns": [
+        {
+          "match": "(?<=[\\s(\\[{,;:])([/=\\-+!*%<>&|\\^~.]++)(?![\\s)\\]},;:])",
+          "name": "keyword.operator.custom.prefix.unary.candid"
+        },
+        {
+          "match": "(?<![\\s(\\[{,;:])([/=\\-+!*%<>&|\\^~.]++)(?![\\s)\\]},;:\\.])",
+          "name": "keyword.operator.custom.postfix.unary.candid"
+        },
+        {
+          "match": "(?<=[\\s(\\[{,;:])([/=\\-+!*%<>&|\\^~.]++)(?=[\\s)\\]},;:])",
+          "name": "keyword.operator.custom.binary.candid"
+        }
+      ]
+    },
+    "declaration-modifier": {
+      "comment": "declaration-modifier",
+      "match": "\\b(class|object|type|shared)\\b",
+      "name": "keyword.other.declaration-modifier.candid"
+    },
+    "dictionary-type": {
+      "begin": "\\b(Dictionary)(<)",
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.dictionary.candid"
+        },
+        "2": {
+          "name": "punctuation.dictionary.begin.candid"
+        }
+      },
+      "end": "(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.dictionary.end.candid"
+        }
+      },
+      "name": "meta.dictionary.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "documentation-comment": {
+      "begin": "/\\*\\*",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.block.documentation.begin.candid"
+        }
+      },
+      "comment": "Documentation comment",
+      "end": "\\*/",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.block.documentation.end.candid"
+        }
+      },
+      "name": "comment.block.documentation.candid"
+    },
+    "floating-point-literal": {
+      "name": "constant.numeric.floating-point.candid",
+      "patterns": [
+        {
+          "comment": "floating-point-literal -> (decimal-literal)(decimal-fraction)?(decimal-exponent)?",
+          "match": "\\b([0-9][0-9_]*)(\\.([0-9][0-9_]*))?([eE][+\\-]?([0-9][0-9_]*))?\\b"
+        },
+        {
+          "comment": "floating-point-literal -> (hexadecimal-literal)(hexadecimal-fraction)?(hexadecimal-exponent)",
+          "match": "\\b(0x\\h[\\h_]*)(\\.(0x\\h[\\h_]*))?([pP][+\\-]?(0x\\h[\\h_]*))\\b"
+        }
+      ]
+    },
+    "function-body": {
+      "comment": "function-body",
+      "name": "meta.function-body.candid",
+      "patterns": [
+        {
+          "include": "#code-block"
+        }
+      ]
+    },
+    "generic-parameter-clause": {
+      "begin": "(<)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.generic-parameter-clause.begin.candid"
+        }
+      },
+      "comment": "generic-parameter-clause",
+      "end": "(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.generic-parameter-clause.end.candid"
+        }
+      },
+      "name": "meta.generic-parameter-clause.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "identifier": {
+      "comment": "identifier",
+      "match": "(\\B\\$[0-9]+|\\b[\\w^\\d][\\w\\d]*\\b|\\B`[\\w^\\d][\\w\\d]*`\\B)",
+      "name": "meta.identifier.candid"
+    },
+    "if-statement-keyword": {
+      "comment": "if-statement",
+      "match": "\\b(if|else)\\b",
+      "name": "keyword.control.if.candid"
+    },
+    "in-line-comment": {
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.comment.line.double-slash.candid"
+        }
+      },
+      "comment": "In-line comment",
+      "match": "(//).*",
+      "name": "comment.line.double-slash.candid"
+    },
+    "increment-decrement-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])(\\+\\+|\\-\\-)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.increment-or-decrement.candid"
+    },
+    "integer-literal": {
+      "name": "constant.numeric.integer.candid",
+      "patterns": [
+        {
+          "comment": "binary-literal",
+          "match": "(\\B\\-|\\b)(0b[01][01_]*)\\b",
+          "name": "constant.numeric.integer.binary.candid"
+        },
+        {
+          "comment": "octal-literal",
+          "match": "(\\B\\-|\\b)(0o[0-7][0-7_]*)\\b",
+          "name": "constant.numeric.integer.octal.candid"
+        },
+        {
+          "comment": "decimal-literal",
+          "match": "(\\B\\-|\\b)([0-9][0-9_]*)\\b",
+          "name": "constant.numeric.integer.decimal.candid"
+        },
+        {
+          "comment": "hexadecimal-literal",
+          "match": "(\\B\\-|\\b)(0x\\h[\\h_]*)\\b",
+          "name": "constant.numeric.integer.hexadecimal.candid"
+        }
+      ]
+    },
+    "resolved-type": {
+      "comment": "Resolved types",
+      "match": "\\b[A-Z].*?\\b",
+      "name": "support.type.candid"
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "include": "#branch-statement-keyword"
+        },
+        {
+          "include": "#control-transfer-statement-keyword"
+        },
+        {
+          "include": "#loop-statement-keyword"
+        },
+        {
+          "include": "#catch-statement-keyword"
+        },
+        {
+          "include": "#async-await-keyword"
+        },
+        {
+          "include": "#operator-declaration-modifier"
+        },
+        {
+          "include": "#declaration-modifier"
+        },
+        {
+          "comment": "declaration keyword",
+          "match": "\\b(import|service|type)\\b",
+          "name": "keyword.declaration.candid"
+        },
+        {
+          "comment": "statement keyword",
+          "match": "\\b(opt|vec|record|variant|func|null|empty|oneway|query|composite_query)\\b",
+          "name": "keyword.statement.candid"
+        },
+        {
+          "comment": "other keyword",
+          "match": "\\b(reserved)\\b",
+          "name": "keyword.other.candid"
+        }
+      ]
+    },
+    "literal": {
+      "patterns": [
+        {
+          "include": "#integer-literal"
+        },
+        {
+          "include": "#floating-point-literal"
+        },
+        {
+          "include": "#nil-literal"
+        },
+        {
+          "include": "#string-literal"
+        },
+        {
+          "include": "#char-literal"
+        }
+      ]
+    },
+    "logical-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])(!|&&|\\|\\|)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.logical.candid"
+    },
+    "loop-statement-keyword": {
+      "comment": "loop-statement",
+      "match": "\\b(while|repeat|for|in|loop)\\b",
+      "name": "keyword.control.loop.candid"
+    },
+    "async-await-keyword": {
+      "comment": "async-await-literal",
+      "match": "\\b(async|await)\\b",
+      "name": "keyword.async-await.candid"
+    },
+    "null-literal": {
+      "comment": "null-literal",
+      "match": "\\bnull\\b",
+      "name": "constant.null.candid"
+    },
+    "operator": {
+      "patterns": [
+        {
+          "include": "#comparative-operator"
+        },
+        {
+          "include": "#assignment-operator"
+        },
+        {
+          "include": "#logical-operator"
+        },
+        {
+          "include": "#remainder-operator"
+        },
+        {
+          "include": "#increment-decrement-operator"
+        },
+        {
+          "include": "#overflow-operator"
+        },
+        {
+          "include": "#range-operator"
+        },
+        {
+          "include": "#bitwise-operator"
+        },
+        {
+          "include": "#arithmetic-operator"
+        },
+        {
+          "include": "#ternary-operator"
+        },
+        {
+          "include": "#type-casting-operator"
+        },
+        {
+          "include": "#custom-operator"
+        }
+      ]
+    },
+    "optional-type": {
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.optional.candid"
+        },
+        "2": {
+          "name": "punctuation.optional.begin.candid"
+        }
+      },
+      "end": "(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.optional.end.candid"
+        }
+      },
+      "match": "\\b(Optional)(<)",
+      "name": "meta.optional.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "overflow-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])\\&(\\+|\\-|\\*|\\/|%)(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.overflow.candid"
+    },
+    "parameter-clause": {
+      "begin": "(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.function-arguments.begin.candid"
+        }
+      },
+      "comment": "parameter-clause",
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.function-arguments.end.candid"
+        }
+      },
+      "name": "meta.parameter-clause.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "primitive-type": {
+      "comment": "Primitive types",
+      "match": "\\b(blob|bool|char|float(32|64)|(int|nat)(8|16|32|64)?|principal|text)\\b",
+      "name": "support.type.candid"
+    },
+    "protocol-composition-type": {
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.protocol.candid"
+        },
+        "2": {
+          "name": "punctuation.protocol.begin.candid"
+        }
+      },
+      "end": "(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.protocol.end.candid"
+        }
+      },
+      "match": "\\b(protocol)(<)",
+      "name": "meta.protocol.candid",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "range-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])\\.\\.(?:\\.)?(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.range.candid"
+    },
+    "remainder-operator": {
+      "match": "(?<![/=\\-+!*%<>&|\\^~.])\\%(?![/=\\-+!*%<>&|\\^~.])",
+      "name": "keyword.operator.remainder.candid"
+    },
+    "string-literal": {
+      "begin": "\\\"",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.candid"
+        }
+      },
+      "end": "\\\"",
+      "endCaptures": {
+        "0": {
+          "name": "string.quoted.double.candid"
+        }
+      },
+      "name": "meta.literal.string.candid",
+      "patterns": [
+        {
+          "match": "\\\\([0tnr\\\"\\'\\\\]|x\\h{2}|u\\h{4}|U\\h{8})",
+          "name": "constant.character.escape.candid"
+        },
+        {
+          "match": "(\\\"|\\\\)",
+          "name": "invalid.illegal.candid"
+        },
+        {
+          "match": "(.)",
+          "name": "string.quoted.double.candid"
+        }
+      ]
+    },
+    "char-literal": {
+      "begin": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "string.quoted.double.candid"
+        }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": {
+          "name": "string.quoted.single.candid"
+        }
+      },
+      "name": "meta.literal.char.candid",
+      "patterns": [
+        {
+          "match": "\\\\([0tnr\\\"\\'\\\\]|x\\h{2}|u\\h{4}|U\\h{8})",
+          "name": "constant.character.escape.candid"
+        },
+        {
+          "match": "(\\'|\\\\)",
+          "name": "invalid.illegal.candid"
+        },
+        {
+          "match": "(.)",
+          "name": "string.quoted.single.candid"
+        }
+      ]
+    },
+    "switch-statement-keyword": {
+      "comment": "switch-statement",
+      "match": "\\b(switch|case|default)\\b",
+      "name": "keyword.control.switch.candid"
+    },
+    "type": {
+      "comment": "type",
+      "patterns": [
+        {
+          "include": "#primitive-type"
+        },
+        {
+          "include": "#resolved-type"
+        },
+        {
+          "include": "#optional-type"
+        },
+        {
+          "include": "#protocol-composition-type"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.did",
+  "uuid": "c4ecff80-b7f4-46c9-97e6-3c009d7ad198"
+}

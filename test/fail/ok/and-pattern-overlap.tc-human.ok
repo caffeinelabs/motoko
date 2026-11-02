@@ -1,0 +1,4 @@
+error[M0260]: variable `a` bound in both branches of and-pattern
+    ┌─ and-pattern-overlap.mo:1:20
+  1 │  let (a : Nat) and (a : Nat) = 5;
+    │                     ^ 

@@ -129,74 +129,10 @@ pub fn ic_mem_fn(attr: TokenStream, input: TokenStream) -> TokenStream {
         #fun
 
         #[cfg(feature = "ic")]
-        #[export_name = #fn_name]
+        #[unsafe(export_name = #fn_name)]
         unsafe extern "C" fn #fn_wrapper_ident(#(#wrapper_params_syn,)*) #wrapper_ret {
             #fn_ident(&mut crate::memory::ic::IcMemory, #(#wrapper_args_syn,)*)
         }
     )
     .into()
-}
-
-/// Feature macro for incremental GC features, in particular forwarding pointers.
-/// Equivalent to using the attribute `#[cfg(feature = "incremental_gc")]`.
-#[proc_macro_attribute]
-pub fn incremental_gc(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(feature = "incremental_gc")]
-        #block
-    )
-    .into()
-}
-
-/// Feature macro for non-incremental GC features, in particular forwarding pointers.
-/// Equivalent to using the attribute `#[cfg(not(feature = "incremental_gc"))]`.
-#[proc_macro_attribute]
-pub fn non_incremental_gc(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(not(feature = "incremental_gc"))]
-        #block
-    )
-    .into()
-}
-
-#[proc_macro]
-pub fn is_incremental_gc(_item: TokenStream) -> TokenStream {
-    "cfg!(feature = \"incremental_gc\")".parse().unwrap()
-}
-
-/// Feature macro for enhanced orthogonal persistence.
-/// Equivalent to using the attribute `#[cfg(feature = "enhanced_orthogonal_persistence")]`.
-#[proc_macro_attribute]
-pub fn enhanced_orthogonal_persistence(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(feature = "enhanced_orthogonal_persistence")]
-        #block
-    )
-    .into()
-}
-
-/// Feature macro for classical persistence, based on Candid stabilization.
-/// Equivalent to using the attribute `#[cfg(not(feature = "enhanced_orthogonal_persistence"))]`.
-#[proc_macro_attribute]
-pub fn classical_persistence(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(not(feature = "enhanced_orthogonal_persistence"))]
-        #block
-    )
-    .into()
-}
-
-#[proc_macro]
-pub fn uses_enhanced_orthogonal_persistence(_item: TokenStream) -> TokenStream {
-    "cfg!(feature = \"enhanced_orthogonal_persistence\")"
-        .parse()
-        .unwrap()
 }

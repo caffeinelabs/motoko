@@ -1,6 +1,6 @@
 import Principal = "mo:core/Principal";
 
-persistent actor {
+actor {
 
   var c = 0;
 
@@ -20,12 +20,12 @@ persistent actor {
         #reset : Any;
       }
     }) : Bool {
-    if (Principal.isAnonymous(caller)) return false;
-    if (arg.size() > 512) return false;
-    switch (msg) {
-      case (#set n) { n() != 13 };
-      case (#reset _) { false };
-      case _ { true }; // allow inc and read
+    if Principal.isAnonymous(caller) { return false };
+    if arg.size() > 512 { return false };
+    switch msg {
+      case #set(n) { n() != 13 }
+      case #reset(_) { false }
+      case _ { true } // allow inc and read
     }
   }
 

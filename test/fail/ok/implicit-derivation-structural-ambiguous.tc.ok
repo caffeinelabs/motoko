@@ -1,0 +1,3 @@
+implicit-derivation-structural-ambiguous.mo:16.32-16.34: type error [M0231], ambiguous implicit argument named `_toJson` of type 
+  {x : Int} -> Json.Json.
+note: The ambiguous implicit candidates are: `AltRecordJson._toJson`, `RecordJson._toJson`.

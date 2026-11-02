@@ -117,6 +117,7 @@ let rec exp msgs e : f = match e.it with
   | BinE (_, e1, _, e2)
   | RelE (_, e1, _, e2)
   | AndE (e1, e2)
+  | NullCoalesceE (e1, e2)
   | OrE (e1, e2) -> exps msgs [e1; e2]
   | ForE (p, e1, e2, _)    -> exp msgs e1 ++ (exp msgs e2 /// pat msgs p)
   | AsyncE (Some par, _, _, e) -> exps msgs [par; e]
@@ -156,6 +157,7 @@ and pat msgs p : fd = match p.it with
   | OptP p
   | TagP (_, p)   -> pat msgs p
   | AltP (p1, p2) -> pat msgs p1 ++++ pat msgs p2
+  | AndP (p1, p2) -> pat msgs p1 ++++ pat msgs p2
 
 and pats msgs ps : fd = union_binders (pat msgs) ps
 
@@ -195,9 +197,9 @@ and dec msgs d = match d.it with
      delayify (
       group msgs (add_self (Some i')  s (dec_fields msgs dfs)) /// pat msgs p /// shared_pat msgs csp
     )
-  | MixinD (p, ds) ->
+  | MixinD (_, p, ds) ->
      (group msgs (dec_fields msgs ds) /// pat msgs p, S.empty)
-  | IncludeD (_, e, _) ->
+  | IncludeD (_, _, e, _) ->
      (exp msgs e, S.empty)
 
 (* The self binding, if any, is treated as defined at the very beginning or end of the group,

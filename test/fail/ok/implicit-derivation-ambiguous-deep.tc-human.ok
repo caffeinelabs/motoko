@@ -1,0 +1,7 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ([Nat], [Nat]) -> Order
+    ┌─ implicit-derivation-ambiguous-deep.mo:31:8
+ 31 │  ignore needsCompare([1], [2]); // Array.compare is unique head, but inner Nat compare is ambiguous
+    │         ^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `compare : (Nat, Nat) -> Order` has ambiguous solutions: `MyNat.compare`, `Nat.compare`

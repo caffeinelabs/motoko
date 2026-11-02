@@ -1,0 +1,6 @@
+service : {
+  /// Doc for mixin method delta.
+  delta: () -> (nat);
+  /// Doc for direct method gamma.
+  gamma: () -> (text);
+}

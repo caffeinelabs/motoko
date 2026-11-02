@@ -6,7 +6,7 @@ actor {
     #two : { key : Nat; var name : Text };
   };
 
-  stable var root : Variant = #two { key = 1; var name = "TEST" };
+  var root : Variant = #two { key = 1; var name = "TEST" };
 
   public func modify() : async () {
     switch root {

@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0145
 import Prim "mo:⛔";
 
 // test compilation of local async functions with non-trivial patterns
@@ -22,17 +22,17 @@ actor a {
   // desugared versions
 
   // trivial argument pattern
-  func g0(r : { trap : Bool }) : async () = async {
+  func g0(r : { trap : Bool }) : async () {
     Prim.debugPrint ("g0");
   };
 
   // irrefutable argument pattern
-  func g1({ trap : Bool }) : async () = async {
+  func g1({ trap : Bool }) : async () {
     Prim.debugPrint ("g1");
   };
 
   // refutable argument
-  func g2({ trap = false : Bool }) : async () = async {
+  func g2({ trap = false : Bool }) : async () {
     Prim.debugPrint ("g2");
   };
 

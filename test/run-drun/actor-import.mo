@@ -4,14 +4,14 @@
 // this imports our own IDL, stored in actor-import
 
 // currently hard-codes the `drun` self id
-// once we have actor aliases we can let run.sh set an alias.
+// once we have actor aliases we can let run-test set an alias.
 
 import imported1 "ic:rwlgt-iiaaa-aaaaa-aaaaa-cai";
 import imported2 "canister:self";
 actor {
-  public func go() : async (actor {}) = async imported1;
-  public func go2() : async (actor {}) = async await (imported1.go());
-  public func go3() : async (actor {}) = async await (imported2.go());
+  public func go() : async (actor {}) { imported1 };
+  public func go2() : async (actor {}) { await (imported1.go()) };
+  public func go3() : async (actor {}) { await (imported2.go()) };
 };
 //CALL ingress go "DIDL\x00\x00"
 //CALL ingress go2 "DIDL\x00\x00"

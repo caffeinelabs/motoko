@@ -5,7 +5,7 @@ import Error = "mo:core/Error";
 
 // Define an actor
 
-persistent actor {
+actor {
 
   // Create a random number generator using cryptographic entropy:
   transient let random = Random.crypto();
@@ -24,7 +24,7 @@ persistent actor {
     let ?cards = deck else throw Error.reject("shuffle in progress");
     deck := null;
     var i : Nat = cards.size() - 1;
-    while (i > 0) {
+    while i > 0 {
       let j = await* random.natRange(0, i + 1);
       let temp = cards[i];
       cards[i] := cards[j];
@@ -38,7 +38,7 @@ persistent actor {
   public query func show() : async Text {
     let ?cards = deck else throw Error.reject("shuffle in progress");
     var t = "";
-    for (card in cards.values()) {
+    for card in cards.values() {
        t #= Char.toText(card);
     };
     t;

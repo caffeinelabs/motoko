@@ -1,10 +1,10 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.did
+	run-test $(RUNFLAGS) *.did
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.did
+	run-test $(RUNFLAGS) -a *.did
 
 clean:
 	rm -rf _out

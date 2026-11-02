@@ -85,6 +85,7 @@ e(Nat) = nat
 e(Int) = int
 e(Nat<n>) = nat<n> for n = 8, 16, 32, 64
 e(Int<n>) = int<n> for n = 8, 16, 32, 64
+e(Float32) = float32
 e(Float) = float64
 e(Char) = nat32
 e(Text) = text
@@ -135,7 +136,7 @@ i(nat) = Nat
 i(int) = Int
 i(nat<n>) = Nat<n> for n = 8, 16, 32, 64
 i(int<n>) = Int<n> for n = 8, 16, 32, 64
-// i(float32) not defined
+i(float32) = Float32
 i(float64) = Float
 i(text) = Text
 i(reserved) = Any
@@ -255,9 +256,6 @@ escape_method <name> = (* failure, unsupported *)
    ∀ t1 t2 : dom(e), t1 <: t2 ⟹ e(t1) <: e(t2)
    ```
    In other words: Motoko subtyping must be contained in IDL subtyping.
-
- * There is no way to produce `float32`.
-   Importing interfaces that contain `float32` types fails.
 
  * The functions `escape`/`unescape` ensure round-tripping of IDL field names
    through Motoko types. See `IDL-Motoko.proofs.md` for details.

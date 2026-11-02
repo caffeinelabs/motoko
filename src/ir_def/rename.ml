@@ -144,6 +144,10 @@ and pat' rho = function
     end;
     let rho' = ids_bind rho is1 in
     (AltP (pat_subst rho' p1, pat_subst rho' p2), rho')
+  | AndP (p1, p2) ->
+    let p1', rho'  = pat rho p1 in
+    let p2', rho'' = pat rho' p2 in
+    (AndP (p1', p2'), rho'')
 
 and pats rho ps  =
   match ps with
@@ -173,6 +177,8 @@ and pat_subst' rho = function
     TagP (i, pat_subst rho p)
   | AltP (p1, p2) ->
     AltP (pat_subst rho p1, pat_subst rho p2)
+  | AndP (p1, p2) ->
+    AndP (pat_subst rho p1, pat_subst rho p2)
 
 and pats_subst rho ps =
   List.map (pat_subst rho) ps
@@ -198,10 +204,6 @@ and dec' rho = function
   | VarD (i, t, e) ->
      let i', rho = id_bind rho i in
      (fun rho' -> VarD (i', t, exp rho' e)),
-     rho
-  | RefD (i, t, le) ->
-     let i', rho = id_bind rho i in
-     (fun rho' -> RefD (i', t, lexp rho' le)),
      rho
 
 and decs rho ds =

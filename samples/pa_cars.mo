@@ -20,7 +20,7 @@ type CarInfo = {
 persistent actor class PACars(dmv : DMV) {
   public func verifyCarInformation(user : User, car : Car) : async ?(shared (Location, TimeSpan) -> async Result) {
     let carInfo = await dmv.check(car);
-    if (carInfo.isValid and not carInfo.wasStolen) {
+    if carInfo.isValid and not carInfo.wasStolen {
       return ?(shared func (location : Location, time : TimeSpan) : async Result {
         return reserveSpot(user, carInfo, location, time);
       })

@@ -16,7 +16,7 @@ let
   };
 
   testDerivationDeps =
-    (with pkgs; [ wabt bash perl getconf moreutils nodejs_24 ]) ++
+    (with pkgs; [ wabt bash perl getconf moreutils nodejs-slim]) ++
     [ filecheck pkgs.wasmtime ];
 
   filecheck = pkgs.runCommand "FileCheck" { } ''
@@ -26,7 +26,7 @@ let
 
   # extra deps for test/ld
   ldTestDeps =
-    with pkgs.llvmPackages_19; [ lld clang ];
+    with pkgs.llvmPackages_21; [ lld clang ];
 
   testDerivation = args:
     pkgs.stdenv.mkDerivation (testDerivationArgs // args);
@@ -43,7 +43,8 @@ let
         type != "directory"
         || hasPrefix "${dir}/" "${relPath}/"
         || hasPrefix "core-stub/" "${relPath}/"
-        || hasPrefix "base-stub/" "${relPath}/";
+        || hasPrefix "base-stub/" "${relPath}/"
+        || hasPrefix "json-stub/" "${relPath}/";
       src = ../test;
       name = "test-${dir}-src";
     };
@@ -59,8 +60,8 @@ let
         export ESM=${esm}
         export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
-        ${if dir == "run-drun" 
-          then "make -C ${dir}${pkgs.lib.optionalString (pkgs.stdenv.hostPlatform.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
+        ${if dir == "run-drun" && pkgs.stdenv.hostPlatform.system != "x86_64-darwin" && !accept
+          then "test-runner -b -j 4 ${dir}"
           else "make -C ${dir}${pkgs.lib.optionalString accept " accept"}"
         }
       '';
@@ -81,31 +82,6 @@ let
   snty_subdir = dir: deps:
     (test_subdir dir deps).overrideAttrs {
       EXTRA_MOC_ARGS = "--sanity-checks";
-    };
-
-  snty_compacting_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --compacting-gc";
-    };
-
-  snty_generational_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --generational-gc";
-    };
-
-  snty_incremental_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --incremental-gc";
-    };
-
-  enhanced_orthogonal_persistence_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--enhanced-orthogonal-persistence";
-    };
-
-  snty_enhanced_orthogonal_persistence_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --enhanced-orthogonal-persistence";
     };
 
   perf_subdir = accept: dir: deps:
@@ -171,24 +147,6 @@ let
     '';
   };
 
-  # wasm-profiler is not compatible with passive data segments and memory64
-  # profiling-graphs = testDerivation {
-  #  src = test_src "perf";
-  #  buildInputs =
-  #    (with pkgs; [ perl wabt wasm-profiler-instrument wasm-profiler-postproc flamegraph-bin ]) ++
-  #    [ moc pkgs.drun ];
-  #  checkPhase = ''
-  #    patchShebangs .
-  #    type -p moc && moc --version
-  #    type -p drun && drun --help
-  #    ./profile-report.sh
-  #  '';
-  #  installPhase = ''
-  #    mv _profile $out;
-  #    mkdir -p $out/nix-support
-  #    echo "report flamegraphs $out index.html" >> $out/nix-support/hydra-build-products
-  #  '';
-  #};
   fix_names = builtins.mapAttrs (name: deriv:
     deriv.overrideAttrs { name = "test-${name}"; }
   );
@@ -198,9 +156,12 @@ let
     src = ../test;
     buildInputs =
       builtins.attrValues coverage_bins ++
-      [ pkgs.ocamlPackages.bisect_ppx ] ++
+      [ pkgs.ocamlPackages.bisect_ppx test-runner pkgs.pocket-ic.server pkgs.cacert ] ++
       testDerivationDeps ++
       ldTestDeps;
+
+    POCKET_IC_BIN = "${pkgs.pocket-ic.server}/bin/pocket-ic-server";
+    SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
     checkPhase = ''
       patchShebangs .
@@ -224,27 +185,17 @@ let
 in
 fix_names
   {
-    run-release = test_subdir "run" [ moc ];
-    run-debug = snty_subdir "run" [ moc ];
-    run-eop-release = enhanced_orthogonal_persistence_subdir "run" [ moc ];
-    run-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run" [ moc ];
+    run-release = test_subdir "run" [ moc test-runner ];
+    run-debug = snty_subdir "run" [ moc test-runner ];
     drun-release = test_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-debug = snty_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-compacting-gc = snty_compacting_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-generational-gc = snty_generational_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-incremental-gc = snty_incremental_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-eop-release = enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    fail = test_subdir "fail" [ moc ];
-    repl = test_subdir "repl" [ moc ];
-    ld = test_subdir "ld" ([ mo-ld ] ++ ldTestDeps);
-    ld-eop = enhanced_orthogonal_persistence_subdir "ld" ([ mo-ld ] ++ ldTestDeps);
-    idl = test_subdir "idl" [ didc ];
-    mo-idl = test_subdir "mo-idl" [ moc didc ];
-    mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc ];
+    fail = test_subdir "fail" [ moc test-runner ];
+    repl = test_subdir "repl" [ moc test-runner ];
+    ld = test_subdir "ld" ([ mo-ld test-runner ] ++ ldTestDeps);
+    idl = test_subdir "idl" [ didc test-runner ];
+    mo-idl = test_subdir "mo-idl" [ moc didc test-runner ];
     mo-doc = test_subdir "mo-doc" [ mo-doc ];
-    trap = test_subdir "trap" [ moc ];
-    trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc ];
+    trap = test_subdir "trap" [ moc test-runner ];
     run-deser = test_subdir "run-deser" [ deser ];
     perf = perf_subdir false "perf" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     # TODO: profiling-graph is excluded because the underlying parity_wasm is deprecated and does not support passive data segments and memory64.

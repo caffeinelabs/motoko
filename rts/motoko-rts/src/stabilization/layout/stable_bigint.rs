@@ -1,15 +1,15 @@
 use crate::bigint::mp_calloc;
 use crate::memory::Memory;
 use crate::stabilization::deserialization::stable_memory_access::StableMemoryAccess;
+use crate::stabilization::serialization::SerializationContext;
 use crate::stabilization::serialization::stable_memory_stream::{
     ScanStream, StableMemoryStream, WriteStream,
 };
-use crate::stabilization::serialization::SerializationContext;
 use crate::tommath_bindings::mp_digit;
-use crate::types::{size_of, BigInt, Bytes, Value, TAG_BIGINT};
+use crate::types::{BigInt, Bytes, TAG_BIGINT, Value, size_of};
 
 use super::{
-    round_to_u64, Serializer, StableObjectKind, StableToSpace, StableValue, StaticScanner,
+    Serializer, StableObjectKind, StableToSpace, StableValue, StaticScanner, round_to_u64,
 };
 
 // Tom's math library, as configured for Motoko RTS with 64-bit enhanced orthogonal persistence,

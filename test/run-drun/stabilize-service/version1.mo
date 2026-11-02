@@ -12,7 +12,7 @@ actor this {
         test1() : async ();
     };
 
-    stable var instance : ?ReducedActor = null;
+    var instance : ?ReducedActor = null;
 
     public func initialize() : async () {
         Cycles.add<system>(2_000_000_000_000);
@@ -20,11 +20,7 @@ actor this {
     };
 
     public func test() : async () {
-        switch instance {
-            case (?instance) {
-                await instance.test1();
-            };
-            case null Prim.trap("Null");
-        };
+        let inst = instance ?? Prim.trap("Null");
+        await inst.test1();
     };
 };

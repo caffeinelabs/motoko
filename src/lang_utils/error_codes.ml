@@ -65,7 +65,7 @@ let error_codes : (string * string option) list =
     "M0060", None; (* Operator is not defined for operand types *)
     "M0063", None; (* Show is not defined for operand type *)
     "M0064", None; (* Misplaced '!' without enclosing do block *)
-    "M0065", None; (* Expected option type before '!' *)
+    "M0065", None; (* Expected option type (before '!' or '??') *)
     "M0066", None; (* Tuple projection is out of bounds *)
     "M0067", None; (* Expected tuple type *)
     "M0068", None; (* Actors are not supported *)
@@ -77,8 +77,8 @@ let error_codes : (string * string option) list =
     "M0075", None; (* Expected array type *)
     "M0076", None; (* Shared functions are not supported *)
     "M0077", None; (* Shared function is only allowed as a public field of an actor *)
-    "M0078", None; (* Shared function with () result type has unexpected body *)
-    "M0079", None; (* Shared function with async result type has non-async body *)
+    "M0078", None; (* Shared function with () result type has unexpected body. Retired: such bodies are now implicitly `ignore async` *)
+    "M0079", None; (* Shared function with async result type has non-async body. Retired: such bodies are now implicitly `async` *)
     (* "M0080" DEFUNCT Local class type is contained in inferred block type *)
     "M0082", None; (* Expected iterable type *)
     "M0083", None; (* Unbound label *)
@@ -110,7 +110,7 @@ let error_codes : (string * string option) list =
     "M0111", None; (* Operator pattern cannot consume type *)
     "M0112", None; (* Tuple pattern cannot consume type *)
     "M0113", None; (* Object pattern cannot consume type *)
-    "M0114", None; (* Object pattern cannot consume actor type *)
+    (* "M0114" DEFUNCT Object pattern cannot consume values from actor type *)
     "M0115", None; (* Option pattern cannot consume type *)
     "M0116", None; (* Variant pattern cannot consume type *)
     "M0117", None; (* Pattern cannot consume type *)
@@ -130,12 +130,14 @@ let error_codes : (string * string option) list =
     "M0132", None; (* Misplaced stability declaration *)
     "M0133", None; (* Misplaced stability modifier *)
     "M0134", None; (* Class body type mismatch *)
+    "M0135", None; (* Actor class has non-async return type. Retired: such classes are now rejected with M0193 *)
     "M0136", None; (* Empty block type mismatch *)
     "M0137", Some([%blob "lang_utils/error_codes/M0137.md"]); (* Type definition references type parameter from outer scope *)
     "M0138", None; (* Actor classes are not supported *)
     "M0139", None; (* Inner actor classes are not supported *)
     "M0140", None; (* Actor classes with type parameters are not supported *)
     "M0141", Some([%blob "lang_utils/error_codes/M0141.md"]); (* An actor or actor class must be the only non-imported declaration in a program *)
+    "M0142", None; (* An imported library should be a module or named actor class *)
     "M0143", None; (* Imported actor class cannot be anonymous *)
     "M0144", None; (* Expected a module or actor class *)
     (* "M0147" DEFUNCT Object syntax is deprecated in this position *)
@@ -156,7 +158,7 @@ let error_codes : (string * string option) list =
     "M0164", None; (* Unknown record or variant label in textual representation *)
     "M0165", None; (* Odd expected type *)
     "M0168", None; (* Type union or intersection on forward types *)
-    "M0169", None; (* Stable variable will be discarded. This may cause data loss. *)
+    "M0169", None; (* Stable variable from the previous version is implicitly discarded by the new version. This may cause data loss. *)
     "M0170", None; (* Stable variable must subtype *)
     (* "M0171" DEFUNCT Stable variable changing mutability *)
     "M0172", None; (* to_candid produces Blob, not -- *)
@@ -166,21 +168,21 @@ let error_codes : (string * string option) list =
     "M0176", None; (* from_candid requires known type from context *)
     "M0177", None; (* Bases of record extensions must not have common fields that are not overwritten *)
     "M0178", None; (* Bases of record extensions must be either objects or modules *)
-    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly *)
+    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly. DEFUNCT: record-update now shallow-copies var fields, so this is never emitted. It must stay registered while test/check-error-codes.py lists it in known_untested_codes, which requires the code to be present. *)
     "M0180", None; (* Shared function has unexpected type parameters *)
     "M0181", None; (* Verification mode assertions not allowed *)
     "M0182", None; (* Timer defined by user when -no-timer flag is specified *)
     "M0183", None; (* Incompatible async sorts *)
     "M0184", None; (* Cannot infer or-pattern, please use an annotation *)
-    "M0185", None; (* Importing Candid service constructor as instantiated service *)
-    "M0186", None; (* Send capability required (calling shared from composite) *)
-    "M0187", None; (* Send capability required (calling composite from non-composite) *)
-    "M0188", None; (* Send capability required (calling shared from query) *)
+    "M0185", Some([%blob "lang_utils/error_codes/M0185.md"]); (* Candid service constructor imported as the service it creates *)
+    "M0186", None; (* Send capability required (calling composite from non-composite) *)
+    "M0187", None; (* Send capability required (calling shared or local async from composite) *)
+    "M0188", None; (* Send capability required (calling shared or local async from query) *)
     "M0189", None; (* Different set of bindings in pattern alternatives *)
     "M0192", None; (* Object/Actor/Module body type mismatch *)
-    "M0193", None; (* Can't declare actor class to have `async*` result *)
-    "M0196", None; (* `system` capability supplied but not required *)
+    "M0193", None; (* Actor class result type is not `async` *)
     "M0197", Some([%blob "lang_utils/error_codes/M0197.md"]); (* `system` capability required *)
+    "M0199", None; (* Deprecated experimental stable memory *)
     "M0200", Some([%blob "lang_utils/error_codes/M0200.md"]); (* Cannot determine subtyping or equality *)
     "M0201", None; (* Migration produces/consumes non-stable object *)
     "M0202", None; (* Migration produces/consume non-object type *)
@@ -189,11 +191,9 @@ let error_codes : (string * string option) list =
     "M0205", None; (* Migration produces unexpected field *)
     "M0208", None; (* Missing field migration*)
     "M0209", None; (* Misplaced migration expression on module/object *)
-    "M0213", None; (* Parenthetical note on shared functions is disallowed *)
+    "M0213", None; (* Parenthetical note on shared functions is disallowed. Retired: an explicit `async` body is rejected with M0277 *)
     "M0214", None; (* Expected type of field in parenthetical note differs from inferred *)
     "M0216", None; (* Stable variable must stable subtype *)
-    "M0219", None; (* Missing `transient` *)
-    "M0220", None; (* Missing `persistent` *)
     "M0221", None; (* Failed to determine type for type pattern field *)
     "M0224", None; (* Overlapping dot resolution *)
     "M0225", None; (* A mixin cannot be used as an entry point *)
@@ -207,6 +207,7 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
+    "M0245", None; (* Cannot find best common type (Inconsistent type) *)
     "M0250", None; (* Variables without initializers only allowed in actors with --enhanced-migration flag *)
     "M0251", None; (* Enhanced migration chain validation error (bad migration type, chain broken, output mismatch) *)
     "M0252", None; (* Cannot combine (with migration = ...) with --enhanced-migration *)
@@ -216,6 +217,17 @@ let error_codes : (string * string option) list =
     "M0257", None; (* Misplaced uninitialized dec *)
     "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
     "M0259", None; (* Uninitialized dec requires type annotation *)
+    "M0260", None; (* `and`-pattern binds the same variable in both legs *)
+    "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
+    "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
+    "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
+    "M0264", None; (* mixin include requires system capability *)
+    "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
+    "M0272", Some([%blob "lang_utils/error_codes/M0272.md"]); (* Record literal in block position *)
+    "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
+    "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
+    "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
+    "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -228,20 +240,18 @@ let warning_codes = [
   "M0089", None, "Redundant ignore";
   "M0101", None, "Switch with inconsistent branch types";
   "M0128", None, "Function with system function name but wrong visibility";
-  "M0135", None, "Actor class has non-async return type";
-  "M0142", None, "An imported library should be a module or named actor class";
   "M0145", None, "Pattern does not cover value"; (* Warn or Error *)
   "M0146", None, "Pattern is never matched";
   "M0154", Some([%blob "lang_utils/error_codes/M0154.md"]), "Deprecation annotation";
   "M0155", Some([%blob "lang_utils/error_codes/M0155.md"]), "Inferred type Nat for subtraction";
-  "M0166", None, "Type intersection results in abstract type";
-  "M0167", None, "Type union results in bottom type";
+  "M0166", None, "Type intersection results in empty type `None`";
+  "M0167", None, "Type union results in top type `Any`";
   "M0190", None, "Types inconsistent for alternative pattern variables, losing information";
   "M0191", None, "Code requires Wasm features ... to execute";
   "M0194", Some([%blob "lang_utils/error_codes/M0194.md"]), "Unused identifier warning";
   "M0195", Some([%blob "lang_utils/error_codes/M0195.md"]), "warn that `system` capability is implicitly supplied";
+  "M0196", Some([%blob "lang_utils/error_codes/M0196.md"]), "The `system` capability is not required by this function";
   "M0198", Some([%blob "lang_utils/error_codes/M0198.md"]), "Unused field pattern warning";
-  "M0199", Some([%blob "lang_utils/error_codes/M0199.md"]), "Deprecate experimental stable memory"; (* Warn or Error *)
   "M0206", None, "Migration consumes, but does not produce, a declared field";
   "M0207", None, "Migration consumes, but does not produce, an un-declared field";
   "M0210", None, "Parenthetical note must be applied to a message send";
@@ -261,8 +271,15 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
-  "M0254", None, "Initial actor requires field"
-  ]
+  "M0254", None, "Initial actor requires field";
+  "M0265", None, "The `system` capability is not required by this mixin";
+  "M0266", None, "floating-point literal has more precision than its type can represent";
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
+  "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
+  "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
+  "M0276", Some([%blob "lang_utils/error_codes/M0276.md"]), "Comparison at a type with a single value";
+  "M0278", None, "File in the migration directory is not a migration module";
+]
 
 let try_find_explanation code =
   match List.find_opt (fun (c, _) -> String.equal c code) error_codes with

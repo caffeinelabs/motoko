@@ -2,16 +2,15 @@
 
 // See: https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html
 #![allow(static_mut_refs)]
+// Edition-2024 defer: rewriting every unsafe-op-in-unsafe-fn call site is a separate task.
+#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 #![feature(
     arbitrary_self_types,
-    core_intrinsics,
-    proc_macro_hygiene,
     // // We do not need simd but this flag enables `core::arch:wasm64`.
     // // See https://github.com/rust-lang/rust/issues/90599
     simd_wasm64,
-    arbitrary_self_types_pointers,
-    stmt_expr_attributes
+    arbitrary_self_types_pointers
 )]
 #![allow(internal_features)]
 
@@ -47,17 +46,13 @@ mod libc_declarations;
 pub mod mem_utils;
 pub mod memory;
 #[cfg(feature = "ic")]
-#[enhanced_orthogonal_persistence]
 pub mod persistence;
 pub mod principal_id;
 #[cfg(feature = "ic")]
 pub mod region;
-#[enhanced_orthogonal_persistence]
 pub mod stabilization;
 pub mod stable_mem;
 mod static_checks;
-#[classical_persistence]
-pub mod stream;
 pub mod text;
 pub mod text_iter;
 mod tommath_bindings;
@@ -72,19 +67,12 @@ fn version<M: memory::Memory>(mem: &mut M) -> types::Value {
     unsafe { text::text_of_str(mem, "0.1") }
 }
 
-#[non_incremental_gc]
-#[ic_mem_fn(ic_only)]
-fn alloc_words<M: memory::Memory>(mem: &mut M, n: types::Words<usize>) -> types::Value {
-    unsafe { mem.alloc_words(n) }
-}
-
-#[incremental_gc]
 #[ic_mem_fn(ic_only)]
 unsafe fn alloc_words<M: memory::Memory>(mem: &mut M, n: types::Words<usize>) -> types::Value {
     crate::gc::incremental::get_partitioned_heap().allocate(mem, n)
 }
 
-extern "C" {
+unsafe extern "C" {
     fn rts_trap(msg: *const u8, len: u32) -> !;
 }
 

@@ -2,13 +2,13 @@ use crate::{
     memory::Memory,
     stabilization::{
         deserialization::stable_memory_access::StableMemoryAccess,
-        layout::{stable_blob::StableBlob, StableObjectKind},
+        layout::{StableObjectKind, stable_blob::StableBlob},
         serialization::{
-            stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
             SerializationContext,
+            stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
         },
     },
-    types::{size_of, FwdPtr, Object, Tag, Value, Words, TAG_FWD_PTR, TAG_OBJECT},
+    types::{FwdPtr, Object, TAG_FWD_PTR, TAG_OBJECT, Tag, Value, Words, size_of},
 };
 
 use super::{Serializer, StableTag, StableToSpace, StableValue, StaticScanner};

@@ -1,10 +1,10 @@
 import Prim "mo:⛔";
 
 actor class TestActor(number : Nat, text : Text, array : [Nat]) {
-  stable var stableNat = number;
-  stable var stableInt = -number;
-  stable var stableText = text;
-  stable var stableArray = array;
+  let stableNat = number;
+  let stableInt = -number;
+  let stableText = text;
+  let stableArray = array;
 
   public func print() : async () {
     Prim.debugPrint(debug_show (number));

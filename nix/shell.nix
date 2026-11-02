@@ -45,7 +45,7 @@ pkgs.mkShell {
         pkgs.fswatch
         pkgs.rlwrap # for `rlwrap moc`
         pkgs.moreutils # `chronic` for `make -C test quick`
-        pkgs.wabt # `wasm-validate` for `test/run.sh`
+        pkgs.wabt # `wasm-validate` for `run-test`
         pkgs.openjdk
         pkgs.difftastic
         pkgs.pocket-ic.server
@@ -85,7 +85,7 @@ pkgs.mkShell {
   '';
   ESM = esm;
   TOMMATHSRC = pkgs.sources.libtommath-src;
-  LOCALE_ARCHIVE = pkgs.lib.optionalString pkgs.stdenv.isLinux "${pkgs.glibcLocales}/lib/locale/locale-archive";
+  LOCALE_ARCHIVE = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux "${pkgs.glibcLocales}/lib/locale/locale-archive";
   MOTOKO_BASE = base-src;
   MOTOKO_CORE = core-src;
   CANDID_TESTS = "${pkgs.sources.candid-src}/test";

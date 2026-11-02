@@ -58,7 +58,7 @@ let parse_and_typecheck_with_recovery s =
   | Ok (prog, _) ->
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    (match Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog with
+    (match Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog with
     | Ok (_, msgs) -> Ok (prog, msgs)
     | Error msgs -> Error msgs)
   | Error msgs -> Error msgs
@@ -94,7 +94,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 1 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -102,7 +102,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -110,7 +110,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 3 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -118,7 +118,7 @@ let%expect_test "test1" =
                   (AnnotE (LitE (PreLit 4 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -131,11 +131,11 @@ let%expect_test "test1" =
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -146,18 +146,17 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
 
     (unknown location): syntax error [M0001], unexpected token 'let', expected one of token or <phrase> sequence:
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -168,8 +167,8 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]') |}]
+      <inst> <exp_arg> (e.g. '<Int> 42')
+    |}]
 
 let%expect_test "test2" =
   let s = "actor {
@@ -198,7 +197,7 @@ let%expect_test "test2" =
                   )
                 )
                 Private
-                Flexible
+                Stable
               )
               (DecField
                 (LetD
@@ -206,7 +205,7 @@ let%expect_test "test2" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -277,7 +276,7 @@ let%expect_test "test3" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -291,6 +290,7 @@ let%expect_test "test3" =
       or <pat_bin> (e.g. 'or x')
       , seplist(<pat_bin>,,) (e.g. ', x')
       : <typ> (e.g. ': Int')
+      and <pat_bin> (e.g. 'and x')
 
     (unknown location): syntax error [M0001], unexpected token 'private', expected one of token or <phrase> sequence:
       }
@@ -298,7 +298,8 @@ let%expect_test "test3" =
 
     (unknown location): syntax error [M0001], unexpected token 'let', expected one of token or <phrase> sequence:
       }
-      ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0') |}] 
+      ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
+    |}] 
 
 
 let%expect_test "test4" =
@@ -326,22 +327,17 @@ actor Main {
               _
               Actor
               Main
-              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Flexible)
+              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Stable)
               (DecField
                 (ExpD
                   (FuncE
                     ???
                     (Query (VarP (ID test)))
                     @anon-func-7.12
-                    ($ (PrimT Any))
                     (TupP)
                     (AsyncT (PathT (IdH (ID $))) (PathT (IdH (ID Nat))))
 
-                    (AsyncE
-                      _
-                      ($@anon-func-7.12 (PrimT Any))
-                      (BlockE (ExpD (LitE (PreLit 123 Nat))))
-                    )
+                    (BlockE (ExpD (LitE (PreLit 123 Nat))))
                   )
                 )
                 Public
@@ -358,11 +354,11 @@ actor Main {
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
-      <binop> <exp(ob)> (e.g. '+ 42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -373,8 +369,7 @@ actor Main {
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
 
     (unknown location): syntax error [M0001], unexpected token '(', expected one of token or <phrase> sequence:
       func <func_pat> <annot_opt> <func_body> (e.g. 'func f(x : Int) : Int {}')
@@ -382,7 +377,8 @@ actor Main {
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test5" =
   let s = "module {
@@ -408,15 +404,10 @@ let%expect_test "test5" =
                 ???
                 (Query (VarP (ID test)))
                 @anon-func-5.12
-                ($ (PrimT Any))
                 (TupP)
                 (AsyncT (PathT (IdH (ID $))) (PathT (IdH (ID Nat))))
 
-                (AsyncE
-                  _
-                  ($@anon-func-5.12 (PrimT Any))
-                  (BlockE (ExpD (LitE (PreLit 123 Nat))))
-                )
+                (BlockE (ExpD (LitE (PreLit 123 Nat))))
               )
             )
             Public
@@ -437,7 +428,8 @@ let%expect_test "test5" =
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test type recovery 1" =
   let s = "func test_func () {
@@ -455,7 +447,7 @@ class Counter(n: Nat) {
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -594,7 +586,7 @@ let _x = M.
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -622,7 +614,7 @@ let%expect_test "test type recovery 3" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -655,7 +647,7 @@ let%expect_test "test type recovery 4" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -677,7 +669,7 @@ let%expect_test "test type recovery 5" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|

@@ -25,7 +25,7 @@ type Sub = {#c : Nat; #a : Nat};
 let ts1 : Sub = #c 25;
 func ts2(v : Super) { ignore v };
 
-let ts3 = ts2 ts1;
+ts2 ts1;
 
 // type syntax variations
 

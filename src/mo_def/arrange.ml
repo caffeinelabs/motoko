@@ -46,10 +46,9 @@ module Make (Cfg : Config) = struct
   let trivia at it =
     match Cfg.include_docs with
     | Some table ->
-      let rec lookup_trivia (line, column) =
-        Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-      and find_trivia (parser_pos : region) : Trivia.trivia_info =
-        lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
+      let find_trivia (parser_pos : region) : Trivia.trivia_info =
+        Trivia.PosHashtbl.find_opt table parser_pos.left
+        |> Option.get
       in
       (match Trivia.doc_comment_of_trivia_info (find_trivia at) with
       | Some s -> "*" $$ [Atom s; it]
@@ -103,7 +102,8 @@ module Make (Cfg : Config) = struct
     | AssignE (e1, e2)    -> "AssignE"   $$ [exp e1; exp e2]
     | ArrayE (m, es)      -> "ArrayE"    $$ [mut m] @ exps es
     | IdxE (e1, e2)       -> "IdxE"      $$ [exp e1; exp e2]
-    | FuncE (x, sp, tp, p, t, sugar, e') ->
+    | FuncE (x, sp, tp, p, t, note, e') ->
+      let tp, e' = func_elab note tp e' in
       "FuncE" $$ [
         Atom (Type.string_of_typ e.note.note_typ);
         shared_pat sp;
@@ -111,7 +111,7 @@ module Make (Cfg : Config) = struct
         List.map typ_bind tp @ [
         pat p;
         (match t with None -> Atom "_" | Some t -> typ t);
-        Atom (if sugar then "" else "=");
+        Atom (if note.braced then "" else "=");
         exp e'
       ]
     | CallE (par_opt, e1, ts, (_, e2)) -> "CallE" $$ parenthetical par_opt ([exp e1] @ inst ts @ [exp !e2])
@@ -119,6 +119,7 @@ module Make (Cfg : Config) = struct
     | NotE e              -> "NotE"    $$ [exp e]
     | AndE (e1, e2)       -> "AndE"    $$ [exp e1; exp e2]
     | OrE (e1, e2)        -> "OrE"     $$ [exp e1; exp e2]
+    | NullCoalesceE (e1, e2) -> "NullCoalesceE" $$ [exp e1; exp e2]
     | IfE (e1, e2, e3)    -> "IfE"     $$ [exp e1; exp e2; exp e3]
     | SwitchE (e, cs)     -> "SwitchE" $$ [exp e] @ List.map case cs
     | WhileE (e1, e2, _)     -> "WhileE"  $$ [exp e1; exp e2]
@@ -168,6 +169,7 @@ module Make (Cfg : Config) = struct
     | OptP p          -> "OptP"       $$ [pat p]
     | TagP (i, p)     -> "TagP"       $$ [tag i; pat p]
     | AltP (p1, p2)   -> "AltP"       $$ [pat p1; pat p2]
+    | AndP (p1, p2)   -> "AndP"       $$ [pat p1; pat p2]
     | ParP p          -> "ParP"       $$ [pat p]))
 
   and lit = function
@@ -234,7 +236,7 @@ module Make (Cfg : Config) = struct
     | Some s ->
       (match s.it with
       | Flexible -> Atom "Flexible"
-      | Stable _ -> Atom "Stable")
+      | Stable -> Atom "Stable")
 
   and typ_field (tf : typ_field) = source tf.at (match tf.it with
     | ValF (lab, t, m) -> "ValF" $$ [id lab; typ t; mut m]
@@ -296,8 +298,8 @@ module Make (Cfg : Config) = struct
         obj_sort s;
         id i
       ] @ List.map dec_field dfs)
-    | MixinD (_, dfs) -> "MixinD" $$ List.map dec_field dfs
-    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]))
+    | MixinD (sys, p, dfs) -> "MixinD" $$ (if sys then [Atom "system"] else []) @ [pat p] @ List.map dec_field dfs
+    | IncludeD (i, sys, e, _) -> "IncludeD" $$ (if sys then [Atom "system"] else []) @ [id i; exp e]))
 
   and prog p = "Prog" $$ List.map dec p.it
 end

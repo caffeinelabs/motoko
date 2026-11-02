@@ -38,8 +38,8 @@
 
 use core::ptr::null_mut;
 
-use crate::memory::{alloc_blob, Memory};
-use crate::types::{size_of, Blob, Value, TAG_BLOB_B};
+use crate::memory::{Memory, alloc_blob};
+use crate::types::{Blob, TAG_BLOB_B, Value, size_of};
 
 pub struct ScanStack {
     last: *mut StackTable,

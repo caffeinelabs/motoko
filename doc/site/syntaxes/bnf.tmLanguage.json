@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "BNF",
+  "scopeName": "source.bnf",
+  "fileTypes": ["bnf"],
+  "patterns": [
+    { "include": "#nonterminal" },
+    { "include": "#definition" },
+    { "include": "#alternative" },
+    { "include": "#quantifier" },
+    { "include": "#bracket-expr" },
+    { "include": "#string-double" },
+    { "include": "#string-single" }
+  ],
+  "repository": {
+    "nonterminal": {
+      "name": "entity.name.type.bnf",
+      "match": "<[A-Za-z][A-Za-z0-9_\\-]*>"
+    },
+    "definition": {
+      "name": "keyword.operator.definition.bnf",
+      "match": "::="
+    },
+    "alternative": {
+      "name": "keyword.operator.alternative.bnf",
+      "match": "(?<!['\"])\\|(?!['\"])"
+    },
+    "quantifier": {
+      "name": "keyword.operator.quantifier.bnf",
+      "match": "[*+?]"
+    },
+    "bracket-expr": {
+      "name": "string.quoted.other.bnf",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        {
+          "name": "constant.character.escape.bnf",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "string-double": {
+      "name": "string.quoted.double.bnf",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.bnf",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "string-single": {
+      "name": "string.quoted.single.bnf",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.bnf",
+          "match": "\\\\."
+        }
+      ]
+    }
+  }
+}

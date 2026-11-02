@@ -1,4 +1,3 @@
-# CLASSICAL-PERSISTENCE-ONLY
 install $ID migrate-upgrade-instr-stable-var/old.wasm ""
 upgrade $ID migrate-upgrade-instr-stable-var/test.mo ""
 ingress $ID test "DIDL\x00\x00"

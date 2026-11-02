@@ -157,7 +157,8 @@ and exp' at note = function
     I.PrimE (I.ArrayPrim (mut m, T.as_immut t), exps es)
   | S.IdxE (e1, e2) when e1.note.S.note_typ = T.blob -> I.PrimE (I.IdxBlobPrim, [exp e1; exp e2])
   | S.IdxE (e1, e2) -> I.PrimE (I.IdxPrim, [exp e1; exp e2])
-  | S.FuncE (name, sp, tbs, p, _t_opt, _, e) ->
+  | S.FuncE (name, sp, tbs, p, _t_opt, fn, e) ->
+    let tbs, e = S.func_elab fn tbs e in
     let s, po = match sp.it with
       | T.Local -> (T.Local, None)
       | T.Shared (ss, {it = S.WildP; _} ) -> (* don't bother with ctxt pat *)
@@ -288,6 +289,12 @@ and exp' at note = function
   | S.NotE e -> (notE (exp e)).it
   | S.AndE (e1, e2) -> (andE (exp e1) (exp e2)).it
   | S.OrE (e1, e2) -> (orE (exp e1) (exp e2)).it
+  | S.NullCoalesceE (e1, e2) ->
+    let t = note.Note.typ in
+    let v = fresh_var "v" t in
+    (switch_optE (exp e1)
+      (exp e2)
+      (varP v) (varE v) t).it
   | S.IfE (e1, e2, e3) -> I.IfE (exp e1, exp e2, exp e3)
   | S.SwitchE (e1, cs) -> I.SwitchE (exp e1, cases cs)
   | S.TryE (e1, cs, None) -> I.TryE (exp e1, cases cs, None)
@@ -579,36 +586,6 @@ and build_candid ts obj_typ =
    service = WithComments.string_of_prog prog;
   }
 
-and export_footprint self_id expr =
-  let open T in
-  let {lab;typ;_} = motoko_stable_var_info_fld in
-  let v = "$"^lab in
-  let size = fresh_var "size" T.nat64 in
-  let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
-  let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
-  let bind1 = typ_arg scope_con1 Scope scope_bound in
-  let bind2 = typ_arg scope_con2 Scope scope_bound in
-  let ret_typ = T.(obj Object [("size", nat64)]) in
-  let caller = fresh_var "caller" caller in
-  ([ letD (var v typ) (
-       funcE v (Shared Query) Promises [bind1] [] [ret_typ] (
-           (asyncE T.Fut bind2
-              (blockE [
-                   letD caller (primE I.ICCallerPrim []);
-                   expD (assertE (orE (primE (I.RelPrim (principal, Operator.EqOp))
-                                         [varE caller; selfRefE principal])
-                                    (primE (I.OtherPrim "is_controller") [varE caller])));
-                   letD size (primE (I.ICStableSize expr.note.Note.typ) [expr])
-                 ]
-                 (newObjE T.Object
-                   [{ it = Ir.{name = "size"; var = id_of_var size};
-                      at = no_region;
-                      note = T.nat64 }]
-                   ret_typ))
-              (Con (scope_con1, []))))
-  )],
-  [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
-
 and export_runtime_information self_id =
   let open T in
   let {lab;typ;_} = motoko_runtime_information_fld in
@@ -618,14 +595,7 @@ and export_runtime_information self_id =
   let bind1 = typ_arg scope_con1 Scope scope_bound in
   let bind2 = typ_arg scope_con2 Scope scope_bound in
   let gc_strategy =
-    let open Mo_config in
-    let strategy = match !Flags.gc_strategy with
-    | Flags.Default -> "default"
-    | Flags.MarkCompact -> "compacting"
-    | Flags.Copying -> "copying"
-    | Flags.Generational -> "generational"
-    | Flags.Incremental -> "incremental" in
-    if !Flags.force_gc then (Printf.sprintf "%s force" strategy) else strategy
+    if !Mo_config.Flags.force_gc then "incremental force" else "incremental"
   in
   let prim_call function_name = primE (I.OtherPrim function_name) [] in
   let information = [
@@ -673,91 +643,32 @@ and export_runtime_information self_id =
   )],
    [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
-and export_view viewer_opt =
-  match viewer_opt with
-  | None -> ([], [], [])
-  | Some {viewer_body; viewer_field} ->
-     let open T in
-     let ts1, ts2, mk_body =
-       match (viewer_body, T.normalize viewer_field.typ) with
-       | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
-         (* id.view() available *)
-         assert (List.for_all T.shared ts2);
-         ts1, ts2, fun vs ->
-           let view_e =
-             callE (exp view_exp) [] (seqE (List.map varE vs))
-           in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], ts2) ->
-         (* id, t shared *)
-         assert (List.for_all T.shared ts2);
-         [], ts2, fun _vs ->
-           let view_e = exp view_exp in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | _ -> assert false
-     in
-     let vs = fresh_vars "param" ts1 in
-     let args = List.map arg_of_var vs in
-     let lab = viewer_field.lab in
-     let v = fresh_id ("$"^lab) () in
-     let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
-     let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
-     let bind1 = typ_arg scope_con1 Scope scope_bound in
-     let bind2 = typ_arg scope_con2 Scope scope_bound in
-     let typ = viewer_field.typ in
-     let caller = fresh_var "caller" caller in
-     let is_self_or_controller =
-       orE (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
-         (primE (I.OtherPrim "is_controller") [varE caller])
-     in
-     ([ letD (var v typ) (
-          funcE v (Shared Query) Promises [bind1] args ts2 (
-            (asyncE T.Fut bind2
-              (blockE [
-                 (* authentication, self or controller only *)
-                 letD caller (primE I.ICCallerPrim []);
-                 expD (ifE is_self_or_controller
-                   (unitE())
-                   (primE (Ir.OtherPrim "trap")
-                     [textE "Unauthorized caller (caller must be self or a controller)"]))
-                 ]
-                 (mk_body vs))
-              (Con (scope_con1, []))))
-      )],
-      [T.{lab;typ; src = empty_src}],
-      [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
-
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
   | S.TypD _ -> []
   | S.MixinD _ -> assert false
-  | S.IncludeD(_, arg, note) ->
-    (* TODO: This is ugly. It would be a lot nicer if we didn't have to split
-       the desugaring and stability declarations *)
+  | S.IncludeD(_, _, arg, note) ->
+    (* TODO(desugar-stability-disconnect): This is ugly.
+       It would be a lot nicer if we didn't have to split the desugaring and
+       stability declarations *)
+    (* Order must match the IR produced by `dec'` for IncludeD:
+       [imports; letP (mixin parameters); mixin decs] *)
     let flex = Some (S.Flexible @@ no_region) in
     let { imports; decs; _ } = Option.get !note in
     let import_stabs = List.map (fun _ -> flex) imports in
-    (* Transient stability for binding the mixin parameters *)
-    flex ::
     (* Transient stability for binding the mixin imports *)
     import_stabs @
+    (* Transient stability for binding the mixin parameters *)
+    flex ::
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
-  let fs0 = build_fields obj_typ0 in
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
+  let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
-  let triples = List.map view stabs in
-  let view_ds = List.concat_map (fun (ds, _, _) -> ds) triples in
-  (* let view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in *)
-  let view_fields = [] in
-  let view_fs = List.concat_map (fun (_, _, fs) -> fs) triples in
-  let (sort, tfs0, tfs1) = T.as_obj' obj_typ0 in
-  let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields), tfs1) in
-  let fs = fs0@view_fs in
   let stab_fields = List.sort T.compare_field
     (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
   in
@@ -808,15 +719,26 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
       assert (n <> 0);
       let mem_typ_at idx = List.nth mem_typs idx
       in
-      (* Nested if-expression: each level k produces state_k : type_k.
+      (* Each level k is emitted as its own local function migrate_step_k,
+         so per-step IC complexity stays independent of N (lifts the
+         IC0505 wasm-function-complexity cap on chain length). Body of
+         migrate_step_k:
          If m_k was already performed, ICStableRead(type_k) loads the state.
-         Otherwise, recursively build state_{k-1}, run m_k, and merge output
-         with carried fields from state_{k-1} to produce type_k.
+         Otherwise, recursively build state_{k-1} via migrate_step_{k-1}(),
+         run m_k, and merge output with carried fields from state_{k-1} to
+         produce type_k.
          Base case (k=0): ICStableRead(type_0) loads the pre-migration actor
          or returns defaults on fresh install. *)
+      let step_decls = Dynarray.create () in
+      let emit_step k body =
+        let step_typ = T.Func (T.Local, T.Returns, [], [], [mem_typ_at k]) in
+        let step = fresh_var (Printf.sprintf "migrate_step_%d" k) step_typ in
+        Dynarray.add_last step_decls (nary_funcD step [] body);
+        callE (varE step) [] (unitE ())
+      in
       let rec build_nested k =
         if k = 0 then
-          primE (I.ICStableRead (mem_typ_at 0)) []
+          emit_step k (primE (I.ICStableRead (mem_typ_at 0)) [])
         else
           let mem_typ_k = mem_typ_at k in
           let (_, mem_typ_k_fields) = T.as_obj mem_typ_k in
@@ -868,17 +790,18 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
               expD (rts_register_migration mig_lab_k)]
             merge_result
           in
-          ifE (rts_was_migration_performed mig_lab_k)
-            (primE (I.ICStableRead mem_typ_k) [])
-            else_branch
+          emit_step k
+            (ifE (rts_was_migration_performed mig_lab_k)
+              (primE (I.ICStableRead mem_typ_k) [])
+              else_branch)
       in
       let final_state = fresh_var "final_state" mem_ty in
+      let init_call = build_nested n in
+      Dynarray.add_last step_decls (letD final_state init_call);
+      Dynarray.add_last step_decls (expD (primE (I.ICStableStore mem_ty) []));
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
-      blockE [
-        letD final_state (build_nested n);
-        expD (primE (I.ICStableStore mem_ty) []);
-      ] (varE final_state)
+      blockE (Dynarray.to_list step_decls) (varE final_state)
     end
     else match exp_opt with
     | None ->
@@ -988,9 +911,8 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
                    note = f.T.typ }
                ) mem_fields vs)
             mem_ty)) in
-  let footprint_d, footprint_f = export_footprint self_id (with_stable_vars Fun.id) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (footprint_d @ runtime_info_d @ ds' @ view_ds, footprint_f @ runtime_info_f @ fs,
+  I.(ActorE (runtime_info_d @ ds', runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =
@@ -1005,8 +927,12 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
          (match call_system_func_opt "timer" es obj_typ with
           | Some call -> call
           | None when !Mo_config.Flags.global_timer ->
+            (* only @timer_helper sets the next expiration, and its self-call can be
+               rejected before it runs (e.g. out of cycles): expire again later anyway *)
             blockE
-              [ expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
+              [ expD T.(callE (varE (var "@timer_fallback" (Func (Local, Returns, [], [], [])))) []
+                  (unitE()));
+                expD T.(callE (varE (var "@timer_helper" T.heartbeat_type)) [unit] (unitE())) ]
               (unitE())
           | None -> tupE []);
        inspect =
@@ -1027,7 +953,7 @@ and stabilize stab_opt d =
   match s, d.it with
   | (S.Flexible, _) ->
     ([], fun _ -> d)
-  | (S.Stable _, I.VarD(i, t, e)) ->
+  | (S.Stable, I.VarD(i, t, e)) ->
     ([(i, T.Mut t)],
      fun get_state ->
      let v = fresh_var i t in
@@ -1042,8 +968,7 @@ and stabilize stab_opt d =
      varD (var i (T.Mut t))
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.RefD _) -> assert false (* RefD cannot come from user code *)
-  | (S.Stable _, I.LetD({it = I.VarP i; _} as p, e)) ->
+  | (S.Stable, I.LetD({it = I.VarP i; _} as p, e)) ->
     let t = p.note in
     ([(i, t)],
      fun get_state ->
@@ -1059,17 +984,8 @@ and stabilize stab_opt d =
      letP p
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.LetD _) ->
+  | (S.Stable, I.LetD _) ->
     assert false
-
-and view stab_opt =
-  match stab_opt with
-  | None -> ([], [], [])
-  | Some stab ->
-    match stab.it with
-    | S.Flexible -> ([], [], [])
-    | S.Stable viewer ->
-      export_view (!viewer)
 
 and build_obj at s self_id dfs obj_typ =
   let fs = build_fields obj_typ in
@@ -1131,7 +1047,7 @@ and obj obj_typ efs bases =
       let [@warning "-8"] [base_var] = concat_map ((|>) lab) pickers in
       let d =
         if T.is_mut typ then
-          refD id { it = I.DotLE(varE base_var, lab); note = typ; at = no_region }
+          varD id (dotE (varE base_var) lab (T.as_immut typ))
         else
           letD id (dotE (varE base_var) lab typ) in
       let f = { it = I.{ name = lab; var = id_of_var id }; at = no_region; note = typ } in
@@ -1217,7 +1133,9 @@ and block force_unit ds =
     (decs prefix @ [letD x (exp e); letP (pat p) (varE x)], varE x)
   | false, S.LetD (p, e, Some f) ->
     (decs prefix, let_else_switch (pat p) (exp e) (exp f))
-  | _, _ ->
+  | false, S.ClassD (_, _, _, id, _, _, _, _, _) -> (* `dec'` binds the constructor to `id` *)
+    (decs ds, varE (var id.it last.note.S.note_typ))
+  | _ ->
     (decs ds, tupE [])
 
 and decs ds = List.concat_map dec ds
@@ -1242,9 +1160,9 @@ and dec' d =
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
   | S.MixinD _ -> []
-  | S.IncludeD(_, args, note) ->
-    let { imports = is; pat = p; decs } = Option.get !note in
-    let ir_imports = List.concat_map transform_import is in
+  | S.IncludeD(_, _, args, note) ->
+    let { imports = is; pat = p; decs; _ } = Option.get !note in
+    let ir_imports = List.map transform_import is in
     let renamed_imports, rho = Rename.decs Rename.Renaming.empty ir_imports in
     let renamed_pat, rho = Rename.pat rho (pat p) in
 
@@ -1318,6 +1236,7 @@ and pat' = function
   | S.OptP p -> I.OptP (pat p)
   | S.TagP (i, p) -> I.TagP (i.it, pat p)
   | S.AltP (p1, p2) -> I.AltP (pat p1, pat p2)
+  | S.AndP (p1, p2) -> I.AndP (pat p1, pat p2)
   | S.AnnotP (p, _)
   | S.ParP p -> pat' p.it
 
@@ -1469,12 +1388,15 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
   in
   args, eo, wrap_under_async, control, res_tys
 
-and transform_import (i : S.import) : Ir.dec list =
+and transform_import (i : S.import) : Ir.dec =
   let (p, f, ri) = i.it in
   let t = i.note in
   assert (t <> T.Pre);
   match t with
-  | T.Obj(T.Mixin, _, _) -> []
+  | T.Obj (T.Mixin, _, _) ->
+    (* NOTE(desugar-stability-disconnect) Create a dummy declaration.
+       This is to make sure we line up with the list of stabilities *)
+    letP wildP (unitE ())
   | _ ->
   let rhs = match !ri with
     | S.Unresolved -> raise (Invalid_argument ("Unresolved import " ^ f))
@@ -1482,10 +1404,15 @@ and transform_import (i : S.import) : Ir.dec list =
       varE (var (id_of_full_path fp) t)
     | S.PrimPath ->
       varE (var (id_of_full_path "@prim") t)
-    | S.IDLPath (fp, Either.Right canister_id) ->
+    | S.IDLPath (_, Either.Right canister_id) ->
       primE (I.ActorOfIdBlob t) [blobE canister_id]
-    | S.IDLPath (fp, Either.Left envvar) ->
+    | S.IDLPath (_, Either.Left envvar) ->
       primE (I.ActorOfIdBlob t) T.[callE (varE (var "@envvar_principal" (Func (Local, Returns, [], [Prim Text], [Prim Blob])))) [] (textE envvar)]
+    | S.IDLTypesPath _ ->
+      (match T.normalize t with
+       | T.Obj (T.Module, [], tfs) ->
+         objE T.Module (List.map (fun T.{lab; typ = c; _} -> (lab, c)) tfs) []
+       | _ -> assert false)
     | S.ImportedValuePath path ->
        if !Mo_config.Flags.blob_import_placeholders then
          raise (Invalid_argument ("blob import placeholder"))
@@ -1494,7 +1421,7 @@ and transform_import (i : S.import) : Ir.dec list =
          assert T.(t = Prim Blob);
          blobE contents
        end
-  in [ letP (pat p) rhs ]
+  in letP (pat p) rhs
 
 type import_declaration = Ir.dec list
 
@@ -1528,7 +1455,7 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
   let c', _ = T.as_con (List.hd cs') in
   let install_actor_helper = var "@install_actor_helper"
     T.(Func (Local, Returns, [scope_bind],
-      [install_arg_typ; bool; blob; blob],
+      [install_arg_typ; blob; blob],
       [Async(Cmp, Var (default_scope_var, 0), principal)]))
   in
   let wasm_blob = fresh_var "wasm_blob" T.blob in
@@ -1548,7 +1475,6 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
           (callE (varE install_actor_helper) cs'
             (tupE [
               install_arg;
-              boolE ((!Mo_config.Flags.enhanced_orthogonal_persistence));
               varE wasm_blob;
               primE (Ir.SerializePrim ts1') [seqE (List.map varE vs)]])))
         (primE (Ir.CastPrim (T.principal, t_actor)) [varE principal]))
@@ -1632,7 +1558,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
 
 let transform_unit (u : S.comp_unit) : Ir.prog  =
   let { imports; body; _ } = u.it in
-  let imports' = List.concat_map transform_import imports in
+  let imports' = List.map transform_import imports in
   let body' = transform_unit_body body in
   inject_decs imports' body', Ir.full_flavor()
 

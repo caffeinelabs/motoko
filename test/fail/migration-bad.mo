@@ -22,12 +22,12 @@ actor e {
 
 (with migration = func () : {f:()->()}{ {f = func(){}} }) // reject, co-domain is unstable
 actor f {
-   stable let f : Any = ()
+   let f : Any = ()
 };
 
 (with migration = (func () : ({} -> {}) {}) ()) // reject, not static
 actor g {
-   stable let f : Any = ()
+   let f : Any = ()
 };
 
 (with other = ()) // reject, no migration field

@@ -5,23 +5,9 @@
 //
 // To convert an offset into an address, add heap array's address to the offset.
 
-use motoko_rts_macros::{
-    classical_persistence, enhanced_orthogonal_persistence, incremental_gc, non_incremental_gc,
-};
-
-#[classical_persistence]
-mod classical;
-#[enhanced_orthogonal_persistence]
 mod enhanced;
-
-#[non_incremental_gc]
-mod compacting;
-#[non_incremental_gc]
-mod generational;
-#[incremental_gc]
-mod incremental;
-
 pub mod heap;
+mod incremental;
 pub mod random;
 pub mod utils;
 
@@ -30,35 +16,37 @@ use fxhash::{FxHashMap, FxHashSet};
 use heap::MotokoHeap;
 use utils::ObjectIdx;
 
-pub fn test() {
-    println!("Testing garbage collection ...");
+pub const SEEDS_PER_CHUNK: u64 = 10;
+pub const NUM_CHUNKS: u64 = 10;
 
+pub fn test() {
+    test_predefined();
+    test_random_range(0, SEEDS_PER_CHUNK * NUM_CHUNKS);
+    test_gc_components();
+}
+
+/// Run just the pre-defined heap tests + GC component tests (no random seeds).
+pub fn test_predefined() {
+    println!("Testing garbage collection ...");
     println!("  Testing pre-defined heaps...");
     for test_heap in test_heaps() {
         run_gc_tests(&test_heap);
     }
+}
 
-    println!("  Testing random heaps...");
-    let max_seed = 100;
-    for seed in 0..max_seed {
-        print!("\r{}/{}", seed + 1, max_seed);
+/// Run random heap tests for seeds in [start, end).
+pub fn test_random_range(start: u64, end: u64) {
+    println!("  Testing random heaps {}-{}...", start, end);
+    for seed in start..end {
+        print!("\r{}/{}", seed - start + 1, end - start);
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
         test_random_heap(seed, 180);
     }
     print!("\r");
-
-    test_gc_components();
 }
 
-#[non_incremental_gc]
-fn test_gc_components() {
-    compacting::test();
-    generational::test();
-}
-
-#[incremental_gc]
-fn test_gc_components() {
-    incremental::test();
+pub fn test_gc_components() {
+    self::incremental::test();
 }
 
 fn test_heaps() -> Vec<TestHeap> {
@@ -179,13 +167,9 @@ fn test_gc(gc: GC, test_heap: &TestHeap) {
     }
 }
 
-#[non_incremental_gc]
-fn initialize_gc(_heap: &mut MotokoHeap) {}
-
-#[incremental_gc]
 fn initialize_gc(heap: &mut MotokoHeap) {
     use motoko_rts::gc::incremental::{
-        get_partitioned_heap, set_incremental_gc_state, IncrementalGC,
+        IncrementalGC, get_partitioned_heap, set_incremental_gc_state,
     };
     use motoko_rts::types::Bytes;
     unsafe {
@@ -201,10 +185,6 @@ fn initialize_gc(heap: &mut MotokoHeap) {
     }
 }
 
-#[non_incremental_gc]
-fn reset_gc() {}
-
-#[incremental_gc]
 fn reset_gc() {
     use motoko_rts::gc::incremental::set_incremental_gc_state;
     unsafe {
@@ -220,37 +200,9 @@ pub enum CheckMode {
     /// that all garbage objects have been reclaimed.
     AllReclaimed,
     /// Check valid dynamic heap after stabilization.
-    #[cfg(feature = "enhanced_orthogonal_persistence")]
     Stabilzation,
 }
 
-#[classical_persistence]
-pub fn check_dynamic_heap(
-    mode: CheckMode,
-    objects: &[(ObjectIdx, Vec<ObjectIdx>)],
-    roots: &[ObjectIdx],
-    continuation_table: &[ObjectIdx],
-    heap: &[u8],
-    heap_base_offset: usize,
-    heap_ptr_offset: usize,
-    _static_root_array_variable_offset: usize,
-    continuation_table_variable_offset: usize,
-    region0_ptr_offset: usize,
-) {
-    self::classical::check_dynamic_heap(
-        mode,
-        objects,
-        roots,
-        continuation_table,
-        heap,
-        heap_base_offset,
-        heap_ptr_offset,
-        continuation_table_variable_offset,
-        region0_ptr_offset,
-    );
-}
-
-#[enhanced_orthogonal_persistence]
 pub fn check_dynamic_heap(
     mode: CheckMode,
     objects: &[(ObjectIdx, Vec<ObjectIdx>)],

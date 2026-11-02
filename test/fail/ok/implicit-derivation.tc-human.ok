@@ -1,0 +1,20 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ([Bool], [Bool]) -> Order
+    ┌─ implicit-derivation.mo:26:8
+ 26 │  ignore needsBoolArrayCompare([true], [false]); // M0230: no Bool.compare
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `compare : (Bool, Bool) -> Order` not found
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ([[Bool]], [[Bool]]) -> Order
+    ┌─ implicit-derivation.mo:37:8
+ 37 │  ignore needsNestedBoolArrayCompare([[true]], [[false]]); // M0230: full chain shown
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `compare : (Bool, Bool) -> Order` not found
+error[M0230]: Cannot determine implicit argument `n` of type
+  Nat
+    ┌─ implicit-derivation.mo:44:8
+ 44 │  ignore needsNatValue(42); // M0230: no Nat value in scope
+    │         ^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `n` you need to have a matching declaration named `n` in scope.

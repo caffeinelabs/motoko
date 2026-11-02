@@ -1,10 +1,10 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.mo
+	test-runner -b $(CURDIR)
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.mo
+	test-runner -b -a $(CURDIR)
 
 clean:
 	rm -rf _out

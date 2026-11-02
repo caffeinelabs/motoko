@@ -1,0 +1,3 @@
+implicit-nested-too-deep.mo:48.9-48.25: type error [M0230], Cannot determine implicit argument `Monoid` of type
+  module {combine : (Int, Int) -> Int; empty : () -> Int}
+note: If you're trying to omit an implicit argument named `Monoid` you need to have a matching declaration named `Monoid` in scope.

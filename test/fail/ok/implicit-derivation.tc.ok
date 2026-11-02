@@ -1,0 +1,11 @@
+implicit-derivation.mo:26.8-26.46: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([Bool], [Bool]) -> Order
+note: Implicit derivation failed:
+  `compare : (Bool, Bool) -> Order` not found
+implicit-derivation.mo:37.8-37.56: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([[Bool]], [[Bool]]) -> Order
+note: Implicit derivation failed:
+  `compare : (Bool, Bool) -> Order` not found
+implicit-derivation.mo:44.8-44.25: type error [M0230], Cannot determine implicit argument `n` of type
+  Nat
+note: If you're trying to omit an implicit argument named `n` you need to have a matching declaration named `n` in scope.

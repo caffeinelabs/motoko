@@ -6,7 +6,7 @@ actor {
   // relying on the compiler filling in a default implementation
 
   var count = 0;
-  var max = 1;
+  let max = 1;
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
   public shared func go() : async () {
@@ -38,12 +38,12 @@ actor {
       this_should_warn();          // call should warn
   };
 
-  func _warn3() : async () = async {
+  func _warn3() : async () {
       this_should_warn<system>();   // OK: this line is fine
       this_should_warn();          // call should warn
   };
 
-  func _warn4() : async* () = async* {
+  func _warn4() : async* () {
       this_should_warn<system>();   // OK: this line is fine
       this_should_warn();          // call should warn
   };
@@ -55,7 +55,7 @@ actor {
       ignore await async 42
   };
 
-  func _gwerr() : async Int = async {
+  func _gwerr() : async Int {
       ignore setTimer(1_000_000, false, func () : async () { });
 
       await async 42

@@ -8,7 +8,7 @@ actor {
     #three : Text;
   };
 
-  stable var root : Variant = #three "ERROR";
+  var root : Variant = #three "ERROR";
 
   public func modify() : async () {
     switch root {

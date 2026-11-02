@@ -10,8 +10,8 @@ actor this {
         test3() : async ();
     };
 
-    stable var instance = [var null : ?OriginalActor];
-    stable var alias = instance;
+    var instance = [var null : ?OriginalActor];
+    var alias = instance;
 
     public func initialize() : async () {
         await Cycles.provisional_top_up_actor(this, 100_000_000_000_000);

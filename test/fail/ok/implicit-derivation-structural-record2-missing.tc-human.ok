@@ -1,0 +1,8 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ({flag : Bool; n : Nat}, {flag : Bool; n : Nat}) -> Order.Order
+    ┌─ implicit-derivation-structural-record2-missing.mo:10:8
+ 10 │  ignore cmp({ flag = true; n = 1 }, { flag = false; n = 2 });
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `compare : (Bool, Bool) -> Order` not found, try importing mo:core/Bool
+                 `compare : (Nat, Nat) -> Order` not found, try importing mo:core/Int

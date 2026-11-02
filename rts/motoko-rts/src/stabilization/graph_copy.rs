@@ -23,8 +23,8 @@ pub trait GraphCopy<S: Copy, T: Copy, P: Copy + Default> {
     ///     copy_algorthm.copy_increment();
     /// }
     /// ```
-    fn start<M: Memory>(&mut self, mem: &mut M, root: S) {
-        self.evacuate(mem, root);
+    fn start<M: Memory>(&mut self, mem: &mut M, root: S) -> T {
+        self.evacuate(mem, root)
     }
 
     /// Determine whether the scanning algorithm is completed,

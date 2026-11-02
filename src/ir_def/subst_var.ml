@@ -83,6 +83,7 @@ and pat' rho = function
       List.compare String.compare is1 is2 = 0
     end;
     ids_bind rho is1
+  | AndP (p1, p2) -> pat (pat rho p1) p2
 
 and pats rho ps  = List.fold_left pat rho ps
 
@@ -107,10 +108,6 @@ and dec' rho = function
   | VarD (i, t, e) ->
      let rho = id_bind rho i in
      (fun rho' -> VarD (i, t, exp rho' e)),
-     rho
-  | RefD (i, t, le) ->
-     let rho = id_bind rho i in
-     (fun rho' -> RefD (i, t, lexp rho' le)),
      rho
 
 and decs rho ds =

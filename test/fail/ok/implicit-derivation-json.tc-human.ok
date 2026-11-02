@@ -1,0 +1,31 @@
+error[M0230]: Cannot determine implicit argument `_toJson` of type
+  {active : Bool; age : Int; name : Text} -> Json.Json
+    ┌─ implicit-derivation-json.mo:11:66
+ 11 │  ignore ({ name = "Alice"; age = 42 : Int; active = true }).toJson();
+    │                                                                   ^^ 
+    = note: Implicit derivation failed:
+                 `_toJson : Bool -> Json` not found
+                 `_toJson : Int -> Json` not found, try importing mo:json/IntJson
+error[M0230]: Cannot determine implicit argument `_toJson` of type
+  {data : Map.Map<Text, Int>; tag : Text} -> Json.Json
+    ┌─ implicit-derivation-json.mo:16:40
+ 16 │  ignore ({ data = m; tag = "v" }).toJson();
+    │                                         ^^ 
+    = note: Implicit derivation failed:
+                 `_toJson : Map<Text, Int> -> Json` not found, try importing mo:json/MapJson
+error[M0230]: Cannot determine implicit argument `_toJson` of type
+  {var root : Node<Text, Int>; var size : Nat} -> Json.Json
+    ┌─ implicit-derivation-json.mo:21:17
+ 21 │  ignore m2.toJson();
+    │                  ^^ 
+    = note: Did you mean to import mo:json/MapJson?
+    = note: Implicit derivation failed:
+                 `_toJson : Node<Text, Int> -> Json` not found
+                 `_toJson : Nat -> Json` not found, try importing mo:json/IntJson
+error[M0230]: Cannot determine implicit argument `_toJson` of type
+  {inner : {value : Nat}; outer : Text} -> Json.Json
+    ┌─ implicit-derivation-json.mo:24:58
+ 24 │  ignore ({ inner = { value = 42 }; outer = "top" }).toJson();
+    │                                                           ^^ 
+    = note: Implicit derivation failed:
+                 `_toJson : Nat -> Json` not found, try importing mo:json/IntJson

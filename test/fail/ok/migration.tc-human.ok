@@ -1,4 +1,4 @@
-warning[M0215]: field `unused` is provided but not expected in record of type
+error[M0215]: field `unused` is provided but not expected in record of type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
     ┌─ migration.mo:10:7
  10 │        var unused = ();

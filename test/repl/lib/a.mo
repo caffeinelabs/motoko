@@ -1,3 +1,5 @@
 import C "c";
 
-let i = C.i;
+module {
+  public let i = C.i;
+};

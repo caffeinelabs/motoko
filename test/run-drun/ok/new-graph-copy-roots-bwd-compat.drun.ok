@@ -1,0 +1,30 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+debug.print: INITIALIZED: 0
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: 0 0
+debug.print: 1 1
+debug.print: 2 2
+debug.print: 3 3
+debug.print: 4 4
+debug.print: 5 5
+debug.print: 6 6
+debug.print: 7 7
+debug.print: 8 8
+debug.print: 9 9
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: INITIALIZED after graph-copy: 10
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: 0 0
+debug.print: 1 1
+debug.print: 2 2
+debug.print: 3 3
+debug.print: 4 4
+debug.print: 5 5
+debug.print: 6 6
+debug.print: 7 7
+debug.print: 8 8
+debug.print: 9 9
+ingress Completed: Reply: 0x4449444c0000

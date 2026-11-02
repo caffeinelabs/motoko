@@ -1,7 +1,7 @@
 import Runtime "mo:core/Runtime";
 import Float "mo:core/Float";
 
-persistent actor Counter_v6 {
+actor Counter_v6 {
   var newState : Float = 0.0; // implicitly `stable`
 
   public func increment() : async () {

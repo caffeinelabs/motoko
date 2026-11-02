@@ -2,7 +2,7 @@ import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
 
-persistent actor Registry {
+actor Registry {
 
   var entries : [(Text, Nat)] = []; // implicitly `stable`
 
@@ -12,11 +12,11 @@ persistent actor Registry {
   );
 
   public func register(name : Text) : async () {
-    switch (Map.get(map, Text.compare, name)) {
+    switch Map.get(map, Text.compare, name) {
       case null  {
         Map.add(map, Text.compare, name, Map.size(map));
-      };
-      case (?_) { };
+      }
+      case ?_ { }
     }
   };
 

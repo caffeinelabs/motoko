@@ -1,12 +1,10 @@
-use motoko_rts_macros::enhanced_orthogonal_persistence;
-
 use crate::{
     gc::incremental::{
+        Roots, State,
         array_slicing::slice_array,
         partitioned_heap::{Partition, PartitionedHeap, PartitionedHeapIterator},
         roots::visit_roots,
         time::BoundedTime,
-        Roots, State,
     },
     stable_option::StableOption,
     types::*,
@@ -55,7 +53,6 @@ impl<'a> UpdateIncrement<'a> {
         visit_roots(roots, self.heap.base_address(), self, |gc, field| {
             let value = *field;
 
-            #[enhanced_orthogonal_persistence]
             debug_assert_ne!(value, NULL_POINTER);
 
             if value.is_forwarded() {

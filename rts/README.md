@@ -20,8 +20,8 @@ Running `make` should produce RTS Wasm files (different versions).
 
 If run within the Nix shell, the environment variables `WASM_CLANG` and `WASM_LD`
 should point to suitable binaries (we track a specific unreleased version of
-`llvm`). If not present, the `Makefile` will try to use `clang-19` and
-`wasm-ld-19`.
+`llvm`). If not present, the `Makefile` will try to use `clang-21` and
+`wasm-ld-21`.
 
 The runtime compiles and links in [libtommath]. It needs the source, so
 `nix build` and `nix develop` will set the environment variable `TOMMATHSRC` to
@@ -68,60 +68,22 @@ To build Motoko RTS in nix we need pre-fetch Rust dependencies. This works in
 
 If you change dependencies (e.g. bump versions, add more crates), Make sure that
 `motoko-rts-tests/Cargo.lock` is up to date. This can be done by running
-`cargo build --target=wasm32-wasip1` in `motoko-rts-tests/` directory.
+`cargo build --target=wasm64-unknown-unknown` in `motoko-rts-tests/` directory (see the `test64` target in `rts/Makefile`).
 
-**Updating rustc**:
-
-1. Update the Rust version of `rust-nightly` in `nix/pkgs.nix`
-   CAVEAT: there is a second `rust-stable` for the stable `rustc` too.
-2. Invalidate `rustStdDepsHash` in `nix/rts.nix`.
-3. Run `nix build .#rts`. You should get an error message about the expected
-   value of `rustStdDepsHash`.
-4. Update `rustStdDepsHash` with the expected value in the error message.
-
-(Can this be automated?)
-
---------
-**The above doesn't always work**
-
-Sometimes you want to also bump the  `.toml` dependencies...
-
-E.g. when you get `perhaps a crate was updated and forgotten to be
-re-vendored?`, proceed as follows:
-[Invalid recipe deleted. Try `cargo update in `rts/motoko-rts*`,
- invalidate hashes: {`cargoVendorTools.cargoSha256`, `rustStdDepsHash`, `rtsDeps.sha256`}
- all at the same time and then `nix build .#rts -K` to examine the build products.]
+**Updating rustc**: see [`.agents/skills/bump-rust-nightly/SKILL.md`](../.agents/skills/bump-rust-nightly/SKILL.md) for the full recipe — nightly date, `rustStdDepsHash` probe, Cargo lockfile updates, common compiler-error fixes, and CI-trigger pattern.
 
 Running RTS tests
 -----------------
 
-- Build tests using rustc WASI target: `cargo build --target=wasm32-wasip1`
-- Run with wasmtime: `wasmtime target/wasm32-wasip1/debug/motoko-rts-tests.wasm`
+- Build tests using the wasm64 EOP target: `make test` (in `rts/`, builds the
+  `test64` variant of `motoko-rts-tests` and runs every module under wasmtime)
+- Or manually: `cargo build --target=wasm64-unknown-unknown`
+  in `motoko-rts-tests/`, then run with
+  `wasmtime -W memory64 --invoke test_<module> target/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm`
 
 Debugging the RTS
 -----------------
 
-It is possible to build the RTS and test suite for i686 and debug using native
-debug tools like gdb and rr. You first need to build tommath-related files.
-This is easiest to do in the Nix shell:
-
-- (in `rts/`) `make _build/libtommath_i686.a` (this step requires headers and
-  libraries for the target)
-- (in `rts/`) `make _build/tommath_bindings.rs` (this step requires `bindgen`)
-
-After these you can build the test suite for `i686-unknown-linux-gnu` target
-outside of `nix-shell`. If you don't have the target installed already, install with
-
-- `rustup +nightly target install i686-unknown-linux-gnu`
-
-Now build i686 executable:
-
-- (in `rts/motoko-rts-tests`) `cargo +nightly build --target=i686-unknown-linux-gnu`
-
-Now you should see an i686 executable
-`rts/motoko-rts-tests/target/i686-unknown-linux-gnu/debug/motoko-rts-tests`
-that you can debug with e.g. `gdb`.
-
-Ideally all of these steps would be done in `nix develop` or outside, but the
-last command does not work in `nix develop` because of missing i686 libraries and
-I couldn't figure out how to install those in nix.
+The RTS and its test suite build exclusively for the 64-bit wasm64 target
+(`motoko-rts-tests/build.rs` accepts only `wasm64-unknown-unknown`). Debug RTS
+code by running it under wasmtime as described under *Running RTS tests* above.

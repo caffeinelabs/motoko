@@ -11,10 +11,10 @@
 //! 2. 0, or a pointer to the next list entry
 
 use crate::barriers::allocation_barrier;
-use crate::memory::{alloc_array, Memory};
+use crate::memory::{Memory, alloc_array};
 use crate::rts_trap_with;
 use crate::text::decode_code_point;
-use crate::types::{Value, TAG_ARRAY_T, TAG_BLOB_T, TAG_CONCAT};
+use crate::types::{TAG_ARRAY_T, TAG_BLOB_T, TAG_CONCAT, Value};
 
 use motoko_rts_macros::ic_mem_fn;
 
@@ -75,7 +75,7 @@ pub unsafe fn text_iter<M: Memory>(mem: &mut M, text: Value) -> Value {
 }
 
 /// Returns whether the iterator is finished
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_iter_done(iter: Value) -> usize {
     let array = iter.as_array();
     let pos = array.get(ITER_POS_IDX).get_scalar();

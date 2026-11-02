@@ -1,1 +1,1 @@
-refutable-pat-in-static-block.mo:2.7-2.8: execution error, value 4 does not match pattern
+refutable-pat-in-static-block.mo:3.7-3.8: execution error, value 4 does not match pattern

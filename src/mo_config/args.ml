@@ -73,29 +73,15 @@ let inclusion_args = [
 let ai_args = [
   "--ai-errors", Arg.Set Flags.ai_errors, " emit AI tailored errors";
   "--all-libs", Arg.Set Flags.all_libs, " load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time)";
-  "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package"
+  "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package";
+  "--implicit-derivation-depth", Arg.Set_int Flags.implicit_derivation_depth, " maximum depth for recursive implicit derivation (default: 100)"
 ]
 
 let migration_args = [
   "--enhanced-migration",
   Arg.String (fun s -> Flags.enhanced_migration := Some s),
-  "<dir>  enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
-]
-
-let persistent_actors_args = [
-  (* default stability *)
-  "--default-persistent-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.DefaultPersistentActors),
-  _UNDOCUMENTED_
-    " declare every actor (class) as implicitly `persistent`, defaulting actor fields to `stable` (default is --require-persistent-actors). The `persistent` keyword is now optional and redundant.";
-
-  "--require-persistent-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.RequirePersistentActors),
-  _UNDOCUMENTED_
-    " requires all actors to be declared persistent, defaulting actor fields to `transient` (default). Emit diagnostics to help migrate from non-persistent to `persistent` actors.";
-
-  "--legacy-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.LegacyActors),
-  _UNDOCUMENTED_
-    " in non-`persistent` actors, silently default actor fields to `transient` (legacy behaviour)";
+  "<dir>  enable enhanced migration system: stable variables are declared without initializers and receive their values from the migration chain, side-effects in actor bodies are disallowed; only available with enhanced orthogonal persistence.";
+  "--stable-baseline",
+  Arg.String (fun s -> Flags.stable_baseline := Some s),
+  "<file.most>  last deployed stable signature; with --enhanced-migration, checks the fields demanded at the chain's resume point against it: unexplained fields error (M0267), incompatible ones M0170/M0216, and deployed fields the upgrade would drop M0169";
 ]

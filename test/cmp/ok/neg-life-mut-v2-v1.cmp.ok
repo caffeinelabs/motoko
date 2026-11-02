@@ -1,10 +1,11 @@
-(unknown location): Compatibility error [M0170], the new type of stable variable `state` is not compatible with the previous version.
- The previous type
+(unknown location): Compatibility error [M0170], stable variable `state` is not compatible with the previous version.
+Previous type
   var {#v1 : [[var Cell]]; #v2 : {bits : [var Nat64]; size : Nat}}
  is not a subtype of
   var {#v1 : [[var Cell]]}
  because case `#v2` is missing from expected type 
   {#v1 : [[var Cell]]}
  of `state`.
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE

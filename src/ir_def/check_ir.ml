@@ -149,6 +149,12 @@ let disjoint_union env at fmt env1 env2 =
   try T.Env.disjoint_union env1 env2
   with T.Env.Clash k -> error env at fmt k
 
+(* Error on the first key of env1 that falsifies `ok k env2`, naming
+   that key via `fmt`. A cheap iter + predicate test, without the
+   raise/catch machinery of `disjoint_union`. *)
+let verify_pair env at fmt ok env1 env2 =
+  T.Env.iter (fun k _ -> if not (ok k env2) then error env at fmt k) env1
+
 (* Types *)
 
 (* FIX ME: these error reporting functions are eager and will construct unnecessary type strings !*)
@@ -255,8 +261,7 @@ let rec check_typ env typ : unit =
     check_typ env typ1;
     check_typ env typ2;
     check env no_region env.flavor.Ir.has_async_typ "async in non-async flavor";
-    let t' = T.promote typ2 in
-    check_shared env no_region t'
+    if s = T.Fut then check_shared env no_region (T.promote typ2)
   | T.Obj (sort, fields, typ_fields) ->
     List.iter
       (fun _ -> check env no_region env.flavor.Ir.has_typ_field "typ field in non-typ_field flavor")
@@ -601,13 +606,13 @@ let rec check_exp env (exp:Ir.exp) : unit =
         with _ -> error env exp.at "CPSAwait expect async arg, found %s" (T.string_of_typ (typ a))
       in
       (match cont_typ with
-       | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
+       | T.Func(T.Local, T.Returns, [], [t2], ts2) ->
          begin
            (match ts2 with
             | [] -> ()
             | _ -> error env exp.at "CPSAwait answer type error");
            typ krb <: T.(Tup Construct.[cont_typ; err_contT (seq ts2); bail_contT]);
-           t1 <: T.seq ts1;
+           t1 <: t2;
            T.seq ts2 <: t;
          end;
        | _ -> error env exp.at "CPSAwait bad cont");
@@ -616,12 +621,12 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | CPSAsync (s, t0), [exp] ->
       (match typ exp with
        | T.Func (T.Local, T.Returns, [tb],
-                 T.[Func (Local, Returns, [], ts1, []);
+                 T.[Func (Local, Returns, [], [t1], []);
                     Func (Local, Returns, [], [t_error], []);
                     Func (Local, Returns, [], [], [])],
                  []) ->
           T.catch <: t_error;
-          T.Async(s, t0, T.open_ [t0] (T.seq ts1)) <: t
+          T.Async(s, t0, T.open_ [t0] t1) <: t
        | _ -> error env exp.at "CPSAsync unexpected typ");
       check (not (env.flavor.has_await)) "CPSAsync await flavor";
       check (env.flavor.has_async_typ) "CPSAsync in post-async flavor";
@@ -738,9 +743,6 @@ let rec check_exp env (exp:Ir.exp) : unit =
       T.Opt T.blob <: t
     | ICPerformGC, [] ->
       T.unit <: t
-    | ICStableSize t1, [e1] ->
-      typ e1 <: t1;
-      T.nat64 <: t
     | OtherPrim _, _ -> ()
     | p, args ->
       error env exp.at "PrimE %s does not work with %d arguments"
@@ -936,7 +938,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check e1.note.Note.const "constant TagPrim with non-constant subexpression"
     | BlockE (ds, e) ->
       List.iter (fun d -> match d.it with
-        | VarD _ | RefD _ -> check false "VarD/RefD in constant BlockE"
+        | VarD _ -> check false "VarD in constant BlockE"
         | LetD (p, e1) ->
           check (Ir_utils.is_irrefutable p) "refutable pattern in constant BlockE";
           check e1.note.Note.const "non-constant RHS in constant BlockE"
@@ -1037,6 +1039,11 @@ and gather_pat env const ve0 pat : val_env =
       let ve1, ve2 = go ve pat1, go ve pat2 in
       let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
       T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
+    | AndP (pat1, pat2) ->
+      (* pre-population only; check_pat below rejects overlapping
+         bindings via verify_pair, so IR loaded from disk is
+         validated without trusting the frontend *)
+      go (go ve pat1) pat2
     | OptP pat1
     | TagP (_, pat1) ->
       go ve pat1
@@ -1087,14 +1094,23 @@ and check_pat env pat : val_env =
         error env pat.at "set of bindings differ for alternative pattern";
     let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
     T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
+  | AndP (pat1, pat2) ->
+    let ve1 = check_pat env pat1 in
+    let ve2 = check_pat env pat2 in
+    t <: pat1.note;
+    t <: pat2.note;
+    verify_pair env pat.at "duplicate binding for %s in and-pattern"
+      (fun k ve2 -> not (T.Env.mem k ve2)) ve1 ve2;
+    T.Env.adjoin ve1 ve2
 
 and check_pats at env pats ve : val_env =
   match pats with
   | [] -> ve
   | pat::pats' ->
     let ve1 = check_pat env pat in
-    let ve' = disjoint_union env at "duplicate binding for %s in pattern" ve ve1 in
-    check_pats at env pats' ve'
+    verify_pair env at "duplicate binding for %s in pattern"
+      (fun k ve -> not (T.Env.mem k ve)) ve1 ve;
+    check_pats at env pats' (T.Env.adjoin ve ve1)
 
 and check_pat_fields env t = List.iter (check_pat_field env t)
 
@@ -1163,9 +1179,6 @@ and check_dec env dec  =
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t
-  | RefD (id, t, lexp) ->
-    check_lexp env lexp;
-    lexp.note <: t
 
 and check_decs env decs  =
   List.iter (check_dec env) decs;
@@ -1183,13 +1196,6 @@ and gather_dec env scope dec : scope =
       (not (T.Env.mem id scope.val_env))
       "duplicate variable definition in block";
     let val_info = {typ = T.Mut t; const = false; loc_known = env.lvl = TopLvl} in
-    { val_env = T.Env.add id val_info scope.val_env }
-  | RefD (id, t, lexp) ->
-    check_mut_typ env t;
-    check env dec.at
-      (not (T.Env.mem id scope.val_env))
-      "duplicate variable definition in block";
-    let val_info = {typ = t; const = false; loc_known = false} in
     { val_env = T.Env.add id val_info scope.val_env }
 
 and to_async_sort = Type.(function | AwaitCmp -> Cmp | AwaitFut _ -> Fut)

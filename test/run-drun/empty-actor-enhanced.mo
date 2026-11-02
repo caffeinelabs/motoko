@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 actor {};
 
 // CHECK:  (func $@motoko_async_destabilization

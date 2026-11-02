@@ -113,19 +113,19 @@ func isLive(weak_ref : weak Any) : Bool {
   (prim "weak_ref_is_live" : weak Any -> Bool)(weak_ref);
 };
 
-func envVarNames<system>() : [Text] {
+func envVarNames() : [Text] {
   (prim "env_var_names" : () -> [Text])();
 };
 
-func envVar<system>(name : Text) : ?Text {
+func envVar(name : Text) : ?Text {
   (prim "env_var" : Text -> ?Text)(name);
 };
 
-func callerInfoSigner<system>() : Blob {
+func callerInfoSigner() : Blob {
   (prim "caller_info_signer" : () -> Blob)();
 };
 
-func callerInfoData<system>() : Blob {
+func callerInfoData() : Blob {
   (prim "caller_info_data" : () -> Blob)();
 };
 
@@ -141,6 +141,9 @@ type __List = {
   index : Nat;
 };
 func __getDedupTable() : ?[var __List] {
+  // Empty prim to signal all consumers of this function (e.g., through caffeine blob storage)
+  // that blob deduplication functionality is required.
+  (prim "require_blob_dedup" : () -> ())();
   (prim "get_dedup_table" : () -> ?[var __List])();
 };
 
@@ -154,24 +157,24 @@ class BlobIterator(hash : [var __List]) {
   public func size() : Nat {
     var len = 0;
     var i = 0;
-    while (i < HASH_ARRAY_SIZE) {
+    while i < HASH_ARRAY_SIZE {
       var list = hashArray[i];
       label countLoop loop {
         let weakRef = list.value;
         switch weakRef {
-          case (?weakRef) {
+          case ?weakRef {
             let deref = weakGet(weakRef.ref);
             switch deref {
-              case (?deref) {};
-              case null { len += 1 };
+              case ?_ {}
+              case null { len += 1 }
             };
-          };
-          case null {};
+          }
+          case null {}
         };
         let next = list.next;
         switch next {
-          case (?next) { list := next };
-          case null { break countLoop };
+          case ?next { list := next }
+          case null { break countLoop }
         };
       };
       i += 1;
@@ -181,27 +184,27 @@ class BlobIterator(hash : [var __List]) {
 
   func getDeadBlobFromListNode(list : ?__List) : ?Blob {
     switch list {
-      case (?myList) {
+      case ?myList {
         let weakRef = myList.value;
         switch weakRef {
-          case (?weakRef) {
+          case ?weakRef {
             let deref = weakGet(weakRef.ref);
             switch deref {
-              case (?deref) { return null };
-              case null { return ?myList.originalBlob };
+              case ?deref { return null }
+              case null { return ?myList.originalBlob }
             };
-          };
-          case null { return null };
+          }
+          case null { return null }
         };
-      };
-      case null { return null };
+      }
+      case null { return null }
     };
   };
 
   func advanceListNode(list : ?__List) : ?__List {
     switch list {
-      case (?list) { list.next };
-      case null { null };
+      case ?list { list.next }
+      case null { null }
     };
   };
 
@@ -212,31 +215,31 @@ class BlobIterator(hash : [var __List]) {
       let blob = getDeadBlobFromListNode(currentList);
       switch blob {
         // If we found a blob, return it.
-        case (?blob) {
+        case ?blob {
           // Advance to the next list node.
           // So that next time we call nextDeadBlob(), we get the next blob.
           currentList := advanceListNode(currentList);
           return blob;
-        };
+        }
         case null {
           // If we didn't find a blob, advance to the next list node.
           currentList := advanceListNode(currentList);
 
           switch currentList {
-            case (?_) {};
+            case ?_ {}
             // If we reached the end of the list, advance to the next index.
             case null {
               currentIndex += 1;
               // If we reached the end of the hash array, return null.
-              if (currentIndex >= HASH_ARRAY_SIZE) {
+              if currentIndex >= HASH_ARRAY_SIZE {
                 return "";
               };
               // Get the new list node.
               currentList := ?hashArray[currentIndex];
-            };
+            }
           };
 
-        };
+        }
       };
     };
     "";
@@ -246,7 +249,7 @@ class BlobIterator(hash : [var __List]) {
     // Append the magic bytes to compute the hash.
     let magicBytes : [Nat8] = [0x21, 0x63, 0x61, 0x66, 0x21];
     let originalBlob : [Nat8] = blobToArray(b);
-    let concat = Array_tabulate(magicBytes.size() + originalBlob.size(), func(i : Nat) : Nat8 = if (i < magicBytes.size()) { magicBytes[i] } else { originalBlob[i - magicBytes.size()] });
+    let concat = Array_tabulate(magicBytes.size() + originalBlob.size(), func(i : Nat) : Nat8 = if i < magicBytes.size() { magicBytes[i] } else { originalBlob[i - magicBytes.size()] });
     let bWithMagic = arrayToBlob(concat);
     // Get hash bucket.
     let hashValue = hashBlob(bWithMagic);
@@ -258,20 +261,20 @@ class BlobIterator(hash : [var __List]) {
     var list = hashArray[index];
     // Walk the list and check if the blob is live.
     loop {
-      if (blobCompare(list.originalBlob, b) == 0) {
+      if blobCompare(list.originalBlob, b) == 0 {
         let weakRef = list.value;
         switch weakRef {
-          case (?weakRef) { return isLive(weakRef.ref) };
+          case ?weakRef { return isLive(weakRef.ref) }
           // The weak ref should not be null, but just in case.
-          case null { return false };
+          case null { return false }
         };
       } else {
         // Advance to the next list node.
         let next = list.next;
         switch next {
-          case (?next) { list := next };
+          case ?next { list := next }
           // If we reached the end of the list, return false.
-          case null { return false };
+          case null { return false }
         };
       };
     };
@@ -280,20 +283,20 @@ class BlobIterator(hash : [var __List]) {
   func pruneFirstElement(list : __List, b : Blob, index : Nat) : Bool {
     let deadBlob = getDeadBlobFromListNode(?list);
     switch deadBlob {
-      case (?deadBlob) {
-        if (blobCompare(deadBlob, b) == 0) {
+      case ?deadBlob {
+        if blobCompare(deadBlob, b) == 0 {
           let nextElem = list.next;
           switch nextElem {
-            case (?next) { hashArray[index] := next; return true };
+            case ?next { hashArray[index] := next; return true }
             case null {
               // Do nothing. This case should not happen as the array is initialized
               // with a sentinel (empty) value that is non-null.};
-            };
+            }
           };
         };
-      };
+      }
       // No dead blob in this list node.
-      case null {};
+      case null {}
     };
     false;
   };
@@ -303,7 +306,7 @@ class BlobIterator(hash : [var __List]) {
     // If it is, and if the corresponding WeakRef is null, we remove the whole list node
     // from the hash array.
     var i = 0;
-    while (i < confirmedDeadBlobs.size()) {
+    while i < confirmedDeadBlobs.size() {
       let b = confirmedDeadBlobs[i];
       // Get hash bucket.
       let index = computeIndex(b);
@@ -311,7 +314,7 @@ class BlobIterator(hash : [var __List]) {
       let list = hashArray[index];
       // Special case for the first list node.
       let pruned = pruneFirstElement(list, b, index);
-      if (pruned == false) {
+      if not pruned {
         // If we're here, we know that the blob is not the first list node.
         // So we can advance to the next list node.
         var prev = ?list;
@@ -319,8 +322,8 @@ class BlobIterator(hash : [var __List]) {
         label findLoop loop {
           let crntBlob = getDeadBlobFromListNode(crntNode);
           switch crntBlob {
-            case (?crntBlob) {
-              if (blobCompare(crntBlob, b) == 0) {
+            case ?crntBlob {
+              if blobCompare(crntBlob, b) == 0 {
                 // We found the blob and we know for sure it's dead.
                 // We just need to prune the current list node.
                 switch (prev, crntNode) {
@@ -328,22 +331,22 @@ class BlobIterator(hash : [var __List]) {
                     prev.next := crntNode.next;
                     // Break the loop, we found the blob and pruned.
                     break findLoop;
-                  };
-                  case _ {};
+                  }
+                  case _ {}
                 };
               };
-            };
+            }
             case null {
               // No dead blob in this list node.
               // We can advance pointers.
               prev := crntNode;
               crntNode := advanceListNode(crntNode);
-            };
+            }
           };
           switch crntNode {
-            case (?crntNode) {};
+            case ?crntNode {}
             // We reached the end, break.
-            case null { break findLoop };
+            case null { break findLoop }
           };
         };
       };
@@ -358,13 +361,13 @@ class BlobIterator(hash : [var __List]) {
 func getDeadBlobs() : ?[Blob] {
   let dedupTableOption = __getDedupTable();
   switch dedupTableOption {
-    case (?dedupTable) {
+    case ?dedupTable {
       let dedupTableIter = BlobIterator(dedupTable);
       let numDeadBlobs = dedupTableIter.size();
       let deadBlobs = Array_tabulate<Blob>(numDeadBlobs, func(i : Nat) : Blob { dedupTableIter.nextDeadBlob() });
       return ?deadBlobs;
-    };
-    case null { return null };
+    }
+    case null { return null }
   };
 
 };
@@ -372,21 +375,21 @@ func getDeadBlobs() : ?[Blob] {
 func pruneConfirmedDeadBlobs(confirmedDeadBlobs : [Blob]) {
   let dedupTableOption = __getDedupTable();
   switch dedupTableOption {
-    case (?dedupTable) {
+    case ?dedupTable {
       let dedupTableIter = BlobIterator(dedupTable);
       dedupTableIter.pruneDeadBlobs(confirmedDeadBlobs);
-    };
+    }
   };
 };
 
 func isStorageBlobLive(b : Blob) : Bool {
   let dedupTableOption = __getDedupTable();
   switch dedupTableOption {
-    case (?dedupTable) {
+    case ?dedupTable {
       let iter = BlobIterator(dedupTable);
       iter.isBlobLive(b);
-    };
-    case null { false };
+    }
+    case null { false }
   };
 };
 ///
@@ -542,7 +545,7 @@ func float32ToFloat(f : Float32) : Float = (prim "num_conv_Float32_Float" : Floa
 // Checked Float -> Float32 conversion: returns ?Float32 if round-trip stays within epsilon, null otherwise
 func safeFloatToFloat32(f : Float, epsilon : Float) : ?Float32 {
   let f32 = floatToFloat32 f;
-  if (floatAbs(float32ToFloat f32 - f) <= epsilon) ?f32 else null
+  if floatAbs(float32ToFloat f32 - f) <= epsilon { ?f32 } else { null }
 };
 
 // Float operations
@@ -637,7 +640,7 @@ func time() : Nat64 = (prim "time" : () -> Nat64)();
 func blobOfPrincipal(id : Principal) : Blob = (prim "blobOfPrincipal" : Principal -> Blob) id;
 func principalOfBlob(act : Blob) : Principal {
   // TODO: better: check size in prim "principalOfBlob" instead
-  if (act.size() > 29) {
+  if act.size() > 29 {
     trap("blob too long for principal");
   };
   (prim "principalOfBlob" : Blob -> Principal) act;
@@ -648,12 +651,10 @@ func actorOfPrincipal<A <: actor {}>(p : Principal) : A = (prim "actorOfPrincipa
 func isController(p : Principal) : Bool = (prim "is_controller" : Principal -> Bool) p;
 func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)();
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
+func subnetSelfNodeCount() : Nat32 = (prim "subnetSelfNodeCount" : () -> Nat32)();
 func canisterSubnet() : Principal = (prim "canister_subnet" : () -> Principal)();
 func rootKey() : Blob = (prim "root_key" : () -> Blob)();
-func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Principal)();
-
-// Untyped dynamic actor creation from blobs
-let createActor : (wasm : Blob, argument : Blob) -> async Principal = @create_actor_helper;
+func getSelfPrincipal() : Principal = (prim "canister_self" : () -> Principal)();
 
 func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
 func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
@@ -661,10 +662,10 @@ func cyclesRefunded() : Nat = @refund;
 func cyclesAccept<system>(amount : Nat) : Nat = (prim "cyclesAccept" : Nat -> Nat) amount;
 
 func cyclesAdd<system>(amount : Nat) : () {
-  if (amount == 0) return;
+  if amount == 0 { return };
   @cycles += amount;
   // trap if @cycles would exceed 2^128
-  if (@cycles > 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF) {
+  if @cycles > 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF {
     trap("cannot add more than 2^128 cycles");
   };
 };
@@ -676,85 +677,17 @@ func costCall(methodNameSize : Nat64, payloadSize : Nat64) : Nat = (prim "costCa
 func costCreateCanister() : Nat = (prim "costCreateCanister" : () -> Nat)();
 
 func costHttpRequest(requestSize : Nat64, maxResBytes : Nat64) : Nat = (prim "costHttpRequest" : (Nat64, Nat64) -> Nat)(requestSize, maxResBytes);
+func costHttpRequestV2(params : Blob) : Nat = (prim "costHttpRequestV2" : Blob -> Nat)(params);
 
 func costSignWithEcdsa(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithEcdsa" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
 
 func costSignWithSchnorr(keyName : Text, algorithmEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithSchnorr" : (Text, Nat32) -> (Nat32, Nat))(keyName, algorithmEncoding);
 
+func costVetkdDeriveKey(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costVetkdDeriveKey" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
+
 // certified data
 func setCertifiedData(data : Blob) = (prim "setCertifiedData" : Blob -> ()) data;
 func getCertificate() : ?Blob = (prim "getCertificate" : () -> ?Blob)();
-
-// stable memory
-
-/// @deprecated M0199
-func stableMemorySize() : Nat64 = (prim "stableMemorySize" : () -> Nat64)();
-
-/// @deprecated M0199
-func stableMemoryGrow(pages : Nat64) : Nat64 = (prim "stableMemoryGrow" : Nat64 -> Nat64) pages;
-
-/// @deprecated M0199
-func stableMemoryLoadNat32(offset : Nat64) : Nat32 = (prim "stableMemoryLoadNat32" : Nat64 -> Nat32) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreNat32(offset : Nat64, val : Nat32) : () = (prim "stableMemoryStoreNat32" : (Nat64, Nat32) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadNat8(offset : Nat64) : Nat8 = (prim "stableMemoryLoadNat8" : Nat64 -> Nat8) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreNat8(offset : Nat64, val : Nat8) : () = (prim "stableMemoryStoreNat8" : (Nat64, Nat8) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadNat16(offset : Nat64) : Nat16 = (prim "stableMemoryLoadNat16" : Nat64 -> Nat16) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreNat16(offset : Nat64, val : Nat16) : () = (prim "stableMemoryStoreNat16" : (Nat64, Nat16) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadNat64(offset : Nat64) : Nat64 = (prim "stableMemoryLoadNat64" : Nat64 -> Nat64) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreNat64(offset : Nat64, val : Nat64) : () = (prim "stableMemoryStoreNat64" : (Nat64, Nat64) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadInt32(offset : Nat64) : Int32 = (prim "stableMemoryLoadInt32" : Nat64 -> Int32) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreInt32(offset : Nat64, val : Int32) : () = (prim "stableMemoryStoreInt32" : (Nat64, Int32) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadInt8(offset : Nat64) : Int8 = (prim "stableMemoryLoadInt8" : Nat64 -> Int8) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreInt8(offset : Nat64, val : Int8) : () = (prim "stableMemoryStoreInt8" : (Nat64, Int8) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadInt16(offset : Nat64) : Int16 = (prim "stableMemoryLoadInt16" : Nat64 -> Int16) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreInt16(offset : Nat64, val : Int16) : () = (prim "stableMemoryStoreInt16" : (Nat64, Int16) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadInt64(offset : Nat64) : Int64 = (prim "stableMemoryLoadInt64" : Nat64 -> Int64) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreInt64(offset : Nat64, val : Int64) : () = (prim "stableMemoryStoreInt64" : (Nat64, Int64) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadFloat(offset : Nat64) : Float = (prim "stableMemoryLoadFloat" : Nat64 -> Float) offset;
-
-/// @deprecated M0199
-func stableMemoryStoreFloat(offset : Nat64, val : Float) : () = (prim "stableMemoryStoreFloat" : (Nat64, Float) -> ())(offset, val);
-
-/// @deprecated M0199
-func stableMemoryLoadBlob(offset : Nat64, size : Nat) : Blob = (prim "stableMemoryLoadBlob" : (Nat64, Nat) -> Blob)(offset, size);
-
-/// @deprecated M0199
-func stableMemoryStoreBlob(offset : Nat64, val : Blob) : () = (prim "stableMemoryStoreBlob" : (Nat64, Blob) -> ())(offset, val);
-
-// Returns a query that computes the current actor's stable variable statistics (for now, the current size, in bytes, of serialized stable variable data).
-func stableVarQuery() : shared query () -> async { size : Nat64 } = (prim "stableVarQuery" : () -> (shared query () -> async { size : Nat64 }))();
 
 // stable regions
 
@@ -819,7 +752,7 @@ func setCandidLimits<system>({
   (prim "setCandidLimits" : (Nat32, Nat32, Nat32) -> ())(numerator, denominator, bias);
 };
 
-func getCandidLimits<system>() : {
+func getCandidLimits() : {
   numerator : Nat32;
   denominator : Nat32;
   bias : Nat32;
@@ -839,7 +772,7 @@ func setCandidTypeLimits<system>({
   (prim "setCandidTypeLimits" : (Nat32, Nat32) -> ())(scalar, bias);
 };
 
-func getCandidTypeLimits<system>() : {
+func getCandidTypeLimits() : {
   scalar : Nat32;
   bias : Nat32;
 } {

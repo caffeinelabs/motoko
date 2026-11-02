@@ -20,6 +20,11 @@ let rec idents_in_pattern : Syntax.pat -> string list =
   | Syntax.AnnotP (p, _)
   | Syntax.ParP p ->
       idents_in_pattern p
+  | Syntax.AndP (p1, p2) ->
+      (* typechecker rejects overlapping bindings across legs, but
+         this helper may run on not-yet-checked code (mo-doc), so
+         dedupe defensively *)
+      List.sort_uniq compare (idents_in_pattern p1 @ idents_in_pattern p2)
   | Syntax.WildP | Syntax.SignP (_, _) | Syntax.LitP _ -> []
 
 let from_module =

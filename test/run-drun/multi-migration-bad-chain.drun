@@ -1,5 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-
 # bad init, errors out.
 install $ID multi-migration-bad-chain/version1.mo ""
 

@@ -2,16 +2,16 @@ ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a000000000000000001
 ingress Completed: Reply: 0x4449444c0000
 debug.print: Test __motoko_stabilize_before_upgrade
 debug.print: IC0503: Error from Canister lxzze-o7777-77777-aaaaa-cai: Canister called `ic0.trap` with message: 'not a self-call or call from controller'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: Test __motoko_stabilize_after_upgrade
 debug.print: IC0503: Error from Canister lxzze-o7777-77777-aaaaa-cai: Canister called `ic0.trap` with message: 'not a self-call or call from controller'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: Test upgrade
 debug.print: PRE-UPGRADE HOOK!
 debug.print: Test __motoko_stabilize_before_upgrade
 debug.print: IC0503: Error from Canister lxzze-o7777-77777-aaaaa-cai: Canister called `ic0.trap` with message: 'not a self-call or call from controller'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: Test __motoko_stabilize_after_upgrade
 debug.print: IC0503: Error from Canister lxzze-o7777-77777-aaaaa-cai: Canister called `ic0.trap` with message: 'not a self-call or call from controller'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Completed: Reply: 0x4449444c0000

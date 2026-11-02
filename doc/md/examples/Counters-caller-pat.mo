@@ -1,4 +1,4 @@
-shared({caller = owner}) persistent actor class Counter(init : Nat) {
+shared({caller = owner}) actor class Counter(init : Nat) {
 
   var count : Nat = init;
 

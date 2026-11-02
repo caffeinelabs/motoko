@@ -86,6 +86,7 @@ let rec pat p : td = match p.it with
   | OptP p
   | TagP (_, p)     -> pat p
   | AltP (p1, p2)   -> pat p1 +- pat p2
+  | AndP (p1, p2)   -> pat p1 +- pat p2
 
 and pats ps : td = List.(fold_left (+-) M.empty (map pat ps))
 
@@ -145,7 +146,6 @@ and cases cs : f = unions case cs
 and dec d = match d.it with
   | LetD (p, e) -> fd_of_defs (pat p) +++ exp e
   | VarD (i, t, e) -> fd_of_defs (M.singleton i t) +++ exp e
-  | RefD (i, t, e) -> fd_of_defs (M.singleton i t) +++ lexp e
 
 (* The variables captured by a function. May include the function itself! *)
 and captured e =

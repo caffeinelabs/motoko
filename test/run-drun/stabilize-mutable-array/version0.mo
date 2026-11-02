@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 
 actor {
-    stable let instance = [
+    let instance = [
         var {
             firstField = 0;
             secondField = 0;
@@ -9,7 +9,7 @@ actor {
         }
     ];
 
-    stable let alias = instance;
+    let alias = instance;
 
     public func test() : async () {
         Prim.debugPrint("firstField=" # debug_show (instance[0].firstField));

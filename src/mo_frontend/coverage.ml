@@ -30,6 +30,7 @@ type ctxt =
   | InObj of ctxt * desc LabMap.t * string * pat_field list * T.field list
   | InAlt1 of ctxt * region * pat * T.typ
   | InAlt2 of ctxt * region
+  | InAnd1 of ctxt * pat * T.typ
   | InCase of region * case list * T.typ
 
 type sets =
@@ -268,6 +269,8 @@ let rec match_pat ctxt desc pat t sets =
   | AltP (pat1, pat2) ->
     sets.alts <- AtSet.add pat1.at (AtSet.add pat2.at sets.alts);
     match_pat (InAlt1 (ctxt, pat1.at, pat2, t)) desc pat1 t sets
+  | AndP (pat1, pat2) ->
+    match_pat (InAnd1 (ctxt, pat2, t)) desc pat1 t sets
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat ctxt desc pat1 t sets
@@ -332,6 +335,8 @@ and succeed ctxt desc sets : bool =
   | InAlt2 (ctxt', at2) ->
     sets.reached_alts <- AtSet.add at2 sets.reached_alts;
     succeed ctxt' desc sets
+  | InAnd1 (ctxt', pat2, t) ->
+    match_pat ctxt' desc pat2 t sets
   | InCase (at, cases, _t) ->
     sets.reached_cases <- AtSet.add at sets.reached_cases;
     skip cases sets
@@ -358,6 +363,9 @@ and fail ctxt desc sets : bool =
     match_pat (InAlt2 (ctxt', pat2.at)) desc pat2 t sets
   | InAlt2 (ctxt', at2) ->
     fail ctxt' desc sets
+  | InAnd1 (ctxt', _pat2, _t) ->
+    (* pat1 rejected `desc`; AndP rejects too *)
+    fail ctxt' desc sets
   | InCase (at, [], t) ->
     T.span t = Some 0 || not (T.inhabited t) ||
     (sets.missing <- desc::sets.missing; false)
@@ -369,13 +377,19 @@ and fail ctxt desc sets : bool =
 type uncovered = string
 type unreached = region
 
+let within at outer =
+  Pos_ord.compare outer.left at.left <= 0 && Pos_ord.compare at.right outer.right <= 0
+
 let check_cases cases t =
   let sets = make_sets () in
   let _exhaustive = fail (InCase (no_region, cases, t)) Any sets in
   let uncovered = List.map (string_of_desc t) (List.rev sets.missing) in
   let unreached_cases = AtSet.diff sets.cases sets.reached_cases in
   let unreached_alts = AtSet.diff sets.alts sets.reached_alts in
-  uncovered, AtSet.elements (AtSet.union unreached_cases unreached_alts)
+  let unreached = AtSet.union unreached_cases unreached_alts in
+  (* report only the outermost of nested unreached patterns *)
+  let nested at = AtSet.exists (fun outer -> outer <> at && within at outer) unreached in
+  uncovered, AtSet.elements (AtSet.filter (fun at -> not (nested at)) unreached)
 
 let (@?) it at = {it; at; note = empty_typ_note}
 

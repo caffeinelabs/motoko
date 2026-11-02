@@ -1,3 +1,0 @@
-install $ID stable-region-migration/actor0.mo ""
-upgrade $ID stable-region-migration/actor1.mo ""
-

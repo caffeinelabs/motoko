@@ -8,7 +8,7 @@ use motoko_rts::text::{
     text_singleton, text_size,
 };
 use motoko_rts::text_iter::{text_iter, text_iter_done, text_iter_next};
-use motoko_rts::types::{Bytes, Value, TAG_BLOB_T};
+use motoko_rts::types::{Bytes, TAG_BLOB_T, Value};
 
 use std::convert::TryFrom;
 

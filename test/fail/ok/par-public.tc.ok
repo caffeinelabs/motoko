@@ -1,2 +1,3 @@
-par-public.mo:2.34-2.40: type error [M0213], parenthetical notes aren't allowed on shared functions
+par-public.mo:2.34-2.50: type error [M0277], redundant `async`: the body of a function returning `async` is already `async`
+note: A parenthetical goes at the call site instead, e.g. `(with cycles = 1_000) f()`.
 par-public.mo:2.34-2.40: warning [M0211], redundant empty parenthetical note

@@ -1,6 +1,6 @@
 import Result "../assetstorage/Result";
 import Trie "../assetstorage/Trie";
-import Int "../assetstorage/Int";
+import Hash "../assetstorage/Hash";
 import Nat "../assetstorage/Nat";
 import List "../assetstorage/List";
 import Principal "../assetstorage/Principal";
@@ -64,7 +64,7 @@ module {
     system_params: SystemParams;
   };
 
-  public func proposal_key(t: Nat) : Trie.Key<Nat> = { key = t; hash = Int.hash t };
+  public func proposal_key(t: Nat) : Trie.Key<Nat> = { key = t; hash = Hash.hash t };
   public func account_key(t: Principal) : Trie.Key<Principal> = { key = t; hash = Principal.hash t };
   public func accounts_fromArray(arr: [Account]) : Trie.Trie<Principal, Tokens> {
       var s = Trie.empty<Principal, Tokens>();

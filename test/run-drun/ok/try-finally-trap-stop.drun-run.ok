@@ -6,7 +6,7 @@ debug.print: trap in finally!
 debug.print: {rts_callback_table_count = 1}
 debug.print: canister running
 debug.print: Error from Canister lxzze-o7777-77777-aaaaa-cai: Canister called `ic0.trap` with message: 'canister_pre_upgrade attempted with outstanding message callbacks (try stopping the canister before upgrade)'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: canister stopped
 debug.print: canister upgraded
 debug.print: {rts_callback_table_count = 0}

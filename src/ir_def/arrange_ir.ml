@@ -114,7 +114,6 @@ and prim = function
   | CPSAsync (Type.Fut, t) -> "CPSAsync" $$ [typ t]
   | CPSAsync (Type.Cmp, t) -> "CPSAsync*" $$ [typ t]
   | ICArgDataPrim     -> Atom "ICArgDataPrim"
-  | ICStableSize t    -> "ICStableSize" $$ [typ t]
   | ICPerformGC       -> Atom "ICPerformGC"
   | ICReplyPrim ts    -> "ICReplyPrim" $$ List.map typ ts
   | ICRejectPrim      -> Atom "ICRejectPrim"
@@ -140,6 +139,7 @@ and pat p = match p.it with
   | OptP p          -> "OptP"       $$ [ pat p ]
   | TagP (i, p)     -> "TagP"       $$ [ id i; pat p ]
   | AltP (p1,p2)    -> "AltP"       $$ [ pat p1; pat p2 ]
+  | AndP (p1,p2)    -> "AndP"       $$ [ pat p1; pat p2 ]
 
 and lit = function
   | NullLit       -> Atom "NullLit"
@@ -171,7 +171,6 @@ and control s = Atom (Arrange_type.control s)
 and dec d = match d.it with
   | LetD (p, e) -> "LetD" $$ [pat p; exp e]
   | VarD (i, t, e) -> "VarD" $$ [id i; typ t; exp e]
-  | RefD (i, t, e) -> "RefD" $$ [id i; typ t; lexp e]
 
 and typ_bind (tb : typ_bind) =
   Type.string_of_con tb.it.con $$ [typ tb.it.bound]

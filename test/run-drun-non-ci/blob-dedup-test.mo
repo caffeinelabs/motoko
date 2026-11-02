@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   let keepAlive : [var Blob] = Prim.Array_tabulateVar<Blob>(50_000, func(i : Nat) : Blob = "");
   var counter = 0;
@@ -71,7 +71,6 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-NO-FORCE-GC
 
 //CALL ingress test2 "DIDL\x00\x00"

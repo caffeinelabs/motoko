@@ -30,3 +30,8 @@ warning[M0235]: field f is deprecated for caffeine
     ┌─ caffeine-deprecated-on.mo:26:11
  26 │  do { let {f = x} = A; };
     │            ^^^^^ 
+warning[M0235]: field withMsg is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:42:9
+ 42 │  ignore (C.withMsg);
+    │          ^^^^^^^^^ 
+    = note: use `bar` instead

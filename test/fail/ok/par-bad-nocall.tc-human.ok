@@ -1,0 +1,8 @@
+error[M0210]: misplaced parenthetical note: it must precede a function call
+    ┌─ par-bad-nocall.mo:3:9
+  3 │  let a = (with cycles = 1) 42;
+    │          ^^^^^^^^^^^^^^^^^^^^ 
+error[M0210]: misplaced parenthetical note: it must precede a function call
+    ┌─ par-bad-nocall.mo:4:9
+  4 │  let b = (with cycles = 1) f(1).y;
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^ 

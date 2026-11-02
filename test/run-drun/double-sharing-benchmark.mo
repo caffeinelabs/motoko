@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 import Prim "mo:prim";
 
 actor {
@@ -8,7 +7,7 @@ actor {
         right : ?Node<T>;
     };
 
-    stable var root : ?Node<Nat> = null;
+    var root : ?Node<Nat> = null;
 
     func double(value : Nat) {
         root := ?{
@@ -39,3 +38,4 @@ actor {
 //SKIP run-low
 //SKIP run
 //SKIP run-ir
+//MOC-FLAG -A=M0270

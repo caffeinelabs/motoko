@@ -2,7 +2,7 @@
 // top-level actor objects are supported
 actor Counter {
 
-    flexible shared func bad_private_shared() : () { }; // unsupported private shared
+    transient shared func bad_private_shared() : () { }; // unsupported private shared
 
     public func ok_actorarg(a:actor{}) : async () {};
 
@@ -12,7 +12,7 @@ actor Counter {
 
     public func ok() : async () {};
 
-    public func ok_explicit() : async () = async {};
+    public func ok_explicit() : async () {};
 
     public func ok_call() : async () {
         ignore (ok()); // supported intercanister messaging

@@ -298,9 +298,10 @@ module {
         public func instantiate(random : Random.Random) : Values.RandomValue {
             let maxLength = 128 * 1024 * 1024;
             let pageSize = 64 * 1024;
-            ignore Prim.stableMemoryGrow(Prim.natToNat64(maxLength / pageSize) + 1);
+            let region = Prim.regionNew();
+            ignore Prim.regionGrow(region, Prim.natToNat64(maxLength / pageSize) + 1);
             let blockSize = random.next() % maxLength;
-            let randomBlob = Prim.stableMemoryLoadBlob(0, blockSize);
+            let randomBlob = Prim.regionLoadBlob(region, 0, blockSize);
             #blob randomBlob;
         };
 

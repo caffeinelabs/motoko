@@ -1,1 +1,0 @@
-static-call-rec.mo:2.5-2.8: warning [M0244], variable FOO is never reassigned, consider using `let`

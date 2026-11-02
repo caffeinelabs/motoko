@@ -1,6 +1,9 @@
-warning[M0146]: this pattern is never matched
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
     ┌─ pat-subtyping-fail.mo:4:9
-  4 │    case (-1) {};  // redundant
+  4 │    case (-1) {};  // literal type mismatch
     │          ^^ 
 warning[M0146]: this pattern is never matched
     ┌─ pat-subtyping-fail.mo:8:9
@@ -22,9 +25,12 @@ warning[M0146]: this pattern is never matched
     ┌─ pat-subtyping-fail.mo:26:26
  26 │    case {a = 1 : Int; b = -2 : Int} {};  // redundant
     │                           ^^ 
-warning[M0146]: this pattern is never matched
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
     ┌─ pat-subtyping-fail.mo:31:11
- 31 │    case (? -1) {};  // redundant
+ 31 │    case (? -1) {};  // literal type mismatch
     │            ^^ 
 warning[M0146]: this pattern is never matched
     ┌─ pat-subtyping-fail.mo:35:11
@@ -34,9 +40,12 @@ warning[M0146]: this pattern is never matched
     ┌─ pat-subtyping-fail.mo:39:11
  39 │    case (?(-1 : Int)) {};  // redundant
     │            ^^ 
-warning[M0146]: this pattern is never matched
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
     ┌─ pat-subtyping-fail.mo:44:12
- 44 │    case (#A(-1)) {};  // redundant
+ 44 │    case (#A(-1)) {};  // literal type mismatch
     │             ^^ 
 warning[M0146]: this pattern is never matched
     ┌─ pat-subtyping-fail.mo:48:12
@@ -123,10 +132,13 @@ cannot consume expected type
     ┌─ pat-subtyping-fail.mo:89:9
  89 │    case ({a; b} : {a : Nat; b : Nat}) {};
     │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0146]: this pattern is never matched
-    ┌─ pat-subtyping-fail.mo:94:8
+error[M0115]: option pattern cannot consume expected type
+    ┌─ pat-subtyping-fail.mo:94:9
+ 92 │  switch (magic () : Null) {
+    │          --------------- this expression has type `Null`
+ 93 │    case (null) {};
  94 │    case (? _) {};
-    │         ^^^^^ 
+    │          ^^^ expected `Null`, got `?_`
 error[M0117]: pattern of type
   Null
 cannot consume expected type

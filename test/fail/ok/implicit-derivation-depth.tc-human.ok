@@ -1,0 +1,7 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ([[Nat]], [[Nat]]) -> Order
+    ┌─ implicit-derivation-depth.mo:28:8
+ 28 │  ignore needsNestedArrayCompare([[1]], [[2]]);
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 depth limit reached (increase with `--implicit-derivation-depth`, current: 1)

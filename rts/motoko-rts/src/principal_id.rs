@@ -2,16 +2,16 @@
 
 use crate::barriers::allocation_barrier;
 use crate::mem_utils::memcpy_bytes;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
 use crate::text::{blob_compare, blob_of_text};
-use crate::types::{Bytes, Value, TAG_BLOB_B, TAG_BLOB_T};
+use crate::types::{Bytes, TAG_BLOB_B, TAG_BLOB_T, Value};
 
 use motoko_rts_macros::ic_mem_fn;
 
 // CRC32 for blobs. Loosely based on https://rosettacode.org/wiki/CRC-32#Implementation_2
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn compute_crc32(blob: Value) -> u32 {
     if !blob.is_blob() {
         panic!("compute_crc32: Blob expected");

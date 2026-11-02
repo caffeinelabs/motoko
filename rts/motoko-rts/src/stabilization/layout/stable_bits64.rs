@@ -1,6 +1,6 @@
 use crate::{
     stabilization::serialization::stable_memory_stream::StableMemoryStream,
-    types::{Bits64, Tag, Value, TAG_BITS64_F, TAG_BITS64_S, TAG_BITS64_U},
+    types::{Bits64, TAG_BITS64_F, TAG_BITS64_S, TAG_BITS64_U, Tag, Value},
 };
 
 use super::{Serializer, StableObjectKind, StableValue, StaticScanner};

@@ -102,6 +102,14 @@ sig
   val map2 : ('a -> 'b -> 'c) -> 'a option -> 'b option -> 'c option
 end
 
+module Result :
+sig
+  module Syntax :
+  sig
+    val (let*) : ('a, 'e) result -> ('a -> ('b, 'e) result) -> ('b, 'e) result
+  end
+end
+
 module Promise :
 sig
   type 'a t
@@ -133,7 +141,6 @@ module Uint32 :
 sig
   type t
   val to_string : t -> string
-  val of_string : string -> t
   val of_string_opt : string -> t option
   val of_int : int -> t
   val to_int : t -> int
@@ -161,7 +168,6 @@ sig
   val chop_prefix : string -> string -> string option
   val chop_suffix : string -> string -> string option
   val lightweight_escaped : string -> string
-  val levenshtein_distance : string -> string -> int
   val strip_control_chars : string -> string
 end
 

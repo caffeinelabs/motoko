@@ -66,6 +66,12 @@ exception Trap of region * string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
 
+(* Compares as a Nat first, as an index need not fit an OCaml int *)
+let index at n len =
+  if Numerics.Nat.lt n (Numerics.Nat.of_int len)
+  then Numerics.Nat.to_int n
+  else trap at "index out of bounds"
+
 let find id env =
   try V.Env.find id env
   with Not_found ->
@@ -316,7 +322,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   let open Call_conv in
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | VarE (_, id) ->
     (match Lib.Promise.value_opt (find id env.vals) with
@@ -365,8 +370,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           | Const -> vs
         in k (V.Array (Array.of_list vs'))
       | (IdxPrim | DerefArrayOffset), [v1; v2] ->
-        k (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
-           with Invalid_argument s -> trap exp.at "%s" s)
+        let a = V.as_array v1 in
+        k a.(index exp.at (V.as_int v2) (Array.length a))
       | NextArrayOffset , [v1] ->
         k (V.Int Numerics.Nat.(of_int ((to_int (V.as_int v1)) + 1)))
       | EqArrayOffset, [v1; v2] ->
@@ -374,7 +379,9 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       | GetLastArrayOffset,  [v1] ->
         k (V.Int Numerics.Int.(of_int (Array.length (V.as_array v1) - 1)))
       | IdxBlobPrim, [v1; v2] ->
-        k V.(Nat8 Numerics.((as_blob v1).[Int.to_int (as_int v2)] |> Char.code |> Nat8.of_int))
+        let s = V.as_blob v1 in
+        let c = s.[index exp.at (V.as_int v2) (String.length s)] in
+        k V.(Nat8 (Numerics.Nat8.of_int (Char.code c)))
       | BreakPrim id, [v1] -> find id env.labs v1
       | RetPrim, [v1] -> Option.get env.rets v1
       | ThrowPrim, [v1] -> Option.get env.throws v1
@@ -620,9 +627,8 @@ and interpret_lexp env lexp (k : (V.value ref) V.cont) =
   | IdxLE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k (V.as_mut
-          (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
-           with Invalid_argument s -> trap lexp.at "%s" s))
+        let a = V.as_array v1 in
+        k (V.as_mut a.(index lexp.at (V.as_int v2) (Array.length a)))
       )
     )
 
@@ -690,6 +696,7 @@ and declare_pat pat : val_env =
   | OptP pat1
   | TagP (_, pat1) -> declare_pat pat1
   | AltP (pat1, _pat2) -> declare_pat pat1 (* pat2 has the same bindings *)
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -744,7 +751,10 @@ and match_pat pat v : val_env option =
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
   | ObjP pfs ->
-    match_pat_fields pfs (V.as_obj v) V.Env.empty
+    if T.is_actor pat.note then
+      match_pat_fields_actor pfs v V.Env.empty
+    else
+      match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
     (match v with
     | V.Opt v1 -> match_pat pat1 v1
@@ -761,6 +771,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
 
 and match_pats pats vs ve : val_env option =
   match pats, vs with
@@ -782,6 +795,18 @@ and match_pat_fields pfs vs ve : val_env option =
       | None -> None
     end
 
+and match_pat_fields_actor pfs actor ve : val_env option =
+  (* Actor field projection: each method binds to the deferred (actor, name)
+     pair ActorDotPrim produces (cf. interpret_prim_exp). *)
+  match pfs with
+  | [] -> Some ve
+  | pf::pfs' ->
+    begin
+      match match_pat pf.it.pat V.(Tup [actor; Text pf.it.name]) with
+      | Some ve' -> match_pat_fields_actor pfs' actor (V.Env.adjoin ve ve')
+      | None -> None
+    end
+
 (* Blocks and Declarations *)
 
 and interpret_block env ro decs exp k =
@@ -793,7 +818,7 @@ and interpret_block env ro decs exp k =
 and declare_dec dec : val_env =
   match dec.it with
   | LetD (pat, _) -> declare_pat pat
-  | VarD (id, _,  _) | RefD (id, _,  _) -> declare_id id
+  | VarD (id, _,  _) -> declare_id id
 
 and declare_decs decs ve : val_env =
   match decs with
@@ -814,11 +839,6 @@ and interpret_dec env dec k =
   | VarD (id, _, exp) ->
     interpret_exp env exp (fun v ->
       define_id env id (V.Mut (ref v));
-      k ()
-    )
-  | RefD (id, _, lexp) ->
-    interpret_lexp env lexp (fun v ->
-      define_id env id (V.Mut v);
       k ()
     )
 

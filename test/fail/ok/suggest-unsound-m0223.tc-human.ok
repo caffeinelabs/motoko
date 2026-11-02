@@ -1,0 +1,99 @@
+warning[M0223]: redundant type instantiation
+    ┌─ suggest-unsound-m0223.mo:11:21
+ 11 │        Array.tabulate<Nat>(i + 1, func(j) = j) // warning (M0223)
+    │                      ^^^^^ 
+    = help: remove `<Nat>`
+warning[M0223]: redundant type instantiation
+    ┌─ suggest-unsound-m0223.mo:8:17
+  8 │    Array.tabulate<List.List<Nat>>( // warning (M0223)
+    │                  ^^^^^^^^^^^^^^^^ 
+    = help: remove `<List.List<Nat>>`
+error[M0098]: cannot apply function of type
+  <T>(array : [T]) -> List.List<T>
+to argument of type
+  [Nat]
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Nat>
+    ┌─ suggest-unsound-m0223.mo:20:15
+ 19 │        n,
+ 20 │        func(i) = List.fromArray( // error (M0098): nothing pins the element type
+    │ ╭────────────────^
+ 21 │ │        Array.tabulate(i + 1, func(j) = j)
+ 22 │ │      ),
+    │ ╰──────^ 
+ 23 │      );
+warning[M0237]: The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ suggest-unsound-m0223.mo:47:5
+ 47 │      Impl1.impl, // warning (M0237: omit implicit)
+    │      ^^^^^^^^^^ 
+    = help: remove `Impl1.impl, // warning (M0237: omit implicit)`
+error[M0098]: cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+    ┌─ suggest-unsound-m0223.mo:67:14
+ 67 │      func _ = Prim.Array_tabulateVar(5, func _ = null),
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0237]: The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ suggest-unsound-m0223.mo:74:5
+ 74 │      Impl1.impl, // warning (M0237: omit outer implicit)
+    │      ^^^^^^^^^^ 
+    = help: remove `Impl1.impl, // warning (M0237: omit outer implicit)`
+error[M0098]: cannot apply function of type
+  <T>(n : Nat, k : Nat -> T) -> [var T]
+to argument of type
+  (Nat, k : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+    ┌─ suggest-unsound-m0223.mo:94:14
+ 94 │      func _ = withImpl(5, func _ = null),
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0223]: redundant type instantiation
+    ┌─ suggest-unsound-m0223.mo:99:34
+ 99 │    let _grid = Prim.Array_tabulate<[var ?R]>( // warning (M0223)
+    │                                   ^^^^^^^^^^ 
+    = help: remove `<[var ?R]>`
+error[M0098]: cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+    ┌─ suggest-unsound-m0223.mo:119:14
+119 │      func _ = Prim.Array_tabulateVar(5, func _ = null),
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0223]: redundant type instantiation
+    ┌─ suggest-unsound-m0223.mo:124:34
+124 │    let _grid = Prim.Array_tabulate<[var ?R]>( // warning (M0223)
+    │                                   ^^^^^^^^^^ 
+    = help: remove `<[var ?R]>`
+error[M0098]: cannot apply function of type
+  <T>(n : Nat, k : Nat -> T) -> [var T]
+to argument of type
+  (Nat, k : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+    ┌─ suggest-unsound-m0223.mo:144:14
+144 │      func _ = withImpl(5, func _ = null),
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0223]: redundant type instantiation
+    ┌─ suggest-unsound-m0223.mo:154:36
+154 │      func _ = Prim.Array_tabulateVar<?R>(5, func _ = null), // warning (M0223)
+    │                                     ^^^^ 
+    = help: remove `<?R>`
+warning[M0237]: The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ suggest-unsound-m0223.mo:153:5
+153 │      Impl1.impl, // warning (M0237)
+    │      ^^^^^^^^^^ 
+    = help: remove `Impl1.impl, // warning (M0237)`
+error[M0098]: cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+    ┌─ suggest-unsound-m0223.mo:160:14
+160 │      func _ = Prim.Array_tabulateVar(5, func _ = null),
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

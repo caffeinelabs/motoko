@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0270
 import Prim "mo:⛔";
 import Cycles = "cycles/cycles";
 import Cs "actor-class-mgmt/C";

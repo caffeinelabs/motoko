@@ -12,7 +12,6 @@ module Make
   end)
 = struct
 
-  open MenhirLib.General
   open I
   open User
 
@@ -34,7 +33,7 @@ module Make
   let future explanation =
     let prod, index = explanation.item in
     let rhs = rhs prod in
-    drop index rhs
+    List.drop index rhs
 
   let goal explanation =
     let prod, _ = explanation.item in
@@ -50,12 +49,12 @@ module Make
 
   let items_current env : item list =
     (* Get the current state. *)
-    match Lazy.force (stack env) with
-    | Nil ->
+    match top env with
+    | None ->
         (* If we get here, then the stack is empty, which means the parser
            is in an initial state. This should not happen. *)
         invalid_arg "items_current" (* TEMPORARY it DOES happen! *)
-    | Cons (Element (current, _, _, _), _) ->
+    | Some (Element (current, _, _, _)) ->
         (* Extract the current state out of the top stack element, and
            convert it to a set of LR(0) items. Returning a set of items
            instead of an ['a lr1state] is convenient; returning [current]
@@ -87,16 +86,17 @@ module Make
     );
     c
 
-  (* [marry past stack] TEMPORARY comment *)
+  (* [marry past env] pairs the symbols of [past] with the positions of the topmost stack cells.
+     It pops only as many cells as [past] is long: the stack can be as deep as the input, and this runs per error and per lookahead token *)
 
-  let rec marry past stack =
-    match past, stack with
-    | [], _ ->
+  let rec marry past env =
+    match past, top env, pop env with
+    | [], _, _ ->
         []
-    | symbol :: past, lazy (Cons (Element (s, _, startp, endp), stack)) ->
+    | symbol :: past, Some (Element (s, _, startp, endp)), Some env ->
         assert (compare_symbols symbol (X (incoming_symbol s)) = 0);
-        (symbol, startp, endp) :: marry past stack
-    | _ :: _, lazy Nil ->
+        (symbol, startp, endp) :: marry past env
+    | _ :: _, _, _ ->
         assert false
 
   (* [accumulate t env explanations] is called if the parser decides to shift
@@ -110,14 +110,13 @@ module Make
        transition, look at the items that justify shifting [t].
        We view these items as explanations: they explain what
        we have read and what we expect to read. *)
-    let stack = stack env in
     List.fold_left (fun explanations item ->
       if is_shift_item t item then
         let prod, index = item in
         let rhs = rhs prod in
         {
           item = item;
-          past = List.rev (marry (List.rev (take index rhs)) stack)
+          past = List.rev (marry (List.rev (List.take index rhs)) env)
         } :: explanations
       else
         explanations
@@ -132,6 +131,14 @@ module Make
      detected; it is used when manufacturing dummy tokens. This is
      important because the position of the dummy token may end up in
      the explanations that we produce. *)
+
+  let weed comp l =
+    let rec loop acc = function
+      | [] | [_] as xs -> List.rev (xs @ acc)
+      | x :: (y :: _ as rest) when comp x y = 0 -> loop acc rest
+      | x :: rest -> loop (x :: acc) rest
+    in
+    loop [] l
 
   let investigate pos (checkpoint : _ checkpoint) : explanation list =
     weed compare_explanations (

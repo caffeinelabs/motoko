@@ -77,6 +77,12 @@ exception Cancel of string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
 
+(* Compares as a Nat first, as an index need not fit an OCaml int *)
+let index at n len =
+  if Numerics.Nat.lt n (Numerics.Nat.of_int len)
+  then Numerics.Nat.to_int n
+  else trap at "index out of bounds"
+
 let find id env =
   try V.Env.find id env
   with Not_found ->
@@ -442,7 +448,6 @@ let rec interpret_exp env exp (k : V.value V.cont) =
 and interpret_exp_mut env exp (k : V.value V.cont) =
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
   | PrimE s ->
@@ -471,6 +476,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         assert T.(exp.note.note_typ = Prim Blob);
         k (V.Blob contents)
       end
+    | IDLTypesPath _ -> k (V.Obj V.Env.empty)
     | IDLPath _ -> trap exp.at "actor import"
     | PrimPath -> k (find "@prim" env.libs)
     )
@@ -533,7 +539,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     (* NB: we ignore the migration expression _exp_opt *)
     interpret_obj env obj_sort.it self_id_opt dec_fields k
   | ObjE (exp_bases, exp_fields) ->
-    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj env)) in
+    (* shallow-copy var fields carried over from bases into fresh cells, so
+       record-update does not alias the base's mutable state (OCaml-style copy).
+       Snapshot after the explicit fields run so a field initializer that
+       mutates a base var sees the post-initializer value, matching the
+       desugar/lowering order. *)
+    let copy_mut env = V.Env.map (function V.Mut r -> V.Mut (ref !r) | v -> v) env in
+    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj (copy_mut env))) in
     let open V.Env in
     let merges =
       List.fold_left
@@ -600,16 +612,18 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | IdxE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k V.(let i = Numerics.Int.to_int (as_int v2) in
-             match v1 with
+        let n = V.as_int v2 in
+        k V.(match v1 with
              | Blob s ->
-               Nat8 (s.[i] |> Char.code |> Numerics.Nat8.of_int)
+               let c = s.[index exp.at n (String.length s)] in
+               Nat8 (Numerics.Nat8.of_int (Char.code c))
              | _ ->
-               try (as_array v1).(i)
-               with Invalid_argument s -> trap exp.at "%s" s)
+               let a = as_array v1 in
+               a.(index exp.at n (Array.length a)))
       )
     )
-  | FuncE (name, shared_pat, _typbinds, pat, _typ, _sugar, exp2) ->
+  | FuncE (name, shared_pat, typ_binds, pat, _typ, note, exp2) ->
+    let _, exp2 = func_elab note typ_binds exp2 in
     let f = interpret_func env name shared_pat pat (fun env' -> interpret_exp env' exp2) in
     let v = V.Func (CC.call_conv_of_typ exp.note.note_typ, f) in
     let v' =
@@ -661,6 +675,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       if V.as_bool v1
       then k v1
       else interpret_exp env exp2 k
+    )
+  | NullCoalesceE (e1, e2) ->
+    interpret_exp env e1 (fun v1 ->
+      match v1 with
+      | V.Null -> interpret_exp env e2 k
+      | V.Opt v -> k v
+      | _ -> assert false
     )
   | IfE (exp1, exp2, exp3) ->
     interpret_exp env exp1 (fun v1 ->
@@ -729,7 +750,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     )
   | LabelE (id, _typ, exp1) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
-    Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
   | BreakE (kind, id_opt, exp1) ->
     interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)
@@ -838,6 +858,7 @@ and declare_pat pat : val_env =
   | AltP (pat1, _) (* pat2 has the same identifiers *)
   | AnnotP (pat1, _)
   | ParP pat1 -> declare_pat pat1
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -910,6 +931,8 @@ and match_pat pat v : val_env option =
     match_pat {pat with it = LitP lit} (Operator.unop op t v)
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
+  | ObjP pfs when T.(sub pat.note (Obj (Actor, [], []))) ->
+    match_actor_pat_fields pfs v V.Env.empty
   | ObjP pfs ->
     match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
@@ -928,6 +951,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat pat1 v
@@ -951,6 +977,22 @@ and match_pat_fields pfs vs ve : val_env option =
     let v = V.Env.find id.it vs in
     begin match match_pat p v with
     | Some ve' -> match_pat_fields pfs' vs (V.Env.adjoin ve ve')
+    | None -> None
+    end
+
+(* Field matching for actor-typed ObjP: parallel to match_pat_fields,
+   but each ValPF synthesises a (principal, method-name) pair from the
+   actor value rather than looking up an env (actor values aren't
+   record-shaped here).  Mirrors the interpreter's DotE-on-actor case. *)
+and match_actor_pat_fields pfs v ve : val_env option =
+  match pfs with
+  | [] -> Some ve
+  | { it = TypPF(_); _ }::pfs' ->
+    match_actor_pat_fields pfs' v ve
+  | { it = ValPF(id, p); _ }::pfs' ->
+    let method_v = V.(Tup [v; Text id.it]) in
+    begin match match_pat p method_v with
+    | Some ve' -> match_actor_pat_fields pfs' v (V.Env.adjoin ve ve')
     | None -> None
     end
 
@@ -1017,7 +1059,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | MixinD (_) -> V.Env.empty
+  | MixinD _ -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
@@ -1054,7 +1096,7 @@ and interpret_dec env dec (k : V.value V.cont) =
   | TypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
-  | IncludeD (_, _arg, _note) ->
+  | IncludeD (_, _, _arg, _note) ->
      (* TODO
         - evaluate arg and bind it against note.pat
         - define note.imports from mixin as local lets

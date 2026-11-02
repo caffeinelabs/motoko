@@ -1,6 +1,6 @@
 use crate::{
     stabilization::serialization::stable_memory_stream::StableMemoryStream,
-    types::{Bytes, Concat, Value, TAG_CONCAT},
+    types::{Bytes, Concat, TAG_CONCAT, Value},
 };
 
 use super::{Serializer, StableObjectKind, StableValue, StaticScanner};

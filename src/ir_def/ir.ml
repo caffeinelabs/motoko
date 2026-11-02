@@ -50,6 +50,7 @@ and pat' =
   | OptP of pat                                (* option *)
   | TagP of Type.lab * pat                     (* variant *)
   | AltP of pat * pat                          (* disjunctive *)
+  | AndP of pat * pat                          (* conjunctive *)
 
 and pat_field = pat_field' Source.phrase
 and pat_field' = {name : Type.lab; pat : pat}
@@ -188,7 +189,6 @@ and prim =
   | ICArgDataPrim
   | ICStableWrite of Type.typ          (* serialize value of stable type to stable memory *)
   | ICStableRead of Type.typ            (* deserialize value of stable type from stable memory *)
-  | ICStableSize of Type.typ
   | ICStableStore of Type.typ          (* assign_stable_type: store type descriptor without check *)
 
 (* Declarations *)
@@ -197,7 +197,6 @@ and dec = dec' Source.phrase
 and dec' =
   | LetD of pat * exp                          (* immutable *)
   | VarD of id * Type.typ * exp                (* mutable *)
-  | RefD of id * Type.typ * lexp               (* reference - only required for flag --experimental_field_aliasing *)
 
 (* Literals *)
 
@@ -340,5 +339,4 @@ let map_prim t_typ t_lab p =
   | ICReplyDeadlinePrim -> p
   | ICStableWrite t -> ICStableWrite (t_typ t)
   | ICStableRead t -> ICStableRead (t_typ t)
-  | ICStableSize t -> ICStableSize (t_typ t)
   | ICStableStore t -> ICStableStore (t_typ t)

@@ -1,1 +1,2 @@
+multi-migration-bad-chain/bad-init/Init.mo:1.1: type error [M0278], this file does not export a public `migration` function, so it is not part of the migration chain
 multi-migration-bad-chain/version1.mo:5.1-19.2: type error [M0251], --enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)

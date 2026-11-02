@@ -1,0 +1,16 @@
+//MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration enhanced-migration-mixin/migrations
+import Mixin "enhanced-migration-mixin/Mixin";
+
+actor {
+    let actorInt : Int;
+    ignore actorInt;
+
+    include Mixin();
+
+    let actorText : Text;
+    ignore actorText;
+};
+
+//SKIP run-ir
+//SKIP run-low
+//SKIP run

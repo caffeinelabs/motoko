@@ -1,8 +1,8 @@
 // Only works with incremental GC. 
 // Use:
 // ```
-// export EXTRA_MOC_ARGS="--incremental-gc"
-// ../run.sh -d actor64.drun
+// export EXTRA_MOC_ARGS=""
+// run-test -d actor64.drun
 // ```
 import Prim "mo:prim";
 

@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 import Prim "mo:⛔";
 import Region "stable-region/Region";
 

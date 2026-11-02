@@ -1,21 +1,21 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
 debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'cannot add more than 2^128 cycles'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: ok
 debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'cannot add more than 2^128 cycles'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'cycles out of bounds'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
-debug.print: {balance = 1_000_000_000_000_000}
-debug.print: {topped_up_balance = 1_000_000_000_000_000}
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {balance = 1_100_000_000_000_000}
+debug.print: {topped_up_balance = 1_100_000_000_000_000}
 debug.print: {added = 0}
 debug.print: {amount = 0; available = 0}
-debug.print: {balance = 1_000_000_000_000_000}
-debug.print: {topped_up_balance = 1_000_000_000_000_000}
+debug.print: {balance = 1_100_000_000_000_000}
+debug.print: {topped_up_balance = 1_100_000_000_000_000}
 debug.print: {added = 4_294_967_295}
 debug.print: {amount = 4_294_967_295; available = 4_294_967_295}
-debug.print: {balance = 1_000_000_000_000_000}
+debug.print: {balance = 1_100_000_000_000_000}
 debug.print: {topped_up_balance = 18_446_744_073_709_551_615}
 debug.print: {added = 18_446_744_073_709_551_615}
 debug.print: {amount = 18_446_744_073_709_551_615; available = 18_446_744_073_709_551_615}

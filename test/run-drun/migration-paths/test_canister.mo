@@ -8,9 +8,9 @@ actor class TestCanister() {
       array;
    };
 
-   stable var array = initialize();
+   var array = initialize();
 
-   stable var version = 0;
+   var version = 0;
    version += 1;
 
    assert (array.size() == length);

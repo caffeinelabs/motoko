@@ -79,10 +79,7 @@ module {
         ///
         /// Space: O(1)
         public func get(index : Nat) : X {
-            switch (elements[index]) {
-                case (?element) element;
-                case null Prim.trap("Buffer index out of bounds in get");
-            };
+            elements[index] ?? Prim.trap("Buffer index out of bounds in get");
         };
 
         

@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0145
 import Prim "mo:⛔";
 
 let p = object {public let x = 3; let y = 2; public func get_y() : Int = y};
@@ -53,7 +53,7 @@ assert (foo () == 67);
 
 // matching on type-annotated fields
 
-func baz () : Int = switch {a = 42} {
+func baz () : Int = switch ({a = 42}) {
   case {a : Int} a  // OK
 };
 

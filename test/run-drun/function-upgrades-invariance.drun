@@ -1,0 +1,2 @@
+install $ID function-upgrades-invariance/version0.mo ""
+upgrade $ID function-upgrades-invariance/version1.mo ""

@@ -1,14 +1,14 @@
 use crate::{
-    memory::{alloc_array, Memory},
+    memory::{Memory, alloc_array},
     stabilization::{
         deserialization::stable_memory_access::StableMemoryAccess,
         graph_copy::GraphCopy,
         serialization::{
-            stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
             ArraySlice, SerializationContext,
+            stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
         },
     },
-    types::{size_of, Array, Tag, Value, TAG_ARRAY_I, TAG_ARRAY_M, TAG_ARRAY_S, TAG_ARRAY_T},
+    types::{Array, TAG_ARRAY_I, TAG_ARRAY_M, TAG_ARRAY_S, TAG_ARRAY_T, Tag, Value, size_of},
 };
 
 use super::{Serializer, StableObjectKind, StableToSpace, StableValue, StaticScanner};

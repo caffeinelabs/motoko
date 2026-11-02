@@ -7,8 +7,8 @@ let
       buildInputs = commonBuildInputs pkgs ++ [
         pkgs.ocamlPackages.js_of_ocaml
         pkgs.ocamlPackages.js_of_ocaml-ppx
-        pkgs.nodejs
-        pkgs.nodePackages.terser
+        pkgs.nodejs-slim
+        pkgs.terser
       ];
       buildPhase = ''
         patchShebangs .
@@ -26,12 +26,11 @@ let
       doInstallCheck = true;
       test = ../test + "/test-${n}.js";
       installCheckPhase = ''
-        NODE_PATH=$out/bin node --experimental-wasm-memory64 $test
+        NODE_PATH=$out/bin node $test
       '';
     };
 in
 {
   moc = mk "moc";
   moc_interpreter = mk "moc_interpreter";
-  didc = mk "didc";
 }

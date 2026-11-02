@@ -20,30 +20,47 @@ Run these either in the top level directory, or in one of the subdirectories.
 
 You can also run individual tests, for example:
 
-    ./run.sh run/fac.mo
+    run-test run/fac.mo
 
 to run and
 
-    ./run.sh -a run/fac.mo
+    run-test -a run/fac.mo
 
-to accept. Check `run.sh` for other flags (e.g. drun-mode), and see `Makefile`
-in each subdirectory for the right flags for that directory.
+to accept. `run-test` takes the flags `-a` (accept), `-d` (drun), `-p` (perf),
+`-t` (typecheck only), `-i` (IDL) and `-s` (silent); see the `Makefile` in each
+subdirectory for the right flags for that directory.
+
+For anything more than a single file, use `test-runner` instead: it runs tests
+in parallel and infers the per-directory `run-test` flags from the path, so the
+`Makefile` flags above are not needed. Pass a path that still contains the
+directory's name (`test/fail`), because that is what the flag inference matches
+on — `cd`ing into the directory and passing `.` silently loses the `-d`/`-t`
+flags. From the repo root:
+
+    test-runner -b test/fail           # a directory
+    test-runner -b -a test/fail        # ...and accept/regenerate ok/
+    test-runner -b -j 10 test/run-drun # cap the parallelism
+
+Only `run/`, `run-drun/`, `fail/` and `trap/` are covered. Elsewhere it would
+find the tests but run them with the wrong flags — `mo-idl/` needs `-i`, and
+`perf/` and `bench/` need `-p` — so use `make` in those directories.
 
 Adding a new test
 -----------------
 
 1. Create `foo.mo` (or similar, see below)
-2. Run `make accept` (or, more targeted, `../run.sh -a foo.mo`)
+2. Run `make accept` (or, more targeted, `run-test -a foo.mo`)
 3. Add `foo.mo` and `ok/foo.*.ok` to git.
 
-The `run.sh` script takes various flags, e.g. `-d` to compile actors instead of
-program, `-p` for performance measurements. See the comment at the top of that
-file. The each subdirectory has a `Makefile` specifying these flags.
+`run-test` takes various flags, e.g. `-d` to compile actors instead of program,
+`-p` for performance measurements. Each subdirectory has a `Makefile` specifying
+these flags. For the four directories `test-runner` knows about, `make all` and
+`make accept` run the tests in parallel instead of one at a time.
 
 Kinds of tests
 --------------
 
-The `run.sh` script supports different kinds of tests:
+`run-test` supports different kinds of tests:
 
 ### Single Motoko file tests
 
@@ -66,8 +83,14 @@ remove that line. This allows different behavior with the interpreter and in
 
 These only make sense with `-d`. Create a `foo.drun` file that is a mostly
 unmodified input with one exception: You can reference `foo/bar.mo` files where
-`drun` expects a `.wasm` file. `run.sh` will find these files, compile them to
-`.wasm` and put that file name into the script before passing it to `drun`.
+`drun` expects a `.wasm` file. `run-test` will find these files, compile them
+to `.wasm` and put that file name into the script before passing it to `drun`.
+
+Besides `install`, `upgrade`, `ingress` and `query`, a script can `submit` an
+ingress call without awaiting it, `tick` a number of rounds (one second each)
+and `add_cycles` to a canister; see `test-runner/src/test_runner.rs`. An
+`# APPLICATION-SUBNET` line runs it on an application subnet, which, unlike the
+default system subnet, charges cycles.
 
 ### Shell files
 
@@ -113,7 +136,7 @@ You can easily run any of the tests in `test/run` in the browser as follows:
   ```
   make -C run
   ```
-  (or just `./run.sh run/empty.mo` to just build a single one.)
+  (or just `run-test run/empty.mo` to just build a single one.)
 
 * Run the python web server:
   ```
@@ -151,30 +174,6 @@ The format is a simple CSV format, as consumed by
 [gipeda](https://github.com/nomeata/gipeda).
 
 Every PR reports a summary of changes to these numbers to the PR.
-
-Wasm profiling/flamegraphs
---------------------------
-
-The programs in the `perf/` directory can also be used to get some
-instruction-based profiling data/reports, using the
-[wasm-profiler](https://github.com/dfinity/wasm-profiler).
-
-To generate the report, run
-
-    ./profile-report.sh
-
-and look in `_profile/`.
-
-The same can be achieved with
-
-    nix-build -A tests.profiling-graphs ..
-
-and Hydra serves [the latest report].
-
-[the latest report]: https://hydra.dfinity.systems/job/dfinity-ci-build/motoko/tests.profiling-graphs/latest/download/1/index.html
-
-Also see this script for inspiration if you want to profile other programs or
-do other things.
 
 Candid test suite
 -----------------

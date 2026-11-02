@@ -1,0 +1,4 @@
+error[M0260]: variable `x` bound in both branches of and-pattern
+    ┌─ and-pattern-overlap-case.mo:5:11
+  5 │      case ((x : Nat) and (x : Nat)) x;
+    │            ^^^^^^^^^^^^^^^^^^^^^^^ 

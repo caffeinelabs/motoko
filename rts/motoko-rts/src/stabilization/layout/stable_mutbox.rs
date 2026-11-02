@@ -1,6 +1,6 @@
 use crate::{
     stabilization::serialization::stable_memory_stream::StableMemoryStream,
-    types::{MutBox, Value, TAG_MUTBOX},
+    types::{MutBox, TAG_MUTBOX, Value},
 };
 
 use super::{Serializer, StableObjectKind, StableValue, StaticScanner};

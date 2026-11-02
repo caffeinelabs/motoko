@@ -7,11 +7,11 @@
   - [1. Update Changelog](#1-update-changelog)
   - [2. Open a release PR](#2-open-a-release-pr)
   - [3. Wait for the release to complete, and verify it](#3-wait-for-the-release-to-complete-and-verify-it)
-  - [4. Update `motoko-core`](#4-update-motoko-core)
-  - [5. Update `motoko-base`](#5-update-motoko-base)
-  - [Downstream](#downstream)
+  - [4. Tag `motoko-core`](#4-tag-motoko-core)
+  - [5. Merge the `node-motoko` and `vscode-motoko` updates](#5-merge-the-node-motoko-and-vscode-motoko-updates)
+  - [6. Update projects that pin `moc`](#6-update-projects-that-pin-moc)
 - [Making draft / pre-releases](#making-draft--pre-releases)
-  - [Version suffix](#version-suffix)
+  - [Version](#version)
 - [Coverage report](#coverage-report)
 - [Profile the compiler](#profile-the-compiler)
 - [Benchmarking the RTS](#benchmarking-the-rts)
@@ -113,17 +113,16 @@ git switch master
 git pull
 ```
 
-Make sure the markdown doc for base is up-to-date:
-For now, in a nix shell `$ nix develop` (or _re-enter_ if you already have one open):
+Make sure the compiler, runtime, and any generated docs still build
+cleanly and the working tree stays clean:
 
 ```bash
-  make -C rts
-  make -C src
-  make -C doc base
-  git diff
+nix develop -c bash -c "
+  make -C rts &&
+  make -C src &&
+  git -C doc diff
+"
 ```
-
-If not, create and merge a separate PR to update the doc (adding any new files) and goto step 0.
 
 ### 1. Update Changelog
 
@@ -133,7 +132,7 @@ git log --first-parent $(git describe --abbrev=0)..HEAD
 ```
 Or, on macOS, in a browser:
 ```bash
-open "https://github.com/dfinity/motoko/compare/$(git describe --abbrev=0)...master"
+open "https://github.com/caffeinelabs/motoko/compare/$(git describe --abbrev=0)...master"
 ```
 
 Look at changes and check that everything relevant is mentioned in the changelog section,
@@ -250,9 +249,9 @@ the build artifacts for this revision. In this case, restart the GitHub Action
 on GitHub's UI.
 </details>
 
-### 4. Update `motoko-core`
+### 4. Tag `motoko-core`
 
-From the `main` branch, push a tag for the new `moc` version:
+In the [`motoko-core`](https://github.com/caffeinelabs/motoko-core) repository, push a tag for the new `moc` version from the `main` branch:
 
 ```bash
 git checkout main
@@ -261,117 +260,73 @@ git tag moc-$NEXT_MOC_VERSION
 git push origin moc-$NEXT_MOC_VERSION
 ```
 
-### 5. Update `motoko-base`
+### 5. Merge the `node-motoko` and `vscode-motoko` updates
 
-From the `master` branch, push a tag for the new `moc` version:
+The release opens the follow-up PRs automatically. Watch for them and merge each one once its CI passes:
 
-```bash
-git checkout master
-git pull
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
+1. In [`node-motoko`](https://github.com/caffeinelabs/node-motoko), merge the "Update moc to X.Y.Z" PR. Merging it publishes a new version of the `motoko` npm package.
+2. In [`vscode-motoko`](https://github.com/caffeinelabs/vscode-motoko), merge the "Bump motoko npm to A.B.C" PR that the npm publish opens.
 
-<details>
-<summary>Click here for legacy `motoko-base` update steps.</summary>
+If the `vscode-motoko` PR doesn't appear, check the runs of its `update-motoko` workflow. It fails with `ETARGET` when it runs before npm lists the new version. To recover, wait until `npm view motoko version` prints the new version, then run the workflow manually from the repository's **Actions** tab.
 
-After releasing the compiler, update `motoko-base`'s `master` branch to the `next-moc` branch.
+### 6. Update projects that pin `moc`
 
-* Wait ca. 5min after releasing to give the CI/CD pipeline time to upload the release artifacts
-* Change into `motoko-base` and pull the latest `next-moc`
-```bash
-git switch next-moc; git pull
-```
-* Revise and update the `CHANGELOG.md`, by adding a top entry for the release
-
-* Bump `moc` and create a PR:
-```bash
-# Create a new branch for the update
-git switch -c $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Update the `moc_version` env variable in `.github/workflows/{ci, package-set}.yml` and `mops.toml` to the new released version
-perl -pi -e "s/moc_version: \"\\d+\.\\d+\.\\d+\"/moc_version: \"$NEXT_MOC_VERSION\"/g" .github/workflows/ci.yml .github/workflows/package-set.yml && \
-perl -pi -e "s/moc = \"\\d+\.\\d+\.\\d+\"/moc = \"$NEXT_MOC_VERSION\"/g; s/version = \"\\d+\.\\d+\.\\d+\"/version = \"$NEXT_MOC_VERSION\"/g" mops.toml && \
-
-# Add the changed files and commit the changes
-git add .github/ CHANGELOG.md mops.toml && git commit -m "Motoko $NEXT_MOC_VERSION" && \
-
-# Push the branch
-git push --set-upstream origin $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Create a PR targeting `master`
-gh pr create --title "Motoko $NEXT_MOC_VERSION" --base master --head $USER/update-moc-$NEXT_MOC_VERSION --body ""
-
-```
-* You can check the status of the PR on GitHub with
-```bash
-gh pr view --web
-```
-* Once CI passes, merge the PR using the _normal merge_ (not squash merge).
-  > **Note:** To allow merge commits, go to the repository settings and enable merge commits. Remember to **disable it after the merge**. Unfortunately, `gh` CLI cannot update this setting without admin permissions.
-
-It will eventually be imported into this repo by a scheduled `niv-updater-action`.
-
-Finally tag the base release (so the documentation interpreter can do the right thing):
-First, switch to `master`, pull the latest changes and verify we are at the right commit:
-```bash
-git switch master && git pull
-git show
-```
-* Tag and push the release
-```bash
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
-
-</details>
-
-### Downstream
-
-There are a few dependent actions to follow-up the release, e.g.
-- `motoko` NPM package
-- `vessel` package set
-- `vscode` plugin
-- ICP Ninja
-
-These are generally triggered by mentioning the release in Slack.
-
-Announcing the release towards SDK happens by triggering this GitHub action:
-https://github.com/dfinity/sdk/actions/workflows/update-motoko.yml
-Press the "Run workflow" button, filling in
-- Motoko version: `latest`
-- Open PR against this sdk branch: `master`
-
-and then hitting the green button. This will create a PR with all necessary hash changes against that branch. There is no
-need to do this immediately, you can leave the release soaking a few days. Use your own jugdement w.r.t. risk, urgency etc.
-
-If you want to update the portal documentation, typically to keep in sync with a `dfx` release, follow the instructions in https://github.com/dfinity/portal/blob/master/MAINTENANCE.md.
+Update any downstream projects that pin a `moc` version, so they pick up the new release.
 
 ## Making draft / pre-releases
 
 To make a draft / pre-release, you can use the GitHub Actions workflow:
-https://github.com/dfinity/motoko/actions/workflows/release.yml
+https://github.com/caffeinelabs/motoko/actions/workflows/release.yml
 
 1. Press the **"Run workflow"** button
 2. Select the branch for which you want to make the draft / pre-release
-3. Fill in the **"Version suffix"** that will be used to contruct the version name, e.g. `alpha-1` version suffix could produce a version like `0.16.3-alpha-1`
-4. Hit the green button to run the workflow and wait for it to complete.
-5. View the draft release at https://github.com/dfinity/motoko/releases once the workflow is complete.
-6. To make a pre-release:
+3. Optionally fill in the **"Base version"**, e.g. `2.0.0`, to build a version
+   other than the one in `Changelog.md` (see below)
+4. Fill in the **"Version suffix"**, e.g. `beta.0`
+5. Hit the green button to run the workflow and wait for it to complete.
+6. View the draft release at https://github.com/caffeinelabs/motoko/releases once the workflow is complete.
+7. To make a pre-release:
    1. Edit the draft release
-   2. Make sure the tag and the name of the release are the same as the generated version, e.g. `0.16.3-alpha-1`. Note that there is no need to manually push the tag, it should be created automatically when publishing the pre-release.
+   2. Make sure the tag and the name of the release are the same as the generated version, e.g. `2.0.0-beta.0`. Note that there is no need to manually push the tag, it should be created automatically when publishing the pre-release.
    3. Scroll down to the bottom and publish the pre-release.
-7. Remember to delete the draft release after testing!
+8. Remember to delete the draft release after testing!
 
-### Version suffix
+### Version
 
-The version is generated by concatenating the 'latest `moc` version' with the version suffix, e.g. `0.16.3-alpha-1` for the version suffix `alpha-1`.
-The 'latest `moc` version' is taken from the first matching entry in `Changelog.md` **on the selected branch**. Source code: [nix/releaseVersion.nix](nix/releaseVersion.nix).
+The version is made of a base version and a suffix, `<base>-<suffix>`, e.g. `2.0.0-beta.0`.
 
-The workflow should upload the artifacts with correct names according to the generated version.
+The **base** is the "Base version" input when set, otherwise the first
+`## MAJOR.MINOR.PATCH` heading in `Changelog.md` **on the selected branch**
+(source: the "Compute the release version" step in
+[.github/workflows/release.yml](.github/workflows/release.yml); the same
+fallback in [nix/releaseVersion.nix](nix/releaseVersion.nix) is what local and
+CI builds outside this workflow use).
 
-The generated version (e.g. `0.16.3-alpha-1`) should be used as the name of the release and the tag.
-Artifacts should be uploaded with the correct names according to the generated version, e.g. `motoko-Darwin-arm64-0.16.3-alpha-1.tar.gz` -- This is necessary for `mops toolchain` to fetch the correct file.
+The **suffix** is the "Version suffix" input, and its presence is what makes the
+run a prerelease rather than an official release. So base `2.0.0` with suffix
+`beta.0` yields `2.0.0-beta.0`, and an empty base with suffix `alpha-1` yields
+`<changelog version>-alpha-1`, e.g. `1.16.1-alpha-1`.
+
+The generated version is used as the release name and the tag, and as the
+version the built `moc` reports via `moc --version`. Artifacts are named after
+it too, e.g. `motoko-Darwin-arm64-2.0.0-beta.0.tar.gz` -- this is necessary for
+`mops toolchain` to fetch the correct file.
+
+Because a prerelease is built before its `## <version> (date)` section exists in
+`Changelog.md`, its release body is the **unreleased** entries instead:
+everything above the most recent released section. Those entries need no
+heading of their own -- leaving out `## Next`, keeping it, or renaming it all
+work. Release bodies of official releases are unchanged.
+
+Publishing a pre-release creates its tag, which runs the workflow again as a tag
+push. That run sees the version is already published and stops, leaving the
+release's assets and body as they are; rebuilding would only replace the files
+people are downloading. For the same reason, running the workflow again for a
+version that is already published fails -- bump the suffix instead.
+
+A pre-release may be cut from any branch, which is the point of building one.
+Only official releases have to be tagged on `master`; a pre-release is never
+marked as the latest release and does not notify `node-motoko`.
 
 ## Coverage report
 
@@ -385,8 +340,6 @@ The full report can be built with
 ```
 nix build .#tests.coverage
 ```
-and the report for latest `master` can be viewed at
-[https://dfinity.github.io/motoko/coverage/](https://dfinity.github.io/motoko/coverage/).
 
 ## Profile the compiler
 

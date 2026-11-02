@@ -2,6 +2,7 @@
 (* Suggestions *)
 open Mo_def
 open Mo_types
+open Scope
 open Mo_config
 open Type
 
@@ -9,18 +10,18 @@ let oneof sep lastsep ss =
   let rest, last = Lib.List.split_last ss in
   ((if rest <> [] then (String.concat sep rest) ^ lastsep else "") ^ last)
 
-let suggest_id desc id ids =
+let suggest_id ?(sigil = "") desc id ids =
   let ids =
       List.filter (fun id ->
         not (Syntax.is_privileged id))
       ids
   in
   if !Flags.ai_errors then
-    Some(Printf.sprintf "The %s %s is not available. Try something else?" desc id)
+    Some(Printf.sprintf "The %s %s%s is not available. Try something else?" desc sigil id)
   else
   let suggestions =
     let limit = Lib.Int.log2 (String.length id) in
-    let distance = Lib.String.levenshtein_distance id in
+    let distance = String.edit_distance id in
     let weighted_ids = List.filter_map (fun id0 ->
       let d = distance id0 in
       if String.starts_with ~prefix:id id0 || d <= limit then
@@ -30,7 +31,7 @@ let suggest_id desc id ids =
   in
   if suggestions = [] then None
   else
-  Some (Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " suggestions))
+  Some (Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " (List.map ((^) sigil) suggestions)))
 
 let search_obj desc path ty ty1 ty2 =
   let suggestions = ref [] in
@@ -58,11 +59,11 @@ let search_obj desc path ty ty1 ty2 =
   go path ty;
   !suggestions
 
-let suggest_conversion libs vals ty1 ty2 =
+let suggest_conversion (libs : lib_env) vals ty1 ty2 =
   match promote ty1, promote ty2 with
   | Prim p1, Prim p2 ->
     let suggestions = ref [] in
-    Env.iter (fun filename ty ->
+    Env.iter (fun filename {lib_typ = ty; _} ->
       if String.starts_with ~prefix:"@" filename
       then () (* skip prim etc *)
       else

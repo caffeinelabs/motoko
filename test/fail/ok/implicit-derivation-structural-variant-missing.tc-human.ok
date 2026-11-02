@@ -1,0 +1,7 @@
+error[M0230]: Cannot determine implicit argument `describe` of type
+  {#flag : Bool} -> Text
+    ┌─ implicit-derivation-structural-variant-missing.mo:11:8
+ 11 │  ignore inspect(#flag true);
+    │         ^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `describe : Bool -> Text` not found
