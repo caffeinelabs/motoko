@@ -9,22 +9,22 @@ func triple(x : Nat) : (Nat, Nat, Nat) = (x, x + 1, x + 2);
 
 func switch_lit(a : Nat, b : Nat) : Nat {
   switch (a, b) {
-    case (0, _) { 10 };
-    case (_, 0) { 20 };
-    case (x, y) { x + y };
+    case (0, _) { 10 }
+    case (_, 0) { 20 }
+    case (x, y) { x + y }
   }
 };
 
 func switch_call(x : Nat) : Nat {
-  switch (pair(x)) {
-    case (0, y) { y };
-    case (x, y) { x * y };
+  switch pair(x) {
+    case (0, y) { y }
+    case (x, y) { x * y }
   }
 };
 
 func switch_triple_wild(x : Nat) : Nat {
-  switch (triple(x)) {
-    case (_, y, _) { y };
+  switch triple(x) {
+    case (_, y, _) { y }
   }
 };
 
@@ -39,30 +39,30 @@ func proj_middle(x : Nat) : Nat = triple(x).1;
 // work.
 func switch_whole(a : Nat, b : Nat) : (Nat, Nat) {
   switch (a, b) {
-    case (0, _) { (0, 0) };
-    case t { t };
+    case (0, _) { (0, 0) }
+    case t { t }
   }
 };
 
 func switch_or(a : Nat, b : Nat) : Nat {
   switch (a, b) {
-    case ((0, x) or (x, 0)) { x };
-    case _ { 42 };
+    case ((0, x) or (x, 0)) { x }
+    case _ { 42 }
   }
 };
 
 func switch_nested(a : Nat, b : Nat, c : Nat) : Nat {
   switch (a, (b, c)) {
-    case (0, (y, z)) { y + z };
-    case (x, (0, _)) { x };
-    case (x, _) { x + 1 };
+    case (0, (y, z)) { y + z }
+    case (x, (0, _)) { x }
+    case (x, _) { x + 1 }
   }
 };
 
 func switch_nested_call(a : Nat, b : Nat) : Nat {
   switch (a, pair(b)) {
-    case (0, (y, z)) { y + z };
-    case (x, (_, z)) { x + z };
+    case (0, (y, z)) { y + z }
+    case (x, (_, z)) { x + z }
   }
 };
 
@@ -71,14 +71,14 @@ func no_alloc(name : Text, f : Nat -> Nat, arg : Nat, expected : Nat) {
   let a0 = Prim.rts_total_allocation();
   let r = f(arg);
   let a1 = Prim.rts_total_allocation();
-  if (r != expected) {
+  if r != expected {
     Prim.debugPrint(name # ": unexpected result " # debug_show r);
-    assert false;
+    assert false
   };
-  if (a1 != a0) {
+  if a1 != a0 {
     Prim.debugPrint(name # ": unexpected allocation " # debug_show (a1 - a0 : Nat));
-    assert false;
-  };
+    assert false
+  }
 };
 
 no_alloc("switch_lit 0", func x = switch_lit(0, x), 5, 10);
@@ -108,15 +108,15 @@ var log = "";
 func t(s : Text, n : Nat) : Nat { log #= s; n };
 
 switch (t("a", 1), t("b", 2), t("c", 3)) {
-  case (1, 2, 3) { log #= "!" };
-  case _ { assert false };
+  case (1, 2, 3) { log #= "!" }
+  case _ { assert false }
 };
 assert (log == "abc!");
 
 log := "";
 switch (t("a", 1), (t("b", 2), t("c", 3))) {
-  case (_, (2, _)) { log #= "!" };
-  case _ { assert false };
+  case (_, (2, _)) { log #= "!" }
+  case _ { assert false }
 };
 assert (log == "abc!");
 
@@ -127,10 +127,10 @@ assert (log == "abc");
 // First matching case wins, also with refutable later components
 func first_match(a : Nat, b : Nat) : Text {
   switch (a, b) {
-    case (1, 1) { "both" };
-    case (1, _) { "first" };
-    case (_, 1) { "second" };
-    case (_, _) { "none" };
+    case (1, 1) { "both" }
+    case (1, _) { "first" }
+    case (_, 1) { "second" }
+    case (_, _) { "none" }
   }
 };
 assert (first_match(1, 1) == "both");
