@@ -4,6 +4,16 @@
 
 * motoko (`moc`)
 
+  * bugfix: a late `await` of a future whose reply callback trapped now
+    terminates the awaiting computation even if the message that runs its
+    `finally` clauses can't be sent (for example, out of cycles) or is
+    rejected. Previously the `catch` ran and execution continued (#6471).
+
+  * feat: `async*` computations can now have non-shared result types,
+    including type parameters, so generic helpers such as
+    `retry<T>(call : () -> async* T) : async* T` compile. Futures
+    (`async T`) and shared functions still require shared types (#6477).
+
   * bugfix: `Prim.shiftLeft` on `Nat` (`Nat.bitshiftLeft`) returns the right
     result when it exceeds 2^61. Compiled code took a fast path for operands
     below 2^32 and amounts up to 32 that silently wrapped larger results,

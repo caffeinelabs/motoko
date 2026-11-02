@@ -23,7 +23,7 @@ actor Calc {
   };
 
   public func div(n:Int) : async ?Int {
-    if ( n == 0 ) {
+    if n == 0 {
       null // null indicates div-by-zero error
     } else {
       cell /= n;

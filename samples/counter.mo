@@ -22,7 +22,7 @@ let c = await Counter(10);
 // Issue ten `dec` messages.
 func testDec() : async () {
   var i : Int = 10;
-  while (i > 0) {
+  while i > 0 {
     c.dec();
     i -= 1;
   }
@@ -37,7 +37,7 @@ func testRead() : async () {
   func showAsync(note : Text, a : async Int) {};
 
   var i : Int = 10;
-  while (i > 0) {
+  while i > 0 {
     c.dec();
     let t = c.read();
     showAsync("before", t);

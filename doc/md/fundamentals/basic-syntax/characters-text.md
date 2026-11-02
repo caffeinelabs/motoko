@@ -26,7 +26,7 @@ import Char "mo:core/Char";
 
 func reverse(t: Text) : Text {
   var result = "";
-  for (c in t.chars()) {
+  for c in t.chars() {
     result := Char.toText(c) # result
   };
   result;
@@ -57,7 +57,7 @@ actor Alternator {
     let modified = Iter.map<Char, Text>(chars, func(c: Char) : Text {
       let charAsText = Char.toText(c);
       let transformedText =
-        if (index % 2 == 0) {
+        if index % 2 == 0 {
           Text.toUpper(charAsText)
         } else {
           Text.toLower(charAsText)
@@ -106,7 +106,7 @@ The `#` operator concatenates two `Text` values:
 import Char "mo:core/Char";
 import Debug "mo:core/Debug";
 
-for (c in "abc".chars()) {
+for c in "abc".chars() {
   Debug.print(Char.toText(c));
 }
 ```

@@ -53,7 +53,7 @@ actor CommonDivisor{
     var x = a;
     var y = b;
 
-    while (y != 0) {
+    while y != 0 {
       let temp = y;
       y := x % y;
       x := temp;
@@ -254,7 +254,7 @@ actor Bank {
 
   public shared composite query func getDeposits() : async Nat {
     var deposits = 0;
-    for (account in accounts.values()) {
+    for account in accounts.values() {
       deposits += await account.getBalance();
     };
   deposits;
@@ -269,7 +269,7 @@ actor Bank {
     // ... code omitted ...
     public composite query func getDeposits() : async Nat {
     var deposits = 0;
-    for (account in accounts.values()) {
+    for account in accounts.values() {
        deposits += await account.getBalance()
     };
     deposits;
@@ -321,7 +321,7 @@ A collection of values can be passed as a single array argument.
 ```motoko no-repl
   public func sum(numbers : [Nat]) : async Nat {
     var total : Nat = 0;
-    for (num in numbers.values()) { total += num };
+    for num in numbers.values() { total += num };
     total;
   }
 ```

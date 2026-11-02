@@ -19,4 +19,6 @@ stability.mo:46.4-46.13: type error [M0133], misplaced stability modifier: allow
 stability.mo:47.4-47.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
 stability.mo:50.15-50.20: type error [M0131], variable wrong is declared stable but has non-stable type
   module {}
+stability.mo:51.14-51.18: type error [M0131], variable comp is declared stable but has non-stable type
+  ?(async*<$> [var Nat])
 stability.mo:26.15-26.25: type error [M0019], stable variable names foo and nxnnbkddcv in actor type have colliding hashes

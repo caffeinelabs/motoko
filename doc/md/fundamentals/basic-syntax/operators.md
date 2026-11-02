@@ -37,7 +37,7 @@ If the first operand is `false`, the second is not evaluated.
 ```motoko no-repl
 let x = false;
 
-if (x and someOtherExp) {
+if x and someOtherExp {
   Debug.print("Unreachable code executed! something is wrong!"); // This should never be printed.
 };
 ```
@@ -49,7 +49,7 @@ If the first operand is `true`, the second is not evaluated.
 ```motoko no-repl
 let y = true;
 
-if (y or someOtherExp) {
+if y or someOtherExp {
   Debug.print("This will be printed");
 };
 ```

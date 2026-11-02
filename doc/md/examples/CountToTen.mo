@@ -5,7 +5,7 @@ import Nat "mo:core/Nat";
 actor CountToTen {
   public func countToTen() : async () {
     let C : Counters.Counter = await Counters.Counter(1);
-    while ((await C.read()) < 10) {
+    while (await C.read()) < 10 {
       Debug.print(Nat.toText(await C.read()));
       await C.inc();
     };
