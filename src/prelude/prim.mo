@@ -607,7 +607,8 @@ func blobToArrayMut(b : Blob) : [var Nat8] = (prim "blobToArrayMut" : (Blob) -> 
 func arrayToBlob(a : [Nat8]) : Blob = (prim "arrayToBlob" : [Nat8] -> Blob) a;
 func arrayMutToBlob(a : [var Nat8]) : Blob = (prim "arrayMutToBlob" : [var Nat8] -> Blob) a;
 
-// Error codes
+// Error codes, as laid out by `Type.catchErrorCodes` (type.ml). Equal to `@ErrorCode`
+// (internals.mo), as test/run/prim-error-code.mo checks; aliasing it here would show up in signatures
 type ErrorCode = {
   #system_fatal;
   #system_transient;

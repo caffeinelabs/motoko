@@ -1,14 +1,21 @@
 # Motoko compiler changelog
 
-## Next
-
 * motoko (`moc`)
 
-  * Performance: a `switch` on a tuple, such as `switch (a, b)` or
+  * perf: a `switch` on a tuple, such as `switch (a, b)` or
     `switch (f())`, no longer allocates the tuple on the heap when every case
     is a tuple pattern (or a wildcard). Neither does a projection from a
     tuple-returning call like `f().0` (#6486).
-    
+
+## 2.2.0 (2026-11-02)
+
+* motoko (`moc`)
+
+  * bugfix: `cancelTimer` cancels a one-shot timer whose job is waiting to be
+    retried after a failed dispatch, and `cancelTimer(0)` no longer cancels
+    such a retry. A recurring timer no longer runs an extra time after its job
+    could not be dispatched because the call queue was full (#6449).
+
   * bugfix: a late `await` of a future whose reply callback trapped now
     terminates the awaiting computation even if the message that runs its
     `finally` clauses can't be sent (for example, out of cycles) or is
