@@ -1,3 +1,3 @@
 actor {
-   let test : ?Text = null;
-};
+  let test : ?Text = null
+}

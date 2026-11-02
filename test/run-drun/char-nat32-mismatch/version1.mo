@@ -1,3 +1,3 @@
 actor {
-   let test : Nat32 = 97;
-};
+  let test : Nat32 = 97
+}

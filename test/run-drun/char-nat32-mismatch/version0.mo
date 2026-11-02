@@ -1,3 +1,3 @@
 actor {
-   let test : Char = 'a';
-};
+  let test : Char = 'a'
+}
