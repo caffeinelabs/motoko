@@ -1,0 +1,6 @@
+install $ID char-nat32-mismatch/version0.mo ""
+upgrade $ID char-nat32-mismatch/version0.mo ""
+upgrade $ID char-nat32-mismatch/version1.mo ""
+reinstall $ID char-nat32-mismatch/version1.mo ""
+upgrade $ID char-nat32-mismatch/version1.mo ""
+upgrade $ID char-nat32-mismatch/version0.mo ""
