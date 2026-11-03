@@ -133,9 +133,51 @@ let equiv_classes (type b) (graph : (int * b) Seq.t) : (int IM.t * int) =
   m, size
 
 
+(* Children-before-parents order, or None if the graph has a cycle *)
+let topo_order (graph : 'a t) : int list option =
+  let order, cyclic, state =
+    ref [], ref false, ref IM.empty (* false = on stack, true = finished *) in
+  let rec go i =
+    if not !cyclic then
+      match IM.find_opt i !state with
+      | Some true -> ()
+      | Some false -> cyclic := true
+      | None ->
+        state := IM.add i false !state;
+        let _, args = IM.find i graph in
+        List.iter go args;
+        state := IM.add i true !state;
+        order := i :: !order
+  in
+  go 0;
+  if !cyclic then None else Some (List.rev !order)
+
+(* On an acyclic graph bisimilarity coincides with structural equality, so the
+   coarsest classes can be read off bottom-up in one pass: a node's class is
+   determined by its label and its children's classes, which are already final.
+   This avoids the fixed-point iteration below, which needs one round per level
+   and so is quadratic on deep chains. *)
+let combine_acyclic (type a) (graph : a t) (order : int list) : a t =
+  let module KM = Map.Make (struct type t = a * int list let compare = compare end) in
+  let cls, km, next = ref IM.empty, ref KM.empty, start_counting 0 in
+  List.iter (fun i ->
+    let k, args = IM.find i graph in
+    let key = k, List.map (fun j -> IM.find j !cls) args in
+    let c = match KM.find_opt key !km with
+      | Some c -> c
+      | None -> let c = next () in km := KM.add key c !km; c in
+    cls := IM.add i c !cls
+  ) order;
+  (* `renumber` starts from node 0, so the root's class must stay 0 *)
+  let root = IM.find 0 !cls in
+  let lookup i =
+    let c = IM.find i !cls in
+    if c = root then 0 else if c = 0 then root else c in
+  rename lookup graph
+
 (* Finds a minimal graph by finding the smallest index mapping that is consistent *)
 (* Equivalently: The coarsest equivalence classes on the nodes *)
-let combine graph =
+let combine_cyclic graph =
   let m : int IM.t ref = ref IM.empty in
   let lookup i = IM.find i !m in
   (* map all nodes to the same initially *)
@@ -177,6 +219,11 @@ let renumber graph =
 
   assert (lookup 0 = 0);
   rename lookup graph
+
+let combine graph =
+  match topo_order graph with
+  | Some order -> combine_acyclic graph order
+  | None -> combine_cyclic graph
 
 (* Find a canonical graph *)
 let canonicalize graph = renumber (combine graph)
