@@ -1,11 +1,31 @@
 # Motoko compiler changelog
 
+## Next
+
 * motoko (`moc`)
 
   * perf: a `switch` on a tuple, such as `switch (a, b)` or
     `switch (f())`, no longer allocates the tuple on the heap when every case
     is a tuple pattern (or a wildcard). Neither does a projection from a
     tuple-returning call like `f().0` (#6486).
+
+## 2.2.1 (2026-11-03)
+
+* motoko (`moc`)
+
+  * bugfix: the upgrade check of enhanced orthogonal persistence now rejects
+    changing a record field between `var f : [T]` and `f : [var T]`, `Char`
+    to or from `Nat32`, and `()` to or from `Null` (or to `?T`). It used to
+    accept these upgrades, after which the new code misread the old heap. The
+    first upgrade from `moc` 2.2.0 or earlier still accepts them, as the
+    stable type those releases stored doesn't tell them apart. Before that
+    upgrade, run `moc --stable-compatible`, which rejects them: for example,
+    a stored `Nat32` read as a `Char` can become an invalid code point (a
+    surrogate or one above `0x10FFFF`), and a `var [T]` field read as
+    `[var T]` reads the heap out of bounds. Once upgraded, a canister whose
+    stable type contains `[var T]`, `Char`, or `()` (including tags without
+    payload, such as `#on`) fails to downgrade to `moc` 2.2.0 or earlier with
+    `Memory-incompatible program upgrade` (#6452).
 
 ## 2.2.0 (2026-11-02)
 
