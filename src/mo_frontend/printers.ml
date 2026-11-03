@@ -180,9 +180,11 @@ let repr_of_symbol : xsymbol -> (string * string) =
   (* non-terminals *)
   | X (N N_case) -> "<case>", eg_case
   | X (N N_catch_ob_) | X (N N_catch_bl_) -> "<catch>", "catch " ^ eg_pat ^ " {}"
-  | X (N N_class_body) -> "<class_body>", "= {}"
+  | X (N N_class_body_pub_lo_) -> "<class_body>", "= {}"
+  | X (N N_class_body_pub_ac_) -> "<class_body>", "= {}"
   | X (N N_dec) -> "<dec>", eg_dec
-  | X (N N_dec_field) -> "<dec_field>", eg_dec_field
+  | X (N N_dec_field_pub_lo_) -> "<dec_field>", eg_dec_field
+  | X (N N_dec_field_pub_ac_) -> "<dec_field>", eg_dec_field
   | X (N N_dec_nonvar_ob_) | X (N N_dec_nonvar_bl_) -> "<dec_nonvar>", eg_dec
   | X (N N_dec_var_ob_) | X (N N_dec_var_bl_) -> "<dec_var>", "var x : Int = 0"
   | X (N N_exp_bl_ob_) | X (N N_exp_bl_bl_) -> "<exp(bl)>", eg_exp
@@ -205,6 +207,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_exp_post_bl_ob_) | X (N N_exp_post_bl_bl_) -> "<exp_post(bl)>", eg_exp
   | X (N N_exp_post_ob_ob_) -> "<exp_post(ob)>", eg_exp
   | X (N N_obj_or_class_dec) -> "<obj_or_class_dec>", "object " ^ eg_pat ^ " = {}"
+  | X (N N_actor_dec) -> "<obj_or_class_dec>", "actor " ^ eg_pat ^ " = {}"
   | X (N N_option_exp_post_ob_ob__) -> "<exp_post(ob)>?", eg_exp
   | X (N N_exp_un_bl_ob_) | X (N N_exp_un_bl_bl_) -> "<exp_un(bl)>", eg_exp
   | X (N N_exp_un_ob_ob_) -> "<exp_un(ob)>", eg_exp
@@ -214,7 +217,11 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_import_list) -> "<import_list>", eg_imp
   | X (N N_inst) -> "<inst>", "<" ^ eg_typ ^ ">"
   | X (N N_lit) -> "<lit>", "true"
-  | X (N N_obj_body) -> "<obj_body>", "{}"
+  | X (N N_obj_body_pub_lo_) -> "<obj_body>", "{}"
+  | X (N N_obj_body_pub_ac_) -> "<obj_body>", "{}"
+  | X (N N_dec_pub) -> "<dec_pub>", eg_dec
+  | X (N N_par_attr) -> "<parenthetical>?", "(with encoder)"
+  | X (N N_seplist_dec_field_pub_ac__semicolon_) -> seplist ("<dec_field>", eg_dec_field) semi
   | X (N N_option_EQ_) -> "=?", "=?"
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
   | X (N N_option_query_) -> "<query>?", "query"
@@ -243,7 +250,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
   | X (N N_seplist_dec_semicolon_) -> seplist ("<dec>", eg_dec) semi
   | X (N N_seplist_typ_dec_semicolon_) -> seplist ("<typ_dec>", eg_typ_dec) semi
-  | X (N N_seplist_dec_field_semicolon_) -> seplist ("<dec_field>", eg_dec_field) semi
+  | X (N N_seplist_dec_field_pub_lo__semicolon_) -> seplist ("<dec_field>", eg_dec_field) semi
   | X (N N_seplist_exp_ob_ob__COMMA_) -> seplist ("<exp(ob)>", eg_exp) comma
   | X (N N_seplist_exp_field_semicolon_) -> seplist ("<exp_field>", eg_exp_field) semi
   | X (N N_seplist1_exp_field_semicolon_) -> "seplist1(<exp_field>,<semicolon>)", eg_exp_field
@@ -277,7 +284,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_tag) -> "<typ_tag>", eg_typ_tag
   | X (N N_typ_un) -> "<typ_un>", eg_typ
   | X (N N_typ_variant) -> "<typ_variant>", "{ " ^ eg_typ_tag ^ " }"
-  | X (N N_vis) -> "<vis>", "public"
   | X (N N_stab) -> "<stab>", ""
   | X (N N_stab_field) -> "<stab_field>", eg_stab_field
   | X (N N_pre_stab_field) -> "<pre_stab_field>", eg_pre_stab_field
