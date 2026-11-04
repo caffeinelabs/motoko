@@ -7,7 +7,7 @@
   * bugfix: a canister with more than about 20,000 static allocations (for
     example, that many distinct text literals) no longer fails to install with
     `IC0505` (function complexity exceeds the maximum allowed). Static variables
-    are now initialized by several functions instead of one (#PRNUM).
+    are now initialized by several functions instead of one (#6490).
 
 ## 2.2.1 (2026-11-03)
 
