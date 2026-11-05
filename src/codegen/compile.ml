@@ -757,8 +757,14 @@ module E = struct
       Printf.eprintf "\npool report = %s" profile
     end
 
-  let iterate_object_pool (env : t) f =
-    G.concat_mapi f (List.map (fun (l, a) -> a) (Table.to_list !(env.object_pool.objects)))
+  (* The pool's allocations paired with their indices, in consecutive chunks of at most [n]. *)
+  let chunk_object_pool (env : t) n =
+    let rec chunks = function
+      | [] -> []
+      | xs -> let chunk, rest = Lib.List.split_at n xs in chunk :: chunks rest in
+    Table.to_list !(env.object_pool.objects)
+    |> List.mapi (fun index (_, allocation) -> (index, allocation))
+    |> chunks
 
   let collect_garbage env force =
     let name = "incremental_gc" in
@@ -9586,12 +9592,20 @@ module GCRoots = struct
       let length = Int64.of_int (E.object_pool_size env) in
       compile_unboxed_const length ^^
       E.call_rts env "initialize_static_variables" ^^
-      E.iterate_object_pool env (fun index allocation ->
-      Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
-            compile_unboxed_const (Int64.of_int index) ^^
-            allocation env ^^
-              E.call_rts env "set_static_variable")
-      )
+      (* Chunked, as the IC rejects a function with complexity over 1,000,000 (about 20,000 calls).
+         Chunks are small so that modest programs, and so ordinary tests, already span several. *)
+      (E.chunk_object_pool env 128
+      |> G.concat_mapi (fun chunk allocations ->
+        Func.share_code0 Func.Always env (Printf.sprintf "initialize_root_array_%i" chunk) [] (fun env ->
+          allocations
+          |> G.concat_map (fun (index, allocation) ->
+            Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
+              compile_unboxed_const (Int64.of_int index) ^^
+              allocation env ^^
+                E.call_rts env "set_static_variable")
+          )
+        )
+      ))
     )
 end (* GCRoots *)
 
