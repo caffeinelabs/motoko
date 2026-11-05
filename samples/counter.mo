@@ -6,11 +6,11 @@ persistent actor class Counter(i : Int) {
   // Decrement counter
   public func dec() : () {
     show("dec", c);
-    c -= 1;
+    c -= 1
   };
 
   // Read counter, asynchronous
-  public func read() : async Int { c };
+  public func read() : async Int { c }
 };
 
 // Dummy function to show intermediate value in trace.
@@ -24,7 +24,7 @@ func testDec() : async () {
   var i : Int = 10;
   while i > 0 {
     c.dec();
-    i -= 1;
+    i -= 1
   }
 };
 
@@ -43,8 +43,8 @@ func testRead() : async () {
     showAsync("before", t);
     show("await", await t);
     showAsync("after", t);
-    i -= 1;
+    i -= 1
   }
 };
 
-ignore testRead();
+ignore testRead()

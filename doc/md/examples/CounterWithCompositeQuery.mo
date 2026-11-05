@@ -11,7 +11,7 @@ actor class Counter () {
   public shared composite query func sum(counters : [Counter]) : async Nat {
     var sum = 0;
     for counter in counters.values() {
-      sum += await counter.peek();
+      sum += await counter.peek()
     };
     sum
   }

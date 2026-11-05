@@ -6,8 +6,8 @@ func greetOptional(optionalName : ?Text) : Text {
     case ?name { "Hello, " # name # "!" }
   }
 };
-assert(greetOptional(?"Dominic") == "Hello, Dominic!");
-assert(greetOptional(null) ==  "No name to be found");
+assert greetOptional(?"Dominic") == "Hello, Dominic!";
+assert greetOptional(null) == "No name to be found";
 
 func greetResult(resultName : Result<Text, Text>) : Text {
   switch resultName {
@@ -15,5 +15,5 @@ func greetResult(resultName : Result<Text, Text>) : Text {
     case #ok(name) { "Hello, " # name }
   }
 };
-assert(greetResult(#ok("Dominic")) == "Hello, Dominic!");
-assert(greetResult(#err("404 Not Found")) == "No name: 404 Not Found");
+assert greetResult(#ok("Dominic")) == "Hello, Dominic!";
+assert greetResult(#err("404 Not Found")) == "No name: 404 Not Found"

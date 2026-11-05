@@ -7,22 +7,22 @@ actor Calc {
   var cell : Int = 0;
 
   // Define functions to add, subtract, multiply, and divide
-  public func add(n:Int) : async Int {
+  public func add(n : Int) : async Int {
     cell += n;
     cell
   };
 
-  public func sub(n:Int) : async Int {
+  public func sub(n : Int) : async Int {
     cell -= n;
     cell
   };
 
-  public func mul(n:Int) : async Int {
+  public func mul(n : Int) : async Int {
     cell *= n;
     cell
   };
 
-  public func div(n:Int) : async ?Int {
+  public func div(n : Int) : async ?Int {
     if n == 0 {
       null // null indicates div-by-zero error
     } else {
@@ -35,5 +35,5 @@ actor Calc {
   public func clearall() : async Int {
     cell := 0;
     cell
-  };
-};
+  }
+}

@@ -4,10 +4,10 @@ actor Counter {
 
   public func inc() : async Nat {
     value += 1;
-    return value;
+    return value
   };
 
   public func reset() : async () {
-    value := 0;
+    value := 0
   }
 }
