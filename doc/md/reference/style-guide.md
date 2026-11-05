@@ -303,7 +303,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       // Internal State
 
       var miffCount = 0;
-      var mabbleMap = Map<Nat, Text>();
+      var mabbleMap = Map<Nat, Text>()
 
     }
     ```
@@ -331,7 +331,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Put short comments explaining a single line at the end of the line, separated by at least 2 spaces.
 
     ``` motoko no-repl
-    paBoom(getSnibble()));  // create new snibble
+    paBoom(getSnibble());  // create new snibble
     ```
 
 -   Put multi-line comments before a line of code, with the same indentation as the code it is describing.
@@ -341,7 +341,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       // Try to invoke the current pallaboom with
       // the previous snibble. If that succeeds,
       // we have the new plexus; if not, complain.
-      let plexusHandle = paBoom(getSnibble()))
+      let plexusHandle = paBoom(getSnibble())
     }
     ```
 
@@ -355,7 +355,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     Rationale: This is unlike other C-style languages, which tend to have rather ad-hoc rules.
 
--   Do not put a semicolon after the last item, whether it is on one line or several. This holds for blocks and function bodies; record and object literals; object, actor, class, and module bodies; and record, object, and variant types.
+-   Do not put a semicolon after the last item, whether it is on one line or several. This holds for blocks and function bodies; record and object literals; object, actor, class, and module bodies; record, object, and variant types; and record patterns.
 
     ``` motoko no-repl
     type Vec3D = {x : Float; y : Float; z : Float};
