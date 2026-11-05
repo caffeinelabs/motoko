@@ -15,7 +15,7 @@
     `Prim.NtCodec<(K, R)>`, from its key and row types, and rejects types a
     table cannot have with the new error M0279. Native tables need the
     native compiler: `moc.js` rejects a program that uses them with the new
-    error M0280. See `lib/native-table/README.md` (#NNNN).
+    error M0280. See `lib/native-table/README.md` (#6492).
 
 ## 2.2.1 (2026-11-03)
 
