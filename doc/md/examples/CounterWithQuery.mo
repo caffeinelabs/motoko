@@ -6,6 +6,6 @@ actor Counter {
 
   public shared query func peek() : async Nat {
     count
-  };
+  }
 
 }

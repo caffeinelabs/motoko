@@ -1,7 +1,7 @@
 type Exp = {
   #Lit : Nat;
   #Div : (Exp, Exp);
-  #IfZero : (Exp, Exp, Exp);
+  #IfZero : (Exp, Exp, Exp)
 };
 
 func eval(e : Exp) : ? Nat {
@@ -24,6 +24,6 @@ func eval(e : Exp) : ? Nat {
           eval e3 !
         }
       }
-    };
-  };
+    }
+  }
 }

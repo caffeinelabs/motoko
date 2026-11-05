@@ -29,9 +29,9 @@ actor {
       let temp = cards[i];
       cards[i] := cards[j];
       cards[j] := temp;
-      i -= 1;
+      i -= 1
     };
-    deck := ?cards;
+    deck := ?cards
   };
 
   // Define a function to display the randomly shuffled cards.
@@ -39,9 +39,9 @@ actor {
     let ?cards = deck else throw Error.reject("shuffle in progress");
     var t = "";
     for card in cards.values() {
-       t #= Char.toText(card);
+      t #= Char.toText(card)
     };
-    t;
+    t
   }
 
-};
+}

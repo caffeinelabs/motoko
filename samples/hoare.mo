@@ -3,7 +3,7 @@
 func swap(a : [var Int], i : Nat, j : Nat) {
   let temp = a[i];
   a[i] := a[j];
-  a[j] := temp;
+  a[j] := temp
 };
 
 func partition(a : [var Int], lo : Nat, hi : Nat) : Nat {
@@ -17,17 +17,17 @@ func partition(a : [var Int], lo : Nat, hi : Nat) : Nat {
     if i >= j { return j };
     swap(a, i, j);
     i += 1;
-    j -= 1;
-  };
+    j -= 1
+  }
 };
 
 func quicksort(a : [var Int], lo : Nat, hi : Nat) {
   if lo < hi {
     let p = partition(a, lo, hi);
     quicksort(a, lo, p);
-    quicksort(a, p + 1, hi);
-  };
+    quicksort(a, p + 1, hi)
+  }
 };
 
 let a : [var Int] = [var 8, 8, 3, 9, 5, 2];
-quicksort(a, 0, a.size() - 1);
+quicksort(a, 0, a.size() - 1)

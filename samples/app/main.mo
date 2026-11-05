@@ -7,4 +7,4 @@ let alice = await Client.Client();
 let charlie = await Client.Client();
 bob.go("bob", server);
 alice.go("alice", server);
-charlie.go("charlie", server);
+charlie.go("charlie", server)

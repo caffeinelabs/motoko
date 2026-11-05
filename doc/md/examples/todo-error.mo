@@ -88,7 +88,7 @@ actor Todo {
         throw Error.reject("Not Found")
       }
     }
-  };
+  }
 
 };
 
@@ -107,10 +107,10 @@ actor TodoCaller {
   public shared func doneTodo1(id : Todo.TodoId) : async Text {
     let seconds = await Todo.markDoneBad(id);
     if seconds != -1 {
-      "Congrats! That took " # Int.toText(seconds) # " seconds.";
+      "Congrats! That took " # Int.toText(seconds) # " seconds."
     } else {
-      "Something went wrong.";
-    };
+      "Something went wrong."
+    }
   };
 
   public shared func doneTodo2(id : Todo.TodoId) : async Text {
@@ -121,7 +121,7 @@ actor TodoCaller {
       case ?seconds {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
       }
-    };
+    }
   };
 
   public shared func doneTodo3(id : Todo.TodoId) : async Text {
@@ -136,16 +136,16 @@ actor TodoCaller {
       case #ok(seconds) {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
       }
-    };
+    }
   };
 
   public shared func doneTodo4(id : Todo.TodoId) : async Text {
     try {
       let seconds = await Todo.markDoneException(id);
-      "Congrats! That took " # Int.toText(seconds) # " seconds.";
+      "Congrats! That took " # Int.toText(seconds) # " seconds."
     } catch _ {
-      "Something went wrong.";
+      "Something went wrong."
     }
-  };
+  }
 
-};
+}

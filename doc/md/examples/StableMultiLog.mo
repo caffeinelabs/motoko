@@ -7,11 +7,12 @@ actor StableLog {
   public type Index = Nat64;
 
   // Internal representation uses two regions, working together.
-  var state = { // implicitly `stable`
+  var state = {
+    // implicitly `stable`
     bytes = Region.new();
     var bytes_count : Nat64 = 0;
     elems = Region.new ();
-    var elems_count : Nat64 = 0;
+    var elems_count : Nat64 = 0
   };
 
   // Grow a region to hold a certain number of total bytes.
@@ -26,14 +27,14 @@ actor StableLog {
   // Element = Position and size of a saved a Blob.
   type Elem = {
     pos : Nat64;
-    size : Nat64;
+    size : Nat64
   };
 
   transient let elem_size = 16 : Nat64; /* two Nat64s, for pos and size. */
 
   // Count of elements (Blobs) that have been logged.
   public func size() : async Nat64 {
-      state.elems_count
+    state.elems_count
   };
 
   // Constant-time random access to previously-logged Blob.
@@ -41,7 +42,7 @@ actor StableLog {
     assert index < state.elems_count;
     let pos = Region.loadNat64(state.elems, index * elem_size);
     let size = Region.loadNat64(state.elems, index * elem_size + 8);
-    let elem = { pos ; size };
+    let elem = { pos; size };
     Region.loadBlob(state.bytes, elem.pos, Nat64.toNat(elem.size))
   };
 
@@ -62,4 +63,4 @@ actor StableLog {
     elem_i
   }
 
-};
+}
