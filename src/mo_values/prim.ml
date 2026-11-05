@@ -258,6 +258,11 @@ let prim trap =
   | "rts_in_upgrade" ->
     fun _ v k -> as_unit v; k (Bool false) (* no upgrades in interpreters *)
   | "rts_version" -> fun _ v k -> as_unit v; k (Text "0.1")
+  | "nt_create" | "nt_size" | "nt_put" | "nt_get" | "nt_remove" | "nt_scan" | "nt_index" | "nt_index_of" | "nt_count" | "nt_walk" | "nt_sum" | "nt_extreme" | "nt_scan_where" | "nt_scan_cells" | "nt_count_where" | "nt_sum_where" | "nt_group_counts" | "nt_maintain" -> fun _ v k -> trap.trap "native tables need compiled code"
+  (* A native-table codec is the pair of its layout and its hash list *)
+  | "nt_codec" -> fun _ v k -> let layout, labels = as_pair v in k (Tup [layout; labels])
+  | "nt_codec_layout" -> fun _ v k -> k (fst (as_pair v))
+  | "nt_codec_labels" -> fun _ v k -> k (snd (as_pair v))
   | (  "rts_memory_size"
      | "rts_heap_size"
      | "rts_total_allocation"

@@ -419,7 +419,7 @@ module E = struct
     (* Global fields *)
     (* Static *)
     mode : Flags.compile_mode;
-    rts : Wasm_exts.CustomModule.extended_module; (* The rts. Re-used when compiling actors *)
+    rts : bool -> Wasm_exts.CustomModule.extended_module; (* The rts, given whether the program calls the native table *)
     trap_with : t -> string -> G.t;
       (* Trap with message; in the env for dependency injection *)
 
@@ -477,6 +477,10 @@ module E = struct
     (* Signals that blob dedup functionality should be enabled. *)
     requires_blob_dedup : bool ref;
 
+    (* Signals that the stable type holds a native-table codec, so only the runtime that
+       contains the native table can check its compatibility on upgrade. *)
+    requires_native_table : bool ref;
+
     enhanced_migration : string option;
   }
 
@@ -515,6 +519,7 @@ module E = struct
     constant_functions = ref 0l;
     dedup = ref None;
     requires_blob_dedup = ref false;
+    requires_native_table = ref false;
     enhanced_migration;
   }
 
@@ -1268,6 +1273,24 @@ module RTS = struct
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
     add_rts_import "set_migrations" [I64Type] [];
+    add_rts_import "nt_create" [I64Type] [I64Type];
+    add_rts_import "nt_size" [I64Type; I64Type] [I64Type];
+    add_rts_import "nt_put" [I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_get" [I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_remove" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_scan" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_index" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_index_of" [I64Type; I64Type] [I64Type];
+    add_rts_import "nt_count" [I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_walk" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_sum" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_extreme" [I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_scan_where" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_scan_cells" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_count_where" [I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_sum_where" [I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_group_counts" [I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "nt_maintain" [I64Type; I64Type; I64Type] [I64Type];
     ()
 
 end (* RTS *)
@@ -7300,6 +7323,7 @@ module Serialization = struct
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
   let idl_var_vec  = -133l
+  let idl_nt_codec = -134l
 
   (*
   Note [persistence type descriptor]
@@ -7361,6 +7385,9 @@ module Serialization = struct
             List.iter go ts1; List.iter go ts2
           | Prim Blob -> ()
           | Weak t -> go t
+          | NtCodec t ->
+            if mode = Persistence then env.E.requires_native_table := true;
+            go t
           | Mut t -> go t
           | _ ->
             Printf.eprintf "type_desc: unexpected type %s\n" (string_of_typ t);
@@ -7485,6 +7512,8 @@ module Serialization = struct
          add_sleb128 idl_alias; add_idx t
       | Weak t ->
          add_sleb128 idl_weak; add_idx t
+      | NtCodec t ->
+         add_sleb128 idl_nt_codec; add_idx t
       | _ -> assert false in
 
     Buffer.add_string buf (match mode with
@@ -7693,6 +7722,8 @@ module Serialization = struct
       | Weak t ->
          E.trap_with env "buffer_size: Weak" ^^
          size_alias (fun () -> get_x ^^ WeakRef.load_field env ^^ size env t)
+      | NtCodec _ ->
+         E.trap_with env "buffer_size: NtCodec"
       | _ -> todo "buffer_size" (Arrange_ir.typ t) G.nop
       end ^^
       (* Check 32-bit overflow of buffer_size *)
@@ -7877,6 +7908,8 @@ module Serialization = struct
         write_alias (fun () ->
           get_x ^^ WeakRef.load_field env ^^ write env t
         )
+      | NtCodec _ ->
+        E.trap_with env "serialize_go: NtCodec"
       | _ -> todo "serialize" (Arrange_ir.typ t) G.nop
       end ^^
       get_data_buf ^^
@@ -8710,6 +8743,8 @@ module Serialization = struct
           get_arg_typ ^^ go env t ^^
           WeakRef.store_field env
         )
+      | NtCodec _ ->
+        E.trap_with env "deserialize_go: NtCodec"
       | Non ->
         skip get_idltyp ^^
         coercion_failed "IDL error: deserializing value of type None"
@@ -12499,6 +12534,175 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.subnet_self_node_count env ^^
     TaggedSmallWord.msb_adjust Type.Nat32
 
+  (* A native-table codec is a tuple of its layout and its hash list *)
+  | OtherPrim "nt_codec", [layout; labels] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    Tuple.from_stack env 2
+
+  | OtherPrim "nt_codec_layout", [codec] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae codec ^^
+    Tuple.load_n env 0L
+
+  | OtherPrim "nt_codec_labels", [codec] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae codec ^^
+    Tuple.load_n env 1L
+
+  | OtherPrim "nt_create", [layout] ->
+    SR.UnboxedWord64 Type.Nat64,
+    compile_exp_vanilla env ae layout ^^
+    E.call_rts env "nt_create"
+
+  | OtherPrim "nt_size", [id; layout] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    E.call_rts env "nt_size" ^^
+    BigNum.from_word64 env
+
+  | OtherPrim "nt_put", [id; layout; k; r] ->
+    SR.bool,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae k ^^
+    compile_exp_vanilla env ae r ^^
+    E.call_rts env "nt_put"
+
+  | OtherPrim "nt_get", [id; layout; labels; k] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    compile_exp_vanilla env ae k ^^
+    E.call_rts env "nt_get"
+
+  | OtherPrim "nt_remove", [id; layout; k] ->
+    SR.bool,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae k ^^
+    E.call_rts env "nt_remove"
+
+  | OtherPrim "nt_scan", [id; layout; labels; what; next; limit] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) what ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
+    E.call_rts env "nt_scan"
+
+  | OtherPrim "nt_index", [id; layout; fields] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae fields ^^
+    E.call_rts env "nt_index" ^^
+    BigNum.from_word64 env
+
+  | OtherPrim "nt_index_of", [indexes; fields] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae indexes ^^
+    compile_exp_vanilla env ae fields ^^
+    E.call_rts env "nt_index_of"
+
+  | OtherPrim "nt_count", [id; layout; index; key] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
+    compile_exp_vanilla env ae key ^^
+    E.call_rts env "nt_count"
+
+  | OtherPrim "nt_walk", [id; layout; labels; index; reverse; start; from; to_; token; limit] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
+    compile_exp_vanilla env ae reverse ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) start ^^
+    compile_exp_vanilla env ae from ^^
+    compile_exp_vanilla env ae to_ ^^
+    compile_exp_vanilla env ae token ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
+    E.call_rts env "nt_walk"
+
+  | OtherPrim "nt_sum", [id; layout; column] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae column ^^
+    E.call_rts env "nt_sum"
+
+  | OtherPrim "nt_extreme", [id; layout; column; largest] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae column ^^
+    compile_exp_vanilla env ae largest ^^
+    E.call_rts env "nt_extreme"
+
+  | OtherPrim "nt_scan_where", [id; layout; labels; column; filter; next; limit] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    compile_exp_vanilla env ae column ^^
+    compile_exp_vanilla env ae filter ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
+    E.call_rts env "nt_scan_where"
+
+  | OtherPrim "nt_scan_cells", [id; layout; key; fields; filter; next; limit] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae key ^^
+    compile_exp_vanilla env ae fields ^^
+    compile_exp_vanilla env ae filter ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
+    E.call_rts env "nt_scan_cells"
+
+  | OtherPrim "nt_count_where", [id; layout; column; filter] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae column ^^
+    compile_exp_vanilla env ae filter ^^
+    E.call_rts env "nt_count_where" ^^
+    BigNum.from_word64 env
+
+  | OtherPrim "nt_sum_where", [id; layout; sum_column; column; filter] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae sum_column ^^
+    compile_exp_vanilla env ae column ^^
+    compile_exp_vanilla env ae filter ^^
+    E.call_rts env "nt_sum_where"
+
+  | OtherPrim "nt_group_counts", [id; layout; index; after; limit] ->
+    SR.Vanilla,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
+    compile_exp_vanilla env ae after ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
+    E.call_rts env "nt_group_counts"
+
+  | OtherPrim "nt_maintain", [id; layout; budget] ->
+    SR.bool,
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) budget ^^
+    E.call_rts env "nt_maintain"
+
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
     compile_exp_vanilla env ae e ^^
@@ -13937,7 +14141,14 @@ and conclude_module env set_serialization_globals =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
-  Linking.LinkModule.link emodule "rts" (E.get_rts env)
+  (* Only programs that still call the native table, or keep a codec in stable variables,
+     link the larger runtime that contains it *)
+  let uses_native_table = !(env.E.requires_native_table) || List.exists (fun (imp : import) ->
+      let open Wasm.Source in
+      imp.it.module_name = Lib.Utf8.decode "rts" &&
+      String.starts_with ~prefix:"nt_" (Lib.Utf8.encode imp.it.item_name)
+    ) func_imports in
+  Linking.LinkModule.link emodule "rts" (E.get_rts env uses_native_table)
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)

@@ -1,0 +1,11 @@
+(unknown location): Compatibility error [M0170], stable variable `users` is not compatible with the previous version.
+Previous type
+  {codec : NtCodec<(Nat, User)>; id : Nat64; indexes : [([Text], Nat)]}
+ is not a subtype of
+  {codec : NtCodec<(Nat, User)>; id : Nat64; indexes : [([Text], Nat)]}
+ because expected field `extra` is missing from type 
+  {amount : Nat; city : Text; name : Text}
+ of `User` (used by `NtCodec` in `NtCodec` in `codec` in `users`).
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+FALSE

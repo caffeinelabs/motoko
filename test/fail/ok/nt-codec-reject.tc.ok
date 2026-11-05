@@ -1,0 +1,5 @@
+nt-codec-reject.mo:7.50-7.52: type error [M0279], native table field `tags` has type [Text], but a field must be a scalar or an option of a scalar
+nt-codec-reject.mo:10.62-10.64: type error [M0279], native table field `address` has type {city : Text}, but a field must be a scalar or an option of a scalar
+nt-codec-reject.mo:13.53-13.55: type error [M0279], native table field `visits` has type var Nat, but a field must be immutable
+nt-codec-reject.mo:16.36-16.38: type error [M0279], native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal
+nt-codec-reject.mo:19.57-19.59: type error [M0279], native table row has type R, but its type must not depend on a type parameter

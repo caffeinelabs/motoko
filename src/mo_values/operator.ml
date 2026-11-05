@@ -173,7 +173,7 @@ let eq_prim =
 let structural_equality t =
   let rec go t =
     match t with
-    | T.Var _ | T.Pre | T.Non | T.Async _ | T.Mut _ | T.Weak _ -> assert false
+    | T.Var _ | T.Pre | T.Non | T.Async _ | T.Mut _ | T.Weak _ | T.NtCodec _ -> assert false
     | T.Any -> fun v1 v2 -> Bool true
     | T.Prim T.Error
     | T.Prim T.Region -> assert false

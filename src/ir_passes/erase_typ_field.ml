@@ -55,6 +55,7 @@ let transform prog =
     | Non -> Non
     | Pre -> Pre
     | Weak t -> Weak (t_typ t)
+    | NtCodec t -> NtCodec (t_typ t)
 
   and t_bind tb =
     { tb with bound = t_typ tb.bound }

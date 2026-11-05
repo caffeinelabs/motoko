@@ -57,6 +57,7 @@ and typ =
   | Non                                       (* bottom *)
   | Named of name * typ
   | Weak of typ                               (* weak references *)
+  | NtCodec of typ                            (* native table codec, made only by the compiler *)
   | Pre                                       (* pre-type *)
 
 and scope = typ

@@ -1,0 +1,17 @@
+// Two stable native tables: users with key Nat, places with key Text
+type NtCodec__1066334254<T> = NtCodec<T>;
+type User__96197913 = {amount : Nat; city : Text; name : Text};
+actor {
+  stable places :
+    {
+      codec : NtCodec__1066334254<(Text, Text)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    };
+  stable users :
+    {
+      codec : NtCodec__1066334254<(Nat, User__96197913)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    }
+};

@@ -260,6 +260,13 @@ let internals, initial_stat_env =
 
 (* Stable compatibility *)
 
+(* Stable signatures print the native-table codec type, which programs reach as `Prim.NtCodec`,
+   as `NtCodec` *)
+let stab_sig_env =
+  let open Type in
+  let c = Cons.fresh "NtCodec" (Def ([{var = "T"; sort = Type; bound = Any}], NtCodec (Var ("T", 0)))) in
+  Scope.adjoin initial_stat_env0
+    { Scope.empty with Scope.typ_env = Env.singleton "NtCodec" c; con_env = ConSet.singleton c }
 
 let parse_stab_sig s name  =
   let open Diag.Syntax in
@@ -284,7 +291,7 @@ let load_stab_sig path : Type.stab_sig Diag.result =
   let open Diag.Syntax in
   let* p = parse_stab_sig_from_file path in
   Cons.session ~scope:p.note.Syntax.filename (fun () ->
-    Typing.check_stab_sig initial_stat_env0 p)
+    Typing.check_stab_sig stab_sig_env p)
 
 let stable_compatible pre post : unit Diag.result =
   let open Diag.Syntax in
@@ -300,8 +307,8 @@ let validate_stab_sig s : unit Diag.result =
   Cons.session ~scope:name (fun () ->
     let* p1 = parse_stab_sig s name in
     let* p2 = parse_stab_sig s name in
-    let* s1 = Typing.check_stab_sig initial_stat_env0 p1 in
-    let* s2 = Typing.check_stab_sig initial_stat_env0 p2 in
+    let* s1 = Typing.check_stab_sig stab_sig_env p1 in
+    let* s2 = Typing.check_stab_sig stab_sig_env p2 in
     Type.(match s1, s2 with
     | Single s1, Single s2 ->
       (* check we can self-upgrade *)
@@ -819,9 +826,18 @@ let ir_passes mode prog_ir name =
 
 (* Compilation *)
 
-let load_as_rts () =
-  let rts = if !Flags.sanity then Rts.wasm_debug else Rts.wasm_release in
-  Wasm_exts.CustomModuleDecode.decode "rts.wasm" (Lazy.force rts)
+(* Raised when a program needs the runtime with native tables and this compiler has none *)
+exception No_native_table_rts
+
+let load_as_rts uses_native_table =
+  let rts = match !Flags.sanity, uses_native_table with
+    | false, false -> Some Rts.wasm_release
+    | true, false -> Some Rts.wasm_debug
+    | false, true -> Rts.wasm_release_table
+    | true, true -> Rts.wasm_debug_table in
+  match rts with
+  | Some rts -> Wasm_exts.CustomModuleDecode.decode "rts.wasm" (Lazy.force rts)
+  | None -> raise No_native_table_rts
 
 type compile_result = (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
 
@@ -854,7 +870,11 @@ and compile_unit mode (enhanced_migration:string option) imports u : Wasm_exts.C
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
     phase "Compiling" name;
-    Diag.return (Codegen.Compile.compile mode ~enhanced_migration (load_as_rts ()) prog_ir))
+    match Codegen.Compile.compile mode ~enhanced_migration load_as_rts prog_ir with
+    | wasm -> Diag.return wasm
+    | exception No_native_table_rts ->
+      Diag.error Source.no_region "M0280" "compile"
+        "native tables need the native compiler `moc`: this compiler does not contain the runtime with native tables")
 
 and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Syntax.comp_unit) : string Diag.result =
   let open Diag.Syntax in

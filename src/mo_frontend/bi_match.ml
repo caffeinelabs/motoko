@@ -363,7 +363,8 @@ let bi_match_typs ctx =
            bi_match_typ rel eq inst any t12 t22
          | None -> None)
       else None
-    | Mut t1', Mut t2' ->
+    | Mut t1', Mut t2'
+    | NtCodec t1', NtCodec t2' ->
       bi_equate_typ rel eq inst any t1' t2'
     | _, _ -> None
     end
