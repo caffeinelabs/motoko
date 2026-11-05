@@ -1,0 +1,10 @@
+[package]
+name = "nt-ref"
+description = "Tests only: an unchecked transcription of PBTreeMap's tree and a raw-pointer typed host for the crate's tree"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+native-table = { path = "../native-table" }

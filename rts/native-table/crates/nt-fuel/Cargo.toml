@@ -1,0 +1,20 @@
+[package]
+name = "nt-fuel"
+description = "Tests only: the cost meter (wasmtime fuel aware of bulk memory instructions), its calibration on PocketIC, and the crate's fail-fast cost checks against OQL's bars"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Its own workspace: wasmtime never enters the main workspace's lock file, and the shared crate never depends
+# on this package.
+[workspace]
+
+[dependencies]
+# The same wasmtime the cost checks pin.
+wasmtime = { version = "=42.0.1", default-features = false, features = ["cranelift", "runtime", "std"] }
+# The module rewrite of the meter: the versions wasmtime itself uses.
+wasmparser = "=0.244.0"
+wasm-encoder = { version = "=0.244.0", features = ["wasmparser"] }
+# The calibration's replica: the client of PocketIC server 14.0.0, the version OQL's bars were measured on.
+pocket-ic = "=14.0.0"
+candid = "0.10"

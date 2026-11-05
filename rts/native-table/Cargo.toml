@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/native-table",
+    "crates/nt-testhost",
+    "crates/nt-probe",
+    "crates/nt-panicscan",
+    "crates/nt-ref",
+    "crates/nt-cost",
+]
+# Workspaces of their own: nt-eopref runs the crates of Rust EOP (a Rust library for upgrades that keep the heap
+# in place) as the reference for the golden typed nodes, and the cost_vs_ref runner links wasmtime, which needs a
+# newer Rust than 1.83. Neither enters this lock file.
+exclude = ["crates/nt-eopref", "crates/nt-cost-runner"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+publish = false
+
+[profile.release]
+opt-level = 3
+panic = "abort"
+debug = false
+strip = "none"
+
+[profile.dev]
+panic = "abort"
+
+# Optimized tests that keep overflow checks and debug assertions.
+[profile.test-fast]
+inherits = "release"
+overflow-checks = true
+debug-assertions = true

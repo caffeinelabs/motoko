@@ -1,0 +1,20 @@
+# The cost_vs_ref runner: meters the nt-cost module's calls with wasmtime fuel. A workspace of its own,
+# excluded from the root workspace, because wasmtime 42.0.1 needs a newer Rust than the crate's 1.83.
+[workspace]
+
+[package]
+name = "nt-cost-runner"
+description = "Meters the cost_vs_ref module's operations with wasmtime fuel and writes the results"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.91"
+publish = false
+
+[dependencies]
+wasmtime = { version = "=42.0.1", default-features = false, features = ["anyhow", "cranelift", "runtime", "std"] }
+# The units runner's bulk-aware meter rewrites the module first: the versions wasmtime itself uses.
+wasmparser = "=0.244.0"
+wasm-encoder = { version = "=0.244.0", features = ["wasmparser"] }
+
+[profile.release]
+debug = false

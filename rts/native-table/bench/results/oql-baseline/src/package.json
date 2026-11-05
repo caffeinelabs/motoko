@@ -1,0 +1,10 @@
+{
+  "name": "oql-baseline-drivers",
+  "private": true,
+  "description": "Node dependencies of the OQL baseline drivers in this directory (wseq.mjs, wbatch.mjs, paidorders.mjs, scale.mjs, heapidx.mjs, jord.mjs, dk2.mjs).",
+  "dependencies": {
+    "@dfinity/candid": "3.4.3",
+    "@dfinity/pic": "0.22.0",
+    "@dfinity/principal": "3.4.3"
+  }
+}

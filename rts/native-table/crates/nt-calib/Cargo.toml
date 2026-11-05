@@ -1,0 +1,21 @@
+[package]
+name = "nt-calib"
+description = "Tests only: the cost meter's calibration canister, running the probe's workloads between two reads of the replica's instruction counter"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Its own workspace: built for wasm64 as a canister only, never part of the main workspace's builds.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nt-probe = { path = "../nt-probe" }
+
+[profile.release]
+opt-level = 3
+panic = "abort"
+debug = false
+strip = "none"
