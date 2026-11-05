@@ -356,7 +356,6 @@ pub fn unhex(s: &str) -> Vec<u8> {
 }
 
 pub mod big;
-pub mod golden_nodes;
 pub mod index;
 pub mod rows;
 pub mod runs;

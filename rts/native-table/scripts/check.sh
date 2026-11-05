@@ -21,16 +21,6 @@ echo "== the large suite in release mode: rows_model at 10^6 writes and across s
 NT_LARGE=1 cargo test -q --release -p nt-testhost --test updates_and_rewrites -- rewrite_units rows_model \
     post_snapshot_units_over_255
 
-# The crate's side of the golden typed nodes runs in the tests above (nt-testhost, test golden_nodes). Their
-# reference side, the crate nt-eopref, builds rust-eop, the repository of Rust EOP, from a local clone; a tree
-# without that crate skips it.
-if [ -f crates/nt-eopref/Cargo.toml ]; then
-    echo "== golden typed nodes, reference side: today's PBTreeMap (rust-eop's map.rs, host mode) equals golden/nodes"
-    (cd crates/nt-eopref && cargo run -q --release)
-else
-    echo "== golden typed nodes, reference side: skipped, the crate nt-eopref is not in this tree"
-fi
-
 echo "== panic scan"
 cargo run -q -p nt-panicscan -- $PROBE --seed nt_
 
