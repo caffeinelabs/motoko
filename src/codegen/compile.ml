@@ -9592,8 +9592,9 @@ module GCRoots = struct
       let length = Int64.of_int (E.object_pool_size env) in
       compile_unboxed_const length ^^
       E.call_rts env "initialize_static_variables" ^^
-      (* Chunked, as the IC rejects a function with complexity over 1,000,000 (about 20,000 calls). *)
-      (E.chunk_object_pool env 8192
+      (* Chunked, as the IC rejects a function with complexity over 1,000,000 (about 20,000 calls).
+         Chunks are small so that modest programs, and so ordinary tests, already span several. *)
+      (E.chunk_object_pool env 128
       |> G.concat_mapi (fun chunk allocations ->
         Func.share_code0 Func.Always env (Printf.sprintf "initialize_root_array_%i" chunk) [] (fun env ->
           allocations
