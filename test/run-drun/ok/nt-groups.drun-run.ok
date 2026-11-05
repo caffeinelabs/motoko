@@ -1,0 +1,34 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: empty {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: fill {keys = [12, 41, 997, 82, 192, 1_739, 41, 27, 6, 100, 12]; size = 6_000; wrong = 0}
+debug.print: [([#blob(""), #principal(aaaaa-aa)], 488), ([#blob(""), #principal(uuc56-gyb)], 481), ([#blob(""), #principal(ldbch-pqbaa)], 510), ([#blob("\00"), #principal(aaaaa-aa)], 514), ([#blob("\00"), #principal(uuc56-gyb)], 496), ([#blob("\00"), #principal(ldbch-pqbaa)], 488), ([#blob("\00\01"), #principal(aaaaa-aa)], 495), ([#blob("\00\01"), #principal(uuc56-gyb)], 532), ([#blob("\00\01"), #principal(ldbch-pqbaa)], 471), ([#blob("\FF"), #principal(aaaaa-aa)], 488), ([#blob("\FF"), #principal(uuc56-gyb)], 529), ([#blob("\FF"), #principal(ldbch-pqbaa)], 508)]
+debug.print: ([#bool(false), #null_], 626)
+debug.print: ([#bool(false), #nat(0)], 61)
+debug.print: ([#bool(false), #nat(1)], 65)
+debug.print: ([#bool(false), #nat(2)], 63)
+debug.print: ([#bool(true), #null_], 546)
+debug.print: ([#bool(true), #nat(0)], 65)
+debug.print: ([#bool(true), #nat(1)], 70)
+debug.print: ([#bool(true), #nat(2)], 53)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {keys = [12, 41, 997, 82, 192, 1_739, 41, 27, 6, 100, 12]; size = 6_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: change {keys = [12, 41, 990, 82, 192, 1_677, 41, 27, 6, 100, 12]; size = 4_800; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {keys = [12, 41, 990, 82, 192, 1_677, 41, 27, 6, 100, 12]; size = 4_800; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: refill {keys = [12, 41, 996, 82, 192, 1_727, 41, 27, 6, 100, 12]; size = 6_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: resume {added = 2; wrong = 0}
+debug.print: resumed {keys = [12, 41, 999, 82, 192, 1_723, 41, 27, 6, 100, 12]; size = 6_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: clear {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

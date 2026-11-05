@@ -1,0 +1,31 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: empty {cells = 0; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: fill {cells = 599_642; size = 9_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {cells = 599_642; size = 9_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: change {cells = 458_204; size = 7_200; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {cells = 458_204; size = 7_200; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: refill {cells = 563_056; size = 9_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: resume {wrong = 0}
+debug.print: resumed {cells = 516_144; size = 8_357; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {cells = 516_144; size = 8_357; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: clear {cells = 0; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: keys {got = 200; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

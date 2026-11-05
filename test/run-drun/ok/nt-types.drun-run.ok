@@ -1,0 +1,37 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ((2, 5, 5, 5, 5), (5, 5, 5, 8), (7, 13, 9, 8), (7, 5, 3, 3))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: [?false, ?true]
+debug.print: [?0, ?1, ?127, ?128, ?255]
+debug.print: [?0, ?255, ?256, ?32_767, ?65_535]
+debug.print: [?0, ?65_535, ?2_147_483_647, ?2_147_483_648, ?4_294_967_295]
+debug.print: [?0, ?1_152_921_504_606_846_975, ?1_152_921_504_606_846_976, ?9_223_372_036_854_775_808, ?18_446_744_073_709_551_615]
+debug.print: [?(-128), ?(-1), ?0, ?(+1), ?(+127)]
+debug.print: [?(-32_768), ?(-129), ?0, ?(+128), ?(+32_767)]
+debug.print: [?(-2_147_483_648), ?(-32_769), ?0, ?(+32_768), ?(+2_147_483_647)]
+debug.print: [?(-9_223_372_036_854_775_808), ?(-576_460_752_303_423_489), ?(-576_460_752_303_423_488), ?(-1), ?0, ?(+576_460_752_303_423_487), ?(+576_460_752_303_423_488), ?(+9_223_372_036_854_775_807)]
+debug.print: [?0, ?2_305_843_009_213_693_951, ?2_305_843_009_213_693_952, ?9_223_372_036_854_775_808, ?18_446_744_073_709_551_615, ?18_446_744_073_709_551_616, ?1_267_650_600_228_229_401_496_703_205_376]
+debug.print: [?(-1_267_650_600_228_229_401_496_703_205_376), ?(-18_446_744_073_709_551_616), ?(-9_223_372_036_854_775_809), ?(-9_223_372_036_854_775_808), ?(-2_305_843_009_213_693_953), ?(-2_305_843_009_213_693_952), ?(-1), ?0, ?(+2_305_843_009_213_693_951), ?(+2_305_843_009_213_693_952), ?(+9_223_372_036_854_775_807), ?(+9_223_372_036_854_775_808), ?(+1_267_650_600_228_229_401_496_703_205_376)]
+debug.print: [?(-inf), ?(-179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000), ?(-1.500000), ?0.000000, ?0.000000, ?0.000000, ?1.500000, ?179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000, ?inf]
+debug.print: [?'', ?'A', ?'é', ?'퟿', ?'', ?'￿', ?'😀', ?'􏿿']
+debug.print: [?"", ?"a", ?"Zürich", ?"日本語", ?"😀", ?"Genève", ?""]
+debug.print: [?"", ?"\00", ?"\FF", ?"\00\01\FF", ?"\47\65\6E\C3\A8\76\65"]
+debug.print: [?aaaaa-aa, ?2vxsx-fae, ?tsdi7-6x777-77777-77777-77777-77777-77777-77777-77777-77777-776]
+debug.print: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]
+debug.print: (true, true, true, true, true, true, ?"Genève", ?2vxsx-fae)
+debug.print: (null, null, null, null, null, null, null, null, null)
+debug.print: ?{blob = ""; bool = false; char = ''; float = -inf; int = -1_267_650_600_228_229_401_496_703_205_376; int16 = -32_768; int32 = -2_147_483_648; int64 = -9_223_372_036_854_775_808; int8 = -128; nat = 0; nat16 = 0; nat32 = 0; nat64 = 0; nat8 = 0; optBlob = null; optBool = null; optChar = null; optFloat = null; optInt = null; optInt16 = null; optInt32 = null; optInt64 = null; optInt8 = null; optNat = null; optNat16 = null; optNat32 = null; optNat64 = null; optNat8 = null; optPrincipal = null; optText = null; principal = aaaaa-aa; text = ""}
+debug.print: true
+debug.print: ?{blob = "\FF\FF"; bool = true; char = '􏿿'; float = 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000; int = +1_267_650_600_228_229_401_496_703_205_376; int16 = +32_767; int32 = +2_147_483_647; int64 = +9_223_372_036_854_775_807; int8 = +127; nat = 1_267_650_600_228_229_401_496_703_205_376; nat16 = 65_535; nat32 = 4_294_967_295; nat64 = 18_446_744_073_709_551_615; nat8 = 255; optBlob = ?"\00"; optBool = ?true; optChar = ?'😀'; optFloat = ?(-inf); optInt = ?(-1_267_650_600_228_229_401_496_703_205_376); optInt16 = ?(-32_768); optInt32 = ?(-2_147_483_648); optInt64 = ?(-9_223_372_036_854_775_808); optInt8 = ?(-128); optNat = ?1_267_650_600_228_229_401_496_703_205_376; optNat16 = ?65_535; optNat32 = ?4_294_967_295; optNat64 = ?18_446_744_073_709_551_615; optNat8 = ?255; optPrincipal = ?2vxsx-fae; optText = ?"Zürich"; principal = tsdi7-6x777-77777-77777-77777-77777-77777-77777-77777-77777-776; text = "日本語 😀"}
+debug.print: true
+debug.print: (true, 1.000000)
+debug.print: (true, -1.000000)
+debug.print: (true, true, 0, true, true)
+debug.print: (true, 114_688, true)
+debug.print: (true, 100_000, true)
+debug.print: {blob = ""; bool = false; char = 'é'; float = 0.000000; int = 0; int16 = -129; int32 = -32_769; int64 = -576_460_752_303_423_489; int8 = -1; nat = 0; nat16 = 256; nat32 = 2_147_483_648; nat64 = 1_152_921_504_606_846_976; nat8 = 1; optBlob = null; optBool = ?false; optChar = ?''; optFloat = null; optInt = null; optInt16 = ?0; optInt32 = ?0; optInt64 = ?(+576_460_752_303_423_488); optInt8 = ?0; optNat = null; optNat16 = ?0; optNat32 = ?0; optNat64 = ?0; optNat8 = ?0; optPrincipal = ?aaaaa-aa; optText = null; principal = 2vxsx-fae; text = ""}
+debug.print: [("int", {optional = false; scalar = #int}), ("nat", {optional = false; scalar = #nat}), ("float", {optional = false; scalar = #float}), ("optNat16", {optional = true; scalar = #nat16}), ("optNat32", {optional = true; scalar = #nat32}), ("optNat64", {optional = true; scalar = #nat64}), ("principal", {optional = false; scalar = #principal}), ("nat16", {optional = false; scalar = #nat16}), ("nat32", {optional = false; scalar = #nat32}), ("nat64", {optional = false; scalar = #nat64}), ("optInt", {optional = true; scalar = #int}), ("optNat", {optional = true; scalar = #nat}), ("optInt16", {optional = true; scalar = #int16}), ("optInt32", {optional = true; scalar = #int32}), ("optInt64", {optional = true; scalar = #int64}), ("optPrincipal", {optional = true; scalar = #principal}), ("int16", {optional = false; scalar = #int16}), ("int32", {optional = false; scalar = #int32}), ("int64", {optional = false; scalar = #int64}), ("blob", {optional = false; scalar = #blob}), ("bool", {optional = false; scalar = #bool}), ("char", {optional = false; scalar = #char}), ("int8", {optional = false; scalar = #int8}), ("optBlob", {optional = true; scalar = #blob}), ("optBool", {optional = true; scalar = #bool}), ("optChar", {optional = true; scalar = #char}), ("nat8", {optional = false; scalar = #nat8}), ("optInt8", {optional = true; scalar = #int8}), ("text", {optional = false; scalar = #text}), ("optNat8", {optional = true; scalar = #nat8}), ("optText", {optional = true; scalar = #text}), ("optFloat", {optional = true; scalar = #float})]
+debug.print: true
+debug.print: ([], [], [], [], [])
+ingress Completed: Reply: 0x4449444c0000
