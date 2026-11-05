@@ -5,6 +5,6 @@ actor Counter_v1 {
 
   public func increment() : async () {
     state += 1;
-    Debug.print(debug_show (state))
+    Debug.print(debug_show state)
   }
 }

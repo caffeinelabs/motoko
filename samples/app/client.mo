@@ -11,12 +11,12 @@ module {
     public func go(n : Text, s : S.Server) : () {
       name := n;
       server := ?s;
-      ignore (async {
+      ignore async {
         let sub = await s.subscribe(this.send);
         sub.post("hello from " # name);
         sub.post("goodbye from " # name);
         sub.cancel()
-      })
+      }
     };
 
     public func send(msg : Text) : () {

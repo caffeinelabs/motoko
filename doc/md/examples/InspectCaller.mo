@@ -10,7 +10,7 @@ actor {
   public func reset() : () { c := 0 }; // oneway
 
   system func inspect({ caller : Principal }) : Bool {
-    not (Principal.isAnonymous(caller))
+    not Principal.isAnonymous(caller)
   }
 
 }

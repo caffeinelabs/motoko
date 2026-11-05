@@ -9,12 +9,12 @@ actor class Bucket(n : Nat, i : Nat) {
   let map = Map.empty<Key, Value>();
 
   public func get(k : Key) : async ?Value {
-    assert ((k % n) == i);
+    assert (k % n) == i;
     Map.get(map, Nat.compare, k)
   };
 
   public func put(k : Key, v : Value) : async () {
-    assert ((k % n) == i);
+    assert (k % n) == i;
     Map.add(map, Nat.compare, k, v)
   }
 

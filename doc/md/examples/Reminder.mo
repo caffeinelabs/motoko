@@ -12,9 +12,9 @@ actor Reminder {
   };
 
   ignore setTimer<system>(
-    #seconds (solarYearSeconds - abs(now() / 1_000_000_000) % solarYearSeconds),
+    #seconds(solarYearSeconds - abs(now() / 1_000_000_000) % solarYearSeconds),
     func() : async () {
-      ignore recurringTimer<system>(#seconds solarYearSeconds, remind);
+      ignore recurringTimer<system>(#seconds(solarYearSeconds), remind);
       await remind()
     }
   )
