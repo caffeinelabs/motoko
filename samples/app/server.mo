@@ -51,9 +51,9 @@ module {
                 case null { clients := n.tail }
                 case ?p { p.tail := n.tail }
               };
-              Prim.debugPrint "(unsubscribe ";
-              Prim.debugPrintInt id;
-              Prim.debugPrint ")\n";
+              Prim.debugPrint("(unsubscribe ");
+              Prim.debugPrintInt(id);
+              Prim.debugPrint(")\n");
               return
             };
             prev := next;
