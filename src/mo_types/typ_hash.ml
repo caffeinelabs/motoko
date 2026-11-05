@@ -105,6 +105,7 @@ let rec go = function
   | Array (Mut t) -> ((Unary, "V"), [t])
   | Array t -> ((Unary, "v"), [t])
   | Weak t -> ((Unary, "w"), [t])
+  | NtCodec t -> ((Unary, "T"), [t])
 
   (* Here we pretend we support first-class mutable values;
      this is useful for stable serialization *)

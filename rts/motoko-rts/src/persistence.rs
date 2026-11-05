@@ -68,6 +68,11 @@ struct PersistentMetadata {
     /// This is for the purpose of multi-migration tracking such that a single migration function
     /// cannot be executed multiple times, removing the risk of data loss.
     migration_functions: Value,
+    /// Address of the native-table store's state page, 0 while no store exists. Every runtime
+    /// has this field, also one without native tables, so a canister keeps its tables when it
+    /// switches runtimes across upgrades. It is the last field and the version is unchanged: an
+    /// upgrade from a runtime without the field reads 0, since the metadata reserve is zero there.
+    native_store: usize,
 }
 
 /// Location of the persistent metadata. Prereserved and fixed forever.
@@ -120,6 +125,7 @@ impl PersistentMetadata {
         (*self).dedup_table = NULL_POINTER;
         // Initialize the migration functions list as the null pointer.
         (*self).migration_functions = NULL_POINTER;
+        (*self).native_store = 0;
     }
 }
 
@@ -404,4 +410,10 @@ pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
         &mut (*metadata).migration_functions,
         migration_functions,
     );
+}
+
+/// The persistent word that holds the native-table store's state page.
+pub unsafe fn native_store_location() -> &'static mut usize {
+    let metadata = PersistentMetadata::get();
+    &mut (*metadata).native_store
 }

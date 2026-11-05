@@ -1,0 +1,23 @@
+# A program without native tables upgrades by graph copy
+install $ID nt-upgrade/plain.mo ""
+ingress $ID put "DIDL\x00\x00"
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+upgrade $ID nt-upgrade/plain.mo ""
+ingress $ID check "DIDL\x00\x00"
+# Rows and handles survive an upgrade that keeps main memory, and writes keep working after it
+reinstall $ID nt-upgrade/tables.mo ""
+ingress $ID put "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID nt-upgrade/tables.mo ""
+ingress $ID check "DIDL\x00\x00"
+ingress $ID write "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+# Graph copy traps while a table exists, and the canister keeps working and upgrading
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID nt-upgrade/tables.mo ""
+ingress $ID check "DIDL\x00\x00"
+# An upgrade that changes a stable table's row type or key type is refused, and the canister keeps working
+upgrade $ID nt-upgrade/tables-row.mo ""
+upgrade $ID nt-upgrade/tables-key.mo ""
+ingress $ID check "DIDL\x00\x00"

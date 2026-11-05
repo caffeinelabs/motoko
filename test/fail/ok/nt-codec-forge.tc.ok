@@ -1,0 +1,52 @@
+nt-codec-forge.mo:13.38-13.124: type error [M0096], expression of type
+  {labels : Blob; layout : Blob}
+cannot produce expected type
+  NtCodec<(Nat, Text)>
+nt-codec-forge.mo:16.40-16.51: type error [M0093], expected object type, but expression produces type
+  NtCodec<(Nat, User)>
+nt-codec-forge.mo:17.30-17.59: type error [M0096], expression of type
+  {codec : Prim.NtCodec<(Nat, User)>; id : Nat64}
+cannot produce expected type
+  {codec : Prim.NtCodec<(Nat, Text)>; id : Nat64}
+because the type 
+  {amount : Nat; city : Text; name : Text}
+ is not compatible with type 
+  Text
+ in `Prim.NtCodec` (used by `codec`)
+nt-codec-forge.mo:20.38-20.95: type error [M0096], expression of type
+  {labels : Text; layout : Text}
+cannot produce expected type
+  NtCodec<(Nat, Text)>
+nt-codec-forge.mo:23.80-23.81: type error [M0096], expression of type
+  Prim.NtCodec<(K0, R0)> = NtCodec<(K0, R0)>
+cannot produce expected type
+  NtCodec<(K, R)>
+because the type 
+  K0
+ is not compatible with type 
+  K
+nt-codec-forge.mo:24.80-24.87: type error [M0096], expression of type
+  Prim.NtCodec<(Nat, User)> = NtCodec<(Nat, User)>
+cannot produce expected type
+  NtCodec<(K, R)>
+because the type 
+  Nat
+ is not compatible with type 
+  K
+nt-codec-forge.mo:27.55-27.66: type error [M0096], expression of type
+  Prim.NtCodec<(Nat, User)> = NtCodec<(Nat, User)>
+cannot produce expected type
+  NtCodec<(Nat, Text)>
+because the type 
+  {amount : Nat; city : Text; name : Text}
+ is not compatible with type 
+  Text
+nt-codec-forge.mo:30.54-30.59: type error [M0096], expression of type
+  Handle<Nat, User> = {codec : Prim.NtCodec<(Nat, User)>; id : Nat64}
+cannot produce expected type
+  {codec : Prim.NtCodec<(Nat, {city : Text; name : Text})>; id : Nat64}
+because field `amount` is missing from expected type 
+  {city : Text; name : Text}
+ of `Prim.NtCodec` (used by `codec`)
+nt-codec-forge.mo:33.16-33.27: type error [M0070], expected object type, but expression produces type
+  NtCodec<(Nat, User)> = NtCodec<(Nat, User)>

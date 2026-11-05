@@ -255,6 +255,7 @@ let rec check_typ env typ : unit =
      if not (control = T.Returns) then
        error env no_region "promising function cannot be local:\n  %s" (T.string_of_typ_expand typ);
   | T.Weak typ
+  | T.NtCodec typ
   | T.Opt typ ->
     check_typ env typ
   | T.Async (s, typ1, typ2) ->

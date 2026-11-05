@@ -66,6 +66,8 @@ const IDL_EXT_tuple: i32 = -130;
 const IDL_EXT_weak: i32 = -131;
 const IDL_EXT_char: i32 = -132;
 const IDL_EXT_var_vec: i32 = -133;
+#[cfg(feature = "native_table")]
+const IDL_EXT_nt_codec: i32 = -134;
 
 unsafe fn leb128_decode(buf: *mut Buf) -> u32 {
     let value = crate::leb128::leb128_decode(buf);
@@ -867,6 +869,25 @@ pub(crate) unsafe fn memory_compatible(
             let t21 = sleb128_decode(&mut tb2);
             memory_compatible(
                 rel, old_format, variance, order, typtbl1, typtbl2, end1, end2, t11, t21, false,
+            )
+        }
+        // A native-table codec's bytes are fixed by its key and row types, so they must not change
+        #[cfg(feature = "native_table")]
+        (IDL_EXT_nt_codec, IDL_EXT_nt_codec) => {
+            let t11 = sleb128_decode(&mut tb1);
+            let t21 = sleb128_decode(&mut tb2);
+            memory_compatible(
+                rel,
+                old_format,
+                TypeVariance::Invariance,
+                order,
+                typtbl1,
+                typtbl2,
+                end1,
+                end2,
+                t11,
+                t21,
+                false,
             )
         }
         (IDL_CON_opt, IDL_CON_opt) => {

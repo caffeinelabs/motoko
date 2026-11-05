@@ -1,0 +1,13 @@
+[package]
+name = "nt-probe"
+description = "Panic-scan probe: exports every public entry point of native-table over a panic-free host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+native-table = { path = "../native-table" }

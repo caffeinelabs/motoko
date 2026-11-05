@@ -49,6 +49,13 @@ let
       name = "test-${dir}-src";
     };
 
+  # The run-drun tests of the NativeTable library name it as ../../lib/native-table, as in the
+  # repository; this puts a copy of lib/native-table there, beside the unpacked test tree
+  native-table-lib = ''
+    mkdir -p ../lib
+    cp -r ${../lib/native-table} ../lib/native-table
+  '';
+
   acceptable_subdir = accept: dir: deps:
     testDerivation ({
       src = test_src dir;
@@ -59,6 +66,7 @@ let
         ${llvmEnv}
         export ESM=${esm}
         export MOTOKO_CORE="${core-src}"
+        ${pkgs.lib.optionalString (dir == "run-drun") native-table-lib}
         type -p moc && moc --version
         ${if dir == "run-drun" && pkgs.stdenv.hostPlatform.system != "x86_64-darwin" && !accept
           then "test-runner -b -j 4 ${dir}"
@@ -171,6 +179,7 @@ let
       export SOURCE_PATHS="${
         builtins.concatStringsSep " " (map (d: "${d}/src") (builtins.attrValues coverage_bins))
       }"
+      ${native-table-lib}
       type -p moc && moc --version
       make coverage
     '';

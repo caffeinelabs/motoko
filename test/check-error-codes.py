@@ -48,6 +48,7 @@ known_untested_codes = {
     "M0199", # retired: ExperimentalStableMemory primitives removed, code kept reserved
     "M0213", # retired: a parenthetical on an explicit `async` body is rejected with M0277
     "M0232", # cannot infer type of implicit argument
+    "M0280", # only moc.js raises it, which has no native tables; covered by test/test-moc.js
     }
 
 def populate_error_codes():

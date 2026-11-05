@@ -1,0 +1,60 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: [(7, {amount = 40; city = "Basel"; name = "Ana"}), (1_267_650_600_228_229_401_496_703_205_376, {amount = 1_267_650_600_228_229_401_496_703_205_376; city = "Ems"; name = "Ed"})]
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {missing = 1_000; next = 0; same = 2_000; size = 2_001}
+debug.print: (?{amount = 1; city = "Bern"; name = "user 1"}, null)
+debug.print: {Basel = 667; Bern = 667; Chur = 666; indexes = [(["city"], 1)]; walked = 2_001}
+debug.print: ("Gil", true, true)
+debug.print: (2, ?"on the Limmat", ?"", null)
+debug.print: (1, ?18_446_744_073_709_551_616, null)
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {missing = 1_000; next = 0; same = 2_000; size = 2_001}
+debug.print: (?{amount = 1; city = "Bern"; name = "user 1"}, null)
+debug.print: {Basel = 667; Bern = 667; Chur = 666; indexes = [(["city"], 1)]; walked = 2_001}
+debug.print: ("Gil", true, true)
+debug.print: (2, ?"on the Limmat", ?"", null)
+debug.print: (1, ?18_446_744_073_709_551_616, null)
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {missing = 667; next = 667; same = 1_666; size = 2_334}
+debug.print: (?{amount = 4; city = "Chur"; name = "user 2"}, ?{amount = 8_994_001; city = "Chur"; name = "user 2_999"})
+debug.print: {Basel = 333; Bern = 333; Chur = 1_667; indexes = [(["city"], 1)]; walked = 2_334}
+debug.print: ("Gil", true, true)
+debug.print: (3, ?"on the Limmat", ?"", ?"on the Rhône")
+debug.print: (2, ?18_446_744_073_709_551_616, ?36_893_488_147_419_103_232)
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: graph-copy stabilization is not possible while a table exists'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {missing = 667; next = 667; same = 1_666; size = 2_334}
+debug.print: (?{amount = 4; city = "Chur"; name = "user 2"}, ?{amount = 8_994_001; city = "Chur"; name = "user 2_999"})
+debug.print: {Basel = 333; Bern = 333; Chur = 1_667; indexes = [(["city"], 1)]; walked = 2_334}
+debug.print: ("Gil", true, true)
+debug.print: (3, ?"on the Limmat", ?"", ?"on the Rhône")
+debug.print: (2, ?18_446_744_073_709_551_616, ?36_893_488_147_419_103_232)
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {missing = 667; next = 667; same = 1_666; size = 2_334}
+debug.print: (?{amount = 4; city = "Chur"; name = "user 2"}, ?{amount = 8_994_001; city = "Chur"; name = "user 2_999"})
+debug.print: {Basel = 333; Bern = 333; Chur = 1_667; indexes = [(["city"], 1)]; walked = 2_334}
+debug.print: ("Gil", true, true)
+debug.print: (3, ?"on the Limmat", ?"", ?"on the Rhône")
+debug.print: (2, ?18_446_744_073_709_551_616, ?36_893_488_147_419_103_232)
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: Memory-incompatible program upgrade'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: Memory-incompatible program upgrade'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {missing = 667; next = 667; same = 1_666; size = 2_334}
+debug.print: (?{amount = 4; city = "Chur"; name = "user 2"}, ?{amount = 8_994_001; city = "Chur"; name = "user 2_999"})
+debug.print: {Basel = 333; Bern = 333; Chur = 1_667; indexes = [(["city"], 1)]; walked = 2_334}
+debug.print: ("Gil", true, true)
+debug.print: (3, ?"on the Limmat", ?"", ?"on the Rhône")
+debug.print: (2, ?18_446_744_073_709_551_616, ?36_893_488_147_419_103_232)
+ingress Completed: Reply: 0x4449444c0000

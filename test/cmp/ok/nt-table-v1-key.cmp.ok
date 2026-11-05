@@ -1,0 +1,13 @@
+(unknown location): Compatibility error [M0170], stable variable `places` is not compatible with the previous version.
+Previous type
+  {codec : NtCodec<(Text, Text)>; id : Nat64; indexes : [([Text], Nat)]}
+ is not a subtype of
+  {codec : NtCodec<(Nat, Text)>; id : Nat64; indexes : [([Text], Nat)]}
+ because the type 
+  Text
+ is not compatible with type 
+  Nat
+ in `NtCodec` (used by `NtCodec` in `codec` in `places`).
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+FALSE

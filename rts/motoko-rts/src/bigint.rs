@@ -49,7 +49,7 @@ unsafe extern "C" {
 }
 
 #[cfg(feature = "ic")]
-unsafe fn int_from_isize(value: isize) -> Value {
+pub(crate) unsafe fn int_from_isize(value: isize) -> Value {
     int_from_i64(value)
 }
 

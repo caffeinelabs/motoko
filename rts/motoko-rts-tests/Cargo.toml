@@ -8,8 +8,9 @@ edition = "2024"
 byteorder = "1.4.3"
 fxhash = "0.2.1"
 # libc = { version = "0.2.139", default_features = false }
-motoko-rts = { path = "../motoko-rts/native" }
+motoko-rts = { path = "../motoko-rts/native", features = ["native_table"] }
 oorandom = "11.1.3"
 proptest = { version = "=1.5", default-features = false, features = ["alloc"] }
 motoko-rts-macros = { path = "../motoko-rts-macros" }
+native-table = { path = "../native-table/crates/native-table" }
 libm = "0.2.16"

@@ -1087,7 +1087,10 @@ and check_typ' env typ : T.typ =
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
   let env' = adjoin_typs env te ce in
-  let t = check_typ env' typ in
+  let t = match typ.it, cs with
+    (* The native-table codec is the one primitive type with a parameter *)
+    | PrimT "NtCodec", [c] -> T.NtCodec (T.Con (c, []))
+    | _ -> check_typ env' typ in
   let k = T.Def (T.close_binds cs tbs, T.close cs t) in
   check_closed env id k at;
   k
@@ -1716,6 +1719,7 @@ let erase_implicits args =
 type hole_error =
   | HoleSuggestions of hole_candidate list * derivation_note option
   | HoleAmbiguous of hole_candidate list
+  | HoleNtCodec of string (* why a native table's key or row type is not accepted *)
 
 and derivation_note = hole_candidate * derivation_error
 
@@ -1747,6 +1751,7 @@ let render_derivation_leaves env = function
       Format.asprintf env "`%s : %a` has ambiguous solutions: %s"
         name display_typ_oneline typ
         (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)) :: acc
+    | HoleNtCodec msg -> Printf.sprintf "`%s` not found: %s" name msg :: acc
   in
   let leaves = collect_note note [] |> List.rev in
   if leaves = [] then [] else
@@ -1956,6 +1961,25 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
       Some inst
     with Bi_match.Bimatch _ -> None
 
+(** The built-in implicit for a hole of type [Prim.NtCodec<(K, R)>]: a call of the privileged
+    [Prim.@ntCodec<(K, R)>(layout, labels)], with both Blobs computed from K and R, or why K and R
+    are not accepted. [None] when the hole has another type. *)
+let nt_codec_candidate hole_typ =
+  let open Lib.Option.Syntax in
+  let* arg = match T.normalize hole_typ with
+    | T.NtCodec arg -> Some arg
+    | _ -> None in
+  let+ (k, r) = match T.normalize arg with
+    | T.Tup [k; r] -> Some (k, r)
+    | _ -> None in
+  Nt_codec.blobs k r |> Result.map (fun (layout, labels) ->
+    let mk e = e @? no_region in
+    let blob s = mk (LitE (ref (BlobLit s))) in
+    let callee = mk (dot_module_exp (ImplicitLibE "@prim") ("@ntCodec" @@ no_region)) in
+    let inst = Source.annotate [] None no_region in
+    let path = mk (CallE (None, callee, inst, (false, ref (mk (TupE [blob layout; blob labels]))))) in
+    { path; typ = hole_typ; module_ref_opt = None; desc = "Prim.ntCodec"; id = "ntCodec" })
+
 module ImplicitHoles = struct
   type hole = {
     hole_name : string;
@@ -2153,6 +2177,12 @@ module ImplicitHoles = struct
     | Some (`Single term, _) -> Ok term
     | Some (`Many cs, false) -> Error (HoleAmbiguous cs)
     | Some (`Many _, true) | None ->
+
+    (* No direct candidate : a native table's codec is built in *)
+    match nt_codec_candidate hole_typ with
+    | Some (Ok term) -> Ok term
+    | Some (Error msg) -> Error (HoleNtCodec msg)
+    | None ->
 
     (* No direct candidate : try implicit derivation
       1. Find a matching candidate with holes
@@ -3339,6 +3369,9 @@ and check_hole env at hole_name hole_typ exp_ref =
     local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
       (quote hole_name)
       display_typ hole_typ
+  | Error (HoleNtCodec msg) ->
+    if env.pre then () else
+    local_error env at "M0279" "%s" msg
 
 and check_inferred env0 env t t' exp =
   (match sub_explained env exp.at t' t with

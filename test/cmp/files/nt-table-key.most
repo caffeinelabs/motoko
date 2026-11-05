@@ -1,0 +1,17 @@
+// The table places with key type Nat instead of Text
+type NtCodec__1066334254<T> = NtCodec<T>;
+type User__730836206 = {amount : Nat; city : Text; name : Text};
+actor {
+  stable places :
+    {
+      codec : NtCodec__1066334254<(Nat, Text)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    };
+  stable users :
+    {
+      codec : NtCodec__1066334254<(Nat, User__730836206)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    }
+};

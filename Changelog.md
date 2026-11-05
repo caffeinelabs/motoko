@@ -1,5 +1,22 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * feat: native tables. The `NativeTable` library, in `lib/native-table`,
+    keeps a table's rows outside the garbage-collected heap, where the
+    collector never scans them and upgrades that keep main memory keep them.
+    A table maps keys of a scalar type to rows that are a scalar or a record
+    of scalars and options of scalars. It has indexes of up to seven fields,
+    declared when it is built, and answers reads by key, scans, index walks
+    and counts, filters on any field, and sums, averages, minimums and
+    maximums of integer fields. The compiler supplies each table's codec,
+    `Prim.NtCodec<(K, R)>`, from its key and row types, and rejects types a
+    table cannot have with the new error M0279. Native tables need the
+    native compiler: `moc.js` rejects a program that uses them with the new
+    error M0280. See `lib/native-table/README.md` (#6492).
+
 ## 2.2.1 (2026-11-03)
 
 * motoko (`moc`)

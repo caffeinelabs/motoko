@@ -1,0 +1,77 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: null
+debug.print: false
+debug.print: no match
+debug.print: missing
+debug.print: missing 2_305_843_009_213_693_951
+debug.print: missing 2_305_843_009_213_693_952
+debug.print: missing 9_223_372_036_854_775_808
+debug.print: missing 18_446_744_073_709_551_615
+debug.print: missing 1_267_650_600_228_229_401_496_703_205_376
+debug.print: false
+debug.print: missing
+debug.print: null
+debug.print: (null, null, null)
+debug.print: (false, false, false)
+debug.print: null
+debug.print: (false, null, null)
+debug.print: (null, null, null)
+debug.print: missing
+debug.print: (false, false)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: true
+debug.print: false
+debug.print: (10, 3, 2)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ?{amount = 40; city = "Basel"; name = "Ana"}
+debug.print: true
+debug.print: Ana 42
+debug.print: Bo lives in Biel, amount 1
+debug.print: (true, true, {amount = 2_305_843_009_213_693_951; city = "Chur"; name = "Cy"})
+debug.print: (true, true, {amount = 2_305_843_009_213_693_952; city = "Chur"; name = "Cy"})
+debug.print: (true, true, {amount = 9_223_372_036_854_775_808; city = "Davos"; name = "Di"})
+debug.print: (true, true, {amount = 18_446_744_073_709_551_615; city = "Davos"; name = "Di"})
+debug.print: (true, true, {amount = 1_267_650_600_228_229_401_496_703_205_376; city = "Ems"; name = "Ed"})
+debug.print: true
+debug.print: (true, 114_688, true)
+debug.print: ?{amount = 5; city = "Horw"; name = "Hal"}
+debug.print: (null, null, null)
+debug.print: (true, false, true)
+debug.print: ?"on the Limmat"
+debug.print: (true, ?"", null)
+debug.print: (?3, ?1_180_591_620_717_411_303_424, null)
+debug.print: 2
+debug.print: (true, false)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, false, false)
+debug.print: (true, false, true)
+debug.print: (true, true, false)
+debug.print: (3, false, false, true)
+debug.print: (true, false, true)
+debug.print: (1, 0, true, false)
+debug.print: (?"on the Rhône", null, null)
+debug.print: (true, true, true)
+debug.print: (?{amount = 41; city = "Aarau"; name = "Ana"}, ?4, ?"-")
+debug.print: (4, 2, 1)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ?{amount = 41; city = "Aarau"; name = "Ana"}
+debug.print: false
+debug.print: no match
+debug.print: missing
+debug.print: (true, true, {amount = 2_305_843_009_213_693_951; city = "Chur"; name = "Cy"})
+debug.print: missing 2_305_843_009_213_693_952
+debug.print: missing 9_223_372_036_854_775_808
+debug.print: (true, true, {amount = 18_446_744_073_709_551_615; city = "Davos"; name = "Di"})
+debug.print: missing 1_267_650_600_228_229_401_496_703_205_376
+debug.print: false
+debug.print: missing
+debug.print: ?{amount = 5; city = "Horw"; name = "Hal"}
+debug.print: (null, null, null)
+debug.print: (true, false, false)
+debug.print: null
+debug.print: (true, ?"-", null)
+debug.print: (null, ?4, null)
+debug.print: 0
+debug.print: (true, false)
+ingress Completed: Reply: 0x4449444c0000

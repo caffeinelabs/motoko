@@ -117,6 +117,19 @@ assert.deepStrictEqual(bad_result, {
   code: null,
 });
 
+// Native tables need the native compiler: moc.js does not contain their runtime
+Motoko.saveFile(
+  "table.mo",
+  `import Prim "mo:⛔";
+  actor {
+    func codec<K, R>(c : (implicit : Prim.NtCodec<(K, R)>)) : Prim.NtCodec<(K, R)> = c;
+    public func create() : async Nat64 { Prim.ntCreate(codec<Nat, Text>()) }
+  }`
+);
+const table_result = Motoko.compileWasm("ic", "table.mo");
+assert.equal(table_result.code, null);
+assert.ok(table_result.diagnostics.some((d) => d.code === "M0280" && d.severity === 1));
+
 // Check the check command (should print errors, but have no code)
 assert.deepStrictEqual(Motoko.check("ok.mo"), {
   diagnostics: [],

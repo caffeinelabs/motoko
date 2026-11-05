@@ -40,6 +40,7 @@ name = "motoko-rts"
 version = "0.1.0"
 dependencies = [
  "motoko-rts-macros",
+ "native-table",
 ]
 
 [[package]]
@@ -60,9 +61,14 @@ dependencies = [
  "libm",
  "motoko-rts",
  "motoko-rts-macros",
+ "native-table",
  "oorandom",
  "proptest",
 ]
+
+[[package]]
+name = "native-table"
+version = "0.1.0"
 
 [[package]]
 name = "num-traits"

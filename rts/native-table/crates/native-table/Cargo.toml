@@ -1,0 +1,18 @@
+[package]
+name = "native-table"
+description = "Shared table and B-tree formats for Motoko's NativeTable and the PTable of Rust EOP, a Rust library for upgrades that keep the heap in place"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Every maintenance decision on a metered host tells the host the look-ahead it took (`Budget::note`), for the
+# cost runner's check that the work each decision lets begin stays within it. Off in every other build.
+meter-notes = []
+
+# No dependencies and no dev-dependencies.
+[dependencies]

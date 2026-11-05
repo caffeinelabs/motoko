@@ -96,6 +96,7 @@ module Make (Cfg : Config) = struct
     | Pre                    -> Atom "Pre"
     | Named (n, t)           -> "Name" $$ [Atom n; typ t]
     | Weak t                 -> "Weak" $$ [ typ t]
+    | NtCodec t              -> "NtCodec" $$ [typ t]
 
   and typ_bind (tb : Type.bind) =
     tb.var $$ [typ tb.bound]

@@ -647,6 +647,25 @@ impl PartitionedHeap {
         partition
     }
 
+    /// Takes a completely free partition for good, as store memory that the runtime
+    /// manages outside the garbage-collected heap. The whole partition becomes static
+    /// space, so it has no dynamic space: the collector never iterates, marks, evacuates,
+    /// updates or frees it. It counts toward the heap size. Returns its start address.
+    pub unsafe fn take_store_partition<M: Memory>(&mut self, mem: &mut M) -> usize {
+        let index = self.allocate_partition(mem, &Self::scan_for_temporary_partition);
+        debug_assert!(self.free_partitions > 0);
+        self.free_partitions -= 1;
+        let partition = self.mutable_partition(index);
+        debug_assert_eq!(partition.static_size, 0);
+        debug_assert_eq!(partition.dynamic_size, 0);
+        partition.free = false;
+        partition.static_size = PARTITION_SIZE;
+        let start_address = partition.start_address();
+        mem.grow_memory(partition.end_address());
+        self.precomputed_heap_size += PARTITION_SIZE;
+        start_address
+    }
+
     /// The returned bitmap address is guaranteed to be 64-bit-aligned.
     unsafe fn allocate_bitmap<M: Memory>(&mut self, mem: &mut M) -> *mut u8 {
         if self.bitmap_allocation_pointer % PARTITION_SIZE == 0 {

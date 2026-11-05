@@ -1,0 +1,54 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2_000, [(["city"], 1), (["age", "city"], 2), (["nick"], 3)])
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {wrong = 0}
+debug.print: (100, 20, 667)
+debug.print: (100, 20, 667)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: 1_700
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {wrong = 0}
+debug.print: (91, 18, 490)
+debug.print: (91, 18, 490)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {all = {rows = 1_700; wrong = 0}; allBack = {rows = 1_700; wrong = 0}; between = {rows = 96; wrong = 0}; crossed = {rows = 0; wrong = 0}; from = {rows = 597; wrong = 0}; fromBack = {rows = 1_194; wrong = 0}; nicks = {rows = 1_700; wrong = 0}; nicksBack = {rows = 1_700; wrong = 0}; nulls = {rows = 490; wrong = 0}; one = {rows = 91; wrong = 0}; oneBack = {rows = 91; wrong = 0}; pairs = {rows = 152; wrong = 0}; pairsBack = {rows = 152; wrong = 0}; some = {rows = 458; wrong = 0}; someBack = {rows = 458; wrong = 0}; to = {rows = 367; wrong = 0}; toBack = {rows = 1_338; wrong = 0}}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {maxCity = ?("moved", true, true); maxNick = ?("n6", true, true); minCity = ?("city 0", true, true); minNick = ?("n0", true, true)}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (null, null, 0, 0)
+debug.print: (null, null, 100, 100)
+debug.print: (?(101, {v = ?5}), ?(100, {v = ?9}), 3, 3)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {all = {rows = 150; wrong = 0}; allBack = {rows = 150; wrong = 0}; ends = (true, true); some = {rows = 117; wrong = 0}; someBack = {rows = 117; wrong = 0}}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (1, 1, 2)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (false, false)
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: an index has 1 to 7 fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key value out of range'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key value out of range'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key value out of range'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

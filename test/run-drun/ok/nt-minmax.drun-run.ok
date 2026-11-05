@@ -1,0 +1,177 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: n (null, null)
+debug.print: i (null, null)
+debug.print: n8 (null, null)
+debug.print: n16 (null, null)
+debug.print: n32 (null, null)
+debug.print: n64 (null, null)
+debug.print: i8 (null, null)
+debug.print: i16 (null, null)
+debug.print: i32 (null, null)
+debug.print: i64 (null, null)
+debug.print: on (null, null)
+debug.print: oi (null, null)
+debug.print: on8 (null, null)
+debug.print: on16 (null, null)
+debug.print: on32 (null, null)
+debug.print: on64 (null, null)
+debug.print: oi8 (null, null)
+debug.print: oi16 (null, null)
+debug.print: oi32 (null, null)
+debug.print: oi64 (null, null)
+debug.print: z (null, null)
+debug.print: empty {none = 6; size = 0; wrong = 0}
+debug.print: items empty {size = 0; wrong = 0}
+debug.print: (null, null, null, null, null, null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: n (?(+1_997), ?(+19_226_936_388_667_570_693_819_503_386_770_930_663_424))
+debug.print: i (?(-10_412_333_218_508_186_156_826_093_970_871_044_538_368), ?(+10_244_949_299_981_973_017_959_608_378_885_293_473_792))
+debug.print: n8 (?0, ?(+255))
+debug.print: n16 (?(+5), ?(+65_484))
+debug.print: n32 (?(+2_723_313), ?(+4_293_923_370))
+debug.print: n64 (?(+20_462_673_954_940_314), ?(+18_440_516_614_078_400_081))
+debug.print: i8 (?(-128), ?(+127))
+debug.print: i16 (?(-32_763), ?(+32_716))
+debug.print: i32 (?(-2_144_760_335), ?(+2_146_439_722))
+debug.print: i64 (?(-9_202_909_362_899_835_494), ?(+9_217_144_577_223_624_273))
+debug.print: on (?(+1_997), ?(+18_227_992_495_225_147_995_251_956_774_048_280_608_768))
+debug.print: oi (?(-10_412_333_218_508_186_156_826_093_970_871_044_538_368), ?(+10_244_949_299_981_973_017_959_608_378_885_293_473_792))
+debug.print: on8 (?0, ?(+255))
+debug.print: on16 (?(+5), ?(+65_484))
+debug.print: on32 (?(+4_606_880), ?(+4_287_177_202))
+debug.print: on64 (?(+27_961_976_676_419_675), ?(+18_404_907_114_033_687_691))
+debug.print: oi8 (?(-128), ?(+127))
+debug.print: oi16 (?(-32_763), ?(+32_716))
+debug.print: oi32 (?(-2_142_876_768), ?(+2_139_693_554))
+debug.print: oi64 (?(-9_195_410_060_178_356_133), ?(+9_181_535_077_178_911_883))
+debug.print: z (null, null)
+debug.print: fill {none = 6; size = 1_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: change {none = 6; size = 666; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: replaced 0 {none = 6; size = 666; wrong = 0}
+debug.print: removed 0 {none = 6; size = 626; wrong = 0}
+debug.print: replaced 1 {none = 6; size = 626; wrong = 0}
+debug.print: removed 1 {none = 6; size = 586; wrong = 0}
+debug.print: replaced 2 {none = 6; size = 586; wrong = 0}
+debug.print: removed 2 {none = 6; size = 546; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: n (?0, ?(+1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376))
+debug.print: i (?(-1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376), ?(+1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376))
+debug.print: n8 (?0, ?(+255))
+debug.print: n16 (?0, ?(+65_535))
+debug.print: n32 (?0, ?(+4_294_967_295))
+debug.print: n64 (?0, ?(+18_446_744_073_709_551_615))
+debug.print: i8 (?(-128), ?(+127))
+debug.print: i16 (?(-32_768), ?(+32_767))
+debug.print: i32 (?(-2_147_483_648), ?(+2_147_483_647))
+debug.print: i64 (?(-9_223_372_036_854_775_808), ?(+9_223_372_036_854_775_807))
+debug.print: on (?0, ?(+1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376))
+debug.print: oi (?(-1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376), ?(+1_606_938_044_258_990_275_541_962_092_341_162_602_522_202_993_782_792_835_301_376))
+debug.print: on8 (?0, ?(+255))
+debug.print: on16 (?0, ?(+65_535))
+debug.print: on32 (?0, ?(+4_294_967_295))
+debug.print: on64 (?0, ?(+18_446_744_073_709_551_615))
+debug.print: oi8 (?(-128), ?(+127))
+debug.print: oi16 (?(-32_768), ?(+32_767))
+debug.print: oi32 (?(-2_147_483_648), ?(+2_147_483_647))
+debug.print: oi64 (?(-9_223_372_036_854_775_808), ?(+9_223_372_036_854_775_807))
+debug.print: z (null, null)
+debug.print: bounds {none = 6; size = 546; wrong = 0}
+debug.print: n (?(+12_816), ?(+15_452_544_406_824_302_203_768_077_938_066_179_751_936))
+debug.print: i (?(-1_787_143_477_721_949_171_891_618_598_840_543_739_904), ?(+9_024_912_001_865_169_602_820_964_352))
+debug.print: n8 (?(+5), ?(+246))
+debug.print: n16 (?(+2_182), ?(+63_072))
+debug.print: n32 (?(+182_824_433), ?(+4_174_731_151))
+debug.print: n64 (?(+662_210_325_508_121_158), ?(+17_660_074_941_648_056_347))
+debug.print: i8 (?(-123), ?(+118))
+debug.print: i16 (?(-30_586), ?(+30_304))
+debug.print: i32 (?(-1_964_659_215), ?(+2_027_247_503))
+debug.print: i64 (?(-8_561_161_711_346_654_650), ?(+8_436_702_904_793_280_539))
+debug.print: on (?(+27_274), ?(+8_599_378_373_729_000_120_917_274_709_428_862_451_712))
+debug.print: oi (?(-472_726), ?(+9_024_912_001_865_169_602_820_964_352))
+debug.print: on8 (?(+10), ?(+244))
+debug.print: on16 (?(+2_463), ?(+63_040))
+debug.print: on32 (?(+182_824_433), ?(+4_134_641_337))
+debug.print: on64 (?(+662_210_325_508_121_158), ?(+17_660_074_941_648_056_347))
+debug.print: oi8 (?(-118), ?(+116))
+debug.print: oi16 (?(-30_305), ?(+30_272))
+debug.print: oi32 (?(-1_964_659_215), ?(+1_987_157_689))
+debug.print: oi64 (?(-8_561_161_711_346_654_650), ?(+8_436_702_904_793_280_539))
+debug.print: z (null, null)
+debug.print: bounds replaced {none = 6; size = 546; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: n (null, null)
+debug.print: i (null, null)
+debug.print: n8 (null, null)
+debug.print: n16 (null, null)
+debug.print: n32 (null, null)
+debug.print: n64 (null, null)
+debug.print: i8 (null, null)
+debug.print: i16 (null, null)
+debug.print: i32 (null, null)
+debug.print: i64 (null, null)
+debug.print: on (null, null)
+debug.print: oi (null, null)
+debug.print: on8 (null, null)
+debug.print: on16 (null, null)
+debug.print: on32 (null, null)
+debug.print: on64 (null, null)
+debug.print: oi8 (null, null)
+debug.print: oi16 (null, null)
+debug.print: oi32 (null, null)
+debug.print: oi64 (null, null)
+debug.print: z (null, null)
+debug.print: clear {none = 6; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items 4_000 {size = 4_000; wrong = 0}
+debug.print: (?(-3_541_659_053_375_719_167_700_994_419_764_307_689_472), ?(+7_476_778_432_773_039_942_219_738_747_751_817_543_680), ?(+66), ?(+99_988), ?0, ?(+999))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items 8_000 {size = 8_000; wrong = 0}
+debug.print: (?(-7_480_194_898_030_259_854_973_231_478_819_547_774_976), ?(+9_315_378_457_220_394_012_346_614_014_262_332_358_656), ?(+10), ?(+99_988), ?0, ?(+999))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items 12_000 {size = 12_000; wrong = 0}
+debug.print: (?(-7_480_194_898_030_259_854_973_231_478_819_547_774_976), ?(+9_315_378_457_220_394_012_346_614_014_262_332_358_656), ?(+9), ?(+99_988), ?0, ?(+999))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items upkeep {size = 12_000; wrong = 0}
+debug.print: (?(-7_480_194_898_030_259_854_973_231_478_819_547_774_976), ?(+9_315_378_457_220_394_012_346_614_014_262_332_358_656), ?(+9), ?(+99_988), ?0, ?(+999))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items replaced 0 {size = 12_000; wrong = 0}
+debug.print: (?(-6_599_431_810_043_768_406_151_025_911_807_109_758_976), ?(+7_476_778_432_773_039_942_219_738_747_751_817_543_680), ?(+10), ?(+99_983), ?0, ?(+999))
+debug.print: items removed 0 {size = 11_994; wrong = 0}
+debug.print: (?(-5_605_983_693_154_243_461_818_243_870_135_425_171_456), ?(+6_102_376_544_556_546_223_221_104_603_800_975_441_920), ?(+31), ?(+99_980), ?0, ?(+999))
+debug.print: items replaced 1 {size = 11_994; wrong = 0}
+debug.print: (?(-3_541_659_053_375_719_167_700_994_419_764_307_689_472), ?(+999_433), ?(+40), ?(+99_978), ?0, ?(+999))
+debug.print: items removed 1 {size = 11_988; wrong = 0}
+debug.print: (?(-2_032_967_872_899_343_825_177_901_259_963_441_872_896), ?(+999_308), ?(+54), ?(+99_966), ?0, ?(+999))
+debug.print: items replaced 2 {size = 11_988; wrong = 0}
+debug.print: (?(-1_439_988_088_978_278_322_765_735_429_765_316_214_784), ?(+999_304), ?(+66), ?(+99_951), ?0, ?(+999))
+debug.print: items removed 2 {size = 11_982; wrong = 0}
+debug.print: (?(-927_383_479_483_530_577_141_738_349_533_985_767_424), ?(+998_160), ?(+94), ?(+99_939), ?0, ?(+999))
+debug.print: items replaced 3 {size = 11_982; wrong = 0}
+debug.print: (?(-999_938), ?(+998_039), ?(+96), ?(+99_923), ?0, ?(+998))
+debug.print: items removed 3 {size = 11_976; wrong = 0}
+debug.print: (?(-999_831), ?(+998_001), ?(+109), ?(+99_907), ?0, ?(+998))
+debug.print: items replaced 4 {size = 11_976; wrong = 0}
+debug.print: (?(-999_793), ?(+997_928), ?(+120), ?(+99_886), ?0, ?(+998))
+debug.print: items removed 4 {size = 11_970; wrong = 0}
+debug.print: (?(-999_560), ?(+997_919), ?(+121), ?(+99_882), ?0, ?(+998))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items bounds {size = 11_970; wrong = 0}
+debug.print: (?(-2_037_035_976_334_486_086_268_445_688_409_378_161_051_468_393_665_936_250_636_140_449_354_381_299_763_336_706_183_397_376), ?(+2_037_035_976_334_486_086_268_445_688_409_378_161_051_468_393_665_936_250_636_140_449_354_381_299_763_336_706_183_397_376), ?0, ?(+1_361_129_467_683_753_853_853_498_429_727_072_845_824), ?0, ?(+65_535))
+debug.print: items bounds replaced {size = 11_970; wrong = 0}
+debug.print: (?(-999_560), ?(+997_919), ?(+121), ?(+99_882), ?0, ?(+998))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items first group removed {size = 6_986; wrong = 0}
+debug.print: (?(-999_388), ?(+997_919), ?(+150), ?(+99_882), ?0, ?(+998))
+debug.print: items first group upkeep {size = 6_986; wrong = 0}
+debug.print: (?(-999_388), ?(+997_919), ?(+150), ?(+99_882), ?0, ?(+998))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: items clear {size = 0; wrong = 0}
+debug.print: (null, null, null, null, null, null)
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
