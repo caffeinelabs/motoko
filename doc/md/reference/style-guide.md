@@ -77,7 +77,7 @@ To increase readability and uniformity of Motoko source code, the style guide pr
         4, 5, 6,
       ],
       { field1 = 4; field2 = 5;
-        field3 = 6;
+        field3 = 6
       }
     );
     ```
@@ -195,7 +195,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     ``` motoko no-repl
     actor A {
       public func f() {
-        return;
+        return
       }
     }
     ```
@@ -322,7 +322,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       ...
       ...
     */
-      return polyfillNexus(puglet);  // for now
+      return polyfillNexus(puglet)  // for now
     }
     ```
 
@@ -341,7 +341,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       // Try to invoke the current pallaboom with
       // the previous snibble. If that succeeds,
       // we have the new plexus; if not, complain.
-      let plexusHandle = paBoom(getSnibble()));
+      let plexusHandle = paBoom(getSnibble()))
     }
     ```
 
@@ -355,9 +355,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     Rationale: This is unlike other C-style languages, which tend to have rather ad-hoc rules.
 
--   Do not put a semicolon after the last item of a block, whether the block is on one line or several.
-
-    Similarly for record, object, and variant types.
+-   Do not put a semicolon after the last item, whether it is on one line or several. This holds for blocks and function bodies; record and object literals; object, actor, class, and module bodies; and record, object, and variant types.
 
     ``` motoko no-repl
     type Vec3D = {x : Float; y : Float; z : Float};
@@ -397,7 +395,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     }
     ```
 
-    Rationale: The last item of a block is its result, so a closing `;` adds nothing. `mo-fmt --syntax moc2` removes it.
+    Rationale: A `;` separates items rather than ending them, so a closing `;` changes nothing. `mo-fmt --syntax moc2` removes it.
 
 ### Braces
 
@@ -469,18 +467,18 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     ``` motoko no-repl
     func f() {
-      return;
+      return
     };
 
     if cond {
-      foo();
+      foo()
     } else {
-      bar();
+      bar()
     };
 
     switch opt {
       case ?x {
-        f(x);
+        f(x)
       }
       case null {}
     };
@@ -591,7 +589,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
       object obj { ... };
 
-      actor ServerProxy { ... };
+      actor ServerProxy { ... }
     };
     ```
 
@@ -648,7 +646,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       public func remove(x : X) { ... };
 
       public func isEmpty() : Bool { ... };
-      public func contains(x : X) : Bool { ... };
+      public func contains(x : X) : Bool { ... }
     };
     ```
 
@@ -661,7 +659,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       var width_ = 0;
 
       public func length() : Nat { return length_ };
-      public func width() : Nat { return width_ };
+      public func width() : Nat { return width_ }
     }
     ```
 
@@ -684,7 +682,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
           case #mul(e1, e2) { eval(e1) * eval(e2) }
         };
       Debug.print(n);
-      return n;
+      return n
     };
     ```
 
@@ -753,7 +751,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     var balance = 0;
 
     func f(i : Int) {
-      var j = i;
+      var j = i
     };
 
     var balance : Int = 0;
@@ -767,7 +765,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     ``` motoko no-repl
     class C(init_ : Nat) {
       public let init : Nat = init_;
-      public var count : Nat = 0;
+      public var count : Nat = 0
     }
     ```
 
@@ -898,11 +896,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func foo(a : Float, b : Float) : Float {
       let c = a*a + b*b;
-      c + 2*c*c;
+      c + 2*c*c
     };
 
     func gcd(i : Nat, j : Nat) : Nat {
-      if j == 0 { i } else { gcd(j, i % j) };
+      if j == 0 { i } else { gcd(j, i % j) }
     };
 
     func gcd2(i : Nat, j : Nat) : Nat {
@@ -911,9 +909,9 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       while b > 0 {
         let c = a;
         a := b;
-        b := c % b;
+        b := c % b
       };
-      return a;
+      return a
     };
     ```
 

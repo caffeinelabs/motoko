@@ -55,7 +55,7 @@ shared (msg) actor class InstallerAware() {
 
   public func whoInstalled() : async Principal {
     installer
-  };
+  }
 }
 ```
 
