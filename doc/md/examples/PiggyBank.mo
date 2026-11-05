@@ -25,13 +25,12 @@ shared (msg) actor class PiggyBank(
     savings += acceptable
   };
 
-  public shared (msg) func withdraw(amount : Nat)
-    : async () {
-      assert msg.caller == owner;
-      assert amount <= savings;
-      await (with cycles = amount) benefit();
-      let refund = Cycles.refunded();
-      savings -= amount - refund
-    }
+  public shared (msg) func withdraw(amount : Nat) : async () {
+    assert msg.caller == owner;
+    assert amount <= savings;
+    await (with cycles = amount) benefit();
+    let refund = Cycles.refunded();
+    savings -= amount - refund
+  }
 
 }

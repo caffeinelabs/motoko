@@ -14,7 +14,7 @@ Motoko’s `shared` keyword is used to declare a shared function. Shared functio
 For example, when a shared function is called by a user or another canister, the caller's principal can be captured with `msg.caller`:
 
 ```motoko no-repl
-shared(msg) func inc() : async () {
+shared (msg) func inc() : async () {
   // ... msg.caller ...
 }
 ```
@@ -24,7 +24,7 @@ In this example, the shared function `inc()` specifies a `msg` parameter, a reco
 To access the caller of an actor class constructor, you use the same syntax on the actor class declaration:
 
 ```motoko no-repl
-shared(msg) actor class Counter(init : Nat) {
+shared (msg) actor class Counter(init : Nat) {
   // ... msg.caller ...
 }
 ```
@@ -38,7 +38,7 @@ For example, if you have an actor called `Counter`, you can record the principal
 ```motoko file=<motokoExamples>/Counters-caller.mo
 ```
 
-In this example, the `assert (owner == msg.caller)` expression causes the functions `inc()` and `bump()` to trap if the call is unauthorized, preventing any modification of the `count` variable. However, the `read()` function permits any caller.
+In this example, the `assert owner == msg.caller` expression causes the functions `inc()` and `bump()` to trap if the call is unauthorized, preventing any modification of the `count` variable. However, the `read()` function permits any caller.
 
 The argument to `shared` is just a pattern. You can rewrite the above to use pattern matching:
 
@@ -50,7 +50,7 @@ The argument to `shared` is just a pattern. You can rewrite the above to use pat
 Simple actor declarations do not let you access their installer. If you need access to the installer of an actor, rewrite the actor declaration as a zero-argument actor class instead.
 
 ```motoko no-repl
-shared(msg) actor class InstallerAware() {
+shared (msg) actor class InstallerAware() {
   let installer = msg.caller; // This is the principal of the installer
 
   public func whoInstalled() : async Principal {

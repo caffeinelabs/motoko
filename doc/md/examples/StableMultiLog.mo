@@ -7,11 +7,11 @@ actor StableLog {
   public type Index = Nat64;
 
   // Internal representation uses two regions, working together.
+  // `state` is implicitly `stable`.
   var state = {
-    // implicitly `stable`
     bytes = Region.new();
     var bytes_count : Nat64 = 0;
-    elems = Region.new ();
+    elems = Region.new();
     var elems_count : Nat64 = 0
   };
 

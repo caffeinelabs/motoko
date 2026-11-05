@@ -14,7 +14,7 @@ func iterTree<T>(tree : Tree<T>, f : T -> ()) {
 };
 
 // Compute the sum of all leaf nodes in a tree
-let tree = #branch { left = #leaf 1; right = #leaf 2 };
+let tree = #branch({ left = #leaf(1); right = #leaf(2) });
 var sum = 0;
 iterTree<Nat>(tree, func(leaf) { sum += leaf });
 sum

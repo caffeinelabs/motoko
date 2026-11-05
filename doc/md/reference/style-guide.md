@@ -92,7 +92,7 @@ To increase readability and uniformity of Motoko source code, the style guide pr
       case _ { B }
     }
 
-    assert (x < 100);
+    assert x < 100;
     await async { 0 };
     ```
 
@@ -355,13 +355,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     Rationale: This is unlike other C-style languages, which tend to have rather ad-hoc rules.
 
--   Put a semicolon after the last expression in a block, unless the whole block is written on a single line.
+-   Do not put a semicolon after the last item of a block, whether the block is on one line or several.
 
-    Similarly for types.
+    Similarly for record, object, and variant types.
 
     ``` motoko no-repl
-    // No ; needed before closing } on same line
-
     type Vec3D = {x : Float; y : Float; z : Float};
     type Result<A> = {#ok : A; #error : Text};
 
@@ -381,13 +379,13 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       street : Text;
       nr : Nat;
       zip : Nat;
-      city : Text;
+      city : Text
     };
 
     type Expr = {
       #const : Float;
       #add : (Expr, Expr);
-      #mul : (Expr, Expr);
+      #mul : (Expr, Expr)
     };
 
     func eval(e : Expr) : Float {
@@ -395,11 +393,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
         case #const(x) { x }
         case #add(e1, e2) { eval(e1) + eval(e2) }
         case #mul(e1, e2) { eval(e1) * eval(e2) }
-      };
+      }
     }
     ```
 
-    Rationale: Consistently ending lines with semicolon simplifies adding, removing, or swapping lines.
+    Rationale: The last item of a block is its result, so a closing `;` adds nothing. `mo-fmt --syntax moc2` removes it.
 
 ### Braces
 

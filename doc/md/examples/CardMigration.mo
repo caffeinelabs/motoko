@@ -12,17 +12,19 @@ module CardMigration {
   };
 
   // our migration function
-  public func migration(old : {
-    var map : [(Nat32, OldCard)] // old type
-  }) :
-  {
+  public func migration(
+    old : {
+      var map : [(Nat32, OldCard)] // old type
+    }
+  ) : {
     var map : [(Nat32, NewCard)] // new type
   } {
-    { var map : [(Nat32, NewCard)] =
-        Array.map<(Nat32, OldCard), (Nat32, NewCard)>(
-          old.map,
-          func(key, { title }) { (key, { title; description = "<empty>" }) }
-        ) }
+    {
+      var map : [(Nat32, NewCard)] = Array.map<(Nat32, OldCard), (Nat32, NewCard)>(
+        old.map,
+        func(key, { title }) { (key, { title; description = "<empty>" }) }
+      )
+    }
   }
 
 }

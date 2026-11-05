@@ -36,7 +36,7 @@ actor Todo {
 
   public shared func markDoneBad(id : TodoId) : async Seconds {
     switch Map.get(todos, Int.compare, id) {
-      case ?(#todo(todo)) {
+      case ?#todo(todo) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
@@ -47,7 +47,7 @@ actor Todo {
 
   public shared func markDoneOption(id : TodoId) : async ?Seconds {
     switch Map.get(todos, Int.compare, id) {
-      case ?(#todo(todo)) {
+      case ?#todo(todo) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         ?(secondsBetween(todo.opened, now))
@@ -60,12 +60,12 @@ actor Todo {
 
   public shared func markDoneResult(id : TodoId) : async Result.Result<Seconds, TodoError> {
     switch Map.get(todos, Int.compare, id) {
-      case ?(#todo(todo)) {
+      case ?#todo(todo) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         #ok(secondsBetween(todo.opened, now))
       }
-      case ?(#done(time)) {
+      case ?#done(time) {
         #err(#alreadyDone(time))
       }
       case null {
@@ -76,12 +76,12 @@ actor Todo {
 
   public shared func markDoneException(id : TodoId) : async Seconds {
     switch Map.get(todos, Int.compare, id) {
-      case ?(#todo(todo)) {
+      case ?#todo(todo) {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
       }
-      case ?(#done _) {
+      case ?#done(_) {
         throw Error.reject("Already done")
       }
       case null {
