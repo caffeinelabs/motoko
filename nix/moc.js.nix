@@ -13,7 +13,7 @@ let
       buildPhase = ''
         patchShebangs .
       '' + pkgs.lib.optionalString (rts != null) ''
-        ./rts/gen.sh ${rts}/rts/
+        ./rts/gen.sh ${rts}/rts/ --no-native-table
       '' + ''
         make ${n}.js
         terser ${n}.js -o ${n}.min.js -c -m

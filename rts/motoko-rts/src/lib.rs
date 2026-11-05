@@ -45,6 +45,8 @@ pub mod leb128;
 mod libc_declarations;
 pub mod mem_utils;
 pub mod memory;
+#[cfg(feature = "native_table")]
+pub mod native_table;
 #[cfg(feature = "ic")]
 pub mod persistence;
 pub mod principal_id;

@@ -25,10 +25,14 @@ ic = []
 # This feature enables extensive memory sanity checks in the incremental GC.
 memory_check = []
 
+# This feature links the native-table crate and exports the table primitives.
+native_table = ["dep:native-table"]
+
 
 [dependencies]
 libm = "=0.2.16"
 motoko-rts-macros = { path = "../motoko-rts-macros" }
+native-table = { path = "../native-table/crates/native-table", optional = true }
 
 [profile.dev]
 # `--sanity-checks` in moc links the dev-profile RTS into every test canister.

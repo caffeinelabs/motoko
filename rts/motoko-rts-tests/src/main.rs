@@ -14,6 +14,7 @@ mod crc32;
 mod gc;
 mod leb128;
 mod memory;
+mod native_table;
 mod principal_id;
 mod stabilization;
 mod stable_option;
@@ -30,6 +31,7 @@ fn main() {
         crc32::test();
         gc::test();
         leb128::test();
+        native_table::test();
         principal_id::test();
         persistence_test();
         stable_option::test();
@@ -139,6 +141,13 @@ pub extern "C" fn test_leb128() {
     check_architecture();
     unsafe {
         leb128::test();
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn test_native_table() {
+    check_architecture();
+    unsafe {
+        native_table::test();
     }
 }
 #[unsafe(no_mangle)]
