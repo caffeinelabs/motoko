@@ -4,13 +4,7 @@ members = [
     "crates/native-table",
     "crates/nt-testhost",
     "crates/nt-probe",
-    "crates/nt-panicscan",
-    "crates/nt-ref",
-    "crates/nt-cost",
 ]
-# A workspace of its own: the cost_vs_ref runner links wasmtime, which needs a newer Rust than 1.83, so it does not
-# enter this lock file.
-exclude = ["crates/nt-cost-runner"]
 
 [workspace.package]
 version = "0.1.0"
