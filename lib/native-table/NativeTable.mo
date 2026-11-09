@@ -396,10 +396,12 @@ module {
     Prim.ntExtreme(self.id, self.codec, column, true)
   };
 
-  /// Runs the table's upkeep: seals and compactions. Each write runs one unit of it when work is
-  /// pending; this runs units until the call has used `budget` instructions, and can go past that
-  /// by the last unit it starts. Returns true when work is still pending. Call it, from a timer
-  /// for example, to get the work done on a table that receives no writes.
+  /// Runs the table's upkeep in whole steps. A step compacts one group of 4,096 rows that removals
+  /// or replacements have left with many removed rows or changed fields, or drops a group with no
+  /// row left. Each write runs one step first when work is pending; this runs steps until the call
+  /// has used about `budget` instructions, and can go past that by the last step it starts.
+  /// Returns true when work is still pending. Call it, from a timer for example, to get the work
+  /// done on a table that receives no writes.
   public func maintain<K, R>(self : NativeTable<K, R>, budget : Nat) : Bool {
     Prim.ntMaintain(self.id, self.codec, Prim.natToNat64(budget))
   }

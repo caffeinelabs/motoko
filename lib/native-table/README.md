@@ -183,10 +183,12 @@ an exact one again.
 | Call | Does |
 |---|---|
 | `t.fieldTypes() : [(Text, FieldType)]` | the row's fields and their types: `{ scalar; optional }` |
-| `t.maintain(budget) : Bool` | runs the table's upkeep for about `budget` instructions; true while work is pending |
+| `t.maintain(budget) : Bool` | runs whole steps of the table's upkeep until about `budget` instructions are used; true while work is pending |
 
-Each write already runs one unit of upkeep when work is pending. Call `maintain`, from a timer for
-example, for a table that receives no writes.
+A step of upkeep compacts one group of 4,096 rows that removals or replacements have left with
+many removed rows or changed fields, or drops a group with no row left; `maintain` can go past
+`budget` by the step it started last. Each write already runs one step when work is pending. Call
+`maintain`, from a timer for example, for a table that receives no writes.
 
 ## Traps
 

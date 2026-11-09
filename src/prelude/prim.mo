@@ -287,7 +287,7 @@ func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text]
   )
 };
 
-// Runs units of the table's maintenance, starting each only while the instructions this call has
+// Runs steps of the table's maintenance, starting each only while the instructions this call has
 // used are fewer than `budget`; true when work is still pending
 func ntMaintain<K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) : Bool {
   (prim "nt_maintain" : (Nat64, NtCodec<(K, R)>, Nat64) -> Bool)(id, codec, budget)
