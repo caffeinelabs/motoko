@@ -159,13 +159,6 @@ func ntIndex<K, R>(id : Nat64, codec : NtCodec<(K, R)>, fields : [Text]) : Nat {
   (prim "nt_index" : (Nat64, NtCodec<(K, R)>, [Text]) -> Nat)(id, codec, fields)
 };
 
-// The id paired with the field list `fields` in `indexes`, field lists with their index ids: the
-// pair whose list is `fields` itself, or else holds the same names in the same order; traps when
-// there is none. A list taken from `indexes` is found without comparing names
-func ntIndexOf(indexes : [([Text], Nat)], fields : [Text]) : Nat {
-  (prim "nt_index_of" : ([([Text], Nat)], [Text]) -> Nat)(indexes, fields)
-};
-
 // The value of one field of an index key
 type NtCell = {
   #null_;
@@ -185,27 +178,34 @@ type NtBound = { #incl : NtCell; #excl : NtCell };
 // within the range, an end that is null open
 type NtFilter = { #eq : NtCell; #range : { low : ?NtBound; high : ?NtBound } };
 
-// The number of rows with the index key `key`, one cell per field of the index, or null while
-// the index is being built
-func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, key : [NtCell]) : ?Nat {
-  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, Nat64, [NtCell]) -> ?Nat)(
+// The index on `fields` is the one `indexes`, field lists with their index ids, pairs with the
+// list `fields` itself, or else with a list of the same names in the same order; the calls that
+// name an index trap when there is none. A list taken from `indexes` is found without comparing
+// names
+
+// The number of rows with the index key `key` in the index on `fields`, one cell per field of
+// the index, or null while the index is being built
+func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], key : [NtCell]) : ?Nat {
+  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], [NtCell]) -> ?Nat)(
     id,
     codec,
-    (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
+    indexes,
+    fields,
     key,
   )
 };
 
-// Up to `limit` rows (1 to 64) in the order of index `index`, backward when `reverse`, and the
-// token to go on from, empty when no row is left; null while the index is being built. A walk
-// goes on after the row its token names; with an empty token, it starts at the index's first key
-// (`start` 0), at its first key whose first field is not null (1), or at the key `from` (2). It
-// stops before the first key past `to`
-func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ?([(K, R)], Blob) {
-  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, Nat64, Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ?([(K, R)], Blob))(
+// Up to `limit` rows (1 to 64) in the order of the index on `fields`, backward when `reverse`,
+// and the token to go on from, empty when no row is left; null while the index is being built. A
+// walk goes on after the row its token names; with an empty token, it starts at the index's first
+// key (`start` 0), at its first key whose first field is not null (1), or at the key `from` (2).
+// It stops before the first key past `to`
+func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ?([(K, R)], Blob) {
+  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ?([(K, R)], Blob))(
     id,
     codec,
-    (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
+    indexes,
+    fields,
     reverse,
     start,
     from,
@@ -273,14 +273,15 @@ func ntSumWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, sumField : Text, fiel
   )
 };
 
-// Up to `limit` keys (1 to 64) of index `index` in its order, each with the number of rows that
-// have it, from its first key when `after` is empty, else from the first key past `after`; and
-// the key to go on after, empty when no key is left
-func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, after : Blob, limit : Nat64) : ([([NtCell], Nat)], Blob) {
-  (prim "nt_group_counts" : (Nat64, NtCodec<(K, R)>, Nat64, Blob, Nat64) -> ([([NtCell], Nat)], Blob))(
+// Up to `limit` keys (1 to 64) of the index on `fields` in its order, each with the number of
+// rows that have it, from its first key when `after` is empty, else from the first key past
+// `after`; and the key to go on after, empty when no key is left
+func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], after : Blob, limit : Nat64) : ([([NtCell], Nat)], Blob) {
+  (prim "nt_group_counts" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Blob, Nat64) -> ([([NtCell], Nat)], Blob))(
     id,
     codec,
-    (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
+    indexes,
+    fields,
     after,
     limit,
   )

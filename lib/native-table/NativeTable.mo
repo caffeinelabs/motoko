@@ -259,7 +259,7 @@ module {
   /// The number of rows whose fields under the index on `index` have the values of `key`, one
   /// cell per field of the index, in its order.
   public func count<K, R>(self : NativeTable<K, R>, index : [Text], key : [Cell]) : Nat {
-    built(Prim.ntCount(self.id, self.codec, Prim.ntIndexOf(self.indexes, index), key))
+    built(Prim.ntCount(self.id, self.codec, self.indexes, index, key))
   };
 
   /// The place a walk goes on from, null after its last batch.
@@ -270,17 +270,16 @@ module {
   func walk<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool, from : ?[Cell], to : ?[Cell]) : {
     next : () -> ?(K, R)
   } {
-    let ix = Prim.ntIndexOf(self.indexes, index);
     let (start, key) : (Nat64, [Cell]) = switch from {
       case null { (0, []) }
       case ?key { (2, key) }
     };
-    let (first, token) = built(Prim.ntWalk(self.id, self.codec, ix, reverse, start, key, to, "" : Blob, batch));
+    let (first, token) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start, key, to, "" : Blob, batch));
     batches<(K, R), Blob>(
       first,
       rest(token),
       func token {
-        let (more, after) = built(Prim.ntWalk(self.id, self.codec, ix, reverse, 0 : Nat64, [], to, token, batch));
+        let (more, after) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 0 : Nat64, [], to, token, batch));
         (more, rest(after))
       },
     )
@@ -308,7 +307,7 @@ module {
   /// The first key and row in the order of the index on `index`, or backward, whose key's first
   /// field is not null; null when no row has one.
   func end<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool) : ?(K, R) {
-    let (rows, _) = built(Prim.ntWalk(self.id, self.codec, Prim.ntIndexOf(self.indexes, index), reverse, 1 : Nat64, [], null, "" : Blob, 1 : Nat64));
+    let (rows, _) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 1 : Nat64, [], null, "" : Blob, 1 : Nat64));
     if rows.size() == 0 { null } else { ?rows[0] }
   };
 
@@ -331,13 +330,12 @@ module {
   public func groupCounts<K, R>(self : NativeTable<K, R>, index : [Text]) : {
     next : () -> ?([Cell], Nat)
   } {
-    let ix = Prim.ntIndexOf(self.indexes, index);
-    let (first, token) = Prim.ntGroupCounts(self.id, self.codec, ix, "" : Blob, batch);
+    let (first, token) = Prim.ntGroupCounts(self.id, self.codec, self.indexes, index, "" : Blob, batch);
     batches<([Cell], Nat), Blob>(
       first,
       rest(token),
       func token {
-        let (more, after) = Prim.ntGroupCounts(self.id, self.codec, ix, token, batch);
+        let (more, after) = Prim.ntGroupCounts(self.id, self.codec, self.indexes, index, token, batch);
         (more, rest(after))
       },
     )

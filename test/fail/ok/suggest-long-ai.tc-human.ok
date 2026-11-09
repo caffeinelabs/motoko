@@ -243,8 +243,8 @@ error[M0072]: field region does not exist in type:
     ntCodecLabels : <T>(codec : NtCodec<T>) -> Blob;
     ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
     ntCount :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat,
-             key : [NtCell]) ->
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], key : [NtCell]) ->
         ?Nat;
     ntCountWhere :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text,
@@ -257,12 +257,11 @@ error[M0072]: field region does not exist in type:
         ?Int;
     ntGet : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) -> ?R;
     ntGroupCounts :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, after : Blob,
-             limit : Nat64) ->
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], after : Blob, limit : Nat64) ->
         ([([NtCell], Nat)], Blob);
     ntIndex :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, fields : [Text]) -> Nat;
-    ntIndexOf : (indexes : [([Text], Nat)], fields : [Text]) -> Nat;
     ntMaintain :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) -> Bool;
     ntPut : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
@@ -297,9 +296,9 @@ error[M0072]: field region does not exist in type:
              field : Text, filter : NtFilter) ->
         ?(Int, Nat);
     ntWalk :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat,
-             reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell],
-             token : Blob, limit : Nat64) ->
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], reverse : Bool, start : Nat64, from : [NtCell],
+             to : ?[NtCell], token : Blob, limit : Nat64) ->
         ?([(K, R)], Blob);
     performanceCounter : (counter : Nat32) -> Nat64;
     popcntInt16 : (w : Int16) -> Int16;

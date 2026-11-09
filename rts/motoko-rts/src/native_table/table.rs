@@ -24,8 +24,8 @@ use motoko_rts_macros::ic_mem_fn;
 
 use super::layout::{Layout, SCHEMA_VERSION, schema_image, scratch};
 use super::row::{
-    CellRows, Cells, Out, RowOut, cells, column_type, filter_cond, int_of_i128, int_of_twos, key,
-    key_cell, key_cells, nat_of_u64, nat64_of, pair, text_bytes,
+    CellRows, Cells, Out, RowOut, cells, column_type, compact, filter_cond, int_of_i128,
+    int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, pair, text_bytes,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -388,36 +388,36 @@ pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, codec: Value, fields: Va
     u64::from(decl.id)
 }
 
-/// The secondary index id `index`, as the crate takes it.
-fn index_id(index: u64) -> u8 {
-    u8::try_from(index).unwrap_or_else(|_| rts_trap_with(Fault::BadRef.text()))
-}
-
-/// The second element of the pair in the array `indexes` whose first element, an array of Texts,
-/// is the array `fields`, or else holds the same Texts in the same order; traps when no pair's
-/// does. A table keeps its indexes as such pairs of a field list and an index id, and a caller
-/// that names an index by the very field list the table keeps is answered without comparing a
-/// Text.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn nt_index_of(indexes: Value, fields: Value) -> Value {
+/// The secondary index id of the index on the field list `fields`, an array of Texts, as the
+/// array `indexes` gives it: a table keeps its indexes as pairs of a field list and an index id.
+/// The pair is the one whose list is `fields` itself, or else holds the same Texts in the same
+/// order; traps when no pair's does. A caller that names an index by the very field list the
+/// table keeps finds it without comparing a Text.
+unsafe fn index_of(indexes: Value, fields: Value) -> u8 {
     let indexes = indexes.as_array();
     let fields = fields.as_array();
-    for i in 0..indexes.len() {
-        let pair = indexes.get(i).as_array();
-        if pair.get(0).as_array() == fields {
-            return pair.get(1);
+    let id = 'found: {
+        for i in 0..indexes.len() {
+            let pair = indexes.get(i).as_array();
+            if pair.get(0).as_array() == fields {
+                break 'found pair.get(1);
+            }
         }
-    }
-    let parts = fields.len();
-    for i in 0..indexes.len() {
-        let pair = indexes.get(i).as_array();
-        let list = pair.get(0).as_array();
-        let same = |p: usize| text_compare(list.get(p), fields.get(p)) == 0;
-        if list.len() == parts && (0..parts).all(same) {
-            return pair.get(1);
+        let parts = fields.len();
+        for i in 0..indexes.len() {
+            let pair = indexes.get(i).as_array();
+            let list = pair.get(0).as_array();
+            let same = |p: usize| text_compare(list.get(p), fields.get(p)) == 0;
+            if list.len() == parts && (0..parts).all(same) {
+                break 'found pair.get(1);
+            }
         }
+        rts_trap_with("native table: no index on these fields")
+    };
+    match compact(id).map(u8::try_from) {
+        Some(Ok(index)) => index,
+        _ => rts_trap_with(Fault::BadRef.text()),
     }
-    rts_trap_with("native table: no index on these fields")
 }
 
 /// The cells of the index key the array `key` gives secondary index `index` of `table`, one cell
@@ -455,19 +455,20 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
     Cells::new(core::slice::from_raw_parts(cells, columns))
 }
 
-/// The number of rows of the table whose root block is `id` whose key under secondary index
-/// `index` is the one the cells of the array `key` give, one per part of the index, in key order;
-/// null while the index is being built.
+/// The number of rows of the table whose root block is `id` whose key under the secondary index
+/// on `fields`, found in `indexes` (`index_of`), is the one the cells of the array `key` give, one
+/// per part of the index, in key order; null while the index is being built.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_count<M: Memory>(
     mem: &mut M,
     id: u64,
     codec: Value,
-    index: u64,
+    indexes: Value,
+    fields: Value,
     key: Value,
 ) -> Value {
     let layout = layout_of(codec);
-    let index = index_id(index);
+    let index = index_of(indexes, fields);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
@@ -509,10 +510,11 @@ unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
     allocation_barrier(v)
 }
 
-/// Up to `limit` rows, 1 to 64, of the table whose root block is `id`, in the order of secondary
-/// index `index`, as pairs of their key and their row, and the token to go on from, empty when no
-/// row is left: an array and a Blob in a pair; null while the index is being built. Keys rise, or
-/// fall when `reverse` is 1; the rows of one key come in row id order either way.
+/// Up to `limit` rows, 1 to 64, of the table whose root block is `id`, in the order of the
+/// secondary index on `fields`, found in `indexes` (`index_of`), as pairs of their key and their
+/// row, and the token to go on from, empty when no row is left: an array and a Blob in a pair;
+/// null while the index is being built. Keys rise, or fall when `reverse` is 1; the rows of one key
+/// come in row id order either way.
 ///
 /// A walk resumes after the row its `token` names, the last row the call that gave the token
 /// handed back. A walk with an empty token starts, by `start`: 0 at the index's first key in its
@@ -524,7 +526,8 @@ pub unsafe fn nt_walk<M: Memory>(
     mem: &mut M,
     id: u64,
     codec: Value,
-    index: u64,
+    indexes: Value,
+    fields: Value,
     reverse: u64,
     start: u64,
     from: Value,
@@ -533,7 +536,7 @@ pub unsafe fn nt_walk<M: Memory>(
     limit: u64,
 ) -> Value {
     let layout = layout_of(codec);
-    let index = index_id(index);
+    let index = index_of(indexes, fields);
     let dir = if reverse != 0 { Dir::Rev } else { Dir::Fwd };
     // A key past `to` in the walk's direction.
     let past = if reverse != 0 {
@@ -652,8 +655,8 @@ pub unsafe fn nt_walk<M: Memory>(
     pair(mem, array, token)
 }
 
-/// Up to `limit` keys, 1 to 64, of secondary index `index` of the table whose root block is `id`,
-/// in the index's order, each with the number of rows that have it, as pairs of the array of its
+/// Up to `limit` keys, 1 to 64, of the secondary index on `fields`, found in `indexes`
+/// (`index_of`), of the table whose root block is `id`, in the index's order, each with the number of rows that have it, as pairs of the array of its
 /// cells, one `NtCell` per part of the index, and a Nat; and the key to go on after, empty when no
 /// key is left: an array and a Blob in a pair. From the index's first key, null first, when
 /// `after` is empty, else from the first key past `after`, the last key the call that gave it
@@ -664,12 +667,13 @@ pub unsafe fn nt_group_counts<M: Memory>(
     mem: &mut M,
     id: u64,
     codec: Value,
-    index: u64,
+    indexes: Value,
+    fields: Value,
     after: Value,
     limit: u64,
 ) -> Value {
     let layout = layout_of(codec);
-    let index = index_id(index);
+    let index = index_of(indexes, fields);
     let limit = limit.clamp(1, BATCH_LIMIT) as usize;
     let groups = scratch::<Value, M>(mem, limit);
     let after = blob_bytes(after);

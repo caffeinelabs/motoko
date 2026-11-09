@@ -150,7 +150,7 @@ unsafe fn word64(v: Value, word_tag: usize, tag: Tag) -> u64 {
 }
 
 /// A Nat or Int that is compact, or `None`.
-fn compact(v: Value) -> Option<i64> {
+pub(super) fn compact(v: Value) -> Option<i64> {
     let raw = v.get_raw();
     (raw & COMPACT_MASK == COMPACT_TAG).then(|| raw as i64 >> COMPACT_SHIFT)
 }
