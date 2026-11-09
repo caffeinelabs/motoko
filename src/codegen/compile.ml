@@ -1111,6 +1111,30 @@ module Func = struct
 
 end (* Func *)
 
+(* The native-table primitives the runtime implements, by name: how each takes its arguments, a
+   Nat64 passed unboxed (`W`) or any other value (`V`), and what it gives back, a Nat64 (`W`), a
+   Nat made of a Nat64 (`N`), a Bool (`B`) or any other value (`V`) *)
+let native_table_prims = [
+  "nt_create", ([`V], `W);
+  "nt_size", ([`W; `V], `N);
+  "nt_put", ([`W; `V; `V; `V], `B);
+  "nt_get", ([`W; `V; `V; `V], `V);
+  "nt_remove", ([`W; `V; `V], `B);
+  "nt_scan", ([`W; `V; `V; `W; `W; `W], `V);
+  "nt_index", ([`W; `V; `V], `N);
+  "nt_index_of", ([`V; `V], `V);
+  "nt_count", ([`W; `V; `W; `V], `V);
+  "nt_walk", ([`W; `V; `V; `W; `V; `W; `V; `V; `V; `W], `V);
+  "nt_sum", ([`W; `V; `V], `V);
+  "nt_extreme", ([`W; `V; `V; `V], `V);
+  "nt_scan_where", ([`W; `V; `V; `V; `V; `W; `W], `V);
+  "nt_scan_cells", ([`W; `V; `V; `V; `V; `W; `W], `V);
+  "nt_count_where", ([`W; `V; `V; `V], `N);
+  "nt_sum_where", ([`W; `V; `V; `V; `V], `V);
+  "nt_group_counts", ([`W; `V; `W; `V; `W], `V);
+  "nt_maintain", ([`W; `V; `W], `B);
+]
+
 module RTS = struct
   (* The connection to the C and Rust parts of the RTS *)
   let system_imports env =
@@ -1273,24 +1297,9 @@ module RTS = struct
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
     add_rts_import "set_migrations" [I64Type] [];
-    add_rts_import "nt_create" [I64Type] [I64Type];
-    add_rts_import "nt_size" [I64Type; I64Type] [I64Type];
-    add_rts_import "nt_put" [I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_get" [I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_remove" [I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_scan" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_index" [I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_index_of" [I64Type; I64Type] [I64Type];
-    add_rts_import "nt_count" [I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_walk" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_sum" [I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_extreme" [I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_scan_where" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_scan_cells" [I64Type; I64Type; I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_count_where" [I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_sum_where" [I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_group_counts" [I64Type; I64Type; I64Type; I64Type; I64Type] [I64Type];
-    add_rts_import "nt_maintain" [I64Type; I64Type; I64Type] [I64Type];
+    List.iter (fun (name, (args, _)) ->
+      add_rts_import name (List.map (fun _ -> I64Type) args) [I64Type]
+    ) native_table_prims;
     ()
 
 end (* RTS *)
@@ -12551,157 +12560,19 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae codec ^^
     Tuple.load_n env 1L
 
-  | OtherPrim "nt_create", [layout] ->
-    SR.UnboxedWord64 Type.Nat64,
-    compile_exp_vanilla env ae layout ^^
-    E.call_rts env "nt_create"
-
-  | OtherPrim "nt_size", [id; layout] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    E.call_rts env "nt_size" ^^
-    BigNum.from_word64 env
-
-  | OtherPrim "nt_put", [id; layout; k; r] ->
-    SR.bool,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae k ^^
-    compile_exp_vanilla env ae r ^^
-    E.call_rts env "nt_put"
-
-  | OtherPrim "nt_get", [id; layout; labels; k] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae labels ^^
-    compile_exp_vanilla env ae k ^^
-    E.call_rts env "nt_get"
-
-  | OtherPrim "nt_remove", [id; layout; k] ->
-    SR.bool,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae k ^^
-    E.call_rts env "nt_remove"
-
-  | OtherPrim "nt_scan", [id; layout; labels; what; next; limit] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae labels ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) what ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
-    E.call_rts env "nt_scan"
-
-  | OtherPrim "nt_index", [id; layout; fields] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae fields ^^
-    E.call_rts env "nt_index" ^^
-    BigNum.from_word64 env
-
-  | OtherPrim "nt_index_of", [indexes; fields] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae indexes ^^
-    compile_exp_vanilla env ae fields ^^
-    E.call_rts env "nt_index_of"
-
-  | OtherPrim "nt_count", [id; layout; index; key] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
-    compile_exp_vanilla env ae key ^^
-    E.call_rts env "nt_count"
-
-  | OtherPrim "nt_walk", [id; layout; labels; index; reverse; start; from; to_; token; limit] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae labels ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
-    compile_exp_vanilla env ae reverse ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) start ^^
-    compile_exp_vanilla env ae from ^^
-    compile_exp_vanilla env ae to_ ^^
-    compile_exp_vanilla env ae token ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
-    E.call_rts env "nt_walk"
-
-  | OtherPrim "nt_sum", [id; layout; column] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae column ^^
-    E.call_rts env "nt_sum"
-
-  | OtherPrim "nt_extreme", [id; layout; column; largest] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae column ^^
-    compile_exp_vanilla env ae largest ^^
-    E.call_rts env "nt_extreme"
-
-  | OtherPrim "nt_scan_where", [id; layout; labels; column; filter; next; limit] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae labels ^^
-    compile_exp_vanilla env ae column ^^
-    compile_exp_vanilla env ae filter ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
-    E.call_rts env "nt_scan_where"
-
-  | OtherPrim "nt_scan_cells", [id; layout; key; fields; filter; next; limit] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae key ^^
-    compile_exp_vanilla env ae fields ^^
-    compile_exp_vanilla env ae filter ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) next ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
-    E.call_rts env "nt_scan_cells"
-
-  | OtherPrim "nt_count_where", [id; layout; column; filter] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae column ^^
-    compile_exp_vanilla env ae filter ^^
-    E.call_rts env "nt_count_where" ^^
-    BigNum.from_word64 env
-
-  | OtherPrim "nt_sum_where", [id; layout; sum_column; column; filter] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_vanilla env ae sum_column ^^
-    compile_exp_vanilla env ae column ^^
-    compile_exp_vanilla env ae filter ^^
-    E.call_rts env "nt_sum_where"
-
-  | OtherPrim "nt_group_counts", [id; layout; index; after; limit] ->
-    SR.Vanilla,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) index ^^
-    compile_exp_vanilla env ae after ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) limit ^^
-    E.call_rts env "nt_group_counts"
-
-  | OtherPrim "nt_maintain", [id; layout; budget] ->
-    SR.bool,
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) id ^^
-    compile_exp_vanilla env ae layout ^^
-    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) budget ^^
-    E.call_rts env "nt_maintain"
+  | OtherPrim p, es when (match List.assoc_opt p native_table_prims with
+      | Some (args, _) -> List.length args = List.length es
+      | None -> false) ->
+    let args, result = List.assoc p native_table_prims in
+    let arg kind e = match kind with
+      | `W -> compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e
+      | `V -> compile_exp_vanilla env ae e in
+    let sr, convert = match result with
+      | `W -> SR.UnboxedWord64 Type.Nat64, G.nop
+      | `N -> SR.Vanilla, BigNum.from_word64 env
+      | `B -> SR.bool, G.nop
+      | `V -> SR.Vanilla, G.nop in
+    sr, G.concat (List.map2 arg args es) ^^ E.call_rts env p ^^ convert
 
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
