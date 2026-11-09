@@ -209,7 +209,8 @@ For a getter of cost `c` (instructions) used `k` times, use a local iff
     k·c  >  c + 1 + (k − 1)        (one tee, k−1 gets)
 
 The case `c = 1` (a single `LocalGet`/`Const`) never pays, which is the
-`immut_local` idea of PR #6121 (closed unmerged): don't allocate a local
+`immut_local` idea of PR #6121 (not yet merged; closed by the stale bot,
+branch kept): don't allocate a local
 when re-reading is free. Both directions are one rule here, applied by
 the interpreter instead of an opt-in helper.
 

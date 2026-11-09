@@ -750,7 +750,7 @@ getter" — the protocol speaks in `G.t` payloads. So `immut_local` is
 a pure recognizer-side change: zero impact on `Match_arm` /
 `Match_join` / handler logic.
 
-*Implemented in [PR #6121](https://github.com/caffeinelabs/motoko/pull/6121) (`gabor/immut-local-helper`), which was closed without merging; `immut_local` is not in the tree. [pattern-code-tagless.md](pattern-code-tagless.md) folds the same decision into a cost rule for sharing getters.* The implementation differed from this sketch in three ways:
+*Implemented in [PR #6121](https://github.com/caffeinelabs/motoko/pull/6121) (`gabor/immut-local-helper`), not yet merged: the stale bot closed it on 2026-08-17 for inactivity, and the branch is kept for reopening. Until it lands, `immut_local` is not in the tree. [pattern-code-tagless.md](pattern-code-tagless.md) folds the same decision into a cost rule for sharing getters.* The implementation differs from this sketch in three ways:
 - Inspection of `init` uses an algebraic effect (`InstrList.Inspecting`) routed through `G.effectful`-wrapped `remember_depth`/`branch_to_`, rather than a raw `G.to_instr_list` materialise — needed because some inits contain unfulfilled depth-promises that would crash a naive inspection.
 - Applied not just to variant dispatch but to the whole `fill_pat` / `compile_pat_local` / SwitchE path on both `compile_enhanced.ml` and `compile_classical.ml` backends; `compile_unboxed_pat` keeps the stack convention by passing `G.nop` as `init`.
 - `GlobalGet ^^ Drop` added to the existing `Const|LocalGet ^^ Drop` peephole for symmetry on the irrefutable-nonbinding fallback.
