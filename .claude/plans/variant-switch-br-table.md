@@ -750,7 +750,7 @@ getter" — the protocol speaks in `G.t` payloads. So `immut_local` is
 a pure recognizer-side change: zero impact on `Match_arm` /
 `Match_join` / handler logic.
 
-*Implemented in [PR #6121](https://github.com/caffeinelabs/motoko/pull/6121) (`gabor/immut-local-helper`).* The shipped form differs from this sketch in three ways:
+*Implemented in [PR #6121](https://github.com/caffeinelabs/motoko/pull/6121) (`gabor/immut-local-helper`), which was closed without merging; `immut_local` is not in the tree. [pattern-code-tagless.md](pattern-code-tagless.md) folds the same decision into a cost rule for sharing getters.* The implementation differed from this sketch in three ways:
 - Inspection of `init` uses an algebraic effect (`InstrList.Inspecting`) routed through `G.effectful`-wrapped `remember_depth`/`branch_to_`, rather than a raw `G.to_instr_list` materialise — needed because some inits contain unfulfilled depth-promises that would crash a naive inspection.
 - Applied not just to variant dispatch but to the whole `fill_pat` / `compile_pat_local` / SwitchE path on both `compile_enhanced.ml` and `compile_classical.ml` backends; `compile_unboxed_pat` keeps the stack convention by passing `G.nop` as `init`.
 - `GlobalGet ^^ Drop` added to the existing `Const|LocalGet ^^ Drop` peephole for symmetry on the irrefutable-nonbinding fallback.
@@ -782,6 +782,14 @@ Picks up the PR's TODO "distill not from IR, but from the `(^^^)` EDSL
   rewriting, which is why it works only at the root, for one leaf.
 
 ### Step A — make pattern code finally-tagless
+
+*Alternative under discussion:* [pattern-code-tagless.md](pattern-code-tagless.md)
+makes the `(^^^)` language itself tagless with *operational* primitives
+(tag load, hash compare, projections, guard). Access paths are then
+computed by the analysing interpreter instead of threaded through
+`fill_pat`, and the same interpretation also yields lazy boxing, sharing
+of repeated getters (value numbering) and the other IR side predicates.
+The pattern-level variant below is the smaller first step.
 
 Turn the combinators `fill_pat` uses into a signature, and make `fill_pat`
 polymorphic over it (a functor, or a first-class module / record of
@@ -882,8 +890,7 @@ type spec = {
   do other cases. Under Analyse that would allocate dead Wasm locals.
   Hence `fresh_local` in the signature: Analyse hands out symbolic
   locals, the emitters allocate. Audit every `new_local` reachable from
-  `fill_pat` (and `immut_local` from #6121, which inspects `G.t` via the
-  `InstrList.Inspecting` effect).
+  `fill_pat` (`OptP`, `TagP`, `TupP`, `ObjP`, `AltP`, `AndP`).
 - **`fill_pat` runs once per interpretation.** Cheap, but nothing may rely
   on physical identity of fragments across the Analyse and emit runs.
 - **Soundness of elision.** A wrong fact silently removes a test, which
