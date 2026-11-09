@@ -126,22 +126,22 @@ actor Core {
   // when the payload is varied rather than collapsed to a Bool.
   func startLetter(d : Weekday) : Char =
     switch d {
-      case (#Mon) 'M';
-      case (#Tue) 'T';
-      case (#Wed) 'W';
-      case (#Thu) 'T';
-      case (#Fri) 'F';
-      case (#Sat) 'S';
-      case (#Sun) 'S';
+      case #Mon { 'M' }
+      case #Tue { 'T' }
+      case #Wed { 'W' }
+      case #Thu { 'T' }
+      case #Fri { 'F' }
+      case #Sat { 'S' }
+      case #Sun { 'S' }
     };
 
   func startLetterOr(d : Weekday) : Char =
     switch d {
-      case (#Mon) 'M';
-      case (#Tue or #Thu) 'T';
-      case (#Wed) 'W';
-      case (#Fri) 'F';
-      case (#Sat or #Sun) 'S';
+      case #Mon { 'M' }
+      case #Tue or #Thu { 'T' }
+      case #Wed { 'W' }
+      case #Fri { 'F' }
+      case #Sat or #Sun { 'S' }
     };
 
   transient let week : [Weekday] =
@@ -352,16 +352,16 @@ actor Core {
     let (_m2, n2) = counters();
     var last3 : Char = 'X';
     var k = 0;
-    while (k < 10_000) {
-      for (d in week.values()) { last3 := startLetter d };
-      k += 1;
+    while k < 10_000 {
+      for d in week.values() { last3 := startLetter(d) };
+      k += 1
     };
     let (_m3, n3) = counters();
     var last4 : Char = 'X';
     var l = 0;
-    while (l < 10_000) {
-      for (d in week.values()) { last4 := startLetterOr d };
-      l += 1;
+    while l < 10_000 {
+      for d in week.values() { last4 := startLetterOr(d) };
+      l += 1
     };
     let (_m4, n4) = counters();
     debugPrint(debug_show {
