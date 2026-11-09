@@ -483,9 +483,19 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
         Ok(Cells { ids, cols, tested, out, left })
     }
 
+    /// Leaf i of `ids`, found again: one past the first `COLS`, kept out of the row loops.
+    #[inline(never)]
     fn leaf<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, i: usize) -> Result<LeafInfo, Fault> {
         let id = *self.ids.get(i).ok_or(rt(Corruption::Range, i as u64))?;
         shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)
+    }
+
+    /// Leaf i of `ids` and its leaf directory entry in the group `gv` views, found again: one past the first
+    /// `COLS`, kept out of the row loops.
+    #[inline(never)]
+    fn col<H: PageHost + ?Sized>(&self, gv: &GroupView<'_, H>, shape: &Shape, i: usize) -> Result<Col, Fault> {
+        let l = self.leaf(gv.h, shape, i)?;
+        Ok(Col { l, ld: Some(gv.leaf(u64::from(l.ordinal))?) })
     }
 
     /// The value `v` the filter's test read, when leaf `l` is the filter's.
@@ -527,8 +537,7 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
             let c = match self.cols.get(i) {
                 Some(Some(c)) => c,
                 _ => {
-                    let l = self.leaf(gv.h, shape, i)?;
-                    found = Col { l, ld: Some(gv.leaf(u64::from(l.ordinal))?) };
+                    found = self.col(gv, shape, i)?;
                     &found
                 }
             };
