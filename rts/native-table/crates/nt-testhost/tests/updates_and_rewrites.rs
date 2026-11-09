@@ -856,9 +856,6 @@ impl PageHost for InPlace<'_> {
     fn page_free(&mut self, _p: u64) -> Result<(), Fault> {
         Err(Fault::BadRef)
     }
-    fn alloc_changes(&self) -> u64 {
-        self.0.alloc_changes()
-    }
     fn test_fill(&self) -> Option<u8> {
         self.0.test_fill()
     }

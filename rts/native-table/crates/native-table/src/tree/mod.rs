@@ -117,10 +117,6 @@ impl Path {
         self.len
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
     /// The frames, root first.
     pub fn frames(&self) -> &[(u64, u64)] {
         self.frames.get(..self.len).unwrap_or(&[])

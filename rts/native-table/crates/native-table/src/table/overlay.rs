@@ -90,14 +90,13 @@ fn cell_value<H: PageHost + ?Sized>(
 /// A buffered row as its readers and writers see it.
 #[derive(Clone, Copy, Debug)]
 pub struct Buffered {
-    pub at: Located,
     pub loc: RowLoc,
 }
 
 /// The buffered row `at`, which its slot names live.
 pub fn buffered<H: PageHost + ?Sized>(h: &H, at: &Located) -> Result<Buffered, Fault> {
     let loc = buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?;
-    Ok(Buffered { at: *at, loc })
+    Ok(Buffered { loc })
 }
 
 /// Whether a buffered row is live: its slot.

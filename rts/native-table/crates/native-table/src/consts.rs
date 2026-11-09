@@ -8,8 +8,6 @@
 
 /// Format. Bytes of a node.
 pub const NODE_SIZE: u64 = 4_080;
-/// Format. `{count u16 @0, flags u16 @2, layout u32 @4}`.
-pub const NODE_HEADER: u64 = 8;
 /// Format. Flags bit 0: leaf node.
 pub const FLAG_LEAF: u16 = 1;
 /// Format. Flags bit 1: index-form node. Index nodes carry exactly 3 (leaf) or 2 (internal).

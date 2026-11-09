@@ -1,12 +1,10 @@
 //! Insert and split, `PBTreeMap`'s `insert_new` and `insert_at` step for step.
 
-use super::node::{
-    count, is_leaf, move_children, move_entries, read_pending, set_child, set_count, shape_of, write_pending,
-};
+use super::node::{count, move_children, move_entries, read_pending, set_child, set_count, shape_of, write_pending};
 use super::shape::Shape;
 use super::Path;
 use crate::fault::Fault;
-use crate::host::{NodeMem, NodeRead, Pending};
+use crate::host::{NodeMem, Pending};
 use core::cmp::Ordering;
 
 /// The entry of an empty tree: a new leaf holding `p`; returns the new root, the entry being (root, 0).
@@ -116,10 +114,4 @@ pub fn insert_at<'k, S: Shape, M: NodeMem>(
             }
         }
     }
-}
-
-/// Whether node n is a leaf (re-exported for front ends).
-#[inline(always)]
-pub fn leaf<M: NodeRead + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {
-    is_leaf(m, n)
 }

@@ -470,11 +470,6 @@ impl Shape {
         Ok(hs.finish())
     }
 
-    /// Bytes from a row image's start to its item table.
-    pub fn items_table_at(&self) -> u64 {
-        self.head.items_table_at()
-    }
-
     /// Bytes from a row image's start to its first item.
     pub fn items_at(&self) -> u64 {
         self.head.items_at()

@@ -107,11 +107,6 @@ pub fn units<H: PageHost + ?Sized>(h: &H, dir: u64) -> Result<u64, Fault> {
     Ok(u64::from(rd_u16(h.get(Region::Block(dir))?, D_UNITS)?))
 }
 
-/// The directory's blocks: those `unit` searches at most.
-pub fn dir_blocks<H: PageHost + ?Sized>(h: &H, dir: u64) -> Result<u64, Fault> {
-    Ok(units(h, dir)?.div_ceil(PATCH_UNITS_PER_DIR))
-}
-
 /// Live patch bytes of the directory.
 pub fn live_bytes<H: PageHost + ?Sized>(h: &H, dir: u64) -> Result<u64, Fault> {
     if dir == 0 {

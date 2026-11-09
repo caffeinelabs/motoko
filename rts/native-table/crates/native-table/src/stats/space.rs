@@ -10,9 +10,7 @@
 use crate::area::alloc_block;
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, WORK_AREA};
 use crate::fault::{rt, Corruption, Fault};
-use crate::mem::{
-    copy_bytes, fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, sub, PageHost, Region,
-};
+use crate::mem::{copy_bytes, fill, put, put_u16, put_u32, put_u64, put_u8, sub, PageHost, Region};
 use crate::radix::Radix;
 
 /// Work page offset of the area.
@@ -43,18 +41,6 @@ impl Space {
     pub fn begin<H: PageHost>(h: &mut H, tbl: u64, page: u64, group: u64, d: u64) -> Result<Space, Fault> {
         let s = Space { tbl, page, group, d, used: HEADER, blocks: Radix::EMPTY };
         s.write_header(h)?;
-        Ok(s)
-    }
-
-    /// The space of a work page whose locators may still be in construction.
-    pub fn read_raw<H: PageHost + ?Sized>(h: &H, tbl: u64, page: u64, group: u64) -> Result<Space, Fault> {
-        let b = h.get(Region::Block(page))?;
-        let d = u64::from(rd_u16(b, AREA_AT)?);
-        let height = rd_u8(b, AREA_AT.wrapping_add(2))?;
-        let used = u64::from(rd_u32(b, AREA_AT.wrapping_add(4))?);
-        let root = rd_u64(b, AREA_AT.wrapping_add(8))?;
-        let s = Space { tbl, page, group, d, used, blocks: Radix { root, height } };
-        s.blocks.check()?;
         Ok(s)
     }
 

@@ -252,10 +252,6 @@ impl PageHost for VecHost {
         Ok(())
     }
 
-    fn alloc_changes(&self) -> u64 {
-        1
-    }
-
     /// The test host always runs in test mode: `alloc_block` overwrites the stale free-stack link of every
     /// block it takes with P.
     fn test_fill(&self) -> Option<u8> {

@@ -257,9 +257,4 @@ impl<'a, M: Memory> PageHost for StoreHost<'a, M> {
         }
         Ok(())
     }
-
-    /// The state block, and the partition table's records when a new store partition is taken.
-    fn alloc_changes(&self) -> u64 {
-        2
-    }
 }

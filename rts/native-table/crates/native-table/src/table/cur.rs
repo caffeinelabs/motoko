@@ -71,11 +71,6 @@ impl SVal {
         matches!(self, SVal::Null)
     }
 
-    /// Whether a byte-string value is empty (any other value has no bytes).
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     /// Bytes of a byte-string value; 0 otherwise.
     pub fn len(&self) -> u64 {
         match *self {

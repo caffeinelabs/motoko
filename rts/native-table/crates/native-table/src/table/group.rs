@@ -529,17 +529,6 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Ok(Some(GCell::Bytes { off, len }))
     }
 
-    /// The long-value list index of slot s's huge value, without reading the value.
-    pub fn huge_index(&self, ld: &LeafDir, s: u64) -> Result<Option<u64>, Fault> {
-        if ld.flags & LF_OOL == 0 {
-            return Ok(None);
-        }
-        match self.ool_entry(ld, s)? {
-            Some((off, 8)) => Ok(Some(self.huge_at(off)?)),
-            _ => Ok(None),
-        }
-    }
-
     /// A huge value's index at image offset `off`: out-of-line values are packed by bytes, so it may cross an
     /// image block.
     fn huge_at(&self, off: u64) -> Result<u64, Fault> {

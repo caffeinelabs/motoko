@@ -37,9 +37,6 @@ pub trait PageHost {
     /// Returns page p; nothing references it any more. O(1). n consecutive frees change at most
     /// 1 + ⌈n/511⌉ 4 KiB blocks of the host's free-page stack plus one block of host state.
     fn page_free(&mut self, p: u64) -> Result<(), Fault>;
-    /// The 4 KiB pages the next `page_alloc` may change besides the page it returns, in any memory: the
-    /// host-state block for a pop or a bump; Motoko's records of a new store partition.
-    fn alloc_changes(&self) -> u64;
     /// Test mode: the fill pattern P a test host poisons fresh pages with, or
     /// `None`. With `Some(p)`, `area::alloc_block` overwrites the stale free-stack link of every block it takes
     /// with p. Production hosts keep this default, which the optimizer folds away. Only test hosts
