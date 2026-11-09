@@ -153,12 +153,6 @@ fn first_zero(bytes: &[u8]) -> Option<usize> {
     words.remainder().iter().position(|&b| b == 0).map(|i| at.wrapping_add(i))
 }
 
-/// Whether `bytes` hold no `00`, looked for 8 bytes at a time (`first_zero`).
-#[inline]
-pub fn zero_free(bytes: &[u8]) -> bool {
-    first_zero(bytes).is_none()
-}
-
 /// Whether one of the 8 bytes of `x` is `00` (by `first_zero`'s test).
 #[inline]
 pub(crate) const fn has_zero(x: u64) -> bool {

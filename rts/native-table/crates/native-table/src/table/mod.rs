@@ -606,7 +606,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             let found = self.row_of(rid, e)?;
             // The indexes' entries move first, while the stored row still holds its old cells.
             indexes::check_source(&self.shape, &*self.host, row)?;
-            self.index_update(found, row, rid, &mut kb, &mut path)?;
+            self.index_update(found, row, rid, &mut kb, scratch, &mut path)?;
             let (h, tbl) = (&mut *self.host, self.root);
             match found {
                 read::Row::Buffered(at) => {
@@ -628,7 +628,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan)?;
         self.filled = filled;
         primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, &mut path)?;
-        self.index_insert(row, rid, &mut kb, &mut path)?;
+        self.index_insert(row, rid, &mut kb, scratch, &mut path)?;
         Ok((rid, true))
     }
 
@@ -651,7 +651,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         }
         // The primary entry, then the indexes' entries, read from the row's cells, then the row.
         primary::remove(&mut *self.host, self.root, &mut p, node, i, &mut path)?;
-        self.index_remove(row, rid, &mut kb, &mut path)?;
+        self.index_remove(row, rid, &mut kb, scratch, &mut path)?;
         match *row {
             read::Live::Buffered(at) => write::delete_buffered(&mut *self.host, self.root, &self.shape, &at)?,
             read::Live::Sealed(ref s, pos) => update::delete_sealed(&mut *self.host, self.root, &self.shape, s, pos)?,

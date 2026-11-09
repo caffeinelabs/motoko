@@ -15,8 +15,7 @@
 //!
 //! A key longer than W keeps its bytes beyond W in the tree's key log: each of its entries has a record there,
 //! a row entry's carrying its rid, a count entry's its count, which a change of the count rewrites in place.
-//! Removing an entry hands its record back (`area_nodes`), so the log follows the rows the tree holds. A key
-//! too long for a stack buffer is changed through a `LongKey`, a record of the key log written first.
+//! Removing an entry hands its record back (`area_nodes`), so the log follows the rows the tree holds.
 //!
 //! **Descriptor.** A table's secondary index `id` keeps its state in its index descriptor (`directory`): kind
 //! 2 @0, the tree's W u16 @2, the key spec hash u64 @8, the tree's root u64 @16, node count u32 @24, key-log
@@ -33,7 +32,7 @@ use crate::index::area_nodes::{AreaNodes, AreaView, KeyLog};
 use crate::index::directory;
 use crate::key::probe::{
     count_field, is_count, is_ovf, ovf_field, payload, payload_to_count, row_field, IndexPending, KeyProbe, Kind,
-    RecProbe, ResolveKey,
+    ResolveKey,
 };
 use crate::key::KeySpec;
 use crate::mem::{
@@ -149,24 +148,12 @@ impl Secondary {
         self.insert_by(h, tbl, key, rid, path).map(|r| r.is_some())
     }
 
-    /// `insert` under a key longer than a stack buffer holds, in the tree's key log already.
-    pub fn insert_long<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: LongKey<'_>,
-        rid: u64,
-        path: &mut Path,
-    ) -> Result<bool, Fault> {
-        self.insert_by(h, tbl, key, rid, path).map(|r| r.is_some())
-    }
-
     #[inline(always)]
-    fn insert_by<'k, H: PageHost, K: EntryKey<'k>>(
+    fn insert_by<H: PageHost>(
         &mut self,
         h: &mut H,
         tbl: u64,
-        key: K,
+        key: &[u8],
         rid: u64,
         path: &mut Path,
     ) -> Result<Option<bool>, Fault> {
@@ -190,24 +177,12 @@ impl Secondary {
         self.delete_by(h, tbl, key, rid, path)
     }
 
-    /// `delete` under a key longer than a stack buffer holds, in the tree's key log already.
-    pub fn delete_long<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: LongKey<'_>,
-        rid: u64,
-        path: &mut Path,
-    ) -> Result<bool, Fault> {
-        self.delete_by(h, tbl, key, rid, path)
-    }
-
     #[inline(always)]
-    fn delete_by<'k, H: PageHost, K: EntryKey<'k>>(
+    fn delete_by<H: PageHost>(
         &mut self,
         h: &mut H,
         tbl: u64,
-        key: K,
+        key: &[u8],
         rid: u64,
         path: &mut Path,
     ) -> Result<bool, Fault> {
@@ -282,135 +257,7 @@ impl Secondary {
     }
 }
 
-/// A key a change of the tree is made under: its full encoding as bytes, or a `LongKey`.
-pub trait EntryKey<'k>: Copy {
-    /// A descent to the entry of this key of kind `kind`.
-    fn descend<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        s: IndexShape,
-        m: &M,
-        root: u64,
-        kind: Kind,
-        path: &mut Path,
-    ) -> Result<Search, Fault>;
-    /// The comparator of the entry at `koff` of node n against this key of kind `kind`.
-    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind)
-        -> Result<Ordering, Fault>;
-    /// The bytes an entry's key area takes: the whole key, or its first W bytes.
-    fn area(self) -> &'k [u8];
-    /// The field an entry of this key stores for `field`: `field` itself when the key fits W, else an overflowed
-    /// field naming a new key-log record whose payload is `rec`.
-    fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault>;
-}
-
-impl<'k> EntryKey<'k> for &'k [u8] {
-    #[inline(always)]
-    fn descend<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        s: IndexShape,
-        m: &M,
-        root: u64,
-        kind: Kind,
-        path: &mut Path,
-    ) -> Result<Search, Fault> {
-        tree::descend(s, m, root, &KeyProbe { key: self, kind }, path)
-    }
-    #[inline(always)]
-    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        m: &M,
-        n: u64,
-        koff: u64,
-        kind: Kind,
-    ) -> Result<Ordering, Fault> {
-        KeyProbe { key: self, kind }.cmp_at(m, n, koff)
-    }
-    #[inline(always)]
-    fn area(self) -> &'k [u8] {
-        self
-    }
-    #[inline(always)]
-    fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        stored_field(m, field, rec, self)
-    }
-}
-
-/// A key longer than a stack buffer holds, written into the tree's key log as a record first: its first W
-/// bytes `head`, the record at `loc` holding the rest, and its length `len`. Descents compare the stored keys
-/// with that record (`RecProbe`), and each entry made under it takes a copy of the record.
-#[derive(Clone, Copy, Debug)]
-pub struct LongKey<'k> {
-    pub head: &'k [u8],
-    pub loc: u64,
-    pub len: u64,
-}
-
-impl LongKey<'_> {
-    fn probe(&self, kind: Kind) -> RecProbe<'_> {
-        RecProbe { head: self.head, field: ovf_field(row_field(0), self.loc), len: self.len, kind }
-    }
-}
-
-impl<'k> EntryKey<'k> for LongKey<'k> {
-    fn descend<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        s: IndexShape,
-        m: &M,
-        root: u64,
-        kind: Kind,
-        path: &mut Path,
-    ) -> Result<Search, Fault> {
-        tree::descend(s, m, root, &self.probe(kind), path)
-    }
-    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        m: &M,
-        n: u64,
-        koff: u64,
-        kind: Kind,
-    ) -> Result<Ordering, Fault> {
-        self.probe(kind).cmp_at(m, n, koff)
-    }
-    fn area(self) -> &'k [u8] {
-        self.head
-    }
-    fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        Ok(ovf_field(field, m.copy_record(self.loc, rec)?))
-    }
-}
-
 impl Secondary {
-    /// A new record of the tree's key log for a key of `len` bytes, longer than W, whose bytes beyond W are
-    /// written next (`write_key`); its locator. Its payload is 0: it stands for a `LongKey`, and is handed back
-    /// (`free_key`) once the change made under it is done.
-    pub fn new_key<H: PageHost>(&mut self, h: &mut H, tbl: u64, len: u64) -> Result<u64, Fault> {
-        let mut m = self.tree(h, tbl);
-        let loc = m.alloc_record(0, len)?;
-        self.log = m.log;
-        Ok(loc)
-    }
-
-    /// Writes bytes [at, at + bytes.len()) of the key of `len` bytes whose record `new_key` made at `loc`.
-    pub fn write_key<H: PageHost>(
-        &self,
-        h: &mut H,
-        tbl: u64,
-        loc: u64,
-        len: u64,
-        at: u64,
-        bytes: &[u8],
-    ) -> Result<(), Fault> {
-        self.tree(h, tbl).write_key(loc, len, at, bytes)
-    }
-
-    /// Hands back the record `new_key` made at `loc`.
-    pub fn free_key<H: PageHost>(&mut self, h: &mut H, tbl: u64, loc: u64) -> Result<(), Fault> {
-        let mut m = self.tree(h, tbl);
-        m.free_record(loc)?;
-        self.log = m.log;
-        Ok(())
-    }
-
     /// The count of the key of the count probe `p` in the tree alone: one descent.
     fn tree_count_by<'h, H: PageHost + ?Sized, P: Probe<AreaView<'h, H>>>(
         &self,
@@ -430,29 +277,29 @@ impl Secondary {
 
 /// `Secondary::insert` on the tree `m` with root `root`. `None` when the tree holds the row; else whether the
 /// key's count entry was made.
-fn insert_row<'k, H: PageHost, K: EntryKey<'k>>(
+fn insert_row<H: PageHost>(
     m: &mut AreaNodes<'_, H>,
     root: &mut u64,
-    key: K,
+    key: &[u8],
     rid: u64,
     path: &mut Path,
 ) -> Result<Option<bool>, Fault> {
     let s = m.shape;
-    let row = |m: &mut AreaNodes<'_, H>| key.field(m, row_field(rid), rid);
+    let row = |m: &mut AreaNodes<'_, H>| stored_field(m, row_field(rid), rid, key);
     if *root == 0 {
         let field = row(m)?;
-        *root = tree::insert_first(s, m, &IndexPending::Borrowed { key: key.area(), field, value: &[], child: 0 })?;
+        *root = tree::insert_first(s, m, &IndexPending::Borrowed { key, field, value: &[], child: 0 })?;
         return add_count(m, root, key, 1, path).map(Some);
     }
     path.clear();
-    let (n, j) = match key.descend(s, &*m, *root, Kind::Row(rid), path)? {
+    let (n, j) = match tree::descend(s, &*m, *root, &KeyProbe { key, kind: Kind::Row(rid) }, path)? {
         Search::Found(..) => return Ok(None),
         Search::Vacant(n, j) => (n, j),
     };
     // The count entry the row lands before, raised first; the row then moves it up by one.
     let raised = count_next(m, n, j, key, 1)?.is_some();
     let field = row(m)?;
-    area_insert::insert_vacant(m, root, n, j, key.area(), field, &[], path)?;
+    area_insert::insert_vacant(m, root, n, j, key, field, &[], path)?;
     if raised {
         return Ok(Some(false));
     }
@@ -460,16 +307,16 @@ fn insert_row<'k, H: PageHost, K: EntryKey<'k>>(
 }
 
 /// `Secondary::delete` on the tree `m` with root `root`, not empty.
-fn delete_row<'k, H: PageHost, K: EntryKey<'k>>(
+fn delete_row<H: PageHost>(
     m: &mut AreaNodes<'_, H>,
     root: &mut u64,
-    key: K,
+    key: &[u8],
     rid: u64,
     path: &mut Path,
 ) -> Result<bool, Fault> {
     let s = m.shape;
     path.clear();
-    let (n, i) = match key.descend(s, &*m, *root, Kind::Row(rid), path)? {
+    let (n, i) = match tree::descend(s, &*m, *root, &KeyProbe { key, kind: Kind::Row(rid) }, path)? {
         Search::Found(n, i) => (n, i),
         Search::Vacant(..) => return Ok(false),
     };
@@ -503,19 +350,13 @@ fn remove_entry<H: PageHost>(
 
 /// When entry j of leaf n is the count entry of `key` and its count changed by `d` stays positive: the count
 /// so changed in place, and returned. `None`, with nothing changed, otherwise.
-fn count_next<'k, H: PageHost, K: EntryKey<'k>>(
-    m: &mut AreaNodes<'_, H>,
-    n: u64,
-    j: u64,
-    key: K,
-    d: i64,
-) -> Result<Option<i64>, Fault> {
+fn count_next<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, j: u64, key: &[u8], d: i64) -> Result<Option<i64>, Fault> {
     let s = m.shape;
     if j >= count(s, &*m, n)? {
         return Ok(None);
     }
     let koff = ko(s, &s.leaf, j);
-    if key.cmp_at(&*m, n, koff, Kind::Count)? != Ordering::Equal {
+    if (KeyProbe { key, kind: Kind::Count }).cmp_at(&*m, n, koff)? != Ordering::Equal {
         return Ok(None);
     }
     let c = count_at(s, &*m, n, j)?.checked_add(d).ok_or(rt(Corruption::Count, n))?;
@@ -528,10 +369,10 @@ fn count_next<'k, H: PageHost, K: EntryKey<'k>>(
 
 /// Changes the count of `key` in the tree by `d`, 1 or −1, through a descent: in place, or with a count
 /// entry made for the key's first row or removed with its last. Returns whether a count entry was made.
-fn add_count<'k, H: PageHost, K: EntryKey<'k>>(
+fn add_count<H: PageHost>(
     m: &mut AreaNodes<'_, H>,
     root: &mut u64,
-    key: K,
+    key: &[u8],
     d: i64,
     path: &mut Path,
 ) -> Result<bool, Fault> {
@@ -540,7 +381,7 @@ fn add_count<'k, H: PageHost, K: EntryKey<'k>>(
         return Err(rt(Corruption::Count, 0));
     }
     path.clear();
-    match key.descend(s, &*m, *root, Kind::Count, path)? {
+    match tree::descend(s, &*m, *root, &KeyProbe { key, kind: Kind::Count }, path)? {
         Search::Found(n, i) => {
             let c = count_at(s, &*m, n, i)?.checked_add(d).ok_or(rt(Corruption::Count, n))?;
             match c.cmp(&0) {
@@ -553,8 +394,8 @@ fn add_count<'k, H: PageHost, K: EntryKey<'k>>(
         // A key's first row: its count entry, of one.
         Search::Vacant(n, j) if d == 1 => {
             let base = count_field(1);
-            let field = key.field(m, base, payload(base))?;
-            area_insert::insert_vacant(m, root, n, j, key.area(), field, &[], path)?;
+            let field = stored_field(m, base, payload(base), key)?;
+            area_insert::insert_vacant(m, root, n, j, key, field, &[], path)?;
             Ok(true)
         }
         // A row the tree holds whose key has no count entry.
