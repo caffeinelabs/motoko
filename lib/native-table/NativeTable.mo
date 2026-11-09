@@ -18,27 +18,19 @@ module {
   /// A table not created yet, with the field lists of the indexes it will have.
   public type Builder<K, R> = { codec : Prim.NtCodec<(K, R)>; indexes : [[Text]] };
 
-  /// The value of one field of an index key. A Nat or Int stands for a value of any integer
-  /// type or Char in the field type's range; null for a field that is an option.
-  public type Cell = {
-    #null_;
-    #bool : Bool;
-    #nat : Nat;
-    #int : Int;
-    #float : Float;
-    #text : Text;
-    #blob : Blob;
-    #principal : Principal
-  };
+  /// The value of one field of an index key: `#null_`, `#bool`, `#nat`, `#int`, `#float`,
+  /// `#text`, `#blob` or `#principal`. A Nat or Int stands for a value of any integer type or Char
+  /// in the field type's range; null for a field that is an option.
+  public type Cell = Prim.NtCell;
 
-  /// One end of a filter's range: a cell, included or excluded.
-  public type Bound = { #incl : Cell; #excl : Cell };
+  /// One end of a filter's range: a cell, included (`#incl`) or excluded (`#excl`).
+  public type Bound = Prim.NtBound;
 
   /// What a filter asks of the value of one field: `#eq`, to equal the cell, which is `#null_` to
-  /// ask for null on an option field; `#range`, to lie within `low` and `high`, an end that is
-  /// null being open. A null value lies in no range. A cell is of the field's kind, as in an index
-  /// key.
-  public type Filter = { #eq : Cell; #range : { low : ?Bound; high : ?Bound } };
+  /// ask for null on an option field; `#range { low; high }`, to lie within `low` and `high`, an
+  /// end that is null being open. A null value lies in no range. A cell is of the field's kind, as
+  /// in an index key.
+  public type Filter = Prim.NtFilter;
 
   /// A scalar type a field of the row can have.
   public type Scalar = {
