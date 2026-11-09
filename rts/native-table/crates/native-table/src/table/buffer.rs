@@ -9,10 +9,11 @@
 //! u16, length u16, zero u32}.
 //!
 //! **Buffer descriptor** (area 0): {magic `NTBD` u32 @0; `FORMAT_TABLE` u16 @4; blocks u16 @6; group u64 @8;
-//! positions used u16 @16; flags u16 @18 (bit 0 frozen; bit 3 a row holds a long value); inline bytes u32 @20; next frozen descriptor u64
-//! @24; large values u16 @32; medium bytes u32 @36; zero u32 @40; extremes block u64 @48 (0: none); pending
-//! group page u64 @56; 240 block records of 16 bytes from @64 {block u64, first position u16, slots u16, zero
-//! u32}; bytes 3,904–4,095 zero until the drain's walk of the descriptor uses them}.
+//! positions used u16 @16; flags u16 @18 (bit 3 a row holds a long value); inline bytes u32 @20; zero u64 @24;
+//! large values u16 @32; medium bytes u32 @36; zero u32 @40; extremes block u64 @48 (0: none); zero u64 @56;
+//! 240 block records of 16 bytes from @64 {block u64, first position u16, slots u16, zero u32}; bytes
+//! 3,904–4,095 zero}. Its fields from positions used on, and its flags, are written when the group fills, for
+//! its seal (`write::freeze`).
 
 use crate::consts::{magic, BLOCK, BUFFER_BLOCKS_MAX, FORMAT_TABLE, GROUP_SLOTS};
 use crate::fault::{rt, Corruption, Fault};
@@ -54,9 +55,9 @@ pub const H_INDEX_RISE: u64 = 88;
 pub const H_RUN_VERSION: u64 = 176;
 pub const H_OPEN_LARGE: u64 = 180;
 pub const H_RUN_R: u64 = 182;
-/// The buffered live rows: the live rows of the open and frozen groups, raised by inserts, lowered by deletes
-/// of buffered rows and, at a seal's flip, by the sealed group's live rows. A new leaf's buffered running
-/// record follows from it and the leaf's default.
+/// The buffered live rows: the live rows of the open group, raised by inserts, lowered by deletes of buffered
+/// rows and, at a seal, by the sealed group's live rows. A new leaf's buffered running record follows from it
+/// and the leaf's default.
 pub const H_BUFFERED: u64 = 184;
 /// Hot flags bit 1: a row of the open group holds a long value or is a long row image, or did; its freeze
 /// sets its descriptor's `LONG_ROWS` from it.
@@ -68,25 +69,16 @@ pub const D_GROUP: u64 = 8;
 pub const D_POSITIONS: u64 = 16;
 pub const D_FLAGS: u64 = 18;
 pub const D_INLINE: u64 = 20;
-pub const D_NEXT: u64 = 24;
 pub const D_LARGE: u64 = 32;
 pub const D_MEDIUM: u64 = 36;
 /// The group's extremes block (`extremes`), 0 when it has none.
 pub const D_EXT: u64 = 48;
-pub const D_PENDING: u64 = 56;
 pub const D_RECORDS: u64 = 64;
-/// The descriptor's bytes past its block records, which the drain's walk of it uses.
+/// The descriptor's bytes past its block records.
 pub const D_SPARE: u64 = 3_904;
-/// Descriptor flags bit 0: frozen.
-pub const FROZEN: u16 = 1;
-/// Descriptor flags bit 1: a seal holds a snapshot of the group; its pending group page is at @56.
-pub const SNAPSHOT: u16 = 2;
-/// Descriptor flags bit 2: a seal reads the group's liveness into its pending group page (at @56) before its
-/// snapshot; a delete meanwhile clears its row's bit there.
-pub const LIVENESS: u16 = 4;
-/// Descriptor flags bit 3, kept from the freeze on: a row of the frozen group holds a long value (a long item)
-/// or is a long row image, or did; without it, its walk on the drain has no long value to hand on and reads
-/// no row.
+/// Descriptor flags bit 3, set when the group fills: a row of the group holds a long value (a long item) or is
+/// a long row image, or did; without it, the free of the descriptor after its seal has no long value to free
+/// and reads no row.
 pub const LONG_ROWS: u16 = 8;
 /// Directory entries naming a buffer descriptor carry bit 63.
 pub const DESC_BIT: u64 = 1 << 63;
@@ -165,7 +157,6 @@ pub struct Located {
     pub group: u64,
     pub pos: u64,
     pub desc: u64,
-    pub frozen: bool,
     pub block: u64,
     pub slot: u64,
 }
@@ -185,7 +176,6 @@ pub fn locate<H: PageHost + ?Sized>(h: &H, tbl: u64, rid: u64) -> Result<Option<
     if blocks == 0 || blocks > BUFFER_BLOCKS_MAX {
         return Err(rt(Corruption::Count, desc));
     }
-    let frozen = rd_u16(d, D_FLAGS)? & FROZEN != 0;
     // The last record whose first position is at or below pos.
     let (mut lo, mut hi) = (0u64, blocks);
     while hi.wrapping_sub(lo) > 1 {
@@ -206,7 +196,7 @@ pub fn locate<H: PageHost + ?Sized>(h: &H, tbl: u64, rid: u64) -> Result<Option<
     if slot >= slots {
         return Ok(None);
     }
-    Ok(Some(Located { group, pos, desc, frozen, block, slot }))
+    Ok(Some(Located { group, pos, desc, block, slot }))
 }
 
 /// The block and slot of position `pos` of the buffered group whose descriptor is `desc`; `None` past its

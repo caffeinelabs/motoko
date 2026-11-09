@@ -121,46 +121,6 @@ pub fn insert_at<'k, S: Shape, M: NodeMem>(
     }
 }
 
-/// Splits node n, which `path` leads to from the root, ahead of an insert whose splits would otherwise reach
-/// it: its entry ⌊c/2⌋ of c moves up into its parent (the path's last frame) at n's place, or into a new root,
-/// and the entries after it, with their children, into a new node right of n. Its parent takes the entry
-/// without a split when it has room. Not a step of `PBTreeMap`: the index trees' builds take it so that an
-/// insert's splits can be spread over units.
-pub fn split_ahead<S: Shape, M: NodeMem>(
-    s: S,
-    m: &mut M,
-    root: &mut u64,
-    n: u64,
-    path: &mut Path,
-) -> Result<(), Fault> {
-    let cnt = count(s, m, n)?;
-    let leaf = shape_of(s, m, n)?.0;
-    let h = cnt / 2;
-    let rest = cnt.wrapping_sub(h).wrapping_sub(1);
-    let r = m.alloc(leaf)?;
-    let mut up = <M::Entry<'_> as Pending>::empty();
-    read_pending(s, m, n, h, &mut up)?;
-    move_entries(s, m, n, h.wrapping_add(1), r, 0, rest)?;
-    if !leaf {
-        move_children(s, m, n, h.wrapping_add(1), r, 0, rest.wrapping_add(1))?;
-    }
-    set_count(m, n, h)?;
-    set_count(m, r, rest)?;
-    up.set_child(r);
-    match path.pop() {
-        Some((p, j)) => insert_at(s, m, root, p, j, &mut up, path).map(|_| ()),
-        None => {
-            let q = m.alloc(false)?;
-            write_pending(s, m, q, 0, &up)?;
-            set_child(s, m, q, 0, n)?;
-            set_child(s, m, q, 1, r)?;
-            set_count(m, q, 1)?;
-            *root = q;
-            Ok(())
-        }
-    }
-}
-
 /// Whether node n is a leaf (re-exported for front ends).
 #[inline(always)]
 pub fn leaf<M: NodeRead + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {

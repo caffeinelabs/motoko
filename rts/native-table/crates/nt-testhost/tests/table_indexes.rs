@@ -14,27 +14,27 @@
 //! name an index the table declares. Rows whose primary key and indexed text are longer than their trees' key
 //! areas hand their key-log records back as they are updated and removed. Keys longer than `KEY_STACK` bytes,
 //! which no stack buffer holds, are taken, counted, updated and removed like any other.
-//! Updates of rows in the open group, in frozen groups and in groups a seal holds a snapshot of, through
-//! `upsert` and through `set` of one leaf, keep every index and every integer total equal to the model's.
-//! So do updates of sealed rows (their patches included), among seals, compactions, the column release and
-//! schema changes that add and drop columns. Schema changes remove indexes (those holding a dropped column,
-//! those no longer declared) and add them in any combination: an added index is built over the rows in
-//! maintenance units, `Busy` until then, and kept by the writes made meanwhile.
+//! Updates of rows in the open group and in sealed groups (their patches included), through `upsert` and
+//! through `set` of one leaf, keep every index and every integer total equal to the model's, among seals,
+//! compactions, the column release and schema changes that add and drop columns. Schema changes remove indexes
+//! (those holding a dropped column, those no longer declared) and add them in any combination: an added index
+//! is built over the rows in maintenance steps, a group's rows a step, `Busy` until then, and kept by the
+//! writes made meanwhile.
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 
-use native_table::consts::{COMPACT_DEAD, UNIT_BLOCKS_MAX};
+use native_table::consts::{COMPACT_DEAD, GROUP_SLOTS};
 use native_table::fault::{Fault, SchemaError};
 use native_table::index::area_nodes::KeyLog;
-use native_table::index::secondary::{Secondary, Start, AT_FLAGS, RAISED, SEEN};
+use native_table::index::secondary::{Secondary, Start};
 use native_table::key::{KeyKind, KeyPart, KeySpec};
 use native_table::mem::rd_u64;
 use native_table::schema::IndexDecl;
-use native_table::table::jobs::{Ran, UNIT_WORK};
+use native_table::table::jobs::Ran;
 use native_table::table::layout::{Shape, STORED_BYTES};
 use native_table::table::primary::Primary;
-use native_table::table::{buffer, indexes, overlay, read, root, Table, Upsert, KEY_STACK};
+use native_table::table::{buffer, indexes, read, root, Table, Upsert, KEY_STACK};
 use native_table::tree::Dir;
 use native_table::value::ty;
 use native_table::{PageHost, Progress, Region, Wake};
@@ -495,7 +495,7 @@ fn indexes_model() {
         let mut r = XorShift(0x5eed_1dc5);
         let texts = text_pool(&mut r);
         let mut m = Model::new();
-        let (mut refused, mut sealed_updates, mut seals, mut keys) = (0u64, 0u64, 0u64, 0u64);
+        let (mut refused, mut sealed_updates, mut keys) = (0u64, 0u64, 0u64);
         for step in 0..14_000u64 {
             let op = r.below(100);
             let some_key = |r: &mut XorShift, m: &Model| *m.keys().nth(r.below(m.len() as u64) as usize).unwrap();
@@ -523,14 +523,11 @@ fn indexes_model() {
                 let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
                 assert_eq!(gone, m.remove(&k).map(|x| x.0));
             } else if op < 90 {
-                let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
                 if r.below(2) == 0 {
                     tb.write_step(&everything()).unwrap();
                 } else {
                     maintain_all(&mut tb);
                 }
-                let after = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
-                seals += u64::from(before - after);
             } else {
                 // One count, of a row's key under one index.
                 let i = r.below(INDEXES.len() as u64) as usize;
@@ -551,6 +548,7 @@ fn indexes_model() {
         }
         maintain_all(&mut tb);
         keys += check(&tb, &m);
+        let seals = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
         assert!(seals >= 1, "rows were sealed: {seals}");
         assert!(sealed_updates >= 1, "sealed rows were updated: {sealed_updates}");
         // Removing every row, in an order of its own, leaves every tree empty.
@@ -951,21 +949,13 @@ fn huge_numbers_as_index_keys() {
     }
 }
 
-// ---------------------------------------------------------------- updates of buffered and frozen rows
+// ---------------------------------------------------------------- updates of buffered and sealed rows
 
-/// Where a stored row lies as an update finds it: 0 the open group, 1 a frozen group no seal holds yet, 2 a
-/// frozen group a seal holds a snapshot of, 3 a sealed group.
+/// Where a stored row lies as an update finds it: 0 the open group, 1 a sealed group.
 fn place(tb: &Table<'_, VecHost>, rid: u64) -> usize {
     match read::find(tb.host(), tb.root(), rid).unwrap() {
-        Some(read::Row::Buffered(at)) if !at.frozen => 0,
-        Some(read::Row::Buffered(at)) => {
-            if overlay::buffered(tb.host(), &at).unwrap().rw.is_some() {
-                2
-            } else {
-                1
-            }
-        }
-        Some(read::Row::Sealed { .. }) => 3,
+        Some(read::Row::Buffered(_)) => 0,
+        Some(read::Row::Sealed { .. }) => 1,
         None => panic!("rid {rid} is stored"),
     }
 }
@@ -1004,12 +994,12 @@ fn check_running(tb: &Table<'_, VecHost>, m: &Model) {
     }
 }
 
-/// Updates of rows in the open group, in frozen groups waiting for a seal and in frozen groups a seal holds a
-/// snapshot of, through `upsert` (every cell new, one cell new, or only the cell no index holds) and through
-/// `set` of one leaf, among random inserts, removes and maintenance units: every index's counts and walks and
-/// every integer total equal the model's. Keys longer than `KEY_STACK` move too.
+/// Updates of rows in the open group and in sealed groups, through `upsert` (every cell new, one cell new, or
+/// only the cell no index holds) and through `set` of one leaf, among random inserts, removes and maintenance
+/// steps: every index's counts and walks and every integer total equal the model's. Keys longer than
+/// `KEY_STACK` move too.
 #[test]
-fn updates_of_buffered_and_frozen_rows() {
+fn updates_of_buffered_and_sealed_rows() {
     let cols = columns();
     let (img, _) = schema_indexed(&cols, &decls());
     let digest = per_fill(|h, lh| {
@@ -1019,7 +1009,7 @@ fn updates_of_buffered_and_frozen_rows() {
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
         let mut m = Model::new();
         // Updates by way (upsert, set) and by where the row lay (see `place`).
-        let mut by = [[0u64; 4]; 2];
+        let mut by = [[0u64; 2]; 2];
         let mut units = 0u64;
         for step in 0..12_000u64 {
             let op = r.below(100);
@@ -1067,7 +1057,7 @@ fn updates_of_buffered_and_frozen_rows() {
                 assert_eq!(gone, m.remove(&k).map(|x| x.0));
             } else {
                 for _ in 0..1 + r.below(40) {
-                    if tb.unit(&everything()).unwrap().0 == Ran::Nothing {
+                    if tb.step().unwrap() == Ran::Nothing {
                         break;
                     }
                     units += 1;
@@ -1083,7 +1073,7 @@ fn updates_of_buffered_and_frozen_rows() {
             }
         }
         for (way, n) in by.iter().enumerate() {
-            for (at, &c) in n.iter().take(3).enumerate() {
+            for (at, &c) in n.iter().enumerate() {
                 assert!(c >= 1, "updates by way {way} of rows at place {at}: {by:?}");
             }
         }
@@ -1105,7 +1095,7 @@ fn updates_of_buffered_and_frozen_rows() {
         }
         (by, units)
     });
-    eprintln!("updates_of_buffered_and_frozen_rows: {digest:?}");
+    eprintln!("updates_of_buffered_and_sealed_rows: {digest:?}");
 }
 
 // ---------------------------------------------------------------- updates in every row state
@@ -1148,10 +1138,10 @@ fn unindexed(v: u32) -> &'static [u32] {
     }
 }
 
-/// Runs up to n units; counts each kind of unit that ran.
+/// Runs up to n steps; counts each kind of step that ran.
 fn units(tb: &mut Table<'_, VecHost>, n: u64, ran: &mut BTreeMap<String, u64>) {
     for _ in 0..n {
-        let (k, _) = tb.unit(&everything()).unwrap();
+        let k = tb.step().unwrap();
         if k == Ran::Nothing {
             return;
         }
@@ -1159,9 +1149,9 @@ fn units(tb: &mut Table<'_, VecHost>, n: u64, ran: &mut BTreeMap<String, u64>) {
     }
 }
 
-/// Updates of rows in every state (the open group, frozen groups waiting for a seal, frozen groups a seal holds
-/// a snapshot of, sealed groups, their patches included), through `upsert` and through `set` of one leaf, among
-/// random inserts, removes, maintenance units (seals, compactions, the column release) and two schema changes
+/// Updates of rows in every state (the open group, sealed groups, their patches included), through `upsert` and
+/// through `set` of one leaf, among random inserts, removes, seals, maintenance steps (compactions, the column
+/// release) and two schema changes
 /// (a Nat column of default 7 and an ?Bool column added, then an indexed-free i64 column dropped): every index's
 /// counts and walks, every integer total and every Bool, tag and buffered count equal the model's; the dropped
 /// column has no total.
@@ -1175,7 +1165,7 @@ fn updates_in_every_state() {
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
         let mut m = Model::new();
         let mut v = 1u32;
-        let mut by = [[0u64; 4]; 2];
+        let mut by = [[0u64; 2]; 2];
         let mut ran = BTreeMap::new();
         for step in 0..12_000u64 {
             if step == 4_000 || step == 8_000 {
@@ -1197,7 +1187,7 @@ fn updates_in_every_state() {
                 // A burst of removes of sealed rows: their group passes the dead positions that queue a
                 // compaction, which runs among the updates that follow.
                 let mut sealed: Vec<u64> =
-                    m.iter().filter(|(_, (rid, _))| place(&tb, *rid) == 3).map(|(k, _)| *k).collect();
+                    m.iter().filter(|(_, (rid, _))| place(&tb, *rid) == 1).map(|(k, _)| *k).collect();
                 for j in (1..sealed.len()).rev() {
                     sealed.swap(j, r.below(j as u64 + 1) as usize);
                 }
@@ -1272,9 +1262,10 @@ fn updates_in_every_state() {
                 assert!(c >= 1, "updates by way {way} of rows at place {at}: {by:?}");
             }
         }
-        for kind in ["Seal", "Compaction", "Release"] {
-            assert!(ran.get(kind).copied().unwrap_or(0) >= 1, "{kind} units ran: {ran:?}");
+        for kind in ["Compaction", "Release"] {
+            assert!(ran.get(kind).copied().unwrap_or(0) >= 1, "{kind} steps ran: {ran:?}");
         }
+        assert!(root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap() >= 1, "groups were sealed");
         maintain_all(&mut tb);
         check(&tb, &m);
         check_running(&tb, &m);
@@ -1362,8 +1353,8 @@ fn row_removing(v: u32, r: &mut XorShift, texts: &[Vec<u8>], k: u64) -> Vec<(u32
 }
 
 /// Two schema changes that remove indexes (by a dropped column and by declarations left out) among random
-/// inserts, updates through `upsert` and `set`, removes and maintenance units, each made while rows lie in every
-/// state (the open group, frozen groups waiting for a seal, frozen groups a seal holds, sealed groups): the
+/// inserts, updates through `upsert` and `set`, removes and maintenance steps, each made while rows lie in every
+/// state (the open group, sealed groups): the
 /// indexes kept equal the model's at every check, the removed ones are gone, and once maintenance is done area
 /// 1's blocks in use are exactly those the remaining trees and key logs hold; removing every row then leaves
 /// none in use.
@@ -1376,28 +1367,18 @@ fn removed_indexes_in_every_state() {
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
         let mut m = Model::new();
         let mut v = 1u32;
-        let mut at_change = [0u64; 4];
+        let mut at_change = [0u64; 2];
         let mut ran = BTreeMap::new();
         for step in 0..9_000u64 {
             if step == 3_000 || step == 6_000 {
-                // Inserts until a group is frozen, waiting for its seal; before the second change, units one at
-                // a time until its seal holds it.
-                let frozen =
-                    |tb: &Table<'_, VecHost>| root::u64_at(tb.host(), tb.root(), root::FROZEN_HEAD).unwrap() != 0;
-                while !frozen(&tb) {
+                // Inserts until a group seals, so that rows lie in a sealed group and in the open group.
+                let g0 = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
+                while root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap() == g0 {
                     let k = r.below(1 << 40);
                     let new = row_removing(v, &mut r, &texts, k);
                     let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&new)).unwrap();
                     let (Upsert::Inserted(rid) | Upsert::Replaced(rid)) = u;
                     m.insert(k, (rid, new));
-                }
-                if v == 2 {
-                    for _ in 0..1_000 {
-                        if m.values().any(|(rid, _)| place(&tb, *rid) == 2) {
-                            break;
-                        }
-                        units(&mut tb, 1, &mut ran);
-                    }
                 }
                 for (rid, _) in m.values() {
                     at_change[place(&tb, *rid)] += 1;
@@ -1534,8 +1515,8 @@ fn check_adding(tb: &Table<'_, VecHost>, m: &Model, v: u32) -> u64 {
 
 /// Two schema changes that add indexes (one on a column the change adds, one whose keys pass `KEY_STACK`), the
 /// second also dropping a column, which removes an index, each made while rows lie in every state (the open
-/// group, frozen groups waiting for a seal, frozen groups a seal holds, sealed groups), among random inserts,
-/// updates through `upsert` and `set`, removes and maintenance units: while an added index is built its
+/// group, sealed groups), among random inserts, updates through `upsert` and `set`, removes and maintenance
+/// steps: while an added index is built its
 /// counts, walks and ends are `Busy`; every other index equals the model's at every check, and once built so
 /// does the added one, with the writes made during its build; once maintenance is done area 1's blocks in use
 /// are exactly those the trees and key logs hold, and removing every row then leaves none in use.
@@ -1548,28 +1529,18 @@ fn added_indexes_in_every_state() {
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
         let mut m = Model::new();
         let mut v = 1u32;
-        let mut at_change = [0u64; 4];
+        let mut at_change = [0u64; 2];
         let (mut ran, mut busy) = (BTreeMap::new(), 0u64);
         for step in 0..9_000u64 {
             if step == 3_000 || step == 6_000 {
-                // Inserts until a group is frozen, waiting for its seal; before the second change, units one at
-                // a time until its seal holds it.
-                let frozen =
-                    |tb: &Table<'_, VecHost>| root::u64_at(tb.host(), tb.root(), root::FROZEN_HEAD).unwrap() != 0;
-                while !frozen(&tb) {
+                // Inserts until a group seals, so that rows lie in a sealed group and in the open group.
+                let g0 = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
+                while root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap() == g0 {
                     let k = r.below(1 << 40);
                     let new = row_adding(v, &mut r, &texts, k);
                     let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&new)).unwrap();
                     let (Upsert::Inserted(rid) | Upsert::Replaced(rid)) = u;
                     m.insert(k, (rid, new));
-                }
-                if v == 2 {
-                    for _ in 0..1_000 {
-                        if m.values().any(|(rid, _)| place(&tb, *rid) == 2) {
-                            break;
-                        }
-                        units(&mut tb, 1, &mut ran);
-                    }
                 }
                 for (rid, _) in m.values() {
                     at_change[place(&tb, *rid)] += 1;
@@ -1633,7 +1604,7 @@ fn added_indexes_in_every_state() {
             assert!(c >= 1, "rows at place {at} when the schema changed: {at_change:?}");
         }
         assert!(busy >= 4, "indexes were checked while being built: {busy}");
-        assert!(ran.get("Build").copied().unwrap_or(0) >= 100, "build units ran: {ran:?}");
+        assert!(ran.get("Build").copied().unwrap_or(0) >= 4, "build steps ran: {ran:?}");
         maintain_all(&mut tb);
         assert_eq!(check_adding(&tb, &m, v), 0);
         assert_eq!(area1_in_use(&tb), area1_held(&tb, declared(v)), "area 1 holds the indexes alone");
@@ -1726,22 +1697,30 @@ fn check_counts(tb: &Table<'_, VecHost>, m: &Model, ix: u8, col: u32) {
     }
 }
 
-/// Runs one unit, which must stay within `UNIT_BLOCKS_MAX` changed blocks and `UNIT_WORK` estimated
-/// instructions.
-fn bounded_unit(tb: &mut Table<'_, VecHost>) -> Ran {
-    tb.host_mut().count_allocator(true);
-    tb.host_mut().end_message();
-    let (ran, spent) = tb.unit(&everything()).unwrap();
-    let blocks = tb.host_mut().end_message();
-    assert!(blocks <= UNIT_BLOCKS_MAX, "{ran:?} changed {blocks} blocks");
-    assert!(spent.work <= UNIT_WORK, "{ran:?} spent an estimated {}", spent.work);
+/// Runs one step. A build step takes one group's rids: its index's position moves on by `GROUP_SLOTS`, or the
+/// build ends at its end.
+fn one_step(tb: &mut Table<'_, VecHost>) -> Ran {
+    let at = being_built(tb).first().map(|&ix| (ix, Secondary::build_state(tb.host(), tb.root(), ix).unwrap()));
+    let ran = tb.step().unwrap();
+    if let (Ran::Build, Some((ix, (next, end)))) = (ran, at) {
+        let want = if next + GROUP_SLOTS < end { (next + GROUP_SLOTS, end) } else { (0, 0) };
+        assert_eq!(Secondary::build_state(tb.host(), tb.root(), ix).unwrap(), want, "index {ix}'s build step");
+    }
     ran
 }
 
+/// Rows of `filled` that fill groups: two sealed at least, and the open one.
+const MANY: u64 = 2 * GROUP_SLOTS + 500;
+
+/// The steps a build over the rids below `end` takes: one for each group.
+fn steps_to(end: u64) -> u64 {
+    end.div_ceil(GROUP_SLOTS)
+}
+
 /// A schema change adds indexes in any combination with the others. On a table without rows an added index
-/// holds every row at once. On one of 2,000 rows, an index declared again under its id with another W (a
-/// removal and an addition) and a new index on an unindexed column are `Busy` until units, each within its
-/// bound, have built them, and then count each key as the model does. A change that removes an index being
+/// holds every row at once. On one of several groups, an index declared again under its id with another W (a
+/// removal and an addition) and a new index on an unindexed column are `Busy` until steps, a group's rows
+/// each, have built them, and then count each key as the model does. A change that removes an index being
 /// built ends its build.
 #[test]
 fn schema_changes_add_indexes() {
@@ -1768,16 +1747,18 @@ fn schema_changes_add_indexes() {
     d[0].w = 16;
     d.push(decl(7, 8, &[(id(7), false)]));
     let mut h = VecHost::new(FILLS[0]);
-    let (mut tb, m) = filled(&mut h, 2_000);
+    let (mut tb, m) = filled(&mut h, MANY);
     tb.change_schema(&schema_versioned(2, &base, &d).0).unwrap();
     assert_eq!(being_built(&tb), vec![1, 7]);
     check_built(&tb, &m, &[2, 3, 4, 5], &[1]);
     assert_eq!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::Busy));
+    let (_, end) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
+    assert!(steps_to(end) >= 3, "rows in {} groups", steps_to(end));
     let mut builds = 0u64;
     while !being_built(&tb).is_empty() {
-        builds += u64::from(bounded_unit(&mut tb) == Ran::Build);
+        builds += u64::from(one_step(&mut tb) == Ran::Build);
     }
-    assert!(builds >= 100, "{builds} build units");
+    assert_eq!(builds, 2 * steps_to(end), "a step for each group, for each index");
     check_counts(&tb, &m, 1, 4);
     check_counts(&tb, &m, 7, 7);
     assert_eq!(Secondary::read(tb.host(), tb.root(), 1).unwrap().shape.w, 16);
@@ -1785,11 +1766,9 @@ fn schema_changes_add_indexes() {
     assert_eq!(area1_in_use(&tb), area1_held(&tb, &[1, 2, 3, 4, 5, 7]), "the old index 1 is freed");
     // A change removing an index being built.
     let mut h = VecHost::new(FILLS[0]);
-    let (mut tb, m) = filled(&mut h, 2_000);
+    let (mut tb, m) = filled(&mut h, MANY);
     tb.change_schema(&schema_versioned(2, &base, &d).0).unwrap();
-    for _ in 0..20 {
-        bounded_unit(&mut tb);
-    }
+    assert_eq!(one_step(&mut tb), Ran::Build);
     tb.change_schema(&schema_versioned(3, &base, &d[..5]).0).unwrap();
     assert_eq!(being_built(&tb), vec![1]);
     assert_eq!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::BadRef));
@@ -1799,7 +1778,7 @@ fn schema_changes_add_indexes() {
 }
 
 /// An image of the table's own version that adds an index is accepted: the version stays, and the index is
-/// built over the rows in units and then counts each key as the model does.
+/// built over the rows in steps and then counts each key as the model does.
 #[test]
 fn an_index_added_at_the_same_version() {
     let base: Vec<VCol> = columns().into_iter().map(|ty| VCol { ty, added: 1, dropped: 0, default: None }).collect();
@@ -1811,7 +1790,7 @@ fn an_index_added_at_the_same_version() {
     assert_eq!(tb.shape().version, 1);
     assert_eq!(being_built(&tb), vec![7]);
     while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
+        one_step(&mut tb);
     }
     check_counts(&tb, &m, 7, 7);
     check(&tb, &m);
@@ -1943,816 +1922,138 @@ fn a_leaf_added_at_the_same_version_is_refused() {
     check(&tb, &m);
 }
 
-/// A table {Nat key, Text} of `n` rows, the first sealed, whose Text runs from 1,000 to 4,000 random letters,
-/// and on every `long`-th row (none when 0) from `KEY_STACK` + 100 to `KEY_STACK` + 4,100 bytes, with an index
-/// of W 1,016 on the Text added: its build runs unit by unit, each within its bound. Returns the table, its
-/// model and the build's units.
-fn built_on_text(h: &mut VecHost, n: u64, long: u64) -> (Table<'_, VecHost>, Model, u64) {
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x7a11_7ee5);
-    let mut m = Model::new();
-    for k in 0..n {
-        let len =
-            if long > 0 && k % long == 7 { KEY_STACK as u64 + 100 + r.below(4_000) } else { 1_000 + r.below(3_000) };
-        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes((0..len).map(|_| b'a' + r.below(26) as u8).collect()))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    assert_eq!(being_built(&tb), vec![1]);
-    let mut units = 0u64;
-    while !being_built(&tb).is_empty() {
-        units += u64::from(bounded_unit(&mut tb) == Ran::Build);
-        assert!(units < 40 * n, "the build ends");
-    }
-    (tb, m, units)
-}
+/// Texts for `builds_under_writes`, drawn from pools so that keys repeat: short ones (most of them); of 1,000
+/// to 4,000 letters; past `KEY_STACK`; mostly `00` bytes, which the key escapes (seven in eight, every eighth,
+/// or all but the last); and of 64 KiB to 96 KiB, two sharing their first 60 KiB and two with `00` bytes.
+struct BuildTexts(Vec<Vec<Vec<u8>>>);
 
-/// An index of W 1,016 (three entries a node) added to 6,000 rows of Text keys of 1,000 to 4,000 bytes: its
-/// tree grows taller than a unit's pages allow a split at every level of a row's path for (2 x height + 4 >
-/// 17), so the build bounds a row by the full nodes on its own path, and splits the highest of a long run of
-/// them ahead of the row's insert, one at a time; every unit stays within its bound, the build ends, and the
-/// index then counts every key as the model does.
-#[test]
-fn builds_tall_trees() {
-    let mut h = VecHost::new(FILLS[0]);
-    let (tb, m, units) = built_on_text(&mut h, 6_000, 0);
-    let height = Secondary::read(tb.host(), tb.root(), 1).unwrap().height(tb.host()).unwrap();
-    assert!(2 * height + 4 > UNIT_BLOCKS_MAX, "height {height}");
-    eprintln!("builds_tall_trees: height {height}, {units} units");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// An index of W 16 added to 12,000 sealed rows whose indexed Nat rises with the rid, nearly every key one row
-/// (as a timestamp's): the tree grows at its right edge, and now and then a row's insert splits its leaf and
-/// the full node above it, which a row's estimate does not cover. Such a row is never taken after another row
-/// of its unit: it waits for the next unit, where it is taken first. Every unit stays within its bound, and the
-/// index then counts every key as the model does.
-#[test]
-fn builds_split_runs_first_in_their_unit() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::NAT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut m = Model::new();
-    for k in 0..12_000u64 {
-        let x = vec![(id(0), V::U(k)), (id(1), V::U(1_000_000 + k))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 16, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut runs) = (0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        let ix = Secondary::read(tb.host(), tb.root(), 1).unwrap();
-        let (nodes, height) = (ix.nodes, ix.height(tb.host()).unwrap());
-        let (next, end) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        assert_eq!(bounded_unit(&mut tb), Ran::Build);
-        units += 1;
-        let grown = Secondary::read(tb.host(), tb.root(), 1).unwrap().nodes - nodes;
-        let rows = match Secondary::build_state(tb.host(), tb.root(), 1).unwrap() {
-            (0, 0) => end - next,
-            (after, _) => after - next,
-        };
-        // A leaf with a parent splits alone into one more node; a root leaf into two.
-        if height >= 2 && grown >= 2 {
-            assert_eq!(rows, 1, "unit {units}: {grown} nodes split by {rows} rows from rid {next}");
-            runs += 1;
-        }
-    }
-    eprintln!("builds_split_runs_first_in_their_unit: {units} units, {runs} runs of two or more nodes split");
-    assert!(runs >= 2, "{runs} runs of two or more nodes split");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Keys past `KEY_STACK`, among those of `builds_tall_trees`: each taken by a unit of its own, every unit
-/// within its bound; the index then counts every key as the model does.
-#[test]
-fn builds_long_keys() {
-    let mut h = VecHost::new(FILLS[0]);
-    let (tb, m, units) = built_on_text(&mut h, 2_000, 50);
-    eprintln!("builds_long_keys: {units} units");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Keys of 64 KiB and more (Text of 65,536 to 98,303 bytes, half of them with zero bytes, which the key escapes)
-/// among keys of 1,000 to 4,000 bytes: each key too long for a unit is written into a record of the index's
-/// key log over units, every unit writing it within its bound, and its row is then taken under it (a key of 64
-/// KiB in a unit of its own, whose insert is not bounded yet); the index then counts every key as the model
-/// does.
-#[test]
-fn builds_keys_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x6b65_7973);
-    let mut m = Model::new();
-    let mut longs = 0u64;
-    for k in 0..48u64 {
-        let long = k % 4 == 1;
-        let len = if long { 65_536 + r.below(32_768) } else { 1_000 + r.below(3_000) };
-        longs += u64::from(long);
-        let zeros = k % 8 == 1;
-        let text: Vec<u8> =
-            (0..len).map(|i| if zeros && i % 997 == 3 { 0 } else { b'a' + r.below(26) as u8 }).collect();
-        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes(text))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut writing, mut taken, mut units) = (0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        let (_, before, len, _) = log_state(&mut tb);
-        bounded_unit(&mut tb);
-        let after = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        units += 1;
-        assert!(units < 10_000, "the build ends");
-        taken += u64::from(before != 0 && after == 0 && len > KEY_STACK as u64);
-        writing += u64::from(after != 0);
-    }
-    eprintln!("builds_keys_over_units: {units} units, {writing} writing long keys");
-    assert_eq!(taken, longs, "every row under a key of 64 KiB is taken within a unit's bound");
-    assert!(writing >= 16 * longs, "a key of 64 KiB takes many units: {writing}");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Keys of Text whose bytes are mostly `00` (seven in eight, every eighth, or all of them), of 1,000 to 4,000
-/// bytes and of 64 KiB to 96 KiB: a step of a key written over units escapes fewer of its bytes when many lie in
-/// words holding a `00`, and goes on from the first it did not escape; the index then counts every key as the
-/// model does.
-#[test]
-fn builds_zero_keys_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x7a65_726f);
-    let mut m = Model::new();
-    for k in 0..48u64 {
-        let len = if k % 4 == 1 { 65_536 + r.below(32_768) } else { 1_000 + r.below(3_000) };
-        let text: Vec<u8> = (0..len)
-            .map(|i| match k % 3 {
-                0 if r.below(8) == 0 => b'a' + r.below(26) as u8,
-                1 if i % 8 != 5 => b'a' + r.below(26) as u8,
-                2 if i + 1 == len => b'a' + (k % 26) as u8,
-                _ => 0,
+impl BuildTexts {
+    fn new(r: &mut XorShift) -> BuildTexts {
+        let letters = |r: &mut XorShift, n: u64| -> Vec<u8> { (0..n).map(|_| b'a' + r.below(26) as u8).collect() };
+        let short = (0..50).map(|i| format!("s{i}").into_bytes()).collect();
+        let mid = (0..20)
+            .map(|_| {
+                let n = 1_000 + r.below(3_000);
+                letters(r, n)
             })
             .collect();
-        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes(text))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let mut units = 0u64;
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 20_000, "the build ends");
-    }
-    eprintln!("builds_zero_keys_over_units: {units} units");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Rows under keys of 64 KiB to 96 KiB that share their first 60 KiB, each repeated, among keys of 1,000 to
-/// 4,000 bytes: a build's insert under such a key goes a node at a time, each comparison resumed inside the
-/// key from the byte it reached, so every unit stays within its bound. Between units, a write in turn adds a
-/// row under one of those keys (completing an insert holding a saved place, and leaving rows of its key after
-/// the build's row), removes another row, or gives the row whose insert is under way another key (handing
-/// back its records, a count it raised lowered back). The index then counts every key as the model does.
-#[test]
-fn builds_long_shared_prefixes_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x5bed_f1c5);
-    let letters = |r: &mut XorShift, n: u64| -> Vec<u8> { (0..n).map(|_| b'a' + r.below(26) as u8).collect() };
-    let prefix = letters(&mut r, 61_440);
-    let pool: Vec<Vec<u8>> = (0..4)
-        .map(|_| {
-            let n = 4_096 + r.below(32_768);
-            [prefix.clone(), letters(&mut r, n)].concat()
-        })
-        .collect();
-    let mut m = Model::new();
-    let mut k = 0u64;
-    let add = |tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, k: &mut u64| {
-        let n = 1_000 + r.below(3_000);
-        let t = if *k % 2 == 1 { pool[r.below(4) as usize].clone() } else { letters(r, n) };
-        let x = vec![(id(0), V::U(*k)), (id(1), V::Bytes(t))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(*k, (rid, x));
-        *k += 1;
-    };
-    for _ in 0..24 {
-        add(&mut tb, &mut m, &mut r, &mut k);
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut under_way, mut inside, mut finished, mut restarts) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let k0 = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        if k0 == 0 {
-            continue;
-        }
-        let root = tb.root();
-        let (at, off) = Secondary::read(tb.host(), root, 1)
-            .unwrap()
-            .with_log(tb.host_mut(), root, |l| Ok((l.key_word(k0, 4)? & !AT_FLAGS, l.key_word(k0, 8)?)))
-            .unwrap();
-        if at == 0 {
-            continue;
-        }
-        under_way += 1;
-        inside += u64::from(off > 0);
-        if under_way % 5 != 0 {
-            continue;
-        }
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        match under_way / 5 % 3 {
-            0 => add(&mut tb, &mut m, &mut r, &mut k),
-            1 => {
-                let other = m.iter().find(|(_, (rid, _))| *rid != next).map(|(&key, _)| key).unwrap();
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(other))])).unwrap();
-                m.remove(&other);
-            }
-            _ => {
-                let (&key, (rid, cells)) = m.iter().find(|(_, (rid, _))| *rid == next).unwrap();
-                let (rid, mut cells) = (*rid, cells.clone());
-                cells[1].1 = V::Bytes(pool[r.below(4) as usize].clone());
-                let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&cells)).unwrap();
-                assert_eq!(u, Upsert::Replaced(rid));
-                m.insert(key, (rid, cells));
-                restarts += 1;
-                continue;
-            }
-        }
-        let (now, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        finished += u64::from(now == next + 1);
-    }
-    eprintln!(
-        "builds_long_shared_prefixes_over_units: {units} units, {under_way} with an insert under way, {inside} \
-         resumed inside a key, {finished} completed by writes, {restarts} restarts"
-    );
-    assert!(inside > 20, "comparisons resume inside a key: {inside}");
-    assert!(finished > 2 && restarts > 2, "{finished} completed by writes, {restarts} restarts");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Rows under keys of 4,097 to 5,000 bytes, longer than the build's key buffer but with records that fit a
-/// chunk, each repeated, among keys of 1,000 to 4,000 bytes: a build's insert under such a key moves its record
-/// into its chunk as a step of its own before the row is taken. Between units, when a record has moved and its
-/// row is not taken yet, a write in turn adds a row under its key (taking the build's row in the writer's call),
-/// removes that row (the chunk handed back), or gives it another key. The index then counts every key as the
-/// model does.
-#[test]
-fn builds_moved_records_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x0c4a_11ed);
-    let letters = |r: &mut XorShift, n: u64| -> Vec<u8> { (0..n).map(|_| b'a' + r.below(26) as u8).collect() };
-    let pool: Vec<Vec<u8>> = (0..6)
-        .map(|_| {
-            let n = 4_097 + r.below(904);
-            letters(&mut r, n)
-        })
-        .collect();
-    let mut m = Model::new();
-    let mut k = 0u64;
-    let add = |tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, k: &mut u64, t: Option<Vec<u8>>| {
-        let n = 1_000 + r.below(3_000);
-        let t = t.unwrap_or_else(|| if *k % 2 == 1 { pool[r.below(6) as usize].clone() } else { letters(r, n) });
-        let x = vec![(id(0), V::U(*k)), (id(1), V::Bytes(t))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(*k, (rid, x));
-        *k += 1;
-    };
-    for _ in 0..400 {
-        add(&mut tb, &mut m, &mut r, &mut k, None);
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut moved) = (0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let k0 = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        if k0 == 0 {
-            continue;
-        }
-        let root = tb.root();
-        // A key of 4,097 to 5,096 bytes whose record no longer moves has moved into its chunk.
-        let waits = Secondary::read(tb.host(), root, 1)
-            .unwrap()
-            .with_log(tb.host_mut(), root, |l| {
-                let out = l.key_word(k0, 3)?;
-                Ok(out > 4_096 && !l.key_moves(k0, out)?)
+        let long = (0..6)
+            .map(|_| {
+                let n = KEY_STACK as u64 + 100 + r.below(4_000);
+                letters(r, n)
             })
-            .unwrap();
-        if !waits {
-            continue;
-        }
-        // A row removed waits for the build to hand its key back.
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        let Some((&key, (rid, cells))) = m.iter().find(|(_, (rid, _))| *rid == next) else {
-            continue;
-        };
-        let (rid, mut cells) = (*rid, cells.clone());
-        moved += 1;
-        match moved % 3 {
-            0 => {
-                let V::Bytes(t) = &cells[1].1 else { panic!() };
-                add(&mut tb, &mut m, &mut r, &mut k, Some(t.clone()));
-            }
-            1 => {
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-                m.remove(&key);
-            }
-            _ => {
-                cells[1].1 = V::Bytes(pool[r.below(6) as usize].clone());
-                let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&cells)).unwrap();
-                assert_eq!(u, Upsert::Replaced(rid));
-                m.insert(key, (rid, cells));
-            }
-        }
-    }
-    eprintln!("builds_moved_records_over_units: {units} units, {moved} with a moved record waiting");
-    assert!(moved > 5, "records wait moved between units: {moved}");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// Rows under keys of 64 KiB to 96 KiB sharing their first 60 KiB, among keys of 1,000 to 4,000 bytes; two of
-/// those long keys get a row by a write before the build begins. A build's insert passing such a row raises
-/// its key's count through a second descent before the row is taken, and one that raised its key's count
-/// lowers it back once its row is gone, each a node at a time over units with its comparisons resumed inside
-/// the key, so every unit stays within its bound. Between units, writes in turn add a row under a short key
-/// while such a descent is under way (completing it in the writer's call), remove a row whose insert raised
-/// its key's count (the build lowering it back over units), or give that row a short key (the writer lowering
-/// it back). The index then counts every key as the model does.
-#[test]
-fn builds_long_count_descents_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x0c0_4e7d);
-    let letters = |r: &mut XorShift, n: u64| -> Vec<u8> { (0..n).map(|_| b'a' + r.below(26) as u8).collect() };
-    let prefix = letters(&mut r, 61_440);
-    let pool: Vec<Vec<u8>> = (0..4)
-        .map(|_| {
-            let n = 4_096 + r.below(32_768);
-            [prefix.clone(), letters(&mut r, n)].concat()
-        })
-        .collect();
-    let mut m = Model::new();
-    let mut k = 0u64;
-    let add = |tb: &mut Table<'_, VecHost>, m: &mut Model, k: &mut u64, t: Vec<u8>| {
-        let x = vec![(id(0), V::U(*k)), (id(1), V::Bytes(t))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(*k, (rid, x));
-        *k += 1;
-    };
-    for i in 0..28u64 {
-        let n = 1_000 + r.below(3_000);
-        let t = if i % 2 == 1 { pool[(i / 2 % 4) as usize].clone() } else { letters(&mut r, n) };
-        add(&mut tb, &mut m, &mut k, t);
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    // Rows after the build's end under two of the long keys: the build's rows of those keys pass them.
-    for t in pool.iter().take(2) {
-        add(&mut tb, &mut m, &mut k, t.clone());
-    }
-    let (mut units, mut raising, mut lowering, mut inside, mut seen) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    let (mut tick, mut finished, mut finished_gone, mut removed, mut restarted) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let k0 = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        if k0 == 0 {
-            continue;
-        }
-        let root = tb.root();
-        let (word, cnt, off) = Secondary::read(tb.host(), root, 1)
-            .unwrap()
-            .with_log(tb.host_mut(), root, |l| Ok((l.key_word(k0, 4)?, l.key_word(k0, 12)?, l.key_word(k0, 16)?)))
-            .unwrap();
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        let live = m.iter().find(|(_, (rid, _))| *rid == next).map(|(&key, (_, x))| (key, x.clone()));
-        seen += u64::from(word & (RAISED | SEEN) == SEEN && word & !AT_FLAGS != 0);
-        if cnt != 0 {
-            // A descent to the key's count under way: raising it while the row is there, else lowering it back.
-            if live.is_some() {
-                raising += 1;
-            } else {
-                assert_ne!(word & RAISED, 0, "only a raised count is lowered back");
-                lowering += 1;
-            }
-            inside += u64::from(off > 0);
-            tick += 1;
-            if tick % 4 == 0 {
+            .collect();
+        let zeros = (0..3u64)
+            .map(|z| {
                 let n = 1_000 + r.below(3_000);
-                add(&mut tb, &mut m, &mut k, letters(&mut r, n));
-                let (now, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-                assert_eq!(now, next + 1, "the writer completes the descent and moves the build past the row");
-                finished += 1;
-                finished_gone += u64::from(live.is_none());
-            }
-            continue;
-        }
-        // An insert that raised its key's count before its row is in: its row removed, or given a short key.
-        let Some((key, mut cells)) = live else { continue };
-        if word & RAISED == 0 || word & !AT_FLAGS == 0 {
-            continue;
-        }
-        if (removed + restarted) % 2 == 0 {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-            m.remove(&key);
-            removed += 1;
-        } else {
-            let n = 1_000 + r.below(3_000);
-            cells[1].1 = V::Bytes(letters(&mut r, n));
-            let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&cells)).unwrap();
-            assert_eq!(u, Upsert::Replaced(next));
-            m.insert(key, (next, cells));
-            restarted += 1;
-        }
-    }
-    eprintln!(
-        "builds_long_count_descents_over_units: {units} units, {seen} passing a later row, {raising} raising a \
-         count, {lowering} lowering one back, {inside} resumed inside a key, {finished} completed by writes \
-         ({finished_gone} lowering), {removed} removed and {restarted} restarted after raising"
-    );
-    assert!(raising > 4 && lowering > 2, "{raising} raising, {lowering} lowering");
-    assert!(inside > 4, "comparisons resume inside a key: {inside}");
-    assert!(finished > 1 && finished_gone > 0, "{finished} completed by writes, {finished_gone} lowering");
-    assert!(removed > 1 && restarted > 1, "{removed} removed, {restarted} restarted");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// The key log's blocks of index 1, and the build's pending key there: its state block, its length once
-/// written (0 until then), and the blocks of its second record not made yet.
-fn log_state(tb: &mut Table<'_, VecHost>) -> (u64, u64, u64, u64) {
-    let root = tb.root();
-    let mut ix = Secondary::read(tb.host(), root, 1).unwrap();
-    let k = Secondary::build_key(tb.host(), root, 1).unwrap();
-    if k == 0 {
-        return (ix.log.blocks, 0, 0, 0);
-    }
-    let (len, left) = ix
-        .with_log(tb.host_mut(), root, |m| {
-            let len = if m.key_word(k, 1)? >= 1 { m.key_word(k, 3)? } else { 0 };
-            Ok((len, if len == 0 { 0 } else { m.twin_left(k, len)? }))
-        })
-        .unwrap();
-    (ix.log.blocks, k, len, left)
-}
-
-/// The blocks index 1's hand-back of state block `k` still holds besides it.
-fn held(tb: &mut Table<'_, VecHost>, k: u64) -> u64 {
-    let root = tb.root();
-    Secondary::read(tb.host(), root, 1).unwrap().with_log(tb.host_mut(), root, |m| m.key_held(k)).unwrap()
-}
-
-/// Rows under three keys of 64 KiB to 96 KiB, each repeated, among keys of 1,000 to 4,000 bytes. Once a long
-/// key is written over units, a second record of it is made a block at a time over units: the unit taking
-/// the key's first row gives that record to the key's count entry and copies nothing (only the key's state
-/// block is left to hand back), and one taking a later row leaves that record to hand back. A row removed
-/// while its second record is being made leaves both records. Those blocks go back a few a unit over the
-/// following units, before the build takes another row, each such unit freeing only them. Every unit stays
-/// within its bound; the index then counts every key as the model does, and once every row is gone its key
-/// log is empty.
-#[test]
-fn builds_long_count_entries_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x7471_6e73);
-    let text = |r: &mut XorShift, lo: u64, span: u64| -> Vec<u8> {
-        let n = lo + r.below(span);
-        (0..n).map(|_| b'a' + r.below(26) as u8).collect()
-    };
-    let pool: Vec<Vec<u8>> = (0..3).map(|_| text(&mut r, 65_536, 32_768)).collect();
-    let mut m = Model::new();
-    for k in 0..48u64 {
-        let t = if k % 4 == 1 { pool[(k / 4 % 3) as usize].clone() } else { text(&mut r, 1_000, 3_000) };
-        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes(t))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let mut seen: Vec<Vec<u8>> = Vec::new();
-    let (mut units, mut twins, mut fresh, mut repeats, mut gone) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    // Units handing back blocks, and those each hand-back of a long key's records took.
-    let (mut back_units, mut spans, mut spans_k) = (0u64, Vec::<u64>::new(), 0u64);
-    while !being_built(&tb).is_empty() {
-        let (blocks_before, k, len, left) = log_state(&mut tb);
-        let back = Secondary::build_back(tb.host(), tb.root(), 1).unwrap();
-        let held_before = if back == 0 { 0 } else { held(&mut tb, back) };
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        tb.host_mut().count_allocator(true);
-        tb.host_mut().end_message();
-        let (ran, spent) = tb.unit(&everything()).unwrap();
-        let blocks = tb.host_mut().end_message();
-        units += 1;
-        assert!(units < 10_000, "the build ends");
-        assert!(blocks <= UNIT_BLOCKS_MAX, "{ran:?} changed {blocks} blocks");
-        assert!(spent.work <= UNIT_WORK, "{ran:?} spent an estimated {}", spent.work);
-        let (blocks_after, k_after, _, left_after) = log_state(&mut tb);
-        let back_after = Secondary::build_back(tb.host(), tb.root(), 1).unwrap();
-        assert!(back_after == 0 || k_after == 0, "no key is written while another's blocks are handed back");
-        if back != 0 {
-            assert_eq!(k, 0, "no key is written while another's blocks are handed back");
-            back_units += 1;
-            if let Some(s) = spans.last_mut().filter(|_| back == spans_k) {
-                *s += 1;
-            }
-            if back_after == back {
-                // The unit did nothing but hand back blocks.
-                let held_after = held(&mut tb, back);
-                assert!(held_after < held_before, "a hand-back unit frees a block");
-                assert_eq!(blocks_before - blocks_after, held_before - held_after, "only the key's blocks go back");
-            } else {
-                assert_eq!(back_after, 0);
-            }
-        }
-        if k != 0 && k_after == 0 && len > KEY_STACK as u64 {
-            let n = (16 + len - 1_016).div_ceil(4_096);
-            // The blocks left to hand back with the state block: a removed row's two records, a repeated key's
-            // second record, none for a new key, whose count entry took its second record.
-            let rest = match m.iter().find(|(_, (rid, _))| *rid == next) {
-                None => n + (n - left),
-                Some((_, (_, x))) => {
-                    let V::Bytes(t) = &x[1].1 else { panic!() };
-                    if seen.contains(t) {
-                        repeats += 1;
-                        n
-                    } else {
-                        fresh += 1;
-                        seen.push(t.clone());
-                        0
-                    }
+                (0..n)
+                    .map(|i| match z {
+                        0 if r.below(8) == 0 => b'a' + r.below(26) as u8,
+                        1 if i % 8 != 5 => b'a' + r.below(26) as u8,
+                        2 if i + 1 == n => b'z',
+                        _ => 0,
+                    })
+                    .collect()
+            })
+            .collect();
+        let huge = (0..4u64)
+            .map(|h| {
+                let n = 65_536 + r.below(32_768);
+                if h < 2 {
+                    let mut t = vec![b'p'; 61_440];
+                    t.extend(letters(r, n - 61_440));
+                    t
+                } else {
+                    (0..n).map(|i| if i % 997 == 3 { 0 } else { b'a' + r.below(26) as u8 }).collect()
                 }
-            };
-            if back_after == k {
-                let held_after = held(&mut tb, k);
-                assert_eq!(blocks_before - blocks_after, rest - held_after, "the key's blocks go back over units");
-                if rest > 0 {
-                    spans.push(1);
-                    spans_k = k;
-                }
-            } else {
-                assert_eq!((back_after, rest), (0, 0), "{rest} blocks never go back in the unit that leaves them");
-                assert_eq!(blocks_before - blocks_after, 1, "a new key's state block goes back at once");
-            }
-            continue;
-        }
-        if k != 0 && k_after == k && len > KEY_STACK as u64 && left_after < left {
-            twins += 1;
-            // The first long row whose second record is part made is removed.
-            if gone == 0 && left_after > 0 {
-                let key = m.iter().find(|(_, (rid, _))| *rid == next).map(|(&key, _)| key).unwrap();
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-                m.remove(&key);
-                gone += 1;
-            }
-        }
+            })
+            .collect();
+        BuildTexts(vec![short, mid, long, zeros, huge])
     }
-    eprintln!(
-        "builds_long_count_entries_over_units: {units} units, {twins} making second records, {back_units} handing \
-         blocks back, {spans:?} for long keys' records"
-    );
-    assert_eq!((fresh, repeats, gone), (3, 8, 1));
-    assert_eq!(Secondary::build_back(tb.host(), tb.root(), 1).unwrap(), 0);
-    assert_eq!(spans.len() as u64, repeats + gone, "{spans:?}");
-    assert!(spans.iter().all(|&s| s >= 2), "a long key's records go back over several units: {spans:?}");
-    assert!(twins >= 2 * (fresh + repeats), "a second record takes several units: {twins}");
-    check_counts(&tb, &m, 1, 1);
-    for key in m.keys().copied().collect::<Vec<_>>() {
-        tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-    }
-    assert_eq!(Secondary::read(tb.host(), tb.root(), 1).unwrap().log, KeyLog::default());
-}
 
-/// An index of W 1,016 added to 2,500 rows whose Text keys of 3,500 to 4,000 letters repeat (30 of them), so
-/// a row's count entry is often a node's entry on its path: each row's key is written over units and its insert
-/// made a node at a time over units. Between units, while a row's insert is pending, rows are added under the
-/// same keys (taken at once, after the row), held rows removed, and now and then the pending row itself, so
-/// inserts restart from the root and a raised count is lowered back. Every unit stays within its bound, and
-/// the index then counts every key as the model does.
-#[test]
-fn builds_tall_trees_over_units() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x7a11_0e75);
-    let pool: Vec<Vec<u8>> =
-        (0..30).map(|_| (0..3_500 + r.below(500)).map(|_| b'a' + r.below(26) as u8).collect()).collect();
-    let mut m = Model::new();
-    let mut k = 0u64;
-    let add = |tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, k: &mut u64| {
-        let x = vec![(id(0), V::U(*k)), (id(1), V::Bytes(pool[r.below(30) as usize].clone()))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(*k, (rid, x));
-        *k += 1;
-    };
-    for _ in 0..2_500 {
-        add(&mut tb, &mut m, &mut r, &mut k);
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut pending, mut gone) = (0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        if Secondary::build_key(tb.host(), tb.root(), 1).unwrap() == 0 {
-            continue;
-        }
-        pending += 1;
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        let drop = match pending % 13 {
-            0 => {
-                add(&mut tb, &mut m, &mut r, &mut k);
-                None
-            }
-            6 => m.iter().find(|(_, (rid, _))| *rid + 1_000 < next && r.below(4) == 0).map(|(&k, _)| k),
-            _ if pending % 97 == 50 => m.iter().find(|(_, (rid, _))| *rid == next).map(|(&k, _)| k),
-            _ => None,
+    fn pick(&self, r: &mut XorShift) -> Vec<u8> {
+        let c = match r.below(100) {
+            0..=1 => 4,
+            2..=5 => 2,
+            6..=9 => 3,
+            10..=24 => 1,
+            _ => 0,
         };
-        if let Some(key) = drop {
-            gone += u64::from(m[&key].0 == next);
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-            m.remove(&key);
-        }
+        let pool = &self.0[c];
+        pool[r.below(pool.len() as u64) as usize].clone()
     }
-    let height = Secondary::read(tb.host(), tb.root(), 1).unwrap().height(tb.host()).unwrap();
-    eprintln!("builds_tall_trees_over_units: height {height}, {units} units, {pending} pending, {gone} gone");
-    assert!(height >= 7, "height {height}");
-    assert!(gone > 0, "a pending row is removed");
-    check_counts(&tb, &m, 1, 1);
 }
 
-/// An index built on sealed rows whose keys are written and inserted over units. Between units, while a
-/// row's key is being written or inserted, the row is written once: its whole row replaced with the same
-/// cells (the build goes on), or its key's Text changed. A change hands back the row's partial records and
-/// the build takes the row again from its start. Every unit stays within its bound, and the index then counts
-/// every key as the model does.
+/// An index of W 1,016 added on the Text of a table {Nat key, Text} of several groups (`BuildTexts`), built a
+/// group's rows a step. Before each step, writes insert rows (taken at once), give rows new Texts and remove
+/// rows, on both sides of the build's position: a row the build passed is kept by every write, a row it has
+/// not reached yet is taken with its cells as the build finds them, or not at all once removed. The index then
+/// counts every key as the model does, and once every row is removed area 1 holds no block.
 #[test]
-fn builds_restart_written_rows() {
-    let mut h = VecHost::new(FILLS[0]);
+fn builds_under_writes() {
     let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
         .into_iter()
         .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
         .collect();
+    let mut h = VecHost::new(FILLS[0]);
     let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0x5e7_a11e);
-    let text = |r: &mut XorShift| -> Vec<u8> { (0..3_500 + r.below(500)).map(|_| b'a' + r.below(26) as u8).collect() };
-    let pool: Vec<Vec<u8>> = (0..20).map(|_| text(&mut r)).collect();
-    let fresh: Vec<Vec<u8>> = (0..5).map(|_| text(&mut r)).collect();
+    let mut r = XorShift(0xb111_d5e7);
+    let texts = BuildTexts::new(&mut r);
     let mut m = Model::new();
-    for k in 0..600u64 {
-        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes(pool[r.below(20) as usize].clone()))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
+    let put = |tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, k: u64| {
+        let x = vec![(id(0), V::U(k)), (id(1), V::Bytes(texts.pick(r)))];
+        let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap();
+        let (Upsert::Inserted(rid) | Upsert::Replaced(rid)) = u;
         m.insert(k, (rid, x));
-    }
-    maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut row, mut at, mut kept, mut restarts) = (0u64, u64::MAX, 0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let k0 = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        if k0 == 0 || next == row {
-            at += u64::from(k0 != 0);
-            if k0 == 0 || at != 1 + next % 8 {
-                continue;
-            }
-        } else {
-            (row, at) = (next, 1);
-            if next % 8 != 0 {
-                continue;
-            }
-        }
-        // The row's one write, its key's insert pending for `at` units.
-        let (&key, (rid, cells)) = m.iter().find(|(_, (rid, _))| *rid == next).unwrap();
-        let (rid, mut cells) = (*rid, cells.clone());
-        let way = next % 3;
-        if way == 0 {
-            let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&cells)).unwrap();
-            assert_eq!(u, Upsert::Replaced(rid));
-            assert_eq!(Secondary::build_key(tb.host(), tb.root(), 1).unwrap(), k0, "the same cells keep the insert");
-            kept += 1;
-            continue;
-        }
-        cells[1].1 = V::Bytes(fresh[r.below(5) as usize].clone());
-        let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&cells)).unwrap();
-        assert_eq!(u, Upsert::Replaced(rid));
-        assert_eq!(Secondary::build_key(tb.host(), tb.root(), 1).unwrap(), 0, "a new key restarts the insert");
-        m.insert(key, (rid, cells));
-        restarts += 1;
-    }
-    eprintln!("builds_restart_written_rows: {units} units, {restarts} restarts, {kept} kept");
-    assert!(restarts > 10 && kept > 5, "{restarts} restarts, {kept} kept");
-    check_counts(&tb, &m, 1, 1);
-}
-
-/// An index built on sealed rows whose keys are written and inserted over units, with a write that changes
-/// the index's tree between every pair of units: a row added, or another row removed, in turn. A write that
-/// finds the build's insert part way down the tree completes that insert first, so the build ends, every unit
-/// stays within its bound, and the index then counts every key as the model does.
-#[test]
-fn builds_finish_under_writes() {
-    let mut h = VecHost::new(FILLS[0]);
-    let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::TEXT)]
-        .into_iter()
-        .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
-        .collect();
-    let (mut tb, _) = Table::create(&mut h, 9, &schema_versioned(1, &base, &[]).0).unwrap();
-    let mut r = XorShift(0xf1_715e);
-    let pool: Vec<Vec<u8>> =
-        (0..30).map(|_| (0..3_500 + r.below(500)).map(|_| b'a' + r.below(26) as u8).collect()).collect();
-    let mut m = Model::new();
-    let mut k = 0u64;
-    let add = |tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, k: &mut u64| {
-        let x = vec![(id(0), V::U(*k)), (id(1), V::Bytes(pool[r.below(30) as usize].clone()))];
-        let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
-        m.insert(*k, (rid, x));
-        *k += 1;
     };
-    for _ in 0..1_200 {
-        add(&mut tb, &mut m, &mut r, &mut k);
+    for k in 0..MANY {
+        put(&mut tb, &mut m, &mut r, k);
+    }
+    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
+    let (_, end) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
+    let (mut steps, mut behind, mut ahead, mut next_key) = (0u64, 0u64, 0u64, MANY);
+    while !being_built(&tb).is_empty() {
+        let (at, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
+        for _ in 0..40 {
+            let op = r.below(3);
+            if op == 0 {
+                put(&mut tb, &mut m, &mut r, next_key);
+                next_key += 1;
+                continue;
+            }
+            let k = *m.keys().nth(r.below(m.len() as u64) as usize).unwrap();
+            if m[&k].0 < at {
+                behind += 1;
+            } else {
+                ahead += 1;
+            }
+            if op == 1 {
+                put(&mut tb, &mut m, &mut r, k);
+            } else {
+                let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
+                assert_eq!(gone, m.remove(&k).map(|x| x.0));
+            }
+        }
+        assert_eq!(one_step(&mut tb), Ran::Build);
+        steps += 1;
+    }
+    assert!(steps >= 3 && steps == steps_to(end), "a step for each group: {steps}");
+    assert!(behind >= 20 && ahead >= 20, "writes on both sides of the build: {behind} behind, {ahead} ahead");
+    check_counts(&tb, &m, 1, 1);
+    for k in m.keys().copied().collect::<Vec<_>>() {
+        let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
+        assert_eq!(gone, m.remove(&k).map(|x| x.0));
     }
     maintain_all(&mut tb);
-    tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
-    let (mut units, mut finished) = (0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let pending = Secondary::build_key(tb.host(), tb.root(), 1).unwrap() != 0;
-        let (next, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        let other = m.iter().nth(r.below(m.len() as u64) as usize).filter(|(_, (rid, _))| *rid != next);
-        match other.map(|(&key, _)| key) {
-            Some(key) if units % 2 == 1 => {
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-                m.remove(&key);
-            }
-            _ => add(&mut tb, &mut m, &mut r, &mut k),
-        }
-        let (now, _) = Secondary::build_state(tb.host(), tb.root(), 1).unwrap();
-        finished += u64::from(pending && now == next + 1);
-    }
-    let height = Secondary::read(tb.host(), tb.root(), 1).unwrap().height(tb.host()).unwrap();
-    eprintln!("builds_finish_under_writes: height {height}, {units} units, {finished} inserts completed by writes");
-    assert!(finished > 10, "{finished} inserts completed by writes");
-    check_counts(&tb, &m, 1, 1);
+    assert_eq!(area1_in_use(&tb), 0, "every row removed");
 }
 
 /// Nats and Ints of 100,000 to 140,000 LEB bytes (positive, and negative with their low groups zero for none,
 /// half or all but the last of their bytes), among small ones and ones of a few thousand bytes, each key
-/// repeated, under an index added on (Int, Nat): each key too long for a unit is written over units, a step
-/// resuming inside a part's LEB form from the facts its state block keeps (a negative's lowest non-zero byte
-/// first scanned for over units), every unit within its bound; the index then counts every key as the model
-/// does.
+/// repeated, under an index added on (Int, Nat): the build reads each key from the stored row a piece at a
+/// time; the index then counts every key as the model does.
 #[test]
-fn builds_huge_numbers_over_units() {
+fn builds_huge_numbers() {
     let base: Vec<VCol> = [t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::INT)]
         .into_iter()
         .map(|ty| VCol { ty, added: 1, dropped: 0, default: None })
@@ -2786,31 +2087,8 @@ fn builds_huge_numbers_over_units() {
     }
     maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(2), false), (id(1), false)])]).0).unwrap();
-    let (mut units, mut inside, mut scanning) = (0u64, 0u64, 0u64);
-    while !being_built(&tb).is_empty() {
-        bounded_unit(&mut tb);
-        units += 1;
-        assert!(units < 100_000, "the build ends");
-        let k = Secondary::build_key(tb.host(), tb.root(), 1).unwrap();
-        if k == 0 {
-            continue;
-        }
-        let root = tb.root();
-        let (part, from, leb) = Secondary::read(tb.host(), root, 1)
-            .unwrap()
-            .with_log(tb.host_mut(), root, |l| Ok((l.key_word(k, 1)?, l.key_word(k, 2)?, l.key_word(k, 10)?)))
-            .unwrap();
-        if part < 2 && from > 0 {
-            if leb >> 56 == part + 1 {
-                inside += 1;
-            } else {
-                scanning += 1;
-            }
-        }
-    }
-    eprintln!("builds_huge_numbers_over_units: {units} units, {inside} inside a magnitude, {scanning} scanning");
-    assert!(inside > 500, "steps resume inside a magnitude: {inside}");
-    assert!(scanning > 50, "a negative's lowest non-zero byte is scanned for over units: {scanning}");
+    assert_eq!(one_step(&mut tb), Ran::Build);
+    assert!(being_built(&tb).is_empty());
     let mut want: BTreeMap<String, (Vec<(u32, V)>, i128)> = BTreeMap::new();
     for (_, row) in m.values() {
         let cells = vec![row[2].clone(), row[1].clone()];

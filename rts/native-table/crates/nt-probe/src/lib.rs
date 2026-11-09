@@ -289,7 +289,7 @@ pub extern "C" fn nt_selftest() -> u32 {
     if is_fault(nt_table_seal(4_200)) {
         return 41;
     }
-    // Updates, a schema change and maintenance in units.
+    // Updates, a schema change and maintenance in steps.
     if is_fault(nt_table_evolve(5, 200, 1)) || is_fault(nt_table_evolve(6, 150, 5)) {
         return 33;
     }
@@ -1503,7 +1503,7 @@ impl RowSink for ProbeSink {
     }
 }
 
-/// Scratch for maintenance units over a fixed array.
+/// Scratch over a fixed array.
 struct ProbeScratch {
     buf: [u8; 81_920],
 }
@@ -1588,7 +1588,7 @@ pub extern "C" fn nt_table(seed: u64, n: u32) -> u64 {
 }
 
 /// Updates, maintenance and schema change: `n % 300` upserts, a schema change adding an ?Bool column when `sel`
-/// is odd, and maintenance one unit at a time; a digest of what it read, or a fault code.
+/// is odd, and maintenance one step at a time; a digest of what it read, or a fault code.
 #[no_mangle]
 pub extern "C" fn nt_table_evolve(seed: u64, n: u32, sel: u32) -> u64 {
     let mut h = ArrayHostN::<{ 6 * 65_536 }>::new();
@@ -1616,9 +1616,9 @@ pub extern "C" fn nt_table_evolve(seed: u64, n: u32, sel: u32) -> u64 {
             let len2 = probe_schema_at(&PROBE_POOL, &[0, 1, 2, 3, 5, 3], 2, &[], &mut img2)?;
             t.change_schema(img2.get(..len2).unwrap_or(&[]))?;
         }
-        let mut units = 0u64;
-        while t.unit(&ProbeBudget)?.0 != native_table::table::jobs::Ran::Nothing {
-            units = units.wrapping_add(1);
+        let mut steps = 0u64;
+        while t.step()? != native_table::table::jobs::Ran::Nothing {
+            steps = steps.wrapping_add(1);
         }
         t.write_step(&ProbeBudget)?;
         t.maintain(&ProbeBudget)?;
@@ -1626,7 +1626,7 @@ pub extern "C" fn nt_table_evolve(seed: u64, n: u32, sel: u32) -> u64 {
         if t.get(&mut sc, &mut ProbeKey(g.next() % 500), &mut s)? {
             digest = s.0;
         }
-        Ok(digest ^ t.len()? ^ units)
+        Ok(digest ^ t.len()? ^ steps)
     })();
     code(r)
 }
@@ -1654,7 +1654,7 @@ fn runs_selftest() -> u32 {
     0
 }
 
-/// A seal: a key-only table filled until its first group freezes (most rows removed again, so the primary
+/// A seal: a key-only table filled until its first group seals (most rows removed again, so the primary
 /// index stays small and the image is compacted), sealed, then a sealed row read and removed, and the drain
 /// run.
 #[no_mangle]

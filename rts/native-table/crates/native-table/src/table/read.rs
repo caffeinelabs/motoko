@@ -66,7 +66,7 @@ pub fn sealed_cell<'a, H: PageHost + ?Sized>(
     pos: u64,
     piece: &'a mut [u8],
 ) -> Result<Val<'a>, Fault> {
-    if let (Some(slot), 0, 0) = (slot, s.dir, s.post) {
+    if let (Some(slot), 0) = (slot, s.dir) {
         if let Some(ld) = gv.leaf_by_ordinal(u64::from(l.ordinal))? {
             return cur::cell_val(gv, &ld, l, slot, pos, piece);
         }
@@ -115,8 +115,7 @@ impl Live {
     }
 }
 
-/// The live row with rid `rid`, or `None`. A group a rewrite holds a snapshot of takes its liveness from
-/// the rewrite's pending page.
+/// The live row with rid `rid`, or `None`.
 pub fn find<H: PageHost + ?Sized>(h: &H, tbl: u64, rid: u64) -> Result<Option<Row>, Fault> {
     Ok(live(h, tbl, rid)?.map(|x| x.row()))
 }
@@ -236,7 +235,7 @@ pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     let mut walk = Walk::of(shape, &row)?;
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        let v = overlay::buffered_value(h, shape, b, &row, &mut walk, &l)?;
+        let v = overlay::buffered_value(h, shape, &row, &mut walk, &l)?;
         if l.live() {
             emit_sval(h, out, &l, &v)?;
         }

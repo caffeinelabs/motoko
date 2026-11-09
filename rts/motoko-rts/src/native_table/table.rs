@@ -56,7 +56,7 @@ unsafe extern "C" {
     fn ic0_performance_counter(counter: u32) -> u64;
 }
 
-/// The instruction meter maintenance reads: performance counter 0. `maintain` starts no unit once
+/// The instruction meter maintenance reads: performance counter 0. `maintain` starts no step once
 /// the counter has reached `limit`; a write's step reads no limit.
 struct Meter {
     limit: u64,
@@ -171,7 +171,7 @@ pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, codec: Value) -> u64 {
     or_trap(buffer::u64_of(&host, tail, buffer::H_LIVE))
 }
 
-/// Inserts row `r` under key `k`, or replaces the row `k` has; 1 when `k` is new, else 0. A unit
+/// Inserts row `r` under key `k`, or replaces the row `k` has; 1 when `k` is new, else 0. A step
 /// of maintenance runs first when the table has work pending.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r: Value) -> u64 {
@@ -204,7 +204,7 @@ pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) ->
     }
 }
 
-/// Removes the row key `k` has; 1 when `k` had one, else 0. A unit of maintenance runs first when
+/// Removes the row key `k` has; 1 when `k` had one, else 0. A step of maintenance runs first when
 /// the table has work pending.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> u64 {
@@ -306,8 +306,8 @@ fn index_decls<H: PageHost>(table: &Table<'_, H>, decls: &mut [IndexDecl; 64]) -
 /// Declares a secondary index of the table whose root block is `id` on the fields of the row named
 /// by the Texts of the array `fields`, in key order, and returns its id, the lowest free one from 1
 /// to 63. When the table has an equal declaration, returns its id and writes nothing. A table that
-/// holds rows builds the new index over them in maintenance units; counts and walks of the index
-/// wait until then.
+/// holds rows builds the new index over them in maintenance steps, one row group each; counts and
+/// walks of the index wait until then.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, codec: Value, fields: Value) -> u64 {
     let layout = layout_of(codec);
@@ -992,11 +992,12 @@ pub unsafe fn nt_sum_where<M: Memory>(
     sum_of(mem, |buf| table.sum_where(&filter, c << 16, buf))
 }
 
-/// Runs units of maintenance on the table whose root block is `id`, starting each only while
+/// Runs steps of maintenance on the table whose root block is `id`, starting each only while
 /// performance counter 0 is below its value at the start of the call plus `budget`, so a call can
-/// go past its budget by the unit it started last; 1 when work is still pending, else 0. A unit
-/// builds indexes, seals or compacts; writes run one unit each when work is pending, so a table
-/// that receives no writes advances only through this call.
+/// go past its budget by the step it started last; 1 when work is still pending, else 0. A step
+/// compacts or drops one whole row group, or builds a new index over one group's rows; writes run
+/// one step each when work is pending, so a table that receives no writes advances only through
+/// this call.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget: u64) -> u64 {
     let start = ic0_performance_counter(0);

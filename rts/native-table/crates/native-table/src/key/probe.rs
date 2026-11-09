@@ -483,67 +483,6 @@ impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for RecProbe<'_> {
     }
 }
 
-/// The end of a `RecProbe::cmp_part`: the stored key's order against the probe of its kind, and against the
-/// key's count entry (they differ only when the bytes are equal), the bytes found equal (a lower bound), and
-/// the offset the comparison reached.
-#[derive(Clone, Copy, Debug)]
-pub struct Part {
-    pub ord: Ordering,
-    pub count: Ordering,
-    pub shared: u64,
-    pub at: u64,
-}
-
-impl RecProbe<'_> {
-    /// `cmp_at` resumed from byte `from`, the key's first `from` bytes known equal to the stored key's,
-    /// reading at most `most` more bytes of the key: `Err(at)` when no byte differed up to `at`, from where it
-    /// resumes, so no comparison reads more than its share of a long key.
-    pub fn cmp_part<M: NodeRead + ResolveKey + ?Sized>(
-        &self,
-        mem: &M,
-        n: u64,
-        koff: u64,
-        from: u64,
-        most: u64,
-    ) -> Result<Result<Part, u64>, Fault> {
-        use crate::key::Sink;
-        let w = mem.width();
-        let part = mem.bytes(n, koff, w.wrapping_add(8))?;
-        let wu = usize::try_from(w).map_err(|_| bounds(koff))?;
-        let area = part.get(..wu).ok_or(bounds(koff))?;
-        let field = u64::from_be_bytes(rd_array::<8>(&part, w)?);
-        let mut c = StoredCmp::new(mem, area, field)?;
-        c.at = from;
-        let end = from.saturating_add(most).min(self.len);
-        let mut shared = from;
-        let hw = self.head.len() as u64;
-        if c.at < hw && c.at < end {
-            let a = usize::try_from(c.at).map_err(|_| bounds(c.at))?;
-            let b = usize::try_from(end.min(hw)).map_err(|_| bounds(end))?;
-            c.put(self.head.get(a..b).ok_or(bounds(c.at))?)?;
-        }
-        let mut piece = [0u8; PIECE];
-        while !c.decided() && c.at < end {
-            shared = c.at;
-            let ys = lent(mem, self.field, c.at, self.len, &mut piece)?;
-            let k = usize::try_from(end.wrapping_sub(c.at)).unwrap_or(usize::MAX).min(ys.len());
-            if k == 0 {
-                return Err(bounds(c.at));
-            }
-            c.put(ys.get(..k).unwrap_or(&[]))?;
-        }
-        let at = c.at.min(end);
-        if !c.decided() {
-            if c.at < self.len {
-                return Ok(Err(c.at));
-            }
-            shared = c.at;
-        }
-        let base = mem.rid_base();
-        Ok(Ok(Part { ord: c.finish(self.kind, base)?, count: c.finish(Kind::Count, base)?, shared, at }))
-    }
-}
-
 // ---------------------------------------------------------------- pending entries
 
 /// An index entry on its way into a node, and a split's `up` entry. `Owned` is large by design: the

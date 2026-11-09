@@ -9,10 +9,5 @@ publish.workspace = true
 [lib]
 path = "src/lib.rs"
 
-[features]
-# Every maintenance decision on a metered host tells the host the look-ahead it took (`Budget::note`), for the
-# cost runner's check that the work each decision lets begin stays within it. Off in every other build.
-meter-notes = []
-
 # No dependencies and no dev-dependencies.
 [dependencies]

@@ -9,7 +9,7 @@
 //! their ids and defaults. The primary index declarations stay as they are; a secondary index the new image
 //! no longer declares byte for byte, or one with a part the image drops, is removed (`indexes::remove`: its
 //! tree and key log go to the drain); a secondary index the image declares that the table does not hold is
-//! added (`indexes::add`: built over the rows the table holds in maintenance units). An id whose declaration
+//! added (`indexes::add`: built over the rows the table holds in maintenance steps). An id whose declaration
 //! changes is a removal and an addition. An image of the table's schema hash is a change when its
 //! declarations differ. An image may keep the table's version only when it changes the declarations alone (the
 //! same row type, leaves and columns); one that adds or drops a leaf has a higher version. Every refusal comes
@@ -20,29 +20,23 @@
 //!
 //! **Column release** (job slot 0 at table root 1,824: {kind u8 @0, 1; state u8 @1, 1 running; the dropped-
 //! leaf generation u32 @4, the schema version of the latest drop the walk releases; cursor u64 @8, the next
-//! group number to visit; units u64 @24}). One unit visits one group in group-number order, skipping absent
-//! directory entries: a sealed group whose image holds a dropped leaf is rewritten without it (a rewrite of
-//! kind 3, run in the following units); any other group costs the check only; buffered groups drop their
-//! dropped leaves at their seals. When the walk passes the last group: if the latest drop is still the
-//! slot's generation and no seal in progress started before it, `cleaned` := the dropped columns and the
-//! release flag clears; otherwise the walk records the new generation and restarts at group 0. A seal whose
-//! snapshot came before the latest drop writes the dropped leaves: when it flips a group the walk has passed,
-//! the walk goes back to that group.
+//! group number to visit}). One step visits one group in group-number order, skipping absent directory
+//! entries: a sealed group whose image holds a dropped leaf is rewritten whole without it (`seal::rewrite`); any
+//! other group costs the check only; the open group drops its dropped leaves at its seal. When the walk passes
+//! the last group: if the latest drop is still the slot's generation, `cleaned` := the dropped columns and the
+//! release flag clears; otherwise the walk records the new generation and restarts at group 0.
 
 use crate::consts::{BUFFER_BLOCKS_MAX, HOT_MAX, PAGE};
 use crate::fault::{corrupt, rt, Corruption, Fault, ImageId, SchemaError};
-use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u8, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::stats::running::LIST_AT;
 
 use super::buffer::{self, DESC_BIT};
-use super::drain;
 use super::group::{align8, GroupView};
 use super::hot::RunCursor;
 use super::indexes::{DECL, PRIMARY};
-use super::jobs::{Clock, Ran, Spent};
 use super::layout::{Shape, Ty};
-use super::page;
 use super::root;
 use super::seal;
 use super::totals::{self, At, Totals};
@@ -52,9 +46,6 @@ const S_KIND: u64 = SLOT;
 const S_STATE: u64 = SLOT + 1;
 const S_GEN: u64 = SLOT + 4;
 const S_CURSOR: u64 = SLOT + 8;
-/// The leaf directory entries of the cursor's group checked so far.
-const S_CHECKED: u64 = SLOT + 16;
-const S_UNITS: u64 = SLOT + 24;
 
 /// The number of dropped columns of the table's schema.
 pub fn dropped_columns<H: PageHost + ?Sized>(h: &H, shape: &Shape) -> Result<u32, Fault> {
@@ -68,33 +59,19 @@ pub fn dropped_columns<H: PageHost + ?Sized>(h: &H, shape: &Shape) -> Result<u32
     Ok(n)
 }
 
-/// What a piece of the check of a group's leaf directory found: a dropped leaf, none, or none in the
-/// entries before this one, where the check resumes.
-enum Check {
-    Dropped,
-    Clean,
-    From(u64),
-}
-
-/// Leaf directory entries one piece of the check reads.
-const CHECK_PIECE: u64 = 16;
-
-/// Whether the image of group page `pg` holds a leaf the schema dropped, from directory entry `from`, a piece
-/// of `CHECK_PIECE` entries.
-fn holds_dropped<H: PageHost + ?Sized>(h: &H, shape: &Shape, pg: u64, from: u64) -> Result<Check, Fault> {
+/// Whether the image of group page `pg` holds a leaf the schema dropped.
+fn holds_dropped<H: PageHost + ?Sized>(h: &H, shape: &Shape, pg: u64) -> Result<bool, Fault> {
     let gv = GroupView::open(h, pg)?;
-    let end = from.saturating_add(CHECK_PIECE).min(gv.l);
-    for i in from..end {
-        let ld = gv.leaf(i)?;
-        let o = u64::from(ld.ordinal);
+    for i in 0..gv.l {
+        let o = u64::from(gv.leaf(i)?.ordinal);
         if o >= shape.leaves {
             return Err(corrupt(ImageId::Group(gv.g), Corruption::Leaf, o));
         }
         if shape.span_of(h, o)?.dropped != 0 {
-            return Ok(Check::Dropped);
+            return Ok(true);
         }
     }
-    Ok(if end >= gv.l { Check::Clean } else { Check::From(end) })
+    Ok(false)
 }
 
 /// What a piece of the walk for the next group found.
@@ -126,22 +103,11 @@ fn next_group<H: PageHost>(h: &H, tbl: u64, from: u64) -> Result<NextGroup, Faul
     })
 }
 
-/// One unit of the column release.
-pub fn release_unit<H: PageHost>(
-    h: &mut H,
-    tbl: u64,
-    shape: &Shape,
-    spent: &mut Spent,
-    clock: &Clock<'_>,
-) -> Result<Ran, Fault> {
-    let st = seal::running(&*h, tbl, seal::RELEASE)?;
-    if st != 0 {
-        seal::step(h, tbl, shape, st, spent, clock)?;
-        return Ok(Ran::Release);
-    }
-    // The walk's own steps, while the count leaves room for one more: each the root's job slot and a piece of
-    // the walk over the directory, or a piece of a group's check.
-    let latest = seal::latest_drop(&*h, shape)?;
+/// One step of the column release: the next group from the cursor, rewritten whole without its dropped leaves
+/// when its image holds one; past the last group, the release ends, or starts again at group 0 when a later
+/// drop came meanwhile.
+pub fn release_step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault> {
+    let latest = shape.dropped;
     if root::u8_at(&*h, tbl, S_KIND)? == 0 {
         let b = h.get_mut(Region::Block(tbl))?;
         fill(b, SLOT, 32, 0)?;
@@ -150,19 +116,11 @@ pub fn release_unit<H: PageHost>(
         put_u32(b, S_GEN, latest)?;
         put_u64(b, S_CURSOR, 0)?;
     }
-    let units = root::u64_at(&*h, tbl, S_UNITS)?;
-    root::set_u64(h, tbl, S_UNITS, units.wrapping_add(1))?;
-    let mut first = true;
-    while first || clock.room(spent.work, WALK_WORK, Some(clock.piece_pages(tbl))) {
-        first = false;
-        spent.work = spent.work.saturating_add(WALK_WORK);
-        let cursor = root::u64_at(&*h, tbl, S_CURSOR)?;
-        match next_group(&*h, tbl, cursor)? {
+    let mut from = root::u64_at(&*h, tbl, S_CURSOR)?;
+    loop {
+        match next_group(&*h, tbl, from)? {
             NextGroup::End => {
-                let gen = root::u32_at(&*h, tbl, S_GEN)?;
-                let seal_st = seal::running(&*h, tbl, seal::SEAL)?;
-                let stale_seal = seal_st != 0 && seal::generation_of(&*h, seal_st)? < latest;
-                if gen == latest && !stale_seal {
+                if root::u32_at(&*h, tbl, S_GEN)? == latest {
                     root::set_u32(h, tbl, root::CLEANED, shape.dropped_columns)?;
                     let f = root::u8_at(&*h, tbl, root::FLAGS)?;
                     root::set_u8(h, tbl, root::FLAGS, f & !root::FLAG_RELEASE)?;
@@ -170,66 +128,21 @@ pub fn release_unit<H: PageHost>(
                 } else {
                     root::set_u32(h, tbl, S_GEN, latest)?;
                     root::set_u64(h, tbl, S_CURSOR, 0)?;
-                    root::set_u32(h, tbl, S_CHECKED, 0)?;
                 }
-                return Ok(Ran::Release);
+                return Ok(());
             }
-            NextGroup::From(g) => root::set_u64(h, tbl, S_CURSOR, g)?,
+            NextGroup::From(g) => from = g,
             NextGroup::Group(g, entry) => {
-                let next = g.checked_add(1).ok_or(rt(Corruption::Range, g))?;
-                let skip = entry & DESC_BIT != 0;
-                if skip || g != cursor {
-                    // A buffered group drops its dropped leaves at its seal; a group the walk reached anew is
-                    // checked from its first directory entry.
-                    root::set_u64(h, tbl, S_CURSOR, if skip { next } else { g })?;
-                    root::set_u32(h, tbl, S_CHECKED, 0)?;
-                    continue;
+                root::set_u64(h, tbl, S_CURSOR, g.checked_add(1).ok_or(rt(Corruption::Range, g))?)?;
+                // The open group drops its dropped leaves at its seal.
+                if entry & DESC_BIT == 0 && holds_dropped(&*h, shape, entry)? {
+                    seal::rewrite(h, tbl, shape, entry, seal::RELEASE)?;
                 }
-                let other = rd_u64(h.get(Region::Block(entry))?, page::P_REWRITE)?;
-                if other != 0 {
-                    // Another rewrite holds the group: it runs here when its piece fits the unit, and the group
-                    // is checked again after it.
-                    if super::jobs::rewrite_fits(spent, clock, tbl) {
-                        seal::step(h, tbl, shape, other, spent, clock)?;
-                    }
-                    return Ok(Ran::Release);
-                }
-                let from = u64::from(root::u32_at(&*h, tbl, S_CHECKED)?);
-                match holds_dropped(&*h, shape, entry, from)? {
-                    Check::Dropped => {
-                        root::set_u32(h, tbl, S_CHECKED, 0)?;
-                        let st = seal::begin_rewrite(h, tbl, shape, entry, seal::RELEASE)?;
-                        super::jobs::begun(&*h, st, spent)?;
-                        return Ok(Ran::Release);
-                    }
-                    Check::Clean => {
-                        root::set_u64(h, tbl, S_CURSOR, next)?;
-                        root::set_u32(h, tbl, S_CHECKED, 0)?;
-                    }
-                    Check::From(i) => {
-                        root::set_u32(h, tbl, S_CHECKED, u32::try_from(i).map_err(|_| rt(Corruption::Range, i))?)?
-                    }
-                }
+                return Ok(());
             }
         }
     }
-    Ok(Ran::Release)
 }
-
-/// Group g's seal flipped with an image that holds dropped leaves (its snapshot came before the latest drop):
-/// a walk of the column release that has passed g, which it skipped while g was buffered, goes back to it, so
-/// that g is checked, and rewritten, before the walk ends. A walk not begun starts at group 0 anyway.
-pub fn stale_seal_flipped<H: PageHost>(h: &mut H, tbl: u64, g: u64) -> Result<(), Fault> {
-    if root::u8_at(&*h, tbl, S_KIND)? == 0 || root::u64_at(&*h, tbl, S_CURSOR)? <= g {
-        return Ok(());
-    }
-    root::set_u64(h, tbl, S_CURSOR, g)?;
-    root::set_u32(h, tbl, S_CHECKED, 0)
-}
-
-/// Estimated instructions of a step of the release's walk that starts no rewrite: the job slot read and
-/// written, and a piece of `WALK_PIECE` directory entries or of `CHECK_PIECE` leaf directory entries.
-const WALK_WORK: u64 = seal::PIECE_MAX;
 
 fn refuse(e: SchemaError) -> Fault {
     Fault::Schema(e)
@@ -418,7 +331,7 @@ pub fn change_schema<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, image: &[u
     let (r, end) = build_hot(&*h, tbl, shape, &new_shape, &mut buf)?;
     relay_totals(h, tbl, shape, &new_shape, &mut buf, r)?;
     rewrite_hot(h, tbl, &new_shape, &buf, r, end)?;
-    drain::push(h, tbl, &drain::Rec::new(drain::K_IMAGE, shape.page, 0))?;
+    crate::area::image_page_free(h, tbl, shape.page)?;
     root::set_u64(h, tbl, root::SCHEMA_HASH, new_shape.hash)?;
     root::set_u32(h, tbl, root::SCHEMA_VERSION, new_shape.version)?;
     root::set_u64(h, tbl, root::SCHEMA_PAGE, page)?;
@@ -586,7 +499,7 @@ fn sub_mut(b: &mut [u8], at: u64, n: u64) -> Result<&mut [u8], Fault> {
 
 /// The hot state's rewrite for the new schema version, from `buf` (a list of `r` entries, records up to
 /// `end`), in the tail block when the new layout fits below its first row byte, else in a new tail block of
-/// the open group (after a freeze when its descriptor is full).
+/// the open group (after its seal when its descriptor is full).
 fn rewrite_hot<H: PageHost>(
     h: &mut H,
     tbl: u64,
@@ -610,7 +523,7 @@ fn rewrite_hot<H: PageHost>(
 }
 
 /// A new tail block of the open group whose first row byte is `hh`: the hot state's fixed part carried over;
-/// the open group is frozen first when its descriptor is full.
+/// the open group is sealed first when its descriptor is full.
 fn new_tail_at<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, hh: u64) -> Result<u64, Fault> {
     let (_, desc, _) = buffer::open_group(&*h, tbl)?;
     if buffer::u16_of(&*h, desc, buffer::D_BLOCKS)? >= BUFFER_BLOCKS_MAX {

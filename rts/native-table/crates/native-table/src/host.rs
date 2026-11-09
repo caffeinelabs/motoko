@@ -49,7 +49,7 @@ pub trait NodeMem: NodeRead {
     fn alloc(&mut self, leaf: bool) -> Result<u64, Fault>;
     /// Returns node n at once; nothing references it.
     fn hand_back(&mut self, n: u64) -> Result<(), Fault>;
-    /// Frees the whole tree under root n later, in bounded steps; O(1) now. Called by front ends only.
+    /// Frees the whole tree under root n later, in maintenance steps; O(1) now. Called by front ends only.
     fn release(&mut self, root: u64) -> Result<(), Fault>;
 }
 
@@ -57,17 +57,9 @@ pub trait NodeMem: NodeRead {
 pub trait Budget {
     /// `ic0.performance_counter(0)` in both runtimes; 0 in the builder.
     fn used(&self) -> u64;
-    /// For an upload message's work and the application's `maintain`: the step stops before a unit when
-    /// `used() ≥ limit()`. A write's step runs exactly `WRITE_STEP_UNITS` units and reads the budget only as
-    /// the meter that ends a unit early.
+    /// For an upload message's work and the application's `maintain`: maintenance stops before a step when
+    /// `used() ≥ limit()`. A write's first call runs exactly one step and does not read the budget.
     fn limit(&self) -> u64;
-    /// With the `meter-notes` feature only: a maintenance decision on a metered host, at `line` of source file
-    /// `file`, took `ahead` instructions as the most that the work it lets begin costs before the next
-    /// decision, the unit's end aside (0: the unit's share of work ends there), and, when it checks the unit's
-    /// pages, `pages` as the most 4 KiB pages that work changes for the first time in the unit (`u64::MAX`: it
-    /// does not check them).
-    #[cfg(feature = "meter-notes")]
-    fn note(&self, _ahead: u64, _pages: u64, _file: &'static str, _line: u32) {}
 }
 
 /// Whether a step finished its job.
@@ -77,14 +69,14 @@ pub enum Progress {
     More,
 }
 
-/// The scratch source a step runs with. `get(need)` returns exactly `need` bytes, growing the source when
-/// needed. A unit asks only for its current working state.
+/// The scratch source a call runs with. `get(need)` returns exactly `need` bytes, growing the source when
+/// needed.
 pub trait Scratch {
     fn get(&mut self, need: usize) -> Result<&mut [u8], Fault>;
 }
 
 /// The table's maintenance state, as every mutating call leaves it. With the state not `Idle`, the
-/// next table write runs one full unit first.
+/// next table write runs one maintenance step first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Wake {
     Idle,

@@ -6,9 +6,8 @@
 //! **Index descriptor** (128 bytes): kind u8 @0 (0 none, 1 primary, 2 secondary); its tree's key-area width W
 //! u16 @2; flags u16 @4 (bit 2 keys unique); key spec hash u64 @8; the tree's root u64 @16, nodes u32 @24,
 //! key-log blocks u32 @28, key-log radix root u64 @32 and key-log radix height u8 @40; a secondary index's
-//! build, the rid it takes next u64 @48 and the rid it ends before u64 @56 (0 and 0: none), and the key-log
-//! ordinal of the state block of its key being written over units u64 @64 (0: none); the run list block u64
-//! @80 (0: none); zero elsewhere.
+//! build, the rid it takes next u64 @48 and the rid it ends before u64 @56 (0 and 0: none); the run list block
+//! u64 @80 (0: none); zero elsewhere.
 
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, FORMAT_TABLE};

@@ -1,5 +1,5 @@
 //! The table core over flat row types (root, hot state with running records, buffer with item tables and
-//! long values, freezes, the seal, group images and group pages, get, upsert, remove, clear).
+//! long values, the seal, group images and group pages, get, upsert, remove, clear).
 //!
 //! Every test runs once per fill pattern (`FILLS`) through `per_fill`, which requires identical results and
 //! identical host-call logs from the two runs: a byte that differs between them was read without being
@@ -21,7 +21,7 @@ use native_table::value::ty;
 use native_table::{PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{rid_of, schema, t, Sink, Src, V};
-use nt_testhost::{Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// Scratch for keys longer than a point operation's stack.
 fn key_scratch() -> VecScratch {
@@ -361,7 +361,6 @@ fn rows_model() {
         let mut r = XorShift(0x1234_5678);
         // key → (rid, row as written)
         let mut model: BTreeMap<u64, (u64, Vec<(u32, V)>)> = BTreeMap::new();
-        let mut seals = 0u64;
         let mut refused = 0u64;
         let mut trace = Vec::new();
         let mut groups_checked = 0;
@@ -426,16 +425,13 @@ fn rows_model() {
                     }
                 }
             } else {
-                // Maintenance at a random point: a write's one unit, or all of it.
-                let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
+                // Maintenance at a random point: a write's one step, or all of it.
                 if r.below(2) == 0 {
                     tb.write_step(&everything()).unwrap();
                 } else {
                     maintain_all(&mut tb);
                     groups_checked += check_groups(&tb);
                 }
-                let after = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
-                seals += u64::from(before - after);
             }
             assert_eq!(tb.len().unwrap(), model.len() as u64, "step {step}");
             if step % 2_000 == 1_999 {
@@ -451,6 +447,7 @@ fn rows_model() {
             let (grid, cells) = get_row(&tb, &[(id(0), V::U(*k))]).expect("present");
             assert_eq!((grid, cells), (*rid, expected(&m, row)));
         }
+        let seals = open_group(tb.host(), tb.root());
         assert!(seals >= 3, "several groups sealed: {seals}");
         assert!(groups_checked >= 3);
         (model.len(), seals, refused, trace)
@@ -603,7 +600,7 @@ fn seal_canonical() {
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 5, &img).unwrap();
         let n = GROUP_SLOTS;
-        // Phase 1: the rows inserted as they are; the next insert freezes the group.
+        // Phase 1: the rows inserted as they are; the next insert seals the group.
         for k in 0..n {
             tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(k, canon_text(k)))).unwrap();
         }
@@ -680,7 +677,8 @@ fn no_crossing() {
         let mut k = 0u64;
         for round in 0..3 {
             let start = k;
-            while root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() == 0 {
+            let g0 = open_group(tb.host(), tb.root());
+            while open_group(tb.host(), tb.root()) == g0 {
                 tb.upsert(&mut key_scratch(), &mut Src::new(&model_row(&mut r, k, true))).unwrap();
                 k += 1;
             }
@@ -745,15 +743,9 @@ fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
             }
         }
     }
-    // The buffered groups: the frozen queue, then the open group.
-    let mut descs = Vec::new();
-    let mut d = root::u64_at(h, tbl, root::FROZEN_HEAD).unwrap();
-    while d != 0 {
-        descs.push(d);
-        d = buffer::u64_of(h, d, buffer::D_NEXT).unwrap();
-    }
-    descs.push(buffer::open_group(h, tbl).unwrap().1);
-    for d in descs {
+    // The open group's rows.
+    {
+        let d = buffer::open_group(h, tbl).unwrap().1;
         buffer::for_each_slot(h, d, |_, b, s| {
             let Some(loc) = buffer::slot_row(h, b, s)? else { return Ok(()) };
             if let buffer::RowLoc::Long(img) = loc {
@@ -869,7 +861,8 @@ fn long_values() {
             s
         };
         let mut k = 1_000u64;
-        while root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() == 0 {
+        let g0 = open_group(tb.host(), tb.root());
+        while open_group(tb.host(), tb.root()) == g0 {
             tb.upsert(
                 &mut key_scratch(),
                 &mut Src::new(&[(id(0), V::U(k)), (id(1), V::text("f")), (id(2), V::Bytes(vec![]))]),
@@ -982,31 +975,31 @@ fn changed_blocks() {
         // A group's extremes block, when a write moves the group's extremes, is counted apart (`end_apart`).
         let mut ext_changes = 0u64;
         // Inserts, sorted by what they did: a row into the tail block (2: the tail block, M's leaf), one that
-        // opens a tail block (4: + the new block, the descriptor, the root), one that freezes the group
-        // (6: the old and the new descriptor, the root, the new tail block, the directory's leaf, M's leaf;
-        // 7 when a frozen group waits: its descriptor's queue link). Inserts that also took a new area page or
+        // opens a tail block (4: + the new block, the descriptor, the root). An insert that fills its group seals
+        // it, a rewrite of the whole group, and is not counted here. Inserts that also took a new area page or
         // split M's leaf are counted apart.
-        while root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() < 2 {
+        while open_group(tb.host(), tb.root()) < 2 {
             let tail = root::u64_at(tb.host(), tb.root(), root::TAIL).unwrap();
-            let waiting = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
+            let g0 = open_group(tb.host(), tb.root());
             let (pages, nodes) = (area0_pages(&tb), m_nodes(&tb));
             tb.host_mut().end_message();
             tb.upsert(&mut key_scratch(), &mut Src::new(&row(k))).unwrap();
-            let c = end_apart(&mut tb, &mut ext_changes);
             k += 1;
+            if open_group(tb.host(), tb.root()) != g0 {
+                tb.host_mut().end_message();
+                continue;
+            }
+            let c = end_apart(&mut tb, &mut ext_changes);
             if k < 10 {
                 continue;
             }
             let split = m_nodes(&tb) != nodes;
             let page = area0_pages(&tb) != pages;
-            let froze = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() != waiting;
             let new_tail = root::u64_at(tb.host(), tb.root(), root::TAIL).unwrap() != tail;
-            let what = match (froze, new_tail, split, page) {
-                (true, _, false, false) if waiting == 0 => "freeze",
-                (true, _, false, false) => "freeze, a group waiting",
-                (false, true, false, false) => "new tail block",
-                (false, false, false, false) => "insert",
-                (false, false, true, false) => "insert splitting M's leaf",
+            let what = match (new_tail, split, page) {
+                (true, false, false) => "new tail block",
+                (false, false, false) => "insert",
+                (false, true, false) => "insert splitting M's leaf",
                 _ => "other",
             };
             seen.entry(what).or_default().push(c);
@@ -1017,8 +1010,6 @@ fn changed_blocks() {
         };
         only(&seen["insert"], 2, "lone insert");
         only(&seen["new tail block"], 4, "insert that opens a tail block");
-        only(&seen["freeze"], 6, "insert that freezes");
-        only(&seen["freeze, a group waiting"], 7, "insert that freezes with a group waiting");
         // A split of M's leaf: the tail block, the leaf, its new sibling, the parent, the root (area 1's
         // record) and the index directory block (M's node count).
         only(&seen["insert splitting M's leaf"], 6, "insert that splits M's leaf");
@@ -1189,29 +1180,42 @@ fn golden(name: &str, img: &[u8]) {
     }
 }
 
-/// Fills the open group until it freezes (the freezing row goes to the next group), deletes the keys `kill`
-/// says, seals, and returns the sealed group's page and the live rows.
+/// Fills the open group of `tb` (whose schema image is `img`) with the rows `row` makes, deleting the keys `kill`
+/// says before the insert that fills the group and seals it (that row goes to the next group); returns the
+/// sealed group's page and the live rows. The rows that fit the group are found first on a table of their own.
 fn one_group(
     tb: &mut Table<'_, VecHost>,
+    img: &[u8],
     mut row: impl FnMut(u64) -> Vec<(u32, V)>,
     kill: impl Fn(u64) -> bool,
 ) -> (u64, BTreeMap<u64, Vec<(u32, V)>>) {
+    let all: Vec<Vec<(u32, V)>> = {
+        let mut h2 = VecHost::new(FILLS[0]);
+        let (mut t2, _) = Table::create(&mut h2, 1, img).unwrap();
+        let mut all = Vec::new();
+        while open_group(t2.host(), t2.root()) == 0 {
+            all.push(row(all.len() as u64));
+            t2.upsert(&mut key_scratch(), &mut Src::new(all.last().unwrap())).unwrap();
+        }
+        all
+    };
     let g = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
     let mut rows = BTreeMap::new();
-    let mut k = 0;
-    loop {
-        let r = row(k);
-        tb.upsert(&mut key_scratch(), &mut Src::new(&r)).unwrap();
-        if root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() > 0 {
-            break;
-        }
-        rows.insert(k, r);
-        k += 1;
+    let p = all.len() - 1;
+    for (k, r) in all.iter().enumerate().take(p) {
+        tb.upsert(&mut key_scratch(), &mut Src::new(r)).unwrap();
+        rows.insert(k as u64, r.clone());
     }
     for key in rows.keys().copied().filter(|&x| kill(x)).collect::<Vec<_>>() {
         tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), rows[&key][0].1.clone())])).unwrap();
         rows.remove(&key);
     }
+    tb.upsert(&mut key_scratch(), &mut Src::new(&all[p])).unwrap();
+    assert_eq!(
+        root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap(),
+        g + 1,
+        "the last insert sealed the group"
+    );
     maintain_all(tb);
     (group_page(tb, g), rows)
 }
@@ -1271,6 +1275,7 @@ fn straddling_group(h: &mut VecHost, len: usize, live: u64, widths: [usize; 2]) 
         let (mut tb, _) = Table::create(&mut *h, 1, &img).unwrap();
         let (pg, rows) = one_group(
             &mut tb,
+            &img,
             |k| {
                 let (pre, c) = plan.get(&k).copied().unwrap_or((0, "a"));
                 vec![(id(0), V::U(k)), (id(1), V::Bytes(fixed_text(len, pre, c)))]
@@ -1311,6 +1316,7 @@ fn golden_groups() {
             let mut r = XorShift(2_024);
             let (pg, rows) = one_group(
                 &mut tb,
+                &m.img,
                 |k| {
                     let mut row = model_row(&mut r, 10 + 3 * k, k % 1_000 == 7);
                     if k % 1_000 == 7 {
@@ -1340,6 +1346,7 @@ fn golden_groups() {
             let (mut tb, _) = Table::create(&mut *h, 22, &img).unwrap();
             let (pg, rows) = one_group(
                 &mut tb,
+                &img,
                 |k| {
                     vec![
                         (id(0), V::U(1_000 + 2 * k)),

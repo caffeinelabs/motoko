@@ -71,11 +71,11 @@ pub const FORMAT_NODE: u16 = 1;
 pub const GROUP_SLOTS: u64 = 4_096;
 /// Format. Largest group number, so every rid is below 2^61 and fits `RID_PAYLOAD`.
 pub const GROUP_MAX: u64 = (1 << 49) - 1;
-/// Policy. Inline bytes that freeze the open group.
+/// Policy. Inline bytes that fill the open group: the insert that would pass them seals it first.
 pub const GROUP_BYTES: u64 = 1_048_576;
-/// Policy. Medium out-of-line bytes that freeze the open group.
+/// Policy. Medium out-of-line bytes that fill the open group.
 pub const GROUP_OOL_BYTES: u64 = 4_194_304;
-/// Policy. Out-of-line values (medium and huge) that freeze the open group.
+/// Policy. Out-of-line values (medium and huge) that fill the open group.
 pub const GROUP_LARGE: u64 = 1_024;
 /// Format. Buffer blocks per group (the buffer descriptor's capacity).
 pub const BUFFER_BLOCKS_MAX: u64 = 240;
@@ -85,13 +85,11 @@ pub const ROW_INLINE_MAX: u64 = 3_072;
 pub const LONG_VALUE: u64 = 2_048;
 /// Format. An out-of-line value longer than this is a long value of its own when the crate writes it.
 pub const HUGE_VALUE: u64 = 65_536;
-/// Policy. The most value, image or key bytes one job unit reads or writes.
-pub const BYTE_UNIT: u64 = 65_536;
 /// Format. `[u8; N]` with N at most this is form `Fixed`, else `Binary`.
 pub const FIXED_MAX: u64 = 1_016;
 /// Format. Block entries a group image record holds inline; a longer image keeps a radix.
 pub const INLINE_ENTRIES: u64 = 8;
-/// Format. Bytes of a rewrite's work page area, where its work space begins.
+/// Format. Bytes of a rewrite's work block area, where its work space begins.
 pub const WORK_AREA: u64 = 3_432;
 /// Format. The most bytes from a tail block's start to its first row.
 pub const HOT_MAX: u64 = 2_048;
@@ -142,10 +140,13 @@ pub const IMAGE_V1: u16 = 1;
 /// parent, case and case count, and the schema's type pool has no variant, list, recursive, table or set
 /// types. Version 10: the table root holds the table's shape at 2,464, derived when the schema image is written,
 /// which an open reads instead of deriving it from the image again. Version 11: a buffer descriptor (at 48) and
-/// a group page (at 656) name their group's extremes block (`table::extremes`). A run list or index directory
-/// of another version is refused with a header fault, so no count reads a record at another layout's offsets
-/// or meaning.
-pub const FORMAT_TABLE: u16 = 11;
+/// a group page (at 656) name their group's extremes block (`table::extremes`). Version 12: the write that fills
+/// a group seals it, and a compaction or column release rewrites a group whole in one call, so no group waits
+/// frozen and no rewrite spans calls: the root's frozen queue (64–83) and job slots 2–7, a buffer descriptor's
+/// bytes 24–31 and 56–63 and a group page's bytes 640–655 are zero, no rewrite state block exists, and the drain
+/// holds only removed indexes' trees and key logs. A run list or index directory of another version is refused
+/// with a header fault, so no count reads a record at another layout's offsets or meaning.
+pub const FORMAT_TABLE: u16 = 12;
 
 // ---- Indexes ----
 
@@ -177,7 +178,7 @@ pub const STEP_SCRATCH: u64 = 262_144;
 
 // ---- Maintenance ----
 
-/// Policy. Changed 4 KiB pages one job unit may write in any memory, counted together.
+/// Policy. Changed 4 KiB pages one drain step may write in any memory, counted together.
 pub const UNIT_BLOCKS_MAX: u64 = 17;
 
 // ---- Derived values ----
@@ -262,8 +263,6 @@ pub mod magic {
     pub const NTSX: u32 = m(b"NTSX");
     /// Totals block.
     pub const NTTS: u32 = m(b"NTTS");
-    /// Rewrite state block.
-    pub const NTRW: u32 = m(b"NTRW");
     /// Extremes block.
     pub const NTEX: u32 = m(b"NTEX");
 }

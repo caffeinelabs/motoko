@@ -15,9 +15,8 @@ cargo build -q --workspace
 cargo clippy -q -p native-table -p nt-builder --all-targets -- -D warnings
 NT_PROBE_WASM="$PWD/$PROBE" cargo test -q --workspace --profile test-fast
 
-echo "== the large suite in release mode: rows_model at 10^6 writes and across schema versions, rewrite_units writing while a compaction runs, post-snapshot patches past 254 units"
-NT_LARGE=1 cargo test -q --release -p nt-testhost --test updates_and_rewrites -- rewrite_units rows_model \
-    post_snapshot_units_over_255
+echo "== the large suite in release mode: rows_model at 10^6 writes and across schema versions"
+NT_LARGE=1 cargo test -q --release -p nt-testhost --test updates_and_rewrites -- rows_model
 
 echo "== probe self-test under wasmtime ($(wasmtime --version))"
 out=$(wasmtime run -W memory64=y --invoke nt_selftest $PROBE 2>/dev/null)

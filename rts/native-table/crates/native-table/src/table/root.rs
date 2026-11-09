@@ -16,9 +16,6 @@ pub const SCHEMA_PAGE: u64 = 32;
 pub const NEXT_GROUP: u64 = 40;
 pub const OPEN_GROUP: u64 = 48;
 pub const TAIL: u64 = 56;
-pub const FROZEN_HEAD: u64 = 64;
-pub const FROZEN_TAIL: u64 = 72;
-pub const FROZEN_WAITING: u64 = 80;
 pub const DIR_HEIGHT: u64 = 84;
 pub const DIR_ROOT: u64 = 88;
 pub const RUN_SEQ: u64 = 96;
@@ -28,11 +25,10 @@ pub const COMPACT_HEAD: u64 = 112;
 pub const COMPACT_TAIL: u64 = 120;
 /// The group to queue (group number + 1; 0: none): a group a write's 255th patched unit made urgent while it was
 /// not queued, recorded here in the root the write changes anyway instead of pushed onto the compaction queue,
-/// whose blocks the write would change besides; the next unit pushes it first.
+/// whose blocks the write would change besides; the next maintenance step pushes it first.
 pub const GROUP_TO_QUEUE: u64 = 128;
-/// Job slots 0–7, 32 bytes each: slot 0 the column release (kind 1); slots 4, 5 and 6 the rewrite in progress
-/// of each kind, kind codes 5 (a seal), 6 (a compaction) and 7 (a column release's rewrite), whose state
-/// block lies at @8.
+/// Job slots 0–7, 32 bytes each: slot 0 the column release (kind 1), slot 1 the index builds; slots 2–7
+/// zero.
 pub const JOB_SLOTS: u64 = 1_824;
 /// Index directory block references 0–2.
 pub const INDEX_DIRS: u64 = 928;

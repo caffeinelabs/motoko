@@ -26,10 +26,8 @@
 //! **Descriptor.** A table's secondary index `id` keeps its state in its index descriptor (`directory`): kind
 //! 2 @0, the tree's W u16 @2, the key spec hash u64 @8, the tree's root u64 @16, node count u32 @24, key-log
 //! blocks u32 @28, key-log radix root u64 @32 and height u8 @40, the rid its build takes next u64 @48 and the
-//! rid the build ends before u64 @56 (both 0 when the tree holds every row), the key-log ordinal of the state
-//! block of the build's key being written over units u64 @64 (0: none), the key-log ordinal of the state block
-//! of a build key whose blocks are being handed back over units u64 @72 (0: none), and the run list block u64
-//! @80.
+//! rid the build ends before u64 @56 (both 0 when the tree holds every row), and the run list block u64 @80;
+//! bytes @64 to @80 are not used.
 //! The table makes it when it is created or a schema change adds the index, and writes the tree's fields
 //! back whenever a write changes them.
 
@@ -77,8 +75,6 @@ const D_LOG_ROOT: u64 = 32;
 const D_LOG_HEIGHT: u64 = 40;
 const D_BUILD_NEXT: u64 = 48;
 const D_BUILD_END: u64 = 56;
-const D_BUILD_KEY: u64 = 64;
-const D_BUILD_BACK: u64 = 72;
 const D_RUN_LIST: u64 = 80;
 
 /// One secondary index: its tree's state, kept by the index's owner, and where its uploaded segments are
@@ -97,23 +93,13 @@ pub struct Secondary {
     pub log: KeyLog,
     /// The block of the index's run list, which lists its uploaded segments (0: none).
     pub run_list: u64,
-    /// Whether a build's key is being written over units (the descriptor names its state block).
-    pub pending: bool,
 }
 
 impl Secondary {
     /// An empty index `index` of key width `w` (a multiple of 8 in 8..=1,016), with no uploaded segment;
     /// `None` for any other width. It holds no block until its first row.
     pub fn create(index: u8, w: u64) -> Option<Secondary> {
-        Some(Secondary {
-            index,
-            shape: IndexShape::new(w, 0)?,
-            root: 0,
-            nodes: 0,
-            log: KeyLog::default(),
-            run_list: 0,
-            pending: false,
-        })
+        Some(Secondary { index, shape: IndexShape::new(w, 0)?, root: 0, nodes: 0, log: KeyLog::default(), run_list: 0 })
     }
 
     /// Makes table `tbl`'s descriptor of index `index` (1 to 63), for an empty tree of key width `w` and the key
@@ -152,7 +138,6 @@ impl Secondary {
                 blocks: u64::from(rd_u32(blk, at(D_LOG_BLOCKS))?),
             },
             run_list: rd_u64(blk, at(D_RUN_LIST))?,
-            pending: rd_u64(blk, at(D_BUILD_KEY))? != 0,
         })
     }
 
@@ -177,43 +162,6 @@ impl Secondary {
         let blk = h.get_mut(Region::Block(b))?;
         put_u64(blk, o.wrapping_add(D_BUILD_NEXT), next)?;
         put_u64(blk, o.wrapping_add(D_BUILD_END), end)
-    }
-
-    /// The key-log ordinal of the state block of table `tbl`'s build of index `index`'s key being written over
-    /// units (0: none).
-    pub fn build_key<H: PageHost + ?Sized>(h: &H, tbl: u64, index: u8) -> Result<u64, Fault> {
-        let (b, o) = directory::locate(h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        rd_u64(h.get(Region::Block(b))?, o.wrapping_add(D_BUILD_KEY))
-    }
-
-    pub fn set_build_key<H: PageHost>(h: &mut H, tbl: u64, index: u8, k: u64) -> Result<(), Fault> {
-        let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        put_u64(h.get_mut(Region::Block(b))?, o.wrapping_add(D_BUILD_KEY), k)
-    }
-
-    /// The key-log ordinal of the state block of table `tbl`'s build of index `index`'s key whose blocks are
-    /// being handed back over units (0: none).
-    pub fn build_back<H: PageHost + ?Sized>(h: &H, tbl: u64, index: u8) -> Result<u64, Fault> {
-        let (b, o) = directory::locate(h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        rd_u64(h.get(Region::Block(b))?, o.wrapping_add(D_BUILD_BACK))
-    }
-
-    pub fn set_build_back<H: PageHost>(h: &mut H, tbl: u64, index: u8, k: u64) -> Result<(), Fault> {
-        let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        put_u64(h.get_mut(Region::Block(b))?, o.wrapping_add(D_BUILD_BACK), k)
-    }
-
-    /// Runs `f` on the tree's nodes, keeping the key log it leaves (a key written over units).
-    pub fn with_log<H: PageHost, R, F: FnOnce(&mut AreaNodes<'_, H>) -> Result<R, Fault>>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        f: F,
-    ) -> Result<R, Fault> {
-        let mut m = self.tree(h, tbl);
-        let r = f(&mut m);
-        self.log = m.log;
-        r
     }
 
     /// Writes the tree's root, node count and key log into table `tbl`'s descriptor of the index.
@@ -314,137 +262,6 @@ impl Secondary {
         self.nodes = m.nodes;
         self.log = m.log;
         r
-    }
-
-    /// The tree's height: the nodes from its root down its leftmost path (0 when it is empty).
-    pub fn height<H: PageHost + ?Sized>(&self, h: &H) -> Result<u64, Fault> {
-        let (v, mut n, mut k) = (self.view(h), self.root, 0u64);
-        while n != 0 {
-            k = k.wrapping_add(1);
-            if is_leaf(&v, n)? {
-                break;
-            }
-            n = tree::node::child(self.shape, &v, n, 0)?;
-        }
-        Ok(k)
-    }
-
-    /// The nodes an insert of the row `rid` under `key`, its full encoding, and of its key's count entry may
-    /// split: none when the row's leaf has room for both entries, else the leaf and every full node right above
-    /// it on the row's path (a node splits once at most: the next entry finds room in one of its halves). `path`
-    /// is the caller's scratch.
-    pub fn splits<H: PageHost + ?Sized>(&self, h: &H, key: &[u8], rid: u64, path: &mut Path) -> Result<u64, Fault> {
-        Ok(self.full_run(h, key, rid, path)?.0)
-    }
-
-    /// `splits`, with the highest node of that run, and `path` holding the frames above it.
-    fn full_run<H: PageHost + ?Sized>(
-        &self,
-        h: &H,
-        key: &[u8],
-        rid: u64,
-        path: &mut Path,
-    ) -> Result<(u64, u64), Fault> {
-        if self.root == 0 {
-            return Ok((0, 0));
-        }
-        let (s, v) = (self.shape, self.view(h));
-        path.clear();
-        let leaf = match key.descend(s, &v, self.root, Kind::Row(rid), path)? {
-            Search::Found(..) => return Ok((0, 0)),
-            Search::Vacant(n, _) => n,
-        };
-        let (k, top, above) = full_above(s, &v, leaf, path)?;
-        path.truncate(above);
-        Ok((k, top))
-    }
-
-    /// `insert` for a build's row, which the tree does not hold yet: when its descent finds a run of two or
-    /// more full nodes on the row's path (`splits`: its leaf without room for the row's two entries and at least
-    /// the node above it full), which the tree's general insert splits, `fits` is asked first whether that run
-    /// fits, and when it does not, nothing changes and `Ok(None)` is returned. Else the row goes in: `Ok(Some(k))`
-    /// with the run k, 0 when it is under two nodes. A row the tree holds already is `Corrupt(Runtime, Link)`.
-    pub fn insert_fitting<H: PageHost, F: FnOnce(u64) -> bool>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: &[u8],
-        rid: u64,
-        path: &mut Path,
-        fits: F,
-    ) -> Result<Option<u64>, Fault> {
-        let mut m = self.tree(h, tbl);
-        let r = insert_fitting(&mut m, &mut self.root, key, rid, path, fits);
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r
-    }
-
-    /// Splits the highest node of the run `splits` counts for the row `rid` under `key` ahead of its insert
-    /// (`tree::split_ahead`), so the run is one node shorter: the step a build takes when the insert's splits
-    /// would pass a unit's pages. Returns whether it split: not when the run is empty or is a leaf of fewer
-    /// than three entries, which a split would leave a half without one.
-    pub fn split_ahead<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: &[u8],
-        rid: u64,
-        path: &mut Path,
-    ) -> Result<bool, Fault> {
-        let (k, n) = self.full_run(&*h, key, rid, path)?;
-        if k == 0 || count(self.shape, &self.view(&*h), n)? < 3 {
-            return Ok(false);
-        }
-        let mut m = self.tree(h, tbl);
-        let r = tree::split_ahead(self.shape, &mut m, &mut self.root, n, path);
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r.map(|()| true)
-    }
-
-    /// Whether a build's insert step from node `at` (0: the root) reaches a leaf (`build_step`).
-    pub fn last_step<H: PageHost + ?Sized>(&self, h: &H, at: u64) -> Result<bool, Fault> {
-        if self.root == 0 {
-            return Ok(true);
-        }
-        let v = self.view(h);
-        let n = if at == 0 { self.root } else { at };
-        Ok(is_leaf(&v, n)? || is_leaf(&v, tree::node::child(self.shape, &v, n, 0)?)?)
-    }
-
-    /// One step of a build's insert of the row `rid`, above every rid the tree holds, under `key`, its full
-    /// encoding: made top-down, a node at a time, so that it can stop between steps. From node `at` (0: the
-    /// root), which has room for one more entry, the row's path goes one node down, to a child split ahead
-    /// when full (`full_ahead`), which is returned while it is internal. On the way, an entry of the path that
-    /// is the key's count entry is raised by one, and `RAISED` set in `flags`; one that is a row entry of the
-    /// key sets `SEEN`. At a leaf, the row's entry goes in, with a new count entry of one beside it when the
-    /// key is new: the leaf has room for both, or splits once into its parent, which has room; 0 is returned.
-    #[allow(clippy::too_many_arguments)]
-    pub fn build_step<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: &[u8],
-        rid: u64,
-        at: u64,
-        flags: &mut u64,
-        path: &mut Path,
-    ) -> Result<u64, Fault> {
-        let mut m = self.tree(h, tbl);
-        let r = build_step(&mut m, &mut self.root, key, (rid, at), flags, path);
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r
-    }
-
-    /// Lowers the count of `key`, its full encoding, by one: a build's insert stopped after raising it.
-    pub fn lower_count<H: PageHost>(&mut self, h: &mut H, tbl: u64, key: &[u8], path: &mut Path) -> Result<(), Fault> {
-        let mut m = self.tree(h, tbl);
-        let r = add_count(&mut m, &mut self.root, key, -1, path);
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r.map(|_| ())
     }
 
     /// The rows that hold `key`, its full encoding: its count entry in the tree, found by one descent, plus
@@ -596,10 +413,6 @@ pub trait EntryKey<'k>: Copy {
     /// The field an entry of this key stores for `field`: `field` itself when the key fits W, else an overflowed
     /// field naming a new key-log record whose payload is `rec`.
     fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault>;
-    /// `field`, for an entry that takes the key's own record when it has one, its payload set to `rec`.
-    fn own<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        self.field(m, field, rec)
-    }
 }
 
 impl<'k> EntryKey<'k> for &'k [u8] {
@@ -636,8 +449,7 @@ impl<'k> EntryKey<'k> for &'k [u8] {
 
 /// A key longer than a stack buffer holds, written into the tree's key log as a record first: its first W
 /// bytes `head`, the record at `loc` holding the rest, and its length `len`. Descents compare the stored keys
-/// with that record (`RecProbe`), and each entry made under it takes a copy of the record, or the record
-/// itself (`Secondary::place_own`).
+/// with that record (`RecProbe`), and each entry made under it takes a copy of the record.
 #[derive(Clone, Copy, Debug)]
 pub struct LongKey<'k> {
     pub head: &'k [u8],
@@ -676,53 +488,6 @@ impl<'k> EntryKey<'k> for LongKey<'k> {
     }
     fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
         Ok(ovf_field(field, m.copy_record(self.loc, rec)?))
-    }
-    fn own<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        m.set_record_payload(self.loc, rec)?;
-        Ok(ovf_field(field, self.loc))
-    }
-}
-
-/// A `LongKey` whose entries take records of the key made for them: the row entry the key's own record
-/// (`EntryKey::own`), a count entry made `twin`, a second record of the key, or a copy when `twin` is 0.
-#[derive(Clone, Copy, Debug)]
-struct Owned<'k> {
-    key: LongKey<'k>,
-    twin: u64,
-}
-
-impl<'k> EntryKey<'k> for Owned<'k> {
-    fn descend<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        s: IndexShape,
-        m: &M,
-        root: u64,
-        kind: Kind,
-        path: &mut Path,
-    ) -> Result<Search, Fault> {
-        self.key.descend(s, m, root, kind, path)
-    }
-    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
-        self,
-        m: &M,
-        n: u64,
-        koff: u64,
-        kind: Kind,
-    ) -> Result<Ordering, Fault> {
-        self.key.cmp_at(m, n, koff, kind)
-    }
-    fn area(self) -> &'k [u8] {
-        self.key.head
-    }
-    fn field<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        if self.twin == 0 {
-            return self.key.field(m, field, rec);
-        }
-        m.set_record_payload(self.twin, rec)?;
-        Ok(ovf_field(field, self.twin))
-    }
-    fn own<H: PageHost>(self, m: &mut AreaNodes<'_, H>, field: u64, rec: u64) -> Result<u64, Fault> {
-        self.key.own(m, field, rec)
     }
 }
 
@@ -804,455 +569,6 @@ fn insert_row<'k, H: PageHost, K: EntryKey<'k>>(
         return Ok(Some(false));
     }
     add_count(m, root, key, 1, path).map(Some)
-}
-
-/// The run of full nodes an insert into leaf `leaf` splits, `path` holding the frames above the leaf
-/// (`Secondary::splits`): none when the leaf has room for two more entries, else the leaf and every full node
-/// right above it. With the run's highest node and the frames above that node.
-fn full_above<M: NodeRead + ?Sized>(s: IndexShape, m: &M, leaf: u64, path: &Path) -> Result<(u64, u64, usize), Fault> {
-    if count(s, m, leaf)?.saturating_add(2) <= s.leaf.cap {
-        return Ok((0, 0, path.len()));
-    }
-    let (mut k, mut top, mut above) = (1u64, leaf, path.len());
-    for (d, &(n, _)) in path.frames().iter().enumerate().rev() {
-        if count(s, m, n)? < s.internal.cap {
-            break;
-        }
-        (k, top, above) = (k.wrapping_add(1), n, d);
-    }
-    Ok((k, top, above))
-}
-
-/// `Secondary::insert_fitting` on the tree `m` with root `root`.
-fn insert_fitting<H: PageHost, F: FnOnce(u64) -> bool>(
-    m: &mut AreaNodes<'_, H>,
-    root: &mut u64,
-    key: &[u8],
-    rid: u64,
-    path: &mut Path,
-    fits: F,
-) -> Result<Option<u64>, Fault> {
-    if *root == 0 {
-        // An empty tree's first entry makes its root leaf: no run.
-        insert_row(m, root, key, rid, path)?;
-        return Ok(Some(0));
-    }
-    let s = m.shape;
-    path.clear();
-    let (n, j) = match key.descend(s, &*m, *root, Kind::Row(rid), path)? {
-        Search::Found(..) => return Err(rt(Corruption::Link, rid)),
-        Search::Vacant(n, j) => (n, j),
-    };
-    let k = full_above(s, &*m, n, path)?.0;
-    let k = if k >= 2 { k } else { 0 };
-    if k != 0 && !fits(k) {
-        return Ok(None);
-    }
-    // Then as `insert_row`.
-    let raised = count_next(m, n, j, key, 1)?.is_some();
-    let field = key.field(m, row_field(rid), rid)?;
-    area_insert::insert_vacant(m, root, n, j, key.area(), field, &[], path)?;
-    if !raised {
-        add_count(m, root, key, 1, path)?;
-    }
-    Ok(Some(k))
-}
-
-/// The flag of a build's insert step that raised its key's count on the row's path (`build_step`).
-pub const RAISED: u64 = 1 << 63;
-/// The flag of a build's insert step that passed a row entry of its key after the row (`build_step`).
-pub const SEEN: u64 = 1 << 62;
-
-/// Whether node n splits ahead of a build's insert passing it: an internal node when full, a leaf when it has
-/// no room for two more entries and holds three or more (its halves then have room for two).
-fn full_ahead<M: NodeRead + ?Sized>(s: IndexShape, m: &M, n: u64) -> Result<bool, Fault> {
-    let c = count(s, m, n)?;
-    Ok(if is_leaf(m, n)? { c.saturating_add(2) > s.leaf.cap && c >= 3 } else { c >= s.internal.cap })
-}
-
-/// Entry j of node n, the next entry after the build's row there, against `key`: when it is the key's count
-/// entry, its count raised by one and `RAISED`; `SEEN` when it is a row entry of the key (a row taken after the
-/// build's end), the count entry then lying further on; 0 otherwise.
-fn raise_at<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, j: u64, key: &[u8]) -> Result<u64, Fault> {
-    let s = m.shape;
-    if j >= count(s, &*m, n)? {
-        return Ok(0);
-    }
-    let koff = ko(s, &s.shape(is_leaf(&*m, n)?), j);
-    match (KeyProbe { key, kind: Kind::Count }).cmp_at(&*m, n, koff)? {
-        Ordering::Equal => {
-            let c = count_at(s, &*m, n, j)?.checked_add(1).ok_or(rt(Corruption::Count, n))?;
-            set_count(m, n, j, c)?;
-            Ok(RAISED)
-        }
-        Ordering::Less => Ok(SEEN),
-        Ordering::Greater => Ok(0),
-    }
-}
-
-/// `Secondary::build_step` on the tree `m` with root `root`, for the row `rid` from node `at`.
-fn build_step<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
-    root: &mut u64,
-    key: &[u8],
-    (rid, at): (u64, u64),
-    flags: &mut u64,
-    path: &mut Path,
-) -> Result<u64, Fault> {
-    let s = m.shape;
-    if *root == 0 {
-        insert_row(m, root, key, rid, path)?;
-        return Ok(0);
-    }
-    path.clear();
-    let mut n = at;
-    if n == 0 {
-        n = *root;
-        if full_ahead(s, &*m, n)? {
-            tree::split_ahead(s, m, root, n, path)?;
-            n = *root;
-        }
-    }
-    let p = KeyProbe { key, kind: Kind::Row(rid) };
-    let mut parent = None;
-    loop {
-        let j = match tree::search(s, &*m, n, &p, &mut tree::Shared::default())? {
-            Ok(_) => return Err(rt(Corruption::Link, rid)),
-            Err(j) => j,
-        };
-        if *flags & RAISED == 0 {
-            *flags |= raise_at(m, n, j, key)?;
-        }
-        if is_leaf(&*m, n)? {
-            place(m, root, (n, j), key, rid, *flags, parent, path)?;
-            return Ok(0);
-        }
-        let c = tree::node::child(s, &*m, n, j)?;
-        if full_ahead(s, &*m, c)? {
-            path.clear();
-            path.push(n, j)?;
-            tree::split_ahead(s, m, root, c, path)?;
-            continue;
-        }
-        if !is_leaf(&*m, c)? {
-            return Ok(c);
-        }
-        (parent, n) = (Some((n, j)), c);
-    }
-}
-
-/// Places the row `rid` under `key` at the vacant position (n, j) of a leaf whose parent frame is `parent`,
-/// its key's count raised through a descent when `flags` saw a row of the key after it, or a count entry of
-/// one beside it when the key is new; nothing more when a step `RAISED` the count.
-/// The row entry takes the key's record as its own (`EntryKey::own`). Returns whether the count entry was made.
-#[allow(clippy::too_many_arguments)]
-fn place<'k, H: PageHost, K: EntryKey<'k>>(
-    m: &mut AreaNodes<'_, H>,
-    root: &mut u64,
-    (n, j): (u64, u64),
-    key: K,
-    rid: u64,
-    flags: u64,
-    parent: Option<(u64, u64)>,
-    path: &mut Path,
-) -> Result<bool, Fault> {
-    let frame = |path: &mut Path| {
-        path.clear();
-        parent.map_or(Ok(()), |(p, i)| path.push(p, i))
-    };
-    let new = flags & (RAISED | SEEN) == 0;
-    if new {
-        let base = count_field(1);
-        let field = key.field(m, base, payload(base))?;
-        frame(path)?;
-        area_insert::insert_vacant(m, root, n, j, key.area(), field, &[], path)?;
-    }
-    let field = key.own(m, row_field(rid), rid)?;
-    frame(path)?;
-    area_insert::insert_vacant(m, root, n, j, key.area(), field, &[], path)?;
-    if flags & (RAISED | SEEN) == SEEN {
-        add_count(m, root, key, 1, path)?;
-    }
-    Ok(new)
-}
-
-/// The flag of a build's insert under a long key whose node search is under way (`LongAt`).
-pub const MID: u64 = 1 << 61;
-/// What entry `hi` of a node search under a long key is to the key: its count entry, or a row entry of it.
-const HI_COUNT: u64 = 1 << 60;
-const HI_ROW: u64 = 1 << 59;
-/// The flags a build's insert keeps beside its node.
-pub const AT_FLAGS: u64 = RAISED | SEEN | MID | HI_COUNT | HI_ROW;
-
-/// Where a build's insert under a `LongKey` made over units stands (`Secondary::long_step`): the node its
-/// search is in (0: not begun), with `RAISED`, `SEEN` and, while that node's search is under way, `MID`; the
-/// search's bounds `lo` and `hi`; the key's bytes known equal to those of the entries just outside them
-/// (`lcp_lo`, `lcp_hi`), from which each comparison between them starts; the bytes of the entry between them
-/// found equal so far (`off`); and the frame above the node (`parent`, `pidx`), which a leaf's split needs.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct LongAt {
-    pub at: u64,
-    pub flags: u64,
-    pub lo: u64,
-    pub hi: u64,
-    pub lcp_lo: u64,
-    pub lcp_hi: u64,
-    pub off: u64,
-    pub parent: u64,
-    pub pidx: u64,
-}
-
-impl Secondary {
-    /// Whether a build's insert under a long key at `st` has its row's place in a leaf (or the tree is empty),
-    /// so that the next step takes the row (`place_own`).
-    pub fn long_ready<H: PageHost + ?Sized>(&self, h: &H, st: &LongAt) -> Result<bool, Fault> {
-        if self.root == 0 {
-            return Ok(true);
-        }
-        Ok(st.flags & MID != 0 && st.lo >= st.hi && st.at != 0 && is_leaf(&self.view(h), st.at)?)
-    }
-
-    /// One step of a build's insert of the row `rid`, above every rid the tree holds, under `key`, a key
-    /// longer than a stack buffer holds: `build_step` with the comparisons of a node's search made from the
-    /// bytes its bounds share with the key, at most `budget` of the key's bytes in all (lowered by those
-    /// read), resumed from the byte they reached. Returns once the budget is spent, the path has gone one node
-    /// down, or the row's place in its leaf is found (`long_ready`).
-    #[allow(clippy::too_many_arguments)]
-    pub fn long_step<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: LongKey<'_>,
-        rid: u64,
-        st: &mut LongAt,
-        budget: &mut u64,
-        path: &mut Path,
-    ) -> Result<(), Fault> {
-        let mut m = self.tree(h, tbl);
-        let r = long_step(&mut m, &mut self.root, key, rid, st, budget, path);
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r
-    }
-
-    /// Takes the build's row `rid` at the place `long_step` found, under `key`, whose record its row entry
-    /// takes as its own; a new count entry of one takes `twin`, a second record of the key (a copy when 0).
-    /// Returns whether `twin` was taken.
-    #[allow(clippy::too_many_arguments)]
-    pub fn place_own<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: LongKey<'_>,
-        twin: u64,
-        rid: u64,
-        st: &LongAt,
-        path: &mut Path,
-    ) -> Result<bool, Fault> {
-        let mut m = self.tree(h, tbl);
-        let k = Owned { key, twin };
-        let r = if self.root == 0 {
-            place_first(&mut m, &mut self.root, k, rid, path)
-        } else {
-            let parent = if st.parent == 0 { None } else { Some((st.parent, st.pidx)) };
-            place(&mut m, &mut self.root, (st.at, st.lo), k, rid, st.flags, parent, path)
-        };
-        self.nodes = m.nodes;
-        self.log = m.log;
-        r
-    }
-
-    /// One step of a descent under `key`, a key longer than a stack buffer holds, to its count entry, changed
-    /// by `d` once found: `long_step`'s node search, its comparisons made from the bytes its bounds share with
-    /// the key, at most `budget` of the key's bytes in all (lowered by those read), resumed from the byte they
-    /// reached. Only the count changes, so a row's place another descent found stays where it is. Returns
-    /// whether the count is changed; `Corrupt` when the key has no count entry, or the count would fall to 0.
-    pub fn count_step<H: PageHost>(
-        &mut self,
-        h: &mut H,
-        tbl: u64,
-        key: LongKey<'_>,
-        d: i64,
-        st: &mut LongAt,
-        budget: &mut u64,
-    ) -> Result<bool, Fault> {
-        if self.root == 0 {
-            return Err(rt(Corruption::Count, 0));
-        }
-        let mut m = self.tree(h, tbl);
-        count_step(&mut m, self.root, key, d, st, budget)
-    }
-}
-
-/// `place` into an empty tree: its root made with the key's count entry of one, the row's entry before it, so
-/// no comparison reads the key.
-fn place_first<'k, H: PageHost, K: EntryKey<'k>>(
-    m: &mut AreaNodes<'_, H>,
-    root: &mut u64,
-    key: K,
-    rid: u64,
-    path: &mut Path,
-) -> Result<bool, Fault> {
-    let base = count_field(1);
-    let field = key.field(m, base, payload(base))?;
-    *root = tree::insert_first(m.shape, m, &IndexPending::Borrowed { key: key.area(), field, value: &[], child: 0 })?;
-    let field = key.own(m, row_field(rid), rid)?;
-    path.clear();
-    let n = *root;
-    area_insert::insert_vacant(m, root, n, 0, key.area(), field, &[], path)?;
-    Ok(true)
-}
-
-/// `Secondary::long_step` on the tree `m` with root `root`, not empty.
-#[allow(clippy::too_many_arguments)]
-fn long_step<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
-    root: &mut u64,
-    key: LongKey<'_>,
-    rid: u64,
-    st: &mut LongAt,
-    budget: &mut u64,
-    path: &mut Path,
-) -> Result<(), Fault> {
-    let s = m.shape;
-    if st.flags & MID == 0 {
-        if st.at == 0 {
-            let mut n = *root;
-            if full_ahead(s, &*m, n)? {
-                path.clear();
-                tree::split_ahead(s, m, root, n, path)?;
-                n = *root;
-            }
-            (st.at, st.lcp_lo, st.lcp_hi, st.parent, st.pidx) = (n, 0, 0, 0, 0);
-        }
-        (st.lo, st.hi) = (0, count(s, &*m, st.at)?);
-        st.off = st.lcp_lo.min(st.lcp_hi);
-        st.flags = (st.flags & !(HI_COUNT | HI_ROW)) | MID;
-    }
-    let n = st.at;
-    let leaf = is_leaf(&*m, n)?;
-    let ns = s.shape(leaf);
-    let p = key.probe(Kind::Row(rid));
-    loop {
-        while st.lo < st.hi {
-            if *budget == 0 {
-                return Ok(());
-            }
-            let mid = st.lo.wrapping_add(st.hi.wrapping_sub(st.lo) / 2);
-            let r = p.cmp_part(&*m, n, ko(s, &ns, mid), st.off, *budget)?;
-            let at = match r {
-                Ok(c) => c.at,
-                Err(at) => at,
-            };
-            *budget = budget.saturating_sub(at.saturating_sub(st.off));
-            let c = match r {
-                Ok(c) => c,
-                Err(at) => {
-                    st.off = at;
-                    return Ok(());
-                }
-            };
-            match c.ord {
-                Ordering::Less => (st.lo, st.lcp_lo) = (mid.wrapping_add(1), c.shared),
-                Ordering::Greater => {
-                    (st.hi, st.lcp_hi) = (mid, c.shared);
-                    st.flags &= !(HI_COUNT | HI_ROW);
-                    st.flags |= match c.count {
-                        Ordering::Equal => HI_COUNT,
-                        Ordering::Less => HI_ROW,
-                        Ordering::Greater => 0,
-                    };
-                }
-                Ordering::Equal => return Err(rt(Corruption::Link, rid)),
-            }
-            st.off = st.lcp_lo.min(st.lcp_hi);
-        }
-        let j = st.lo;
-        // Entry j, the next after the row's place, was compared: what it is to the key is known.
-        if st.flags & RAISED == 0 && st.flags & HI_COUNT != 0 {
-            let c = count_at(s, &*m, n, j)?.checked_add(1).ok_or(rt(Corruption::Count, n))?;
-            set_count(m, n, j, c)?;
-            st.flags |= RAISED;
-        } else if st.flags & RAISED == 0 && st.flags & HI_ROW != 0 {
-            st.flags |= SEEN;
-        }
-        st.flags &= !(HI_COUNT | HI_ROW);
-        if leaf {
-            return Ok(());
-        }
-        let c = tree::node::child(s, &*m, n, j)?;
-        if full_ahead(s, &*m, c)? {
-            // Its middle entry comes up to j, between the entries the search's bounds are: one comparison more.
-            path.clear();
-            path.push(n, j)?;
-            tree::split_ahead(s, m, root, c, path)?;
-            st.hi = j.wrapping_add(1);
-            continue;
-        }
-        (st.parent, st.pidx, st.at) = (n, j, c);
-        st.flags &= !MID;
-        return Ok(());
-    }
-}
-
-/// `Secondary::count_step` on the tree `m` with root `root`, not empty. `st` keeps the node searched (0: not
-/// begun), `MID` while its search is under way, the search's bounds, the bytes they share with the key and
-/// those of the entry between them found equal so far.
-fn count_step<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
-    root: u64,
-    key: LongKey<'_>,
-    d: i64,
-    st: &mut LongAt,
-    budget: &mut u64,
-) -> Result<bool, Fault> {
-    let s = m.shape;
-    if st.flags & MID == 0 {
-        if st.at == 0 {
-            (st.at, st.lcp_lo, st.lcp_hi) = (root, 0, 0);
-        }
-        (st.lo, st.hi) = (0, count(s, &*m, st.at)?);
-        st.off = st.lcp_lo.min(st.lcp_hi);
-        st.flags |= MID;
-    }
-    let n = st.at;
-    let ns = s.shape(is_leaf(&*m, n)?);
-    let p = key.probe(Kind::Count);
-    while st.lo < st.hi {
-        if *budget == 0 {
-            return Ok(false);
-        }
-        let mid = st.lo.wrapping_add(st.hi.wrapping_sub(st.lo) / 2);
-        let r = p.cmp_part(&*m, n, ko(s, &ns, mid), st.off, *budget)?;
-        let at = match r {
-            Ok(c) => c.at,
-            Err(at) => at,
-        };
-        *budget = budget.saturating_sub(at.saturating_sub(st.off));
-        let c = match r {
-            Ok(c) => c,
-            Err(at) => {
-                st.off = at;
-                return Ok(false);
-            }
-        };
-        match c.ord {
-            Ordering::Less => (st.lo, st.lcp_lo) = (mid.wrapping_add(1), c.shared),
-            Ordering::Greater => (st.hi, st.lcp_hi) = (mid, c.shared),
-            Ordering::Equal => {
-                let v = count_at(s, &*m, n, mid)?.checked_add(d).filter(|&v| v > 0).ok_or(rt(Corruption::Count, n))?;
-                set_count(m, n, mid, v)?;
-                return Ok(true);
-            }
-        }
-        st.off = st.lcp_lo.min(st.lcp_hi);
-    }
-    if is_leaf(&*m, n)? {
-        return Err(rt(Corruption::Count, n));
-    }
-    st.at = tree::node::child(s, &*m, n, st.lo)?;
-    st.flags &= !MID;
-    Ok(false)
 }
 
 /// `Secondary::delete` on the tree `m` with root `root`, not empty.

@@ -291,47 +291,6 @@ fn inserts_and_deletes_against_the_model() {
     }
 }
 
-/// A build's inserts (`insert_fitting`) of 12,000 rows under rising keys at W 16, the tree growing at its
-/// right edge: a row whose leaf has room for its two entries, or whose full leaf's parent has room, goes in
-/// without asking. A row whose leaf and the node above it are full is asked about first, with the run `splits`
-/// counts; told it does not fit, the tree is left as it was, and told it fits, the row goes in, splitting a
-/// node more than its leaf. The tree then holds every row and count, and a held row is refused.
-#[test]
-fn a_build_insert_asks_before_splitting_a_run_of_full_nodes() {
-    let mut side = Side::new(FILLS[0], 16);
-    let mut m = Model::new();
-    let key = |k: u64| text(format!("k{k:06}").as_bytes());
-    let mut runs = 0u64;
-    for rid in 0..12_000u64 {
-        let k = key(rid);
-        let want = side.ix.splits(&side.h, &k, rid, &mut side.path).unwrap();
-        if want >= 2 {
-            let before = (side.ix, entries(&side.h, &side.ix));
-            let mut asked = 0;
-            let fits = |run: u64| {
-                asked = run;
-                false
-            };
-            assert_eq!(side.ix.insert_fitting(&mut side.h, side.tbl, &k, rid, &mut side.path, fits), Ok(None));
-            assert_eq!(asked, want, "row {rid}: the run asked about");
-            assert!((side.ix, entries(&side.h, &side.ix)) == before, "row {rid}: the tree changed");
-            let nodes = side.ix.nodes;
-            let fits = |run: u64| run == want;
-            assert_eq!(side.ix.insert_fitting(&mut side.h, side.tbl, &k, rid, &mut side.path, fits), Ok(Some(want)));
-            assert!(side.ix.nodes >= nodes + 2, "row {rid}: {} nodes after {nodes}", side.ix.nodes);
-            runs += 1;
-        } else {
-            let fits = |run: u64| -> bool { panic!("row {rid}: asked about a run of {run}") };
-            assert_eq!(side.ix.insert_fitting(&mut side.h, side.tbl, &k, rid, &mut side.path, fits), Ok(Some(0)));
-        }
-        m.entry(k).or_default().insert(rid);
-    }
-    assert!(runs >= 2, "{runs} runs of two or more full nodes");
-    check_tree(&side, &m, "after the build's inserts");
-    let held = side.ix.insert_fitting(&mut side.h, side.tbl, &key(7), 7, &mut side.path, |_| true);
-    assert!(matches!(held, Err(native_table::Fault::Corrupt(_))), "a held row: {held:?}");
-}
-
 #[test]
 fn counts_and_groups_add_the_uploaded_segments() {
     for fill in FILLS {

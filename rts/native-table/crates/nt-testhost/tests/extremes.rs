@@ -23,7 +23,7 @@ use native_table::value::ty;
 use native_table::{Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{rid_of, schema, t, uleb, Src, V};
-use nt_testhost::{Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// A digest of host calls, folded as they are taken.
 #[derive(Default)]
@@ -316,7 +316,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
     let mut r = XorShift(seed);
     let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
     let mut trace = Vec::new();
-    let (mut seals, mut sealed_updates) = (0u64, 0u64);
+    let mut sealed_updates = 0u64;
     let pick = |r: &mut XorShift, model: &BTreeMap<u64, Vec<(u32, V)>>| {
         *model.keys().nth(r.below(model.len() as u64) as usize).unwrap()
     };
@@ -360,13 +360,11 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone.is_some(), model.remove(&k).is_some());
         } else {
-            let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
             if r.below(2) == 0 {
                 tb.write_step(&TestBudget::new(u64::MAX)).unwrap();
             } else {
                 maintain_all(&mut tb);
             }
-            seals += u64::from(before - root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap());
         }
         if step % 500 == 499 {
             let (kept, read) = check(&tb, s, &model);
@@ -384,6 +382,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
     check(&tb, s, &BTreeMap::new());
     maintain_all(&mut tb);
     check(&tb, s, &BTreeMap::new());
+    let seals = open_group(tb.host(), tb.root());
     assert!(seals >= 2, "groups sealed: {seals}");
     assert!(sealed_updates > 0, "sealed rows updated");
     trace.push((seals, kept, read));
@@ -427,7 +426,7 @@ fn check_records_exact(tb: &Table<'_, VecHost>, model: &BTreeMap<u64, (u64, Vec<
     n
 }
 
-/// Inserts alone keep every record exact, through freezes and seals; a delete or an update that takes a
+/// Inserts alone keep every record exact, through seals; a delete or an update that takes a
 /// group's extreme away makes it loose (and the table's answer stays exact); a value that reaches it makes it
 /// exact again.
 #[test]
@@ -589,10 +588,10 @@ fn values_past_i128() {
     });
 }
 
-/// Many groups, each frozen after three rows (`write::freeze`, as a group whose bytes run out is), so that the
-/// group directory is one entry (one group), then one level, then two levels (past 512 groups), some groups
-/// sealed and the rest buffered. Then random inserts, updates and removals against the model, a row holding a
-/// column's minimum or maximum removed now and then, more groups frozen and sealed, and values past i128 (an
+/// Many groups, each sealed after three rows (`write::freeze`, as a group whose bytes run out is), so that the
+/// group directory is one entry (one group), then one level, then two levels (past 512 groups). Then random
+/// inserts, updates and removals against the model, a row holding a column's minimum or maximum removed now and
+/// then, more groups sealed, and values past i128 (an
 /// Int of more than 19 bytes now and then) joining and leaving groups on both sides of 512. The first group's
 /// values of the two Int columns are all past i128, negative in one and positive in the other, so that its
 /// maximum of the first and its minimum of the second is one the later groups' records beat. `Table::extreme`

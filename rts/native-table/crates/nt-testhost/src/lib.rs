@@ -344,9 +344,10 @@ impl native_table::key::Sink for VecSink {
     }
 }
 
-/// The step of the rewrite whose state block is `st`.
-pub fn rewrite_step<H: PageHost + ?Sized>(h: &H, st: u64) -> u8 {
-    native_table::mem::rd_u8(h.get(Region::Block(st)).unwrap(), native_table::table::seal::RW_STEP).unwrap()
+/// The open group's number: the write that fills the open group seals it and opens the next, so it counts
+/// the groups sealed so far.
+pub fn open_group<H: PageHost + ?Sized>(h: &H, tbl: u64) -> u64 {
+    native_table::table::root::u64_at(h, tbl, native_table::table::root::OPEN_GROUP).unwrap()
 }
 
 /// Hex of bytes, uppercase, space separated.

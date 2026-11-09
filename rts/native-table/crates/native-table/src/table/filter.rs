@@ -375,7 +375,7 @@ fn run<H: PageHost + ?Sized, V: Visit<H>>(
         let gv = GroupView::from_meta(h, &s.meta);
         v.open(&gv)?;
         // The group's live bitmap, found once for its rows (each below the group's positions).
-        let live = h.get(Region::Block(s.live_page))?;
+        let live = h.get(Region::Block(s.page))?;
         // The test each row takes: none in a passed group.
         let rows = if plan == Plan::Rows { t } else { None };
         let ld = match rows {
@@ -559,7 +559,7 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
 
 /// The live positions in [from, to) of a sealed group, from its live bitmap.
 fn live_in<H: PageHost + ?Sized>(h: &H, s: &Sealed, from: u64, to: u64) -> Result<u64, Fault> {
-    let b = h.get(Region::Block(s.live_page))?;
+    let b = h.get(Region::Block(s.page))?;
     let mut n = 0u64;
     let mut p = from;
     while p < to {

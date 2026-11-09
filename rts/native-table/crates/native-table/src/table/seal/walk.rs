@@ -1,17 +1,16 @@
-//! A seal's reads of its frozen group's rows in place. The walk takes the group's stored positions in order,
-//! block by block: the block that holds a position is found once per block (the descriptor's binary search,
-//! as `buffer::locate_in` makes it), and each of its slots is read from the slot array in turn. A row image is
-//! read where it lies, in its buffer block or, for a row stored as a long value, in the long value's page,
-//! once its length is checked to cover the header, the null byte, the cell and the item table entry the leaf
-//! reads; the leaf's cell and item are then read from it. A visitor takes each position: pass 1's
-//! accumulators, or pass 2's cells and runs, held in locals for a piece of positions and written back at
-//! its end, so the unit's count is read once per piece, not per value.
+//! A seal's reads of its group's rows in place. The walk takes the group's stored positions in order, block by
+//! block: the block that holds a position is found once per block (the descriptor's binary search, as
+//! `buffer::locate_in` makes it), and each of its slots is read from the slot array in turn. A row image is read
+//! where it lies, in its buffer block or, for a row stored as a long value, in the long value's page, once its
+//! length is checked to cover the header, the null byte, the cell and the item table entry the leaf reads; the
+//! leaf's cell and item are then read from it. A visitor takes each position: pass 1's accumulators, or pass 2's
+//! cells and runs, held in locals for a walk's positions and written back at its end.
 //!
 //! Every position the walk cannot read this way is left to the general value path, which reads it with the
 //! same checks and faults as before: a slot that is dead or moved; a long row image that is not whole in one
-//! page; a row of another schema version; a row or item that does not lie where its slot and item table
-//! say; a long item; and a big Nat or Int. A piece stops at such a position, the general path reads it, and a later piece starts after it. So the results are the general
-//! path's, value for value.
+//! page; a row of another schema version; a row or item that does not lie where its slot and item table say; a
+//! long item; and a big Nat or Int. A walk stops at such a position, the general path reads it, and a later walk
+//! starts after it. So the results are the general path's, value for value.
 
 use crate::bytes::uleb_len;
 use crate::consts::{BUFFER_BLOCKS_MAX, LONG_VALUE, PAGE};
@@ -23,43 +22,10 @@ use super::super::buffer::{B_FIRST, B_SLOTS, D_BLOCKS, D_RECORDS, SLOT_LONG};
 use super::super::group::form;
 use super::super::layout::{RowHead, Ty};
 use super::super::long;
-use super::{Acc, Rw, A_SEQ_FIRST, A_SEQ_OK, A_SEQ_STEP, A_STORED_NULL, RW_SNAP};
+use super::{Acc, Rw, A_SEQ_FIRST, A_SEQ_OK, A_SEQ_STEP, A_STORED_NULL};
 
 /// A block lent in place.
 type Blk<'a> = &'a [u8; 4_096];
-
-/// Estimated instructions of the walk's own work, as wasmtime and the IC count them, each above the most it
-/// was measured to cost (`scripts/unit_fuel.sh`, and the IC's cost model, which counts more for most
-/// instructions): a piece's work outside its positions (the blocks lent, the visitor's state taken into
-/// locals and stored back), a snapshot word read, a block found as the next record's or by the binary
-/// search.
-pub const EST_PIECE: u64 = 2_000;
-pub const EST_WORD: u64 = 80;
-pub const EST_NEXT: u64 = 150;
-pub const EST_LOCATE: u64 = 500;
-/// Estimated instructions of one position, measured the same way: the walk to a row in its block, the
-/// further lookup of a row stored as a long value, a dead position, and a null value's check.
-pub const EST_WALK: u64 = 100;
-pub const EST_LONG: u64 = 200;
-pub const EST_DEAD: u64 = 80;
-pub const EST_NULL: u64 = 60;
-/// Pass 1's per-value work, each above what it costs: a fixed-width number with its range and `Seq` test; a
-/// Bool; a float; a Nat or Int with its range, `Seq` test and size; a Text or Blob with its sizes.
-pub const EST_NUM: u64 = 320;
-pub const EST_BOOL: u64 = 140;
-pub const EST_FLOAT: u64 = 330;
-pub const EST_NAT: u64 = 550;
-pub const EST_BYTES: u64 = 520;
-/// Pass 2's per-position work: a validity bit or a cell; an offset or an out-of-line bit (each reads the
-/// value's item); a position passed; and a value copied into the inline data region, plus one per byte.
-pub const EST_CELL: u64 = 200;
-pub const EST_OFFSET: u64 = 280;
-pub const EST_PASS: u64 = 220;
-pub const EST_COPY: u64 = 330;
-/// The least estimate at which a piece ends on a host without a meter: the caller gives a piece the room
-/// its unit has left when that is more. A piece's last position adds at most `LONG_VALUE` bytes and a few
-/// hundred more to the estimate.
-pub const PIECE_WORK: u64 = 14_000;
 
 /// How a leaf's value lies in its row's fixed region or item.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -312,19 +278,6 @@ pub trait Bytes<'a>: Copy {
         }
         Some(c)
     }
-
-    /// Whether the leaf's item is a long item (its first byte 1); `None` when its offset lies past the row.
-    #[inline(always)]
-    fn long_item(&self, cut: &Cut) -> Option<bool> {
-        let at = usize::try_from(self.le(cut.item, 4)).ok()?;
-        if at == 0 {
-            return Some(false);
-        }
-        if at >= self.len() {
-            return None;
-        }
-        Some(self.byte(at) == super::super::row::ITEM_LONG)
-    }
 }
 
 /// A row in its buffer block: offset and length checked to lie in the block, so a byte below its length is
@@ -432,7 +385,7 @@ pub enum End {
 
 /// A walk's visitor: what it does at each stored position.
 pub trait Visit<'a> {
-    /// The piece the visitor's work is counted in.
+    /// The walk's outcome the visitor keeps.
     fn piece(&mut self) -> &mut Piece;
     /// A stored position dead at the snapshot (an image that is not compacted stores it).
     fn dead(&mut self, q: u64) -> Flow;
@@ -440,65 +393,32 @@ pub trait Visit<'a> {
     fn live<R: Bytes<'a>>(&mut self, q: u64, r: R, long: bool) -> Flow;
 }
 
-/// Adds w to a piece's estimate: whether it has reached the piece's limit, so that the piece ends.
+/// Walks the group's stored positions from q with visitor v, block by block, until the visitor stops, a
+/// position the general path must read, or the last one. A bitmap word is read once per 64 positions and a block
+/// found once per block; within them, a position costs its liveness bit and its slot entry, read at an offset
+/// that falls by 8 from one slot to the next. Returns where and why the walk ended; the positions the visitor
+/// took are added to its piece's count.
 #[inline(always)]
-fn charge(pc: &mut Piece, w: u64) -> bool {
-    pc.work = pc.work.wrapping_add(w);
-    pc.work >= pc.limit
-}
-
-/// The estimate between two of a walk's calls of its `stop`: on a host with a meter, each reads it. A walk
-/// that runs past its last position more than half of it after its last call calls it once more, so that its
-/// stretch ends there, not in its caller's work after it.
-pub const CHECK_EVERY: u64 = 5_000;
-
-/// Walks the snapshot's stored positions from q with visitor v, block by block, until the visitor stops, a
-/// position the general path must read, the last one, the piece's estimate reaches its limit, or `stop`,
-/// asked before a position once every `CHECK_EVERY` of the estimate, says the unit is full. A snapshot word
-/// is read once per 64 positions and a block found once per block (each adding to the estimate); within
-/// them, a position costs one test of the estimate, its liveness bit and its slot entry, read at an offset
-/// that falls by 8 from one slot to the next. Returns where and why the walk ended; the positions the
-/// visitor took are added to its piece's count.
-#[inline(always)]
-pub fn walk<'a, H: PageHost + ?Sized, V: Visit<'a>>(
-    h: &'a H,
-    rw: &Rw,
-    mut q: u64,
-    v: &mut V,
-    stop: &dyn Fn() -> bool,
-) -> (u64, End) {
+pub fn walk<'a, H: PageHost + ?Sized, V: Visit<'a>>(h: &'a H, rw: &Rw, mut q: u64, v: &mut V) -> (u64, End) {
     let Some(d) = h.get(Region::Block(rw.source)).ok().and_then(|d| <Blk<'a>>::try_from(d).ok()) else {
         return (q, End::Slow);
     };
-    // The snapshot's liveness bitmap, in the work page.
-    let Ok(st) = h.get(Region::Block(rw.work)) else { return (q, End::Slow) };
     let p = rw.p;
     // The block in work: its record, its first position and the end of its positions (none at first).
     let mut rec: Option<u64> = None;
     let mut b: Blk<'a> = d;
     let (mut first, mut end) = (0u64, 0u64);
-    let limit = v.piece().limit;
-    let mut check = v.piece().work.saturating_add(CHECK_EVERY).min(limit);
     let mut taken = 0u64;
     let r = 'walk: loop {
         if q >= p {
-            if v.piece().work.saturating_add(CHECK_EVERY / 2) > check {
-                // The caller's next look-ahead decides; this reading ends the walk's stretch.
-                let _ = stop();
-            }
             break (q, End::Last);
         }
-        if charge(v.piece(), EST_WORD) {
-            break (q, End::Stop);
-        }
         let w = q / 64;
-        let at = usize::try_from(RW_SNAP.wrapping_add(w.wrapping_mul(8))).unwrap_or(usize::MAX);
-        let Some(c) = st.get(at..).and_then(|s| s.first_chunk::<8>()) else { break (q, End::Slow) };
-        let word = u64::from_le_bytes(*c);
+        let Some(&word) = usize::try_from(w).ok().and_then(|i| rw.bits.get(i)) else { break (q, End::Slow) };
         let wend = w.wrapping_add(1).wrapping_mul(64).min(p);
         while q < wend {
             if word >> (q % 64) & 1 == 0 && rw.compacted {
-                // Not stored: on to the next position live at the snapshot, in this word or a later one.
+                // Not stored: on to the next live position, in this word or a later one.
                 let rest = word & (u64::MAX << (q % 64));
                 q = if rest != 0 {
                     w.wrapping_mul(64).wrapping_add(u64::from(rest.trailing_zeros())).min(wend)
@@ -508,16 +428,13 @@ pub fn walk<'a, H: PageHost + ?Sized, V: Visit<'a>>(
                 continue;
             }
             if q >= end {
-                // The block that holds q: when the records rise strictly, each first position its block's
-                // (the snapshot checked them), the next record's block when q lies in it, as the binary
-                // search would find; else that search.
+                // The block that holds q: when the records rise strictly, each first position its block's (the
+                // liveness pass checked them), the next record's block when q lies in it, as the binary search
+                // would find; else that search.
                 let next = match rec {
                     Some(k) if rw.ordered => next_block(h, d, k.wrapping_add(1), q),
                     _ => None,
                 };
-                if charge(v.piece(), if next.is_some() { EST_NEXT } else { EST_LOCATE }) {
-                    break 'walk (q, End::Stop);
-                }
                 let Some((k, nb, f, slots)) = next.or_else(|| locate(h, d, q)) else { break 'walk (q, End::Slow) };
                 rec = Some(k);
                 b = nb;
@@ -525,8 +442,8 @@ pub fn walk<'a, H: PageHost + ?Sized, V: Visit<'a>>(
                 // The block's positions up to its last slot (or the group's last position).
                 end = f.saturating_add(slots).min(p);
             }
-            // The positions of this word and block the walk takes in turn: those of slots below 512 (past
-            // slot 511 the general path reads the position, and faults).
+            // The positions of this word and block the walk takes in turn: those of slots below 512 (past slot
+            // 511 the general path reads the position, and faults).
             let lim = wend.min(end).min(first.saturating_add(512));
             if q >= lim {
                 break 'walk (q, End::Slow);
@@ -534,13 +451,6 @@ pub fn walk<'a, H: PageHost + ?Sized, V: Visit<'a>>(
             // Slot s's entry, 8 bytes below those of the slots before it.
             let mut sat = 4_088u64.wrapping_sub(q.wrapping_sub(first).wrapping_mul(8));
             while q < lim {
-                let pw = v.piece().work;
-                if pw >= check {
-                    if pw >= limit || stop() {
-                        break 'walk (q, End::Stop);
-                    }
-                    check = pw.saturating_add(CHECK_EVERY).min(limit);
-                }
                 let f = if word >> (q % 64) & 1 == 0 {
                     if rw.compacted {
                         break;
@@ -681,29 +591,17 @@ fn rd16(b: Blk<'_>, at: u64) -> u64 {
     u64::from(u16::from_le_bytes([lo, hi]))
 }
 
-/// How a piece ended, and what it spent.
+/// How a walk ended.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Piece {
-    /// The general path reads the position the piece stopped at.
+    /// The general path reads the position the walk stopped at.
     pub slow: bool,
     /// The stage lacks room for the next slot or value: the caller writes it out.
     pub full: bool,
     /// No stored position is left.
     pub end: bool,
-    /// Positions the piece read.
+    /// Positions the walk read.
     pub read: u64,
-    /// Estimated instructions, and value bytes read or written.
-    pub work: u64,
-    pub bytes: u64,
-    /// The estimate at which the piece ends.
-    limit: u64,
-}
-
-impl Piece {
-    /// A piece begun with limit `limit`: its own work outside its positions counted.
-    fn new(limit: u64) -> Piece {
-        Piece { work: EST_PIECE, limit, ..Piece::default() }
-    }
 }
 
 // ---------------------------------------------------------------- pass 1
@@ -854,18 +752,6 @@ fn sleb_len(x: i64) -> u64 {
     bits.wrapping_add(6) / 7
 }
 
-/// The estimated work of one value of a kind in pass 1, its walk included.
-fn est_value(k: Kind) -> u64 {
-    match k {
-        Kind::Bool => EST_BOOL,
-        Kind::F32 | Kind::F64 => EST_FLOAT,
-        Kind::Nat | Kind::Int => EST_NAT,
-        Kind::Bytes | Kind::Principal => EST_BYTES,
-        _ => EST_NUM,
-    }
-    .wrapping_add(EST_WALK)
-}
-
 /// Pass 1's visitor: one leaf's accumulators in locals, for a leaf of kind code `K`.
 struct Scan<const K: u8> {
     cut: Cut,
@@ -887,23 +773,18 @@ impl<'a, const K: u8> Visit<'a> for Scan<K> {
     #[inline(always)]
     fn dead(&mut self, _q: u64) -> Flow {
         self.n.stored_null = true;
-        self.pc.work = self.pc.work.wrapping_add(EST_DEAD);
         Flow::Next
     }
 
     #[inline(always)]
-    fn live<R: Bytes<'a>>(&mut self, q: u64, r: R, long: bool) -> Flow {
+    fn live<R: Bytes<'a>>(&mut self, q: u64, r: R, _long: bool) -> Flow {
         let cut = &self.cut;
         if !r.fits(cut) {
             return Flow::Slow;
         }
-        if long {
-            self.pc.work = self.pc.work.wrapping_add(EST_LONG);
-        }
         if r.null(cut) {
             self.n.stored_null = true;
             self.seq.ok = false;
-            self.pc.work = self.pc.work.wrapping_add(EST_WALK.wrapping_add(EST_NULL));
             return Flow::Next;
         }
         match kind_of(K) {
@@ -946,39 +827,21 @@ impl<'a, const K: u8> Visit<'a> for Scan<K> {
             }
             Kind::Bool | Kind::Char | Kind::F32 | Kind::F64 | Kind::Principal => {}
         }
-        self.pc.work = self.pc.work.wrapping_add(est_value(kind_of(K)));
         Flow::Next
     }
 }
 
-/// One piece of pass 1 over leaf `cut` from position q: each stored position's value read in place and fed
-/// to the leaf's accumulators, until the piece's estimate reaches `limit`, no stored position is left,
-/// or a position the general path must read (the piece stops at it). Returns the piece and the walk's
-/// position.
-pub fn scan<H: PageHost + ?Sized>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    acc: &mut Acc,
-    q: u64,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> (Piece, u64) {
-    by_code!(cut.kind.code(), scan_k, [], (h, rw, cut, acc, q, limit, stop))
+/// Pass 1 over leaf `cut` from position q: each stored position's value read in place and fed to the leaf's
+/// accumulators, until no stored position is left or a position the general path must read (the walk stops
+/// at it). Returns how the walk ended and its position.
+pub fn scan<H: PageHost + ?Sized>(h: &H, rw: &Rw, cut: &Cut, acc: &mut Acc, q: u64) -> (Piece, u64) {
+    by_code!(cut.kind.code(), scan_k, [], (h, rw, cut, acc, q))
 }
 
-fn scan_k<H: PageHost + ?Sized, const K: u8>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    acc: &mut Acc,
-    q: u64,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> (Piece, u64) {
+fn scan_k<H: PageHost + ?Sized, const K: u8>(h: &H, rw: &Rw, cut: &Cut, acc: &mut Acc, q: u64) -> (Piece, u64) {
     let mut v = Scan::<K> {
         cut: *cut,
-        pc: Piece::new(limit),
+        pc: Piece::default(),
         n: Range::load(acc),
         seq: Seq::load(acc),
         sizes0: 0,
@@ -986,7 +849,7 @@ fn scan_k<H: PageHost + ?Sized, const K: u8>(
         medium: 0,
         medium_bytes: 0,
     };
-    let (q, end) = walk(h, rw, q, &mut v, stop);
+    let (q, end) = walk(h, rw, q, &mut v);
     let Scan { mut pc, n, seq, sizes0, sizes1, medium, medium_bytes, .. } = v;
     pc.slow = end == End::Slow;
     pc.end = end == End::Last;
@@ -1178,8 +1041,6 @@ struct Write<'b, const K: u8, const P: u8> {
     cur: Cur,
     st: Stage<'b>,
     pc: Piece,
-    /// The estimate of one slot.
-    per: u64,
 }
 
 impl<const K: u8, const P: u8> Write<'_, K, P> {
@@ -1192,7 +1053,6 @@ impl<const K: u8, const P: u8> Write<'_, K, P> {
             self.st.put8(self.cur.word);
             self.cur.word = 0;
         }
-        self.pc.work = self.pc.work.wrapping_add(self.per);
         self.cur.slot = i.wrapping_add(1);
         Flow::Next
     }
@@ -1258,12 +1118,11 @@ impl<const K: u8, const P: u8> Write<'_, K, P> {
                 }
             },
         }
-        self.pc.work = self.pc.work.wrapping_add(self.per);
         self.cur.slot = self.cur.slot.wrapping_add(1);
         Flow::Next
     }
 
-    /// Whether the piece ends before the next slot.
+    /// Whether the walk ends before the next slot.
     #[inline(always)]
     fn stop(&mut self) -> bool {
         if self.cur.slot >= self.k {
@@ -1294,12 +1153,9 @@ impl<'a, const K: u8, const P: u8> Visit<'a> for Write<'_, K, P> {
     }
 
     #[inline(always)]
-    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, long: bool) -> Flow {
+    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, _long: bool) -> Flow {
         if self.stop() {
             return Flow::Stop;
-        }
-        if long {
-            self.pc.work = self.pc.work.wrapping_add(EST_LONG);
         }
         if P == P_VALIDITY {
             let Some(p) = present::<R, K>(&r, &self.cut) else { return Flow::Slow };
@@ -1310,14 +1166,13 @@ impl<'a, const K: u8, const P: u8> Visit<'a> for Write<'_, K, P> {
     }
 }
 
-/// One piece of pass 2 over a segment's slots `cur.slot` to k − 1: what `part` writes for each, into the
-/// stage, until the piece's estimate reaches `limit`, the stage lacks room for one more slot, or a
-/// position the general path must read.
+/// Pass 2 over a segment's slots `cur.slot` to k − 1: what `part` writes for each, into the stage, until the
+/// stage lacks room for one more slot or a position the general path must read.
 ///
 /// The visitor is compiled per part and per way the leaf's value lies in its row: a validity part reads only
 /// whether a value is present (with the checks of a Nat's, an Int's or a byte string's), a cell part its
 /// kind's cell (a `Char` or `F32` as a 4-byte unsigned cell, an `F64` as an 8-byte one), an offsets or
-/// out-of-line part a byte string. Any other pairing ends the piece at once, for the general path.
+/// out-of-line part a byte string. Any other pairing ends the walk at once, for the general path.
 #[allow(clippy::too_many_arguments)]
 pub fn write<H: PageHost + ?Sized>(
     h: &H,
@@ -1329,11 +1184,9 @@ pub fn write<H: PageHost + ?Sized>(
     cur: &mut Cur,
     k: u64,
     st: &mut Stage<'_>,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
 ) -> Piece {
     let bytes = cut.kind == Kind::Bytes;
-    let a = (h, rw, cut, f, width, cur, k, st, limit, stop);
+    let a = (h, rw, cut, f, width, cur, k, st);
     match part {
         Part::Validity => match cut.kind {
             Kind::Nat => write_k::<_, K_NAT, P_VALIDITY>(a),
@@ -1364,16 +1217,15 @@ pub fn write<H: PageHost + ?Sized>(
         }
         Part::Offsets if bytes => write_k::<_, K_BYTES, P_OFFSETS>(a),
         Part::OolBits if bytes => write_k::<_, K_BYTES, P_OOLBITS>(a),
-        _ => Piece { slow: true, ..Piece::new(limit) },
+        _ => Piece { slow: true, ..Piece::default() },
     }
 }
 
 /// The arguments of `write` past its part.
-type WriteArgs<'x, 'b, H> =
-    (&'x H, &'x Rw, &'x Cut, u8, usize, &'x mut Cur, u64, &'x mut Stage<'b>, u64, &'x dyn Fn() -> bool);
+type WriteArgs<'x, 'b, H> = (&'x H, &'x Rw, &'x Cut, u8, usize, &'x mut Cur, u64, &'x mut Stage<'b>);
 
 fn write_k<H: PageHost + ?Sized, const K: u8, const P: u8>(a: WriteArgs<'_, '_, H>) -> Piece {
-    let (h, rw, cut, f, width, cur, k, st, limit, stop) = a;
+    let (h, rw, cut, f, width, cur, k, st) = a;
     let mut v = Write::<K, P> {
         cut: *cut,
         form: f,
@@ -1381,13 +1233,9 @@ fn write_k<H: PageHost + ?Sized, const K: u8, const P: u8>(a: WriteArgs<'_, '_, 
         k,
         cur: *cur,
         st: Stage { buf: &mut *st.buf, at: st.at },
-        pc: Piece::new(limit),
-        per: EST_WALK.wrapping_add(match P {
-            P_OFFSETS | P_OOLBITS => EST_OFFSET,
-            _ => EST_CELL,
-        }),
+        pc: Piece::default(),
     };
-    let (q, end) = walk(h, rw, cur.q, &mut v, stop);
+    let (q, end) = walk(h, rw, cur.q, &mut v);
     let mut pc = v.pc;
     // A segment's slot past the stored positions is the general path's fault to report.
     pc.slow = end == End::Slow || (end == End::Last && v.cur.slot < k);
@@ -1397,16 +1245,13 @@ fn write_k<H: PageHost + ?Sized, const K: u8, const P: u8>(a: WriteArgs<'_, '_, 
     pc
 }
 
-/// Positions a visitor passes, stopping at a value out of line (`ool_offsets`, `run` in the out-of-line
-/// area) or a long item (`no_huge`).
+/// Positions a visitor passes, stopping at a value out of line.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Pass {
     /// Slots of the out-of-line directory's offsets, up to `k`: inline values write nothing.
     OolOffsets,
     /// Positions of the out-of-line area: inline values write nothing.
     OolArea,
-    /// Positions of the seal's last units: a row whose item is not a long item holds no huge value.
-    NoHuge,
 }
 
 /// A visitor that passes positions, counting slots for `Pass::OolOffsets`.
@@ -1429,53 +1274,32 @@ impl<'a> Visit<'a> for Skip {
         if self.pass == Pass::OolOffsets && self.slot >= self.k {
             return Flow::Stop;
         }
-        self.pc.work = self.pc.work.wrapping_add(EST_DEAD);
         self.slot = self.slot.wrapping_add(1);
         Flow::Next
     }
 
     #[inline(always)]
-    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, long: bool) -> Flow {
+    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, _long: bool) -> Flow {
         if self.pass == Pass::OolOffsets && self.slot >= self.k {
             return Flow::Stop;
         }
-        if long {
-            self.pc.work = self.pc.work.wrapping_add(EST_LONG);
+        match value::<R, K_BYTES>(&r, &self.cut) {
+            Some(V::Bytes(b)) if b.len() as u64 > LONG_VALUE => return Flow::Slow,
+            Some(_) => {}
+            None => return Flow::Slow,
         }
-        if self.pass == Pass::NoHuge {
-            if !r.fits(&self.cut) || r.long_item(&self.cut) != Some(false) {
-                return Flow::Slow;
-            }
-        } else {
-            match value::<R, K_BYTES>(&r, &self.cut) {
-                Some(V::Bytes(b)) if b.len() as u64 > LONG_VALUE => return Flow::Slow,
-                Some(_) => {}
-                None => return Flow::Slow,
-            }
-        }
-        self.pc.work = self.pc.work.wrapping_add(EST_PASS.wrapping_add(EST_WALK));
         self.slot = self.slot.wrapping_add(1);
         Flow::Next
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn skip<H: PageHost + ?Sized>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    pass: Pass,
-    cur: &mut Cur,
-    k: u64,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> Piece {
+fn skip<H: PageHost + ?Sized>(h: &H, rw: &Rw, cut: &Cut, pass: Pass, cur: &mut Cur, k: u64) -> Piece {
     // The callers pass byte string leaves only; any other is the general path's.
     if cut.kind != Kind::Bytes {
-        return Piece { slow: true, ..Piece::new(limit) };
+        return Piece { slow: true, ..Piece::default() };
     }
-    let mut v = Skip { cut: *cut, pass, k, slot: cur.slot, pc: Piece::new(limit) };
-    let (q, end) = walk(h, rw, cur.q, &mut v, stop);
+    let mut v = Skip { cut: *cut, pass, k, slot: cur.slot, pc: Piece::default() };
+    let (q, end) = walk(h, rw, cur.q, &mut v);
     let mut pc = v.pc;
     pc.slow = end == End::Slow || (pass == Pass::OolOffsets && end == End::Last && v.slot < k);
     pc.end = end == End::Last;
@@ -1484,32 +1308,10 @@ fn skip<H: PageHost + ?Sized>(
     pc
 }
 
-/// One piece of the out-of-line directory's offsets: the slots whose values lie inline write nothing; a
-/// slot out of line stops the piece (the general path writes its offset).
-pub fn ool_offsets<H: PageHost + ?Sized>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    cur: &mut Cur,
-    n: u64,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> Piece {
-    skip(h, rw, cut, Pass::OolOffsets, cur, n, limit, stop)
-}
-
-/// One piece of the seal's last units over a leaf with huge values from position `cur.q`: the stored live
-/// rows whose item is not a long item hold no huge value; a long item stops the piece (the general path
-/// clears its referent).
-pub fn no_huge<H: PageHost + ?Sized>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    cur: &mut Cur,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> Piece {
-    skip(h, rw, cut, Pass::NoHuge, cur, 0, limit, stop)
+/// The out-of-line directory's offsets: the slots whose values lie inline write nothing; a slot out of line
+/// stops the walk (the general path writes its offset).
+pub fn ool_offsets<H: PageHost + ?Sized>(h: &H, rw: &Rw, cut: &Cut, cur: &mut Cur, n: u64) -> Piece {
+    skip(h, rw, cut, Pass::OolOffsets, cur, n)
 }
 
 /// Pass 2's visitor copying a leaf's inline values into its run in the inline data region.
@@ -1527,12 +1329,11 @@ impl<'a> Visit<'a> for Run<'_> {
 
     #[inline(always)]
     fn dead(&mut self, _q: u64) -> Flow {
-        self.pc.work = self.pc.work.wrapping_add(EST_DEAD);
         Flow::Next
     }
 
     #[inline(always)]
-    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, long: bool) -> Flow {
+    fn live<R: Bytes<'a>>(&mut self, _q: u64, r: R, _long: bool) -> Flow {
         let Some(v) = value::<R, K_BYTES>(&r, &self.cut) else { return Flow::Slow };
         if let V::Bytes(b) = v {
             if b.len() as u64 <= LONG_VALUE {
@@ -1541,43 +1342,27 @@ impl<'a> Visit<'a> for Run<'_> {
                     return Flow::Stop;
                 }
                 self.st.put(b);
-                self.pc.bytes = self.pc.bytes.wrapping_add(b.len() as u64);
-                self.pc.work = self.pc.work.wrapping_add(b.len() as u64);
             }
         }
-        if long {
-            self.pc.work = self.pc.work.wrapping_add(EST_LONG);
-        }
-        self.pc.work = self.pc.work.wrapping_add(EST_COPY.wrapping_add(EST_WALK));
         Flow::Next
     }
 }
 
-/// One piece of a leaf's values in the inline data region (`ool` false) or the out-of-line area from
-/// position `cur.q`: each stored live value of at most `LONG_VALUE` bytes is copied whole into the stage, or
-/// passed in the out-of-line area; a value out of line stops the out-of-line piece (the general path copies
-/// it). The piece ends when its estimate reaches `limit`, the stage lacks room for the next value, at a
-/// position the general path must read, or after the last stored position (`end`).
-#[allow(clippy::too_many_arguments)]
-pub fn run<H: PageHost + ?Sized>(
-    h: &H,
-    rw: &Rw,
-    cut: &Cut,
-    cur: &mut Cur,
-    st: &mut Stage<'_>,
-    ool: bool,
-    limit: u64,
-    stop: &dyn Fn() -> bool,
-) -> Piece {
+/// A leaf's values in the inline data region (`ool` false) or the out-of-line area from position `cur.q`: each
+/// stored live value of at most `LONG_VALUE` bytes is copied whole into the stage, or passed in the out-of-line
+/// area; a value out of line stops the out-of-line walk (the general path copies it). The walk ends when the
+/// stage lacks room for the next value, at a position the general path must read, or after the last stored
+/// position (`end`).
+pub fn run<H: PageHost + ?Sized>(h: &H, rw: &Rw, cut: &Cut, cur: &mut Cur, st: &mut Stage<'_>, ool: bool) -> Piece {
     if ool {
-        return skip(h, rw, cut, Pass::OolArea, cur, 0, limit, stop);
+        return skip(h, rw, cut, Pass::OolArea, cur, 0);
     }
     // The callers pass byte string leaves only; any other is the general path's.
     if cut.kind != Kind::Bytes {
-        return Piece { slow: true, ..Piece::new(limit) };
+        return Piece { slow: true, ..Piece::default() };
     }
-    let mut v = Run { cut: *cut, st: Stage { buf: &mut *st.buf, at: st.at }, pc: Piece::new(limit) };
-    let (q, end) = walk(h, rw, cur.q, &mut v, stop);
+    let mut v = Run { cut: *cut, st: Stage { buf: &mut *st.buf, at: st.at }, pc: Piece::default() };
+    let (q, end) = walk(h, rw, cur.q, &mut v);
     let mut pc = v.pc;
     pc.slow = end == End::Slow;
     pc.end = end == End::Last;

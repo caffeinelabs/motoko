@@ -4,8 +4,8 @@
 //! group.
 //!
 //! **Extremes block** (area 0, zero-filled when allocated), made when its group opens and named by the group's
-//! buffer descriptor (@48), then by its group page (@656), to which the seal's flip moves it, as a
-//! compaction's flip moves it to the group's next page: {magic `NTEX` u32 @0; `FORMAT_TABLE` u16 @4; zero u16
+//! buffer descriptor (@48), then by its group page (@656), to which its seal moves it, as a compaction moves
+//! it to the group's next page: {magic `NTEX` u32 @0; `FORMAT_TABLE` u16 @4; zero u16
 //! @6; group number u64 @8; leaves u32 @16, the ordinals its records cover; zero @20..32; then from @32 a
 //! record of 40 bytes per ordinal below the leaves}. A record is {flags u8 @0; zero @1..8; minimum u128 @8;
 //! maximum u128 @24}, the values as `totals::Rank` ranks them. Flags: bit 0 the record holds a value; bit 1
@@ -164,24 +164,6 @@ pub fn apply<H: PageHost>(h: &mut H, blk: u64, l: &LeafInfo, r: Rank, sign: Sign
     Ok(())
 }
 
-/// Names the extremes block of a rewrite's source (a frozen group's descriptor, `seal`, or a sealed group's
-/// old page) on its new group page, at the flip; `true` when the source has one. The source still names it
-/// until `forget`.
-pub fn hand_over<H: PageHost>(h: &mut H, source: u64, seal: bool, pending: u64) -> Result<bool, Fault> {
-    let at = if seal { buffer::D_EXT } else { page::P_EXT };
-    let blk = rd_u64(h.get(Region::Block(source))?, at)?;
-    if blk != 0 {
-        put_u64(h.get_mut(Region::Block(pending))?, page::P_EXT, blk)?;
-    }
-    Ok(blk != 0)
-}
-
-/// Clears the source's name of the extremes block it handed over, before the source goes to the drain.
-pub fn forget<H: PageHost>(h: &mut H, source: u64, seal: bool) -> Result<(), Fault> {
-    let at = if seal { buffer::D_EXT } else { page::P_EXT };
-    put_u64(h.get_mut(Region::Block(source))?, at, 0)
-}
-
 // ---------------------------------------------------------------- reading
 
 /// The best value found so far.
@@ -275,9 +257,8 @@ fn from_rows<H: PageHost + ?Sized>(
         return Ok(());
     }
     let desc = entry & !DESC_BIT;
-    let frozen = buffer::u16_of(h, desc, buffer::D_FLAGS)? & u64::from(buffer::FROZEN) != 0;
     buffer::for_each_slot(h, desc, |pos, block, slot| {
-        let at = Located { group: g, pos, desc, frozen, block, slot };
+        let at = Located { group: g, pos, desc, block, slot };
         if !overlay::buffered_live(h, &at)? {
             return Ok(());
         }

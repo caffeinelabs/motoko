@@ -1,29 +1,25 @@
-//! Updates of sealed rows (in place and in patch columns), rewrites in units of bounded work (seal,
-//! compaction, column release) with writes between their units, group drops, schema change with defaults,
-//! and the maintenance step that runs exactly one unit.
+//! Updates of sealed rows (in place and in patch columns), rewrites of whole groups (the seal a filling insert
+//! runs, compaction, column release), group drops, schema change with defaults, and the maintenance step.
 //!
 //! Every test runs once per fill pattern (`FILLS`) through `per_fill`, which requires identical results and
-//! identical host-call logs from the two runs. Changed-block counts come from `VecHost::end_message`; a
-//! unit's estimated instructions come from its rewrite's state block.
+//! identical host-call logs from the two runs. Changed-block counts come from `VecHost::end_message`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 
-use native_table::consts::{
-    BLOCK, BYTE_UNIT, COMPACT_DEAD, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PATCH_UNITS_PER_DIR, UNIT_BLOCKS_MAX,
-};
+use native_table::consts::{COMPACT_DEAD, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PATCH_UNITS_PER_DIR};
 use native_table::fault::{Fault, SchemaError};
 use native_table::mem::{rd_u16, rd_u32, rd_u64};
 use native_table::schema::{write_schema, Column, Leaf, SchemaParts, SchemaView};
 use native_table::table::group::GroupView;
-use native_table::table::jobs::{Ran, UNIT_WORK};
+use native_table::table::jobs::Ran;
 use native_table::table::layout::Ty;
-use native_table::table::{buffer, page, patch, read, root, seal, Table, Upsert};
+use native_table::table::{buffer, page, patch, root, write, Table, Upsert};
 use native_table::value::ty;
 use native_table::{CorruptAt, Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{idl_hash, schema, t, Sink, Src, V};
-use nt_testhost::{rewrite_step, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// Scratch for keys longer than a point operation's stack.
 fn key_scratch() -> VecScratch {
@@ -89,90 +85,22 @@ fn everything() -> TestBudget {
     TestBudget::new(u64::MAX)
 }
 
-/// What every unit the tests run spent, by the job that ran it: the most changed 4 KiB blocks and the most
-/// estimated instructions of one unit, and the number of units.
+/// The maintenance steps the tests run, counted by what they ran.
 #[derive(Default, Debug, Clone, PartialEq)]
 struct Units {
-    by: BTreeMap<String, (u64, u64, u64)>,
+    by: BTreeMap<String, u64>,
 }
 
-/// The name of a rewrite step.
-fn step_name(step: u8) -> &'static str {
-    match step {
-        0 => "begin",
-        seal::STEP_SNAPSHOT => "snapshot",
-        seal::STEP_PASS1 => "pass1",
-        seal::STEP_LAYOUT => "layout",
-        seal::STEP_WRITE => "write",
-        seal::STEP_FLIP => "flip",
-        seal::STEP_LAST => "last",
-        _ => "other",
-    }
-}
-
-impl Units {
-    fn add(&mut self, ran: Ran, step: u8, blocks: u64, work: u64) {
-        let name = match ran {
-            Ran::Seal | Ran::Compaction | Ran::Release => format!("{ran:?} {}", step_name(step)),
-            _ => format!("{ran:?}"),
-        };
-        let e = self.by.entry(name).or_insert((0, 0, 0));
-        e.0 = e.0.max(blocks);
-        e.1 = e.1.max(work);
-        e.2 += 1;
-    }
-}
-
-/// Runs one unit, measuring it: every unit changes at most `UNIT_BLOCKS_MAX` 4 KiB blocks, moves at most
-/// `BYTE_UNIT` bytes (a piece past it by at most one block's), and its estimated instructions stay within
-/// `UNIT_WORK`; every unit that finds work makes progress.
+/// Runs one maintenance step, counting it.
 fn one_unit(tb: &mut Table<'_, VecHost>, units: &mut Units) -> Ran {
-    one_unit_m(tb, units, &everything())
-}
-
-fn one_unit_m<B: native_table::Budget>(tb: &mut Table<'_, VecHost>, units: &mut Units, meter: &B) -> Ran {
-    // The allocator's own blocks count among the unit's.
-    tb.host_mut().count_allocator(true);
-    tb.host_mut().end_message();
-    let before: Vec<u64> = (1..=3).map(|k| seal::running(tb.host(), tb.root(), k).unwrap()).collect();
-    let steps: Vec<u8> =
-        before.iter().map(|&st| if st == 0 { 0 } else { rewrite_step(tb.host(), st) }).collect();
-    let drain_top = {
-        let top = root::u64_at(tb.host(), tb.root(), root::DRAIN_TOP).unwrap();
-        if top == 0 {
-            (0, 0)
-        } else {
-            let b = tb.host().get(Region::Block(top)).unwrap();
-            let n = u64::from(rd_u16(b, 6).unwrap());
-            (b[(32 + (n - 1) * 32) as usize], b[(32 + (n - 1) * 32 + 1) as usize])
-        }
-    };
-    let (ran, spent) = tb.unit(meter).unwrap_or_else(|e| panic!("unit failed: {e:?} (steps before {steps:?})"));
-    let blocks = tb.host_mut().end_message();
-    let (work, bytes) = (spent.work, spent.bytes);
-    assert!(bytes <= BYTE_UNIT + BLOCK, "{ran:?} moved {bytes} bytes");
-    assert!(
-        blocks <= UNIT_BLOCKS_MAX,
-        "{ran:?} changed {blocks} blocks (steps before {steps:?}, drain top {drain_top:?}, {spent:?})"
-    );
-    assert!(
-        meter.used() > 0 || work <= UNIT_WORK,
-        "{ran:?} spent an estimated {work} instructions (steps before {steps:?})"
-    );
-    assert!(ran == Ran::Nothing || blocks > 0, "{ran:?} made progress");
-    let step = match ran {
-        Ran::Seal => steps[0],
-        Ran::Compaction => steps[1],
-        Ran::Release => steps[2],
-        _ => 0,
-    };
+    let ran = tb.step().unwrap_or_else(|e| panic!("step failed: {e:?}"));
     if ran != Ran::Nothing {
-        units.add(ran, step, blocks, work);
+        *units.by.entry(format!("{ran:?}")).or_default() += 1;
     }
     ran
 }
 
-/// Runs units until nothing is pending, measuring each.
+/// Runs steps until nothing is pending, counting each.
 fn run_all(tb: &mut Table<'_, VecHost>, units: &mut Units) -> u64 {
     let mut n = 0;
     while one_unit(tb, units) != Ran::Nothing {
@@ -245,7 +173,7 @@ fn drain_records(tb: &Table<'_, VecHost>) -> u64 {
     n
 }
 
-/// The drain's records and its top record's bytes: a drain unit that moves on within a record (a walk's
+/// The drain's records and its top record's bytes: a drain step that moves on within a record (a walk's
 /// position) changes the second, one that pops or pushes the first.
 fn drain_state(tb: &Table<'_, VecHost>) -> (u64, Vec<u8>) {
     let top = root::u64_at(tb.host(), tb.root(), root::DRAIN_TOP).unwrap();
@@ -260,26 +188,19 @@ fn drain_state(tb: &Table<'_, VecHost>) -> (u64, Vec<u8>) {
     (drain_records(tb), rec)
 }
 
-fn frozen(tb: &Table<'_, VecHost>) -> u32 {
-    root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap()
-}
-
-/// Whether a rewrite of any kind is in progress.
-fn rewriting(tb: &Table<'_, VecHost>) -> bool {
-    (1..=3).any(|k| seal::running(tb.host(), tb.root(), k).unwrap() != 0)
+/// The groups sealed so far: the write that fills the open group seals it.
+fn seals(tb: &Table<'_, VecHost>) -> u64 {
+    open_group(tb.host(), tb.root())
 }
 
 // ---------------------------------------------------------------- checks
 
-/// Every sealed group no rewrite holds: its live count against its live rows, each of which reads back.
-/// Returns the groups checked.
+/// Every sealed group: its live count against its live rows, each of which reads back. Returns the groups
+/// checked.
 fn check_groups(tb: &Table<'_, VecHost>) -> u64 {
     let h = tb.host();
     let mut checked = 0;
     for (g, pg) in sealed_groups(tb) {
-        if buffer::u64_of(h, pg, page::P_REWRITE).unwrap() != 0 {
-            continue;
-        }
         checked += 1;
         let p = buffer::u16_of(h, pg, page::P_POSITIONS).unwrap();
         let mut live = 0u64;
@@ -364,28 +285,6 @@ fn total_value(v: &V) -> Option<Big> {
     }
 }
 
-/// The model's totals, sum and non-null count by leaf id, moved by one write: the `old` row's integer values
-/// leave them and the `new` row's enter them.
-fn move_totals(want: &mut BTreeMap<u32, (Big, u64)>, old: Option<&[(u32, V)]>, new: Option<&[(u32, V)]>) {
-    for (row, add) in [(old, false), (new, true)] {
-        for (leaf, v) in row.into_iter().flatten() {
-            if let Some(b) = total_value(v) {
-                let (sum, n) = want.entry(*leaf).or_default();
-                (*sum, *n) = if add { (sum.add(&b), *n + 1) } else { (sum.sub(&b), *n - 1) };
-            }
-        }
-    }
-}
-
-/// Each leaf's total in `want` (as `move_totals` keeps it) is the table's.
-fn check_totals(tb: &Table<'_, VecHost>, want: &BTreeMap<u32, (Big, u64)>) {
-    let mut buf = vec![0u8; 1 << 17];
-    for (leaf, (sum, n)) in want {
-        let (got, gn) = tb.sum(*leaf, &mut buf).unwrap();
-        assert_eq!((&Big::of_total(got, &buf), gn), (sum, *n), "total of leaf {leaf:#x}");
-    }
-}
-
 /// Every page of area 15 belongs to exactly one image: the schema image, a sealed group's image, a long value
 /// named once by a buffered row, a group's long-value list or a patch entry. Returns the long values found.
 fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
@@ -444,14 +343,8 @@ fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
         let dir = buffer::u64_of(h, pg, page::P_PATCH_DIR).unwrap();
         patch_longs(dir, &mut add);
     }
-    let mut descs = Vec::new();
-    let mut d = root::u64_at(h, tbl, root::FROZEN_HEAD).unwrap();
-    while d != 0 {
-        descs.push(d);
-        d = buffer::u64_of(h, d, buffer::D_NEXT).unwrap();
-    }
-    descs.push(buffer::open_group(h, tbl).unwrap().1);
-    for d in descs {
+    {
+        let d = buffer::open_group(h, tbl).unwrap().1;
         buffer::for_each_slot(h, d, |_, b, s| {
             let Some(loc) = buffer::slot_row(h, b, s)? else { return Ok(()) };
             if let buffer::RowLoc::Long(img) = loc {
@@ -643,7 +536,7 @@ fn check_reads(tb: &Table<'_, VecHost>, model: &Rows) {
     assert_eq!(tb.len().unwrap(), model.len() as u64);
 }
 
-// ---------------------------------------------------------------- rewrites in units
+// ---------------------------------------------------------------- rewrites
 
 /// Upserts `row`, keeping the model: a new key gets a new rid, an existing one keeps its rid.
 fn put_row(tb: &mut Table<'_, VecHost>, model: &mut Rows, row: Vec<(u32, V)>) {
@@ -685,171 +578,20 @@ fn random_write(tb: &mut Table<'_, VecHost>, r: &mut XorShift, model: &mut Rows,
     }
 }
 
-/// The units a test interleaves writes with before it lets maintenance finish.
-const WRITE_UNITS: u64 = 3_000;
-
-/// The large suite (`NT_LARGE` set; scripts/check.sh runs it in release mode): `rows_model` at 10^6 writes,
-/// `rows_model_versions` at 10,000, `rewrite_units` writing between a compaction's units for as long as it
-/// runs, post-snapshot patches of more than 254 units at every rewrite step, and a clear during the last units
-/// of a wide group.
+/// The large suite (`NT_LARGE` set; scripts/check.sh runs it in release mode): `rows_model` at 10^6 writes and
+/// `rows_model_versions` at 10,000.
 fn large() -> bool {
     std::env::var_os("NT_LARGE").is_some()
 }
 
-/// Fills the open group until it freezes.
+/// Fills the open group until the write that fills it seals it.
 fn fill_group(tb: &mut Table<'_, VecHost>, r: &mut XorShift, model: &mut Rows, next_key: &mut u64) {
-    let before = frozen(tb);
-    while frozen(tb) == before {
+    let before = seals(tb);
+    while seals(tb) == before {
         let row = model_row(r, *next_key, true);
         *next_key += 1;
         put_row(tb, model, row);
     }
-}
-
-#[test]
-fn rewrite_units() {
-    let m = model_schema();
-    let digest = per_fill(|h, lh| {
-        let (mut tb, _) = Table::create(h, 21, &m.img).unwrap();
-        let mut r = XorShift(0x5EA1);
-        let mut model = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        let mut trace = Vec::new();
-        // A seal with writes between every two units: updates, deletes and inserts of the frozen group's rows
-        // and of others.
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        let mut between = 0;
-        loop {
-            let ran = one_unit(&mut tb, &mut units);
-            if ran == Ran::Nothing {
-                break;
-            }
-            for _ in 0..1 + r.below(3) {
-                random_write(&mut tb, &mut r, &mut model, &mut next_key, true);
-                between += 1;
-            }
-            if between % 50 == 0 {
-                check_reads(&tb, &model);
-            }
-            // New groups freeze as the writes go on; a few seals are enough.
-            if sealed_groups(&tb).len() >= 3 {
-                break;
-            }
-        }
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        let g1 = check_groups(&tb);
-        check_running(&tb, &model);
-        trace.push(("sealed", sealed_groups(&tb).len(), g1));
-        // Compactions: a quarter of a sealed group's rows deleted, then units with writes between them.
-        let groups = sealed_groups(&tb);
-        let (g0, _) = groups[0];
-        let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == g0).map(|(k, _)| *k).collect();
-        for k in keys.iter().take((COMPACT_DEAD as usize + 10).min(keys.len())) {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
-            model.remove(k);
-        }
-        // Writes between the units while the compaction runs (and for at most `WRITE_UNITS` units, so the
-        // maintenance they make ends; in the large suite, for as long as the compaction runs).
-        let mut n = 0;
-        loop {
-            let ran = one_unit(&mut tb, &mut units);
-            if ran == Ran::Nothing {
-                break;
-            }
-            n += 1;
-            let compacting = seal::running(tb.host(), tb.root(), seal::COMPACTION).unwrap() != 0;
-            if n <= WRITE_UNITS || (large() && compacting) {
-                for _ in 0..r.below(3) {
-                    random_write(&mut tb, &mut r, &mut model, &mut next_key, true);
-                }
-            }
-        }
-        check_reads(&tb, &model);
-        let g2 = check_groups(&tb);
-        check_running(&tb, &model);
-        check_ownership(&tb);
-        trace.push(("compacted", sealed_groups(&tb).len(), g2));
-        lh.take(tb.host_mut());
-        // A group whose rows are all deleted is dropped in one unit.
-        let (g_last, _) = *sealed_groups(&tb).last().unwrap();
-        let keys: Vec<u64> =
-            model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == g_last).map(|(k, _)| *k).collect();
-        for k in keys {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-            model.remove(&k);
-        }
-        run_all(&mut tb, &mut units);
-        assert_eq!(root::group(tb.host(), tb.root(), g_last).unwrap(), 0, "the empty group is dropped");
-        check_reads(&tb, &model);
-        check_running(&tb, &model);
-        check_ownership(&tb);
-        assert!(units.by.contains_key("Drop"), "{units:?}");
-        trace.push(("dropped", sealed_groups(&tb).len(), 0));
-        (trace, units, model.len())
-    });
-    eprintln!("rewrite_units: {digest:?}");
-}
-
-/// Reads while a compaction runs, with writes after its snapshot between its units: every row, the integer
-/// leaves' totals and the buffered live count equal the model's.
-#[test]
-fn reads_during_compaction() {
-    let m = model_schema();
-    let digest = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 24, &m.img).unwrap();
-        let mut r = XorShift(0xDE17A);
-        let mut model = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        run_all(&mut tb, &mut units);
-        let (g0, _) = sealed_groups(&tb)[0];
-        let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == g0).map(|(k, _)| *k).collect();
-        for k in keys.iter().take(COMPACT_DEAD as usize + 10) {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
-            model.remove(k);
-        }
-        let (mut n, mut under) = (0u64, 0u64);
-        loop {
-            let ran = one_unit(&mut tb, &mut units);
-            if ran == Ran::Nothing {
-                break;
-            }
-            n += 1;
-            if n <= 400 {
-                // Writes to the compacted group's rows above all: updates, deletes and inserts.
-                for _ in 0..2 {
-                    let k = *model.keys().nth(r.below(model.len() as u64) as usize).unwrap();
-                    if r.below(4) == 0 {
-                        let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-                        assert_eq!(gone, model.remove(&k).map(|x| x.0));
-                    } else {
-                        let mut row = model[&k].1.clone();
-                        for _ in 0..1 + r.below(4) {
-                            let c = 1 + r.below(15) as u32;
-                            row[c as usize].1 = model_cell(&mut r, c, true);
-                        }
-                        put_row(&mut tb, &mut model, row);
-                    }
-                }
-            }
-            if n % 7 == 0 {
-                let held = rewriting(&tb);
-                under += u64::from(held);
-                check_running(&tb, &model);
-            }
-        }
-        assert!(under >= 10, "reads ran while the rewrite held its group ({under})");
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        check_running(&tb, &model);
-        check_ownership(&tb);
-        (n, under, model.len())
-    });
-    eprintln!("reads_during_compaction: {digest:?}");
 }
 
 /// A sealed group's image, whole, with its group number (header @32) zeroed.
@@ -869,10 +611,9 @@ fn group_image(tb: &Table<'_, VecHost>, pg: u64) -> Vec<u8> {
 }
 
 /// A leaf whose cells lie in many segments: a nullable 200-byte array over a group of some 3,600 rows takes
-/// a dozen image blocks of cells, which the seal's layout lays out a few segments a piece, and its compaction
-/// too; every value reads back.
+/// a dozen image blocks of cells, which the seal lays out, and its compaction again; every value reads back.
 #[test]
-fn layout_in_pieces() {
+fn many_segments() {
     let img = schema(&[t::scalar(ty::NAT), t::opt(t::bytes(200)), t::scalar(ty::U16)]).0;
     let digest = per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 29, &img).unwrap();
@@ -886,7 +627,7 @@ fn layout_in_pieces() {
             }
         };
         let mut k = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), cell(k)), (id(2), V::U(k % 1_000))]);
             k += 1;
         }
@@ -913,13 +654,13 @@ fn layout_in_pieces() {
         check_groups(&tb);
         (sealed, segs(&tb), model.len())
     });
-    eprintln!("layout_in_pieces: {digest:?}");
+    eprintln!("many_segments: {digest:?}");
 }
 
-/// One rule for the compacted form, and one image for the same live rows: a seal of a frozen group whose
-/// rows were deleted before it, and a compaction of the same rows sealed with other values, updated to the
-/// first table's values (in place and as patches) and deleted after the seal, give the same bytes, the group
-/// number aside. Dead positions below, at and above `COMPACT_DEAD`.
+/// One rule for the compacted form, and one image for the same live rows: a seal of a group whose rows were
+/// deleted before the insert that filled it, and a compaction of the same rows sealed with other values,
+/// updated to the first table's values (in place and as patches) and deleted after the seal, give the same
+/// bytes, the group number aside. Dead positions below, at and above `COMPACT_DEAD`.
 #[test]
 fn seal_and_compaction_bytes() {
     let m = model_schema();
@@ -927,18 +668,39 @@ fn seal_and_compaction_bytes() {
         let mut out = Vec::new();
         for dead in [37u64, COMPACT_DEAD - 1, COMPACT_DEAD, COMPACT_DEAD + 500] {
             let mut units = Units::default();
-            // The final rows, and the group's positions: every row but the one that froze the group.
+            // The final rows, and the group's positions p: every row but the one whose insert seals the group,
+            // found on a table of its own.
             let mut r = XorShift(0xB17E ^ dead);
             let mut finals: Vec<Vec<(u32, V)>> = Vec::new();
+            let p = {
+                let mut h2 = VecHost::new(FILLS[0]);
+                let (mut tb, _) = Table::create(&mut h2, 41, &m.img).unwrap();
+                while seals(&tb) == 0 {
+                    finals.push(model_row(&mut r, finals.len() as u64, true));
+                    tb.upsert(&mut key_scratch(), &mut Src::new(finals.last().unwrap())).unwrap();
+                }
+                finals.len() as u64 - 1
+            };
+            assert!(p > dead + 100, "the group holds {p} rows");
+            // The dead keys: `dead` of the group's keys, spread over it.
+            let mut order: Vec<u64> = (0..p).collect();
+            order.sort_by_key(|x| (x * 7_919) % p);
+            let doomed: Vec<u64> = order[..dead as usize].to_vec();
+            let kill = |tb: &mut Table<'_, VecHost>, model: &mut Rows| {
+                for key in &doomed {
+                    tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*key))])).unwrap();
+                    model.remove(key);
+                }
+            };
             let images: Vec<Vec<u8>> = (0..2)
                 .map(|pass| {
                     // Both tables in the one host, one after the other, with the same uid.
                     let (mut tb, _) = Table::create(&mut *h, 41, &m.img).unwrap();
                     let mut model = BTreeMap::new();
-                    let mut k = 0u64;
-                    while frozen(&tb) == 0 {
-                        if pass == 0 {
-                            finals.push(model_row(&mut r, k, true));
+                    for k in 0..=p {
+                        if pass == 0 && k == p {
+                            // The dead rows deleted before the insert that seals the group.
+                            kill(&mut tb, &mut model);
                         }
                         let mut row = finals[k as usize].clone();
                         if pass == 1 && k % 3 == 0 {
@@ -946,28 +708,15 @@ fn seal_and_compaction_bytes() {
                             row[5].1 = V::U((k / 3) % 3);
                             row[2].1 = V::Bool(k % 2 == 0);
                             row[3].1 = V::I(-(k as i64));
-                            // A Text of the same length, so the group freezes at the same row.
+                            // A Text of the same length, so the same row fills the group.
                             if let V::Bytes(b) = &row[1].1 {
                                 row[1].1 = V::Bytes(vec![b'q'; b.len()]);
                             }
                         }
                         put_row(&mut tb, &mut model, row);
-                        k += 1;
                     }
-                    let p = k - 1;
-                    assert!(p > dead + 100, "the group holds {p} rows");
-                    // The dead keys: `dead` of the group's keys, spread over it.
-                    let mut order: Vec<u64> = (0..p).collect();
-                    order.sort_by_key(|x| (x * 7_919) % p);
-                    let doomed: Vec<u64> = order[..dead as usize].to_vec();
-                    let kill = |tb: &mut Table<'_, VecHost>, model: &mut Rows| {
-                        for key in &doomed {
-                            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*key))])).unwrap();
-                            model.remove(key);
-                        }
-                    };
+                    assert_eq!(seals(&tb), 1, "the last insert sealed the group");
                     if pass == 0 {
-                        kill(&mut tb, &mut model);
                         run_all(&mut tb, &mut units);
                     } else {
                         run_all(&mut tb, &mut units);
@@ -1026,7 +775,7 @@ fn big_int(k: u64, len: usize, neg: bool) -> Vec<u8> {
 /// sign: a seal, then a compaction of half the rows; each time the rows read back and the Int leaf's total is
 /// the live rows' exact sum.
 #[test]
-fn rewrite_units_alternating_leb() {
+fn alternating_leb() {
     let img = schema(&[t::scalar(ty::NAT), t::scalar(ty::INT), t::scalar(ty::I64)]).0;
     let len = 60_000usize;
     let digest = per_fill(|h, _| {
@@ -1034,7 +783,7 @@ fn rewrite_units_alternating_leb() {
         let mut units = Units::default();
         let mut model = BTreeMap::new();
         let mut n = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(
                 &mut tb,
                 &mut model,
@@ -1060,7 +809,7 @@ fn rewrite_units_alternating_leb() {
         check_running(&tb, &model);
         (units, model.len())
     });
-    eprintln!("rewrite_units_alternating_leb: {digest:?}");
+    eprintln!("alternating_leb: {digest:?}");
 }
 
 /// A row of wide values: key Nat; 64 KiB-class medium Text values.
@@ -1068,8 +817,11 @@ fn medium_schema() -> Vec<u8> {
     schema(&[t::scalar(ty::NAT), t::scalar(ty::TEXT), t::scalar(ty::I64)]).0
 }
 
+/// Rows of 64 KiB-class medium values until the group is full at its out-of-line bytes, sealed by the insert
+/// that fills it; then every sealed row updated to another medium value (patches in chains), folded by the
+/// compaction.
 #[test]
-fn rewrite_units_medium_values() {
+fn medium_values() {
     let img = medium_schema();
     let digest = per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 22, &img).unwrap();
@@ -1078,10 +830,8 @@ fn rewrite_units_medium_values() {
         let medium = |k: u64, v: u64| -> Vec<u8> {
             vec![b'a' + ((k + v) % 26) as u8; HUGE_VALUE as usize - 64 - (k % 7) as usize]
         };
-        // Rows of 64 KiB-class medium values until the group freezes at its out-of-line bytes; then every
-        // frozen row updated to another medium value (a long value each, adopted by the seal).
         let mut n = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(
                 &mut tb,
                 &mut model,
@@ -1089,20 +839,11 @@ fn rewrite_units_medium_values() {
             );
             n += 1;
         }
-        let frozen_rows: Vec<u64> =
+        let sealed_rows: Vec<u64> =
             model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
-        for &k in &frozen_rows {
-            put_row(
-                &mut tb,
-                &mut model,
-                vec![(id(0), V::U(k)), (id(1), V::Bytes(medium(k, 1))), (id(2), V::I(k as i64))],
-            );
-        }
-        assert_eq!(frozen(&tb), 1, "no update freezes or seals");
         run_all(&mut tb, &mut units);
         check_reads(&tb, &model);
-        // Every sealed row updated again to another medium value: patches in chains, folded by the compaction.
-        for &k in &frozen_rows {
+        for &k in &sealed_rows {
             put_row(
                 &mut tb,
                 &mut model,
@@ -1116,7 +857,7 @@ fn rewrite_units_medium_values() {
         check_ownership(&tb);
         units
     });
-    eprintln!("rewrite_units_medium_values: {digest:?}");
+    eprintln!("medium_values: {digest:?}");
 }
 
 // ---------------------------------------------------------------- growing updates
@@ -1179,7 +920,7 @@ fn growing_updates() {
         let mut k = 1_000u64;
         loop {
             let (_, desc, _) = buffer::open_group(tb.host(), tb.root()).unwrap();
-            if buffer::u16_of(tb.host(), desc, buffer::D_BLOCKS).unwrap() >= 240 || frozen(&tb) > 0 {
+            if buffer::u16_of(tb.host(), desc, buffer::D_BLOCKS).unwrap() >= 240 || seals(&tb) > 0 {
                 break;
             }
             put_row(&mut tb, &mut model, grow_row(k, 260, 4));
@@ -1187,7 +928,7 @@ fn growing_updates() {
         }
         let (_, desc, _) = buffer::open_group(tb.host(), tb.root()).unwrap();
         let blocks = buffer::u16_of(tb.host(), desc, buffer::D_BLOCKS).unwrap();
-        let frozen_before = frozen(&tb);
+        let seals_before = seals(&tb);
         for kk in (1_000..k).step_by(7) {
             put_row(&mut tb, &mut model, grow_row(kk, 900, 300));
         }
@@ -1198,28 +939,13 @@ fn growing_updates() {
             blocks,
             "no update takes a block record"
         );
-        assert_eq!(frozen(&tb), frozen_before);
+        assert_eq!(seals(&tb), seals_before);
         check_reads(&tb, &model);
-        // Frozen groups: their rows grow into the open group's tail block or long row images, and their medium
-        // values become long values; the seals read the moved images.
-        while frozen(&tb) == 0 {
+        // The group filled and sealed: the seal reads the moved images and the long row images.
+        while seals(&tb) == 0 {
             put_row(&mut tb, &mut model, grow_row(k, 8, 8));
             k += 1;
         }
-        let g_frozen: Vec<u64> = model.iter().filter(|(_, (rid, _))| {
-            matches!(read::find(tb.host(), tb.root(), *rid).unwrap(), Some(read::Row::Buffered(at)) if at.frozen)
-        }).map(|(k, _)| *k).collect();
-        let waiting = frozen(&tb);
-        for (i, &kk) in g_frozen.iter().enumerate().step_by(5) {
-            let row = match i % 3 {
-                0 => grow_row(kk, 120, 60),
-                1 => grow_row(kk, LONG_VALUE as usize + 100, 10),
-                _ => grow_row(kk, 4, 2_900),
-            };
-            put_row(&mut tb, &mut model, row);
-        }
-        assert_eq!(frozen(&tb), waiting, "no update freezes or seals");
-        assert!(!rewriting(&tb), "no write runs a seal");
         check_reads(&tb, &model);
         maintain_all(&mut tb);
         check_reads(&tb, &model);
@@ -1229,58 +955,6 @@ fn growing_updates() {
         log
     });
     eprintln!("growing_updates: {digest:?}");
-}
-
-/// Frozen rows grown into the open group's tail block (moved stubs, each with a long item) are read through
-/// their stubs by the frozen group's descriptor walk after its seal. While that walk is under way, new rows
-/// fill and seal the next groups, whose descriptors wait behind it: the walks run in the order their
-/// descriptors reached the drain, so the blocks of the group the stubs name, which new rows then reuse, are
-/// freed only after the walk that reads them.
-#[test]
-fn descriptor_walks_in_order() {
-    let img = grow_schema();
-    let digest = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 24, &img).unwrap();
-        let mut units = Units::default();
-        let mut model = BTreeMap::new();
-        let mut k = 0u64;
-        while frozen(&tb) == 0 {
-            put_row(&mut tb, &mut model, grow_row(k, 4, 4));
-            k += 1;
-        }
-        let mut moved = 0u64;
-        for j in (0..k).step_by(3) {
-            put_row(&mut tb, &mut model, grow_row(j, LONG_VALUE as usize + 100, 200));
-            moved += u64::from(slot_flags(&tb, model[&j].0) == buffer::SLOT_MOVED);
-        }
-        assert!(moved > 0, "frozen rows moved to the tail block");
-        while rewriting(&tb) || frozen(&tb) > 0 {
-            one_unit(&mut tb, &mut units);
-        }
-        assert!(drain_records(&tb) > 0, "the sealed group's walk is under way");
-        // Rows of about 2 KiB between units: each block the drain frees is soon a new row's.
-        let mut waited = false;
-        for n in 0..1_500u64 {
-            one_unit(&mut tb, &mut units);
-            put_row(&mut tb, &mut model, grow_row(1_000_000 + n, 1_500, 400));
-            let (walking, last) = walks(&tb);
-            waited |= walking != 0 && last != walking;
-        }
-        assert!(waited, "a descriptor waited behind another's walk");
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        check_ownership(&tb);
-        (moved, units)
-    });
-    eprintln!("descriptor_walks_in_order: {digest:?}");
-}
-
-/// The drain's descriptor walks: the descriptor whose walk is under way, and the last one waiting (root job
-/// slot 7).
-fn walks(tb: &Table<'_, VecHost>) -> (u64, u64) {
-    let at = root::JOB_SLOTS + 7 * 32;
-    (root::u64_at(tb.host(), tb.root(), at).unwrap(), root::u64_at(tb.host(), tb.root(), at + 8).unwrap())
 }
 
 // ---------------------------------------------------------------- patch units
@@ -1317,7 +991,7 @@ fn patch_units_over_255() {
         let (mut tb, _) = Table::create(h, 24, &img).unwrap();
         let mut model = BTreeMap::new();
         let mut k = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(&mut tb, &mut model, many_row(n, k, &BTreeMap::new()));
             k += 1;
         }
@@ -1336,7 +1010,7 @@ fn patch_units_over_255() {
             tb.host_mut().end_message();
             put_row(&mut tb, &mut model, row);
             let changed = tb.host_mut().end_message();
-            assert!(!rewriting(&tb), "no write compacts");
+            assert_eq!(root::group(tb.host(), tb.root(), 0).unwrap(), pg, "no write compacts");
             let d = dir_blocks(tb.host(), pg);
             dirs.push(d);
             let units = patch::units(tb.host(), buffer::u64_of(tb.host(), pg, page::P_PATCH_DIR).unwrap()).unwrap();
@@ -1351,12 +1025,12 @@ fn patch_units_over_255() {
         assert_eq!(dirs[508], 3, "the 509th unit takes a new directory block");
         check_reads(&tb, &model);
         assert_eq!(tb.wake().unwrap(), Wake::Now, "past 254 units the compaction is urgent");
-        // No fold trigger passed: the 255th unit recorded the group in the root for the next unit to push,
+        // No fold trigger passed: the 255th unit recorded the group in the root for the next step to push,
         // and no write changed the compaction queue.
         assert_eq!(root::u64_at(tb.host(), tb.root(), root::GROUP_TO_QUEUE).unwrap(), 1, "group 0 recorded");
         assert_eq!(root::u64_at(tb.host(), tb.root(), root::COMPACT_HEAD).unwrap(), 0, "the queue is untouched");
         let mut units = Units::default();
-        assert_eq!(one_unit(&mut tb, &mut units), Ran::Compaction, "the next unit pushes it and compacts");
+        assert_eq!(one_unit(&mut tb, &mut units), Ran::Compaction, "the next step pushes it and compacts");
         assert_eq!(root::u64_at(tb.host(), tb.root(), root::GROUP_TO_QUEUE).unwrap(), 0);
         // The urgent compaction folds them all.
         maintain_all(&mut tb);
@@ -1372,6 +1046,9 @@ fn patch_units_over_255() {
 
 // ---------------------------------------------------------------- no forced steps
 
+/// Maintenance withheld: writes go on past every urgent threshold (patch chains and units) and run no
+/// maintenance of their own beyond the seal of the group an insert fills: every group sealed before a write
+/// keeps its page (no compaction, column release or drop), and the drain keeps its records.
 #[test]
 fn no_forced_steps() {
     let m = model_schema();
@@ -1386,22 +1063,15 @@ fn no_forced_steps() {
             fill_group(&mut tb, &mut r, &mut model, &mut next_key);
         }
         run_all(&mut tb, &mut units);
-        // Maintenance withheld: writes go on past every urgent threshold (frozen groups, patch chains and
-        // units) and never run a unit of their own: no rewrite starts, none advances, no drain record goes.
         let mut urgent = 0;
         for step in 0..12_000u64 {
-            let drain_top = root::u64_at(tb.host(), tb.root(), root::DRAIN_TOP).unwrap();
-            let drain_n =
-                if drain_top == 0 { 0 } else { rd_u16(tb.host().get(Region::Block(drain_top)).unwrap(), 6).unwrap() };
-            let seals = sealed_groups(&tb).len();
+            let before = sealed_groups(&tb);
+            let drain = drain_records(&tb);
             random_write(&mut tb, &mut r, &mut model, &mut next_key, false);
-            assert!(!rewriting(&tb), "step {step}: a write ran a rewrite unit");
-            assert!(sealed_groups(&tb).len() <= seals, "step {step}: a write sealed or compacted a group");
-            let top2 = root::u64_at(tb.host(), tb.root(), root::DRAIN_TOP).unwrap();
-            if top2 == drain_top && drain_top != 0 {
-                let n2 = rd_u16(tb.host().get(Region::Block(top2)).unwrap(), 6).unwrap();
-                assert!(n2 >= drain_n, "step {step}: a write ran the drain");
-            }
+            let after = sealed_groups(&tb);
+            assert!(before.iter().all(|x| after.contains(x)), "step {step}: a write rewrote or dropped a group");
+            assert!(after.len() <= before.len() + 1, "step {step}: a write sealed one group at most");
+            assert_eq!(drain_records(&tb), drain, "step {step}: a write ran the drain");
             if tb.wake().unwrap() == Wake::Now {
                 urgent += 1;
             }
@@ -1410,66 +1080,7 @@ fn no_forced_steps() {
                 lh.take(tb.host_mut());
             }
         }
-        // Inserts until two groups wait frozen: the seal is urgent, and still no write runs it.
-        while frozen(&tb) < 2 {
-            let row = model_row(&mut r, next_key, false);
-            next_key += 1;
-            put_row(&mut tb, &mut model, row);
-            assert!(!rewriting(&tb), "an insert ran a rewrite unit");
-        }
-        assert_eq!(tb.wake().unwrap(), Wake::Now);
-        urgent += 1;
-        check_reads(&tb, &model);
-        // The write-first step runs one unit, a bound shared across jobs: a cheap flip is followed by further
-        // pending jobs (the drain) inside that bound, never by the seal's next unit or the next seal.
-        loop {
-            let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-            if st != 0 && rewrite_step(tb.host(), st) == seal::STEP_FLIP {
-                break;
-            }
-            one_unit(&mut tb, &mut units);
-        }
-        // Rows with huge values inserted and removed: their long values wait in the drain.
-        for _ in 0..4 {
-            let mut row = model_row(&mut r, next_key, false);
-            row[1].1 = V::Bytes(vec![b'h'; HUGE_VALUE as usize + 10]);
-            tb.upsert(&mut key_scratch(), &mut Src::new(&row)).unwrap();
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(next_key))])).unwrap();
-            next_key += 1;
-        }
-        let waiting = frozen(&tb);
-        let drain_before = drain_state(&tb);
-        assert!(drain_before.0 > 0, "drain records wait behind the flip");
-        tb.host_mut().end_message();
-        tb.write_step(&everything()).unwrap();
-        let changed = tb.host_mut().end_message();
-        let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-        assert_eq!(
-            rewrite_step(tb.host(), st),
-            seal::STEP_LAST,
-            "the step ran the flip, and no seal unit after it"
-        );
-        assert_eq!(frozen(&tb), waiting - 1, "the next seal waits");
-        assert!(drain_state(&tb) != drain_before, "the drain went on inside the same bound");
-        assert!(changed <= UNIT_BLOCKS_MAX, "{changed} blocks");
-        // Run to a state with drain records and a frozen group behind them: the step runs the next seal's
-        // snapshot, and nothing of the seal after it.
-        while seal::running(tb.host(), tb.root(), seal::SEAL).unwrap() != 0 {
-            one_unit(&mut tb, &mut units);
-        }
-        for _ in 0..3 {
-            let row = model_row(&mut r, next_key, true);
-            next_key += 1;
-            put_row(&mut tb, &mut model, row);
-        }
-        assert!(drain_records(&tb) > 0, "drain records wait");
-        tb.host_mut().end_message();
-        tb.write_step(&everything()).unwrap();
-        let changed = tb.host_mut().end_message();
-        let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-        assert!(st != 0, "the next seal's snapshot ran");
-        assert_eq!(rewrite_step(tb.host(), st), seal::STEP_SNAPSHOT, "and no seal unit after it");
-        assert!(changed <= UNIT_BLOCKS_MAX, "{changed} blocks");
+        assert_ne!(tb.wake().unwrap(), Wake::Idle, "the writes left maintenance waiting");
         run_all(&mut tb, &mut units);
         check_reads(&tb, &model);
         check_groups(&tb);
@@ -1709,15 +1320,15 @@ fn dr_row(k: u64) -> Vec<(u32, V)> {
     ]
 }
 
-/// Rows in sealed groups, a frozen group and the open group.
+/// Rows in two sealed groups and the open group.
 fn dr_fill(tb: &mut Table<'_, VecHost>, model: &mut Rows, units: &mut Units) -> u64 {
     let mut k = 0u64;
-    while frozen(tb) == 0 {
+    while seals(tb) == 0 {
         put_row(tb, model, dr_row(k));
         k += 1;
     }
     run_all(tb, units);
-    while frozen(tb) == 0 {
+    while seals(tb) < 2 {
         put_row(tb, model, dr_row(k));
         k += 1;
     }
@@ -1760,7 +1371,7 @@ fn defaults_and_release() {
         check_reads(&tb, &model);
         check_groups(&tb);
         check_running(&tb, &model);
-        // A write and a read at version 2: a new row; the new columns set in sealed, frozen and open rows.
+        // A write and a read at version 2: a new row; the new columns set in sealed and open rows.
         let mut row = dr_row(k);
         row.extend([
             (n_id, V::U(1 << 40)),
@@ -1851,7 +1462,8 @@ fn release_restart() {
         let mut k = dr_fill(&mut tb, &mut model, &mut units);
         // Two more sealed groups, so the walk has groups left when the second drop comes.
         for _ in 0..2 {
-            while frozen(&tb) < 2 {
+            let s0 = seals(&tb);
+            while seals(&tb) == s0 {
                 put_row(&mut tb, &mut model, dr_row(k));
                 k += 1;
             }
@@ -1862,9 +1474,9 @@ fn release_restart() {
         e.drop_col(2);
         tb.change_schema(&e.image()).unwrap();
         evolve_model(&mut model, &[], &[id(2)]);
-        // The walk runs a few units, then a second column is dropped: the walk restarts by its generation.
+        // The walk visits a group, then a second column is dropped: the walk restarts by its generation.
         let mut ran = 0;
-        while !units.by.keys().any(|x| x == "Release last") {
+        while units.by.get("Release").copied().unwrap_or(0) < 1 {
             one_unit(&mut tb, &mut units);
             ran += 1;
         }
@@ -1971,7 +1583,7 @@ fn rows_model() {
                 check_reads(&tb, &model);
                 check_running(&tb, &model);
             }
-            // Writes at this version, maintenance interleaved: a unit after every few writes.
+            // Writes at this version, maintenance interleaved: a step after every few writes.
             let (ops, every) = if large() { (200_000u64, 50_000) } else { (5_000, 1_000) };
             for i in 0..ops {
                 let op = r.below(10);
@@ -2009,7 +1621,7 @@ fn rows_model() {
             check_reads(&tb, &model);
             check_groups(&tb);
             check_running(&tb, &model);
-            trace.push((version, model.len(), sealed_groups(&tb).len(), frozen(&tb)));
+            trace.push((version, model.len(), sealed_groups(&tb).len(), seals(&tb)));
         }
         run_all(&mut tb, &mut units);
         check_reads(&tb, &model);
@@ -2021,136 +1633,6 @@ fn rows_model() {
         (trace, units)
     });
     eprintln!("rows_model: {digest:?}");
-}
-
-// ---------------------------------------------------------------- unit bound
-
-/// Every job's units, measured: a seal with writes between its units, a compaction of deletes and patches,
-/// a group drop, the drain, seals and compactions of 64 KiB-class values and of 621 leaves with 600 patch
-/// units, and a column release. Each unit is checked by `one_unit` against `UNIT_BLOCKS_MAX` changed 4 KiB
-/// blocks (`VecHost::end_message`), `BYTE_UNIT` bytes, and `UNIT_WORK` estimated instructions.
-#[test]
-fn unit_bound() {
-    let mut all = Units::default();
-    let mut merge = |u: &Units| {
-        for (k, v) in &u.by {
-            let e = all.by.entry(k.clone()).or_insert((0, 0, 0));
-            e.0 = e.0.max(v.0);
-            e.1 = e.1.max(v.1);
-            e.2 += v.2;
-        }
-    };
-    // The model's rows: seals with writes between units, compactions, a drop.
-    let m = model_schema();
-    let u = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 40, &m.img).unwrap();
-        let mut r = XorShift(0xB0B);
-        let mut model = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        for _ in 0..3 {
-            fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        }
-        let mut n = 0;
-        while one_unit(&mut tb, &mut units) != Ran::Nothing {
-            n += 1;
-            if n <= WRITE_UNITS {
-                for _ in 0..2 {
-                    random_write(&mut tb, &mut r, &mut model, &mut next_key, true);
-                }
-            }
-        }
-        for (g, _) in sealed_groups(&tb).into_iter().take(2) {
-            let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == g).map(|(k, _)| *k).collect();
-            let n = if g == 0 { keys.len() } else { COMPACT_DEAD as usize + 1 };
-            for k in keys.iter().take(n) {
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
-                model.remove(k);
-            }
-        }
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        units
-    });
-    merge(&u);
-    // 64 KiB-class values.
-    let img = medium_schema();
-    let u = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 41, &img).unwrap();
-        let mut units = Units::default();
-        let mut model = BTreeMap::new();
-        let mut n = 0u64;
-        while frozen(&tb) == 0 {
-            let v = vec![b'm'; HUGE_VALUE as usize - 8 - (n % 5) as usize];
-            put_row(&mut tb, &mut model, vec![(id(0), V::U(n)), (id(1), V::Bytes(v)), (id(2), V::I(n as i64))]);
-            n += 1;
-        }
-        run_all(&mut tb, &mut units);
-        for k in 0..n / 2 {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-            model.remove(&k);
-        }
-        for k in n / 2..n {
-            let v = vec![b'q'; HUGE_VALUE as usize - 100 - (k % 7) as usize];
-            put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::Bytes(v)), (id(2), V::I(-(k as i64)))]);
-        }
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        units
-    });
-    merge(&u);
-    // 621 leaves, 600 patch units, the urgent compaction.
-    let nl = 620usize;
-    let img = many_schema(nl);
-    let u = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 42, &img).unwrap();
-        let mut units = Units::default();
-        let mut model = BTreeMap::new();
-        let mut k = 0u64;
-        while frozen(&tb) == 0 {
-            put_row(&mut tb, &mut model, many_row(nl, k, &BTreeMap::new()));
-            k += 1;
-        }
-        run_all(&mut tb, &mut units);
-        let mut vals: BTreeMap<u64, BTreeMap<usize, u64>> = BTreeMap::new();
-        for unit in 0..600usize {
-            let key = unit as u64 % k;
-            let v = vals.entry(key).or_default();
-            v.insert(unit, 1 + unit as u64 % 200);
-            let row = many_row(nl, key, v);
-            put_row(&mut tb, &mut model, row);
-        }
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        units
-    });
-    merge(&u);
-    // A column release.
-    let evo = dr_base();
-    let img1 = evo.image();
-    let u = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 43, &img1).unwrap();
-        let mut model = BTreeMap::new();
-        let mut units = Units::default();
-        dr_fill(&mut tb, &mut model, &mut units);
-        let mut e = evo.clone();
-        e.bump();
-        e.drop_col(1);
-        tb.change_schema(&e.image()).unwrap();
-        evolve_model(&mut model, &[], &[id(1)]);
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        units
-    });
-    merge(&u);
-    eprintln!("unit_bound: job and step | most changed 4 KiB blocks | most estimated instructions | units");
-    for (k, (b, w, n)) in &all.by {
-        eprintln!("unit_bound: {k:<20} | {b:>2} | {w:>6} | {n}");
-        assert!(*b <= UNIT_BLOCKS_MAX && *w <= UNIT_WORK);
-    }
-    for job in ["Seal", "Compaction", "Drop", "Release", "Drain"] {
-        assert!(all.by.keys().any(|k| k.starts_with(job)), "{job} measured");
-    }
 }
 
 // ---------------------------------------------------------------- the schema hash and stale tables
@@ -2397,50 +1879,7 @@ fn record_fields_with_declared_defaults() {
     });
 }
 
-// ---------------------------------------------------------------- schema changes, meters and messages during rewrites
-
-/// A column added while a seal reads its frozen group's liveness (before the snapshot), and a frozen row's
-/// new column written then: the value must survive the seal.
-#[test]
-fn schema_change_before_seal_snapshot() {
-    let cols = model_cols();
-    let digest = per_fill(|h, _| {
-        let mut e = Evo::new(&cols);
-        let (mut tb, _) = Table::create(h, 51, &e.image()).unwrap();
-        let mut r = XorShift(0x5EA7);
-        let mut model: Rows = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        // The seal's first unit: begin (allocations only); the liveness pass is still to run.
-        assert_eq!(one_unit(&mut tb, &mut units), Ran::Seal);
-        let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-        assert_ne!(st, 0);
-        assert_eq!(rewrite_step(tb.host(), st), seal::STEP_SNAPSHOT);
-        e.bump();
-        let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0xAC, 0x02])));
-        tb.change_schema(&e.image()).unwrap();
-        evolve_model(&mut model, &[(a, V::U(300))], &[]);
-        // Frozen rows written at the new version before the snapshot.
-        let keys: Vec<u64> = model.keys().copied().take(40).collect();
-        for (i, k) in keys.iter().enumerate() {
-            if i % 2 == 0 {
-                set_cell(&mut tb, &mut model, *k, a, V::U(7_000 + i as u64));
-            } else {
-                let mut row = model[k].1.clone();
-                row.iter_mut().find(|(x, _)| *x == a).unwrap().1 = V::U(9_000 + i as u64);
-                put_row(&mut tb, &mut model, row);
-            }
-        }
-        check_reads(&tb, &model);
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        check_running(&tb, &model);
-        model.len()
-    });
-    eprintln!("schema_change_before_seal_snapshot: {digest:?}");
-}
+// ---------------------------------------------------------------- schema changes and messages
 
 /// The model rows that do not read back: (key, leaf, wanted, got).
 fn bad_reads(tb: &Table<'_, VecHost>, model: &Rows) -> Vec<(u64, u32, V, V)> {
@@ -2456,240 +1895,9 @@ fn bad_reads(tb: &Table<'_, VecHost>, model: &Rows) -> Vec<(u64, u32, V, V)> {
     out
 }
 
-/// A column added at each step of a rewrite (seal or compaction), and the rewrite's group's rows given a value
-/// of it right after: every value survives the rewrite.
-#[test]
-fn schema_change_at_every_rewrite_step() {
-    let cols = model_cols();
-    let targets: Vec<(u8, usize)> = vec![
-        (seal::STEP_SNAPSHOT, 0),
-        (seal::STEP_SNAPSHOT, 5),
-        (seal::STEP_PASS1, 0),
-        (seal::STEP_PASS1, 100),
-        (seal::STEP_LAYOUT, 0),
-        (seal::STEP_WRITE, 0),
-        (seal::STEP_WRITE, 500),
-        (seal::STEP_FLIP, 0),
-        (seal::STEP_LAST, 0),
-        (seal::STEP_LAST, 10),
-    ];
-    for compaction in [false, true] {
-        for &(target, extra) in &targets {
-            let res = per_fill(|h, _| {
-                let mut e = Evo::new(&cols);
-                let (mut tb, _) = Table::create(h, 52, &e.image()).unwrap();
-                let mut r = XorShift(0x5EA8);
-                let mut model: Rows = BTreeMap::new();
-                let mut next_key = 0u64;
-                let mut units = Units::default();
-                fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-                if compaction {
-                    run_all(&mut tb, &mut units);
-                    let keys: Vec<u64> = model.keys().copied().filter(|k| k % 5 == 1).collect();
-                    for k in keys {
-                        tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-                        model.remove(&k);
-                    }
-                    let pg = sealed_groups(&tb)[0].1;
-                    let tbl = tb.root();
-                    native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                }
-                let kind = if compaction { seal::COMPACTION } else { seal::SEAL };
-                let mut step;
-                let mut left = extra;
-                loop {
-                    one_unit(&mut tb, &mut units);
-                    let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-                    if st == 0 {
-                        step = 255;
-                        break;
-                    }
-                    step = rewrite_step(tb.host(), st);
-                    if step > target || (step == target && left == 0) {
-                        break;
-                    }
-                    if step == target {
-                        left -= 1;
-                    }
-                }
-                e.bump();
-                let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0xAC, 0x02])));
-                tb.change_schema(&e.image()).unwrap();
-                evolve_model(&mut model, &[(a, V::U(300))], &[]);
-                let keys: Vec<u64> = model.keys().copied().take(60).collect();
-                for (i, k) in keys.iter().enumerate() {
-                    if i % 2 == 0 {
-                        set_cell(&mut tb, &mut model, *k, a, V::U(7_000 + i as u64));
-                    } else {
-                        let mut row = model[k].1.clone();
-                        row.iter_mut().find(|(x, _)| *x == a).unwrap().1 = V::U(9_000 + i as u64);
-                        put_row(&mut tb, &mut model, row);
-                    }
-                }
-                let mid = bad_reads(&tb, &model).len();
-                run_all(&mut tb, &mut units);
-                let bad = bad_reads(&tb, &model);
-                if bad.is_empty() {
-                    check_groups(&tb);
-                    check_running(&tb, &model);
-                    check_ownership(&tb);
-                }
-                (step, mid, bad.len(), bad.first().map(|x| format!("{:?}", x)))
-            });
-            assert_eq!(res.2, 0, "compaction {compaction} at step {target}+{extra}: bad reads after, first {:?}", res.3);
-        }
-    }
-}
-
-/// A host meter that advances by a random amount at every reading, so units end after a random number of
-/// pieces.
-struct RandMeter {
-    used: std::cell::Cell<u64>,
-    r: std::cell::RefCell<XorShift>,
-    max: u64,
-    /// One reading in `big_every` jumps by up to `big`.
-    big_every: u64,
-    big: u64,
-}
-
-impl RandMeter {
-    fn new(seed: u64, max: u64) -> Self {
-        RandMeter { used: std::cell::Cell::new(0), r: std::cell::RefCell::new(XorShift(seed)), max, big_every: 0, big: 0 }
-    }
-    fn spiky(seed: u64, max: u64, big_every: u64, big: u64) -> Self {
-        RandMeter { used: std::cell::Cell::new(0), r: std::cell::RefCell::new(XorShift(seed)), max, big_every, big }
-    }
-}
-
-impl native_table::Budget for RandMeter {
-    fn used(&self) -> u64 {
-        let mut r = self.r.borrow_mut();
-        let step = if self.big_every > 0 && r.below(self.big_every) == 0 { r.below(self.big) + 1 } else { r.below(self.max) + 1 };
-        self.used.set(self.used.get() + step);
-        self.used.get()
-    }
-    fn limit(&self) -> u64 {
-        u64::MAX
-    }
-}
-
-/// Units with meter `b` until nothing is pending; each within the page bound and making progress.
-fn run_all_with(tb: &mut Table<'_, VecHost>, b: &dyn native_table::Budget) -> u64 {
-    struct W<'a>(&'a dyn native_table::Budget);
-    impl native_table::Budget for W<'_> {
-        fn used(&self) -> u64 {
-            self.0.used()
-        }
-        fn limit(&self) -> u64 {
-            self.0.limit()
-        }
-    }
-    let mut n = 0;
-    loop {
-        tb.host_mut().count_allocator(true);
-        tb.host_mut().end_message();
-        let (ran, spent) = tb.unit(&W(b)).unwrap_or_else(|e| panic!("unit {n} failed: {e:?}"));
-        let blocks = tb.host_mut().end_message();
-        assert!(blocks <= UNIT_BLOCKS_MAX, "{ran:?} changed {blocks} blocks");
-        assert!(spent.bytes <= BYTE_UNIT + BLOCK, "{ran:?} moved {} bytes", spent.bytes);
-        if ran == Ran::Nothing {
-            break;
-        }
-        assert!(blocks > 0, "{ran:?} made progress");
-        n += 1;
-        if n > 300_000 {
-            let steps: Vec<(u64, u8, u64, u64)> = (1..=3u8)
-                .map(|k| {
-                    let st = seal::running(tb.host(), tb.root(), k).unwrap();
-                    if st == 0 {
-                        (0, 0, 0, 0)
-                    } else {
-                        let b = tb.host().get(Region::Block(st)).unwrap();
-                        (st, rewrite_step(tb.host(), st), rd_u32(b, seal::RW_LEAF).unwrap() as u64, rd_u64(b, seal::RW_SUB).unwrap())
-                    }
-                })
-                .collect();
-            eprintln!("unit {n}: {ran:?} {spent:?} blocks {blocks} rewrites (st, step, leaf, sub) {steps:?} drain {:?}", drain_state(tb));
-            if n > 300_010 {
-                panic!("maintenance does not end");
-            }
-        }
-    }
-    n
-}
-
 /// Every sealed group's image, by group.
 fn all_images(tb: &Table<'_, VecHost>) -> Vec<(u64, Vec<u8>)> {
     sealed_groups(tb).into_iter().map(|(g, pg)| (g, group_image(tb, pg))).collect()
-}
-
-/// The same writes and rewrites under hosts whose meters end units at different pieces: the same images.
-#[test]
-fn meter_cuts_same_bytes() {
-    let cols = model_cols();
-    let scenario = |h: &mut VecHost, meter: &dyn native_table::Budget| -> (Vec<(u64, Vec<u8>)>, u64, usize) {
-        let mut e = Evo::new(&cols);
-        let (mut tb, _) = Table::create(h, 61, &e.image()).unwrap();
-        let mut r = XorShift(0xC075);
-        let mut model: Rows = BTreeMap::new();
-        let mut next_key = 0u64;
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        let mut units = run_all_with(&mut tb, meter);
-        // Deletes past the trigger in group 0, updates of group 1's rows (patches, long and huge ones too).
-        let g0: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
-        for k in g0.iter().take(COMPACT_DEAD as usize + 10) {
-            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
-            model.remove(k);
-        }
-        let g1: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 1).map(|(k, _)| *k).collect();
-        for (i, k) in g1.iter().enumerate().take(900) {
-            let mut row = model[k].1.clone();
-            for c in [1u32, 2, 3, 5, 9, 13] {
-                if (i as u32 + c) % 3 == 0 {
-                    row[c as usize].1 = model_cell(&mut r, c, true);
-                }
-            }
-            put_row(&mut tb, &mut model, row);
-        }
-        let pg1 = root::group(tb.host(), tb.root(), 1).unwrap();
-        let tbl = tb.root();
-        native_table::table::jobs::queue(tb.host_mut(), tbl, 1, pg1, false).unwrap();
-        units += run_all_with(&mut tb, meter);
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        // A dropped column: the release rewrites every group.
-        e.bump();
-        e.drop_col(9);
-        tb.change_schema(&e.image()).unwrap();
-        evolve_model(&mut model, &[], &[id(9)]);
-        units += run_all_with(&mut tb, meter);
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        check_running(&tb, &model);
-        check_ownership(&tb);
-        (all_images(&tb), units, model.len())
-    };
-    let out = per_fill(|h, _| {
-        let base = scenario(h, &everything());
-        let mut res = vec![(0u64, base.1)];
-        for (seed, max, every, big) in [(1u64, 3_000u64, 0u64, 0u64), (2, 20_000, 0, 0), (3, 2_000, 40, 90_000), (4, 500, 10, 30_000)] {
-            let mut h2 = VecHost::new(h.fill_pattern());
-            let got = scenario(&mut h2, &RandMeter::spiky(seed, max, every, big));
-            assert_eq!(got.2, base.2);
-            assert_eq!(got.0.len(), base.0.len(), "meter {max}: groups");
-            for ((g, a), (g2, b)) in base.0.iter().zip(&got.0) {
-                assert_eq!(g, g2);
-                assert_eq!(a.len(), b.len(), "meter {max}: group {g} image length");
-                if let Some(i) = a.iter().zip(b).position(|(x, y)| x != y) {
-                    panic!("meter {max}: group {g} images differ at byte {i}");
-                }
-            }
-            res.push((max, got.1));
-        }
-        res
-    });
-    eprintln!("meter_cuts_same_bytes: {out:?}");
 }
 
 /// How the versioned model makes a leaf's values.
@@ -2731,32 +1939,21 @@ fn env_u64(name: &str, d: u64) -> u64 {
 }
 
 /// The model's rows across nine schema versions: writes of every kind (columns and record fields added and
-/// dropped), maintenance at a random cadence and in bursts under a meter whose readings jump, schema changes at
-/// whatever point the rewrites under way have reached (a seal's liveness pass included), and a `clear`;
-/// reads, totals and ownership checked. 2,000 writes a version; in the large suite, 10,000 with seed 7 and
-/// meter 3. `NT_OPS`, `NT_SEED` and `NT_METER` set others.
+/// dropped), maintenance at a random cadence and in bursts, schema changes between them, and a `clear`;
+/// reads, totals and ownership checked. 2,000 writes a version; in the large suite, 10,000 with seed 7.
+/// `NT_OPS` and `NT_SEED` set others.
 #[test]
 fn rows_model_versions() {
-    let (d_ops, d_seed, d_meter) = if large() { (10_000, 7, 3) } else { (2_000, 0xB16, 1) };
+    let (d_ops, d_seed) = if large() { (10_000, 7) } else { (2_000, 0xB16) };
     let ops = env_u64("NT_OPS", d_ops);
     let seed = env_u64("NT_SEED", d_seed);
-    let metered = env_u64("NT_METER", d_meter);
-    model_versions(ops, seed, metered);
+    model_versions(ops, seed);
 }
 
-/// `rows_model_versions` with `ops` writes a version, the given seed, and a meter whose readings jump by up to
-/// `metered` × 3,000 (0: no meter).
-fn model_versions(ops: u64, seed: u64, metered: u64) {
+/// `rows_model_versions` with `ops` writes a version and the given seed.
+fn model_versions(ops: u64, seed: u64) {
     let cols = model_cols();
     let digest = per_fill(|h, lh| {
-        let meter = RandMeter::new(seed ^ 0x3E7E, metered.max(1) * 3_000);
-        let one_unit = |tb: &mut Table<'_, VecHost>, units: &mut Units| -> Ran {
-            if metered > 0 {
-                one_unit_m(tb, units, &meter)
-            } else {
-                one_unit(tb, units)
-            }
-        };
         let mut e = Evo::new(&cols);
         let (mut tb, _) = Table::create(h, 70, &e.image()).unwrap();
         let mut r = XorShift(seed);
@@ -2882,7 +2079,7 @@ fn model_versions(ops: u64, seed: u64, metered: u64) {
             check_reads(&tb, &model);
             check_groups(&tb);
             check_running(&tb, &model);
-            trace.push((version, model.len(), sealed_groups(&tb).len(), frozen(&tb)));
+            trace.push((version, model.len(), sealed_groups(&tb).len(), seals(&tb)));
             eprintln!("version {version}: {:?}", trace.last());
         }
         run_all(&mut tb, &mut units);
@@ -2893,15 +2090,25 @@ fn model_versions(ops: u64, seed: u64, metered: u64) {
         no_dropped_cells(&tb);
         (trace, units)
     });
-    eprintln!("rows_model_versions ({ops} writes a version, seed {seed}, meter {metered}): {digest:?}");
+    eprintln!("rows_model_versions ({ops} writes a version, seed {seed}): {digest:?}");
 }
 
-/// One image for the same live rows across a schema change: rows written at version 1 and sealed at version 2,
-/// against the same rows sealed at version 1 and rewritten (compaction, or the column release) at version 2.
+/// One image for the same live rows across a schema change: rows written at version 1 and sealed at version 2
+/// (`write::freeze` after the change seals the group as a filling insert would), against the same rows sealed at
+/// version 1 and rewritten (compaction, or the column release) at version 2.
 #[test]
 fn seal_and_rewrite_bytes_across_versions() {
     let cols = model_cols();
     for variant in 0..6u32 {
+        // The rows that fill a group, found on a table of its own.
+        let fit = {
+            let mut h2 = VecHost::new(FILLS[0]);
+            let (mut tb, _) = Table::create(&mut h2, 80, &Evo::new(&cols).image()).unwrap();
+            let mut r = XorShift(0xACE0 + u64::from(variant));
+            let (mut model, mut next_key) = (BTreeMap::new(), 0u64);
+            fill_group(&mut tb, &mut r, &mut model, &mut next_key);
+            next_key - 1
+        };
         let res = per_fill(|h, _| {
             let mut imgs = Vec::new();
             let mut rows_after = Vec::new();
@@ -2912,7 +2119,16 @@ fn seal_and_rewrite_bytes_across_versions() {
                 let mut model: Rows = BTreeMap::new();
                 let mut next_key = 0u64;
                 let mut units = Units::default();
-                fill_group(&mut tb, &mut r, &mut model, &mut next_key);
+                if pass == 0 {
+                    // The same rows, the group left open.
+                    for _ in 0..fit {
+                        let row = model_row(&mut r, next_key, true);
+                        next_key += 1;
+                        put_row(&mut tb, &mut model, row);
+                    }
+                } else {
+                    fill_group(&mut tb, &mut r, &mut model, &mut next_key);
+                }
                 // A few dead positions, below the trigger.
                 let keys: Vec<u64> = model.keys().copied().filter(|k| k % 97 == 3).collect();
                 for k in keys {
@@ -2944,6 +2160,10 @@ fn seal_and_rewrite_bytes_across_versions() {
                     }
                 }
                 tb.change_schema(&e.image()).unwrap();
+                if pass == 0 {
+                    let (shape, tbl) = (*tb.shape(), tb.root());
+                    write::freeze(tb.host_mut(), tbl, &shape).unwrap();
+                }
                 if pass == 1 && variant < 4 && root::group(tb.host(), tb.root(), 0).unwrap() & buffer::DESC_BIT == 0 {
                     let pg = root::group(tb.host(), tb.root(), 0).unwrap();
                     let tbl = tb.root();
@@ -2965,9 +2185,8 @@ fn seal_and_rewrite_bytes_across_versions() {
 }
 
 /// Messages as a canister runs them (the write-first step, then the write), the table opened anew from its
-/// root for every message under a meter whose readings jump, and, in the second run, one message in seven
-/// trapped (the host's memory and the meter put back as they were before it) and run again: both runs end
-/// with the same tables.
+/// root for every message, and, in the second run, one message in seven trapped (the host's memory put back as
+/// it was before it) and run again: both runs end with the same tables.
 #[test]
 fn crash_equivalence() {
     let cols = model_cols();
@@ -2986,7 +2205,6 @@ fn crash_equivalence() {
         let mut model: Rows = BTreeMap::new();
         let mut next_key = 0u64;
         let mut version = 1;
-        let meter = RandMeter::new(5, 3_000);
         for i in 0..ops {
             // The message: drawn before it runs, so a replay runs the same one.
             let saved_r = r.0;
@@ -2995,20 +2213,16 @@ fn crash_equivalence() {
             let change = i == ops / 2;
             let attempts = if trap_every > 0 && tr.below(trap_every) == 0 { 2 } else { 1 };
             let before = if attempts == 2 { Some(h.clone()) } else { None };
-            // The meter's state is the message's: a replay reads what the trapped attempt read.
-            let saved_meter = (meter.used.get(), meter.r.borrow().0);
             for attempt in 0..attempts {
                 if attempt == 1 {
                     h = before.clone().unwrap();
                     r.0 = saved_r;
                     model = saved_model.clone();
                     next_key = saved_next;
-                    meter.used.set(saved_meter.0);
-                    meter.r.borrow_mut().0 = saved_meter.1;
                 }
                 let img = if version == 1 { img1.clone() } else { img2.clone() };
                 let mut tb = Table::open(&mut h, root, &img).unwrap();
-                tb.write_step(&meter).unwrap();
+                tb.write_step(&everything()).unwrap();
                 if change {
                     tb.change_schema(&img2).unwrap();
                     if attempt + 1 == attempts {
@@ -3067,89 +2281,6 @@ fn crash_equivalence() {
     eprintln!("crash_equivalence: {} sealed groups, {} rows", a.3, a.1.len());
 }
 
-/// Post-snapshot patches of more than 254 units (a chained post-snapshot directory) while a compaction, then a
-/// seal, holds the group, with deletes; at every step of the rewrite; reads, totals and ownership after.
-/// In the large suite.
-#[test]
-fn post_snapshot_units_over_255() {
-    if !large() {
-        return;
-    }
-    let n = 620usize;
-    let img = many_schema(n);
-    for seal_it in [false, true] {
-        for target in [seal::STEP_PASS1, seal::STEP_WRITE, seal::STEP_FLIP, seal::STEP_LAST] {
-            let res = per_fill(|h, _| {
-                let (mut tb, _) = Table::create(h, 91, &img).unwrap();
-                let mut model = BTreeMap::new();
-                let mut units = Units::default();
-                let mut k = 0u64;
-                while frozen(&tb) == 0 {
-                    put_row(&mut tb, &mut model, many_row(n, k, &BTreeMap::new()));
-                    k += 1;
-                }
-                let kind = if seal_it { seal::SEAL } else { seal::COMPACTION };
-                if !seal_it {
-                    run_all(&mut tb, &mut units);
-                    let (_, pg) = sealed_groups(&tb)[0];
-                    // A few patches before the rewrite.
-                    let rows: Vec<u64> = model.keys().copied().take(30).collect();
-                    for (i, key) in rows.iter().enumerate() {
-                        let mut v = BTreeMap::new();
-                        v.insert(i * 3, 7u64);
-                        put_row(&mut tb, &mut model, many_row(n, *key, &v));
-                    }
-                    let tbl = tb.root();
-                    native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                }
-                let mut step = 0;
-                let mut guard = 0;
-                while step < target {
-                    one_unit(&mut tb, &mut units);
-                    let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-                    step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
-                    guard += 1;
-                    assert!(guard < 1_000_000);
-                }
-                // 600 distinct units over the group's rows, and deletes.
-                let rows: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
-                let mut vals: BTreeMap<u64, BTreeMap<usize, u64>> = BTreeMap::new();
-                for unit in 0..600usize {
-                    let key = rows[(unit * 7) % rows.len()];
-                    let v = vals.entry(key).or_default();
-                    v.insert(unit, 1 + (unit as u64 % 200));
-                    put_row(&mut tb, &mut model, many_row(n, key, v));
-                }
-                for key in rows.iter().skip(1).step_by(11).take(100) {
-                    tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*key))])).unwrap();
-                    model.remove(key);
-                }
-                let mid = bad_reads(&tb, &model).len();
-                // Writes after each further unit.
-                let mut i = 0usize;
-                while rewriting(&tb) {
-                    one_unit(&mut tb, &mut units);
-                    let key = rows[(i * 13 + 5) % rows.len()];
-                    if model.contains_key(&key) {
-                        let v = vals.entry(key).or_default();
-                        v.insert(600 + (i % 19), 3);
-                        put_row(&mut tb, &mut model, many_row(n, key, v));
-                    }
-                    i += 1;
-                }
-                run_all(&mut tb, &mut units);
-                let bad = bad_reads(&tb, &model);
-                if bad.is_empty() {
-                    check_groups(&tb);
-                    check_ownership(&tb);
-                }
-                (step, mid, bad.len(), bad.first().map(|x| format!("{x:?}")))
-            });
-            assert_eq!(res.2, 0, "seal {seal_it} target {target}: bad reads after, first {:?}", res.3);
-        }
-    }
-}
-
 /// Blocks of area a in use: its pages' blocks less the never-used ones of its newest page and its free stack.
 fn area_in_use(tb: &Table<'_, VecHost>, a: u32) -> (u64, u64, u64) {
     let rec = native_table::area::AreaRecord::read(tb.host(), tb.root(), a).unwrap();
@@ -3178,7 +2309,6 @@ fn no_leaks_over_cycles() {
         let mut model: Rows = BTreeMap::new();
         let mut next_key = 0u64;
         let mut units = Units::default();
-        let meter = RandMeter::new(9, 3_000);
         let mut out = Vec::new();
         for cycle in 0..cycles {
             for i in 0..ops {
@@ -3190,12 +2320,12 @@ fn no_leaks_over_cycles() {
                     random_write(&mut tb, &mut r, &mut model, &mut next_key, true);
                 }
                 if i % 2 == 0 {
-                    one_unit_m(&mut tb, &mut units, &meter);
+                    one_unit(&mut tb, &mut units);
                 }
                 // Some sealed groups compacted by their patches and deletes.
                 if i % 3_000 == 2_999 {
                     for (g, pg) in sealed_groups(&tb) {
-                        if buffer::u64_of(tb.host(), pg, page::P_REWRITE).unwrap() == 0 && g % 2 == cycle % 2 {
+                        if g % 2 == cycle % 2 {
                             let tbl = tb.root();
                             native_table::table::jobs::queue(tb.host_mut(), tbl, g, pg, false).unwrap();
                         }
@@ -3209,7 +2339,7 @@ fn no_leaks_over_cycles() {
                 tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
                 model.remove(k);
                 if i % 2 == 0 {
-                    one_unit_m(&mut tb, &mut units, &meter);
+                    one_unit(&mut tb, &mut units);
                 }
             }
             let open = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
@@ -3236,164 +2366,9 @@ fn no_leaks_over_cycles() {
     }
 }
 
-/// A seal under a meter whose readings jump by up to 60,000: every unit moves its cursors on, whatever was
-/// spent before its pieces (a value of more than 64 bytes read as a piece of its own included).
-#[test]
-fn progress_under_a_jumpy_meter() {
-    let m = model_schema();
-    let max = env_u64("NT_STALL_MAX", 60_000);
-    let mut h = VecHost::new(FILLS[0]);
-    let (mut tb, _) = Table::create(&mut h, 93, &m.img).unwrap();
-    let mut r = XorShift(0xC075);
-    let mut model: Rows = BTreeMap::new();
-    let mut next_key = 0u64;
-    fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-    let meter = RandMeter::new(3, max);
-    let mut last = (0u8, 0u64, 0u64, 0u64);
-    let mut same = 0u64;
-    for n in 0..200_000u64 {
-        let (ran, _) = tb.unit(&meter).unwrap();
-        if ran == Ran::Nothing {
-            return;
-        }
-        let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-        if st == 0 {
-            continue;
-        }
-        let b = tb.host().get(Region::Block(st)).unwrap();
-        let now = (
-            rewrite_step(tb.host(), st),
-            rd_u32(b, seal::RW_LEAF).unwrap() as u64,
-            rd_u64(b, seal::RW_SUB).unwrap(),
-            rd_u32(b, seal::RW_Q).unwrap() as u64,
-        );
-        if now == last {
-            same += 1;
-            if same == 1_000 {
-                let q = now.3;
-                let row = model.values().find(|(rid, _)| *rid == q).map(|(_, r)| r[1].1.clone());
-                let len = match row {
-                    Some(V::Bytes(b)) => b.len(),
-                    _ => 0,
-                };
-                panic!("no progress over 1,000 units at (step, leaf, sub, q) {now:?}, unit {n}: a Text of {len} bytes");
-            }
-        } else {
-            same = 0;
-            last = now;
-        }
-    }
-}
-
-/// A seal (or compaction) past its snapshot, the group's rows' u32 values changed after the snapshot, and a
-/// schema change (a column added and one dropped) at a given step: every row reads back its changed value.
-#[test]
-fn post_snapshot_updates_with_schema_change() {
-    let cols = model_cols();
-    let targets: Vec<(u8, usize)> = vec![
-        (seal::STEP_PASS1, 0),
-        (seal::STEP_PASS1, 300),
-        (seal::STEP_LAYOUT, 0),
-        (seal::STEP_WRITE, 0),
-        (seal::STEP_FLIP, 0),
-        (seal::STEP_LAST, 0),
-    ];
-    let change = env_u64("NT_POST_SNAPSHOT_CHANGE", 1);
-    for compaction in [false, true] {
-        for &(target, extra) in &targets {
-            let res = per_fill(|h, _| {
-                let mut e = Evo::new(&cols);
-                let (mut tb, _) = Table::create(h, 94, &e.image()).unwrap();
-                let mut r = XorShift(0x7A65);
-                let mut model: Rows = BTreeMap::new();
-                let mut next_key = 0u64;
-                let mut units = Units::default();
-                fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-                if compaction {
-                    run_all(&mut tb, &mut units);
-                    let pg = sealed_groups(&tb)[0].1;
-                    let tbl = tb.root();
-                    native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                }
-                let kind = if compaction { seal::COMPACTION } else { seal::SEAL };
-                let mut left = extra;
-                let mut step;
-                loop {
-                    one_unit(&mut tb, &mut units);
-                    let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-                    step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
-                    if step > target || (step == target && left == 0) {
-                        break;
-                    }
-                    if step == target {
-                        left -= 1;
-                    }
-                }
-                // Rows of the group whose u32 changes after the snapshot: 0 to 1, 1 to 2.
-                let keys: Vec<u64> = model.keys().copied().take(300).collect();
-                let mut changed = 0;
-                for k in &keys {
-                    let row = &model[k].1;
-                    let to = match row[5].1 {
-                        V::U(x) if x < 2 => Some(x + 1),
-                        _ => None,
-                    };
-                    if let Some(to) = to {
-                        if changed % 2 == 0 {
-                            set_cell(&mut tb, &mut model, *k, id(5), V::U(to));
-                        } else {
-                            let mut row = model[k].1.clone();
-                            row[5].1 = V::U(to);
-                            put_row(&mut tb, &mut model, row);
-                        }
-                        changed += 1;
-                    }
-                }
-                if change == 1 {
-                    e.bump();
-                    let a = id(e.add_col(&t::scalar(ty::BOOL), None));
-                    e.drop_col(13);
-                    tb.change_schema(&e.image()).unwrap();
-                    evolve_model(&mut model, &[(a, V::Bool(false))], &[id(13)]);
-                }
-                run_all(&mut tb, &mut units);
-                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    check_reads(&tb, &model);
-                    check_groups(&tb);
-                    check_running(&tb, &model);
-                }));
-                (step, changed, res.is_ok())
-            });
-            assert!(res.2, "compaction {compaction} target {target}+{extra}: (at step, changed) {:?}", (res.0, res.1));
-        }
-    }
-}
-
-/// Runs units until the rewrite of `kind` reaches `target` and `extra` more units in it (or ends).
-fn units_to(tb: &mut Table<'_, VecHost>, units: &mut Units, kind: u8, target: u8, extra: usize) -> u8 {
-    let mut left = extra;
-    let mut guard = 0;
-    while seal::running(tb.host(), tb.root(), kind).unwrap() == 0 {
-        assert_ne!(one_unit(tb, units), Ran::Nothing, "the rewrite starts");
-        guard += 1;
-        assert!(guard < 100_000, "the rewrite starts");
-    }
-    loop {
-        let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-        let step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
-        if step > target || (step == target && left == 0) {
-            return step;
-        }
-        if step == target {
-            left -= 1;
-        }
-        one_unit(tb, units);
-    }
-}
-
 /// Long patch chains: a few sealed rows' Text updated thousands of times with changing lengths (short, medium
-/// in block chains, huge in long values) and no maintenance, the chains far past `PATCH_BLOCKS_MAX`; then the
-/// same while a compaction holds the group (post-snapshot chains); writes between the units after.
+/// in block chains, huge in long values) and no maintenance, the chains far past `PATCH_BLOCKS_MAX`; then
+/// writes between the maintenance steps that fold them, twice.
 #[test]
 fn long_patch_chains() {
     let m = model_schema();
@@ -3416,14 +2391,7 @@ fn long_patch_chains() {
             }
         };
         let mut longest = 0u64;
-        for round in 0..2 {
-            if round == 1 {
-                // A compaction past its snapshot.
-                let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-                let tbl = tb.root();
-                native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                units_to(&mut tb, &mut units, seal::COMPACTION, seal::STEP_PASS1, 3);
-            }
+        for _ in 0..2 {
             let keys = pick(&model);
             for i in 0..1_500usize {
                 let k = keys[i % keys.len()];
@@ -3442,13 +2410,7 @@ fn long_patch_chains() {
                 }
             }
             let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-            let dir = if round == 0 {
-                buffer::u64_of(tb.host(), pg, page::P_PATCH_DIR).unwrap()
-            } else {
-                let st = seal::running(tb.host(), tb.root(), seal::COMPACTION).unwrap();
-                let pending = rd_u64(tb.host().get(Region::Block(st)).unwrap(), seal::RW_PENDING).unwrap();
-                buffer::u64_of(tb.host(), pending, page::P_POST_PATCH).unwrap()
-            };
+            let dir = buffer::u64_of(tb.host(), pg, page::P_PATCH_DIR).unwrap();
             patch::for_each_unit(tb.host(), dir, |u| {
                 longest = longest.max(u.blocks);
                 Ok(())
@@ -3476,7 +2438,7 @@ fn long_patch_chains() {
     assert!(digest.0 > native_table::consts::PATCH_BLOCKS_MAX, "chains past their bound: {digest:?}");
 }
 
-// ---------------------------------------------------------------- values past one unit
+// ---------------------------------------------------------------- big values
 
 /// A negative Int of `len` LEB128 bytes whose lowest groups are 0 but its first's low six bits, k's.
 fn low_zero_int(k: u64, len: usize) -> Vec<u8> {
@@ -3503,7 +2465,7 @@ fn big_values_sealed_and_compacted() {
         let mut model: Rows = BTreeMap::new();
         let mut units = Units::default();
         let mut k = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(&mut tb, &mut model, row(k, 0));
             k += 1;
         }
@@ -3531,79 +2493,6 @@ fn big_values_sealed_and_compacted() {
     eprintln!("big_values_sealed_and_compacted: {digest:?}");
 }
 
-/// Big Nat and Int values changed after a seal's snapshot, and again after a compaction's, with writes between
-/// every unit of the rewrite's write step and after it: the totals are exact after every write, every row reads
-/// back and every group keeps its count.
-#[test]
-fn big_values_changed_during_rewrites() {
-    let img = schema(&[t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::INT)]).0;
-    let row = |k: u64, salt: u64| -> Vec<(u32, V)> {
-        let len = if (k + salt) % 7 == 0 { 3_000 } else if (k + salt) % 5 == 0 { 40 } else { 0 };
-        if len > 0 {
-            vec![(id(0), V::U(k)), (id(1), V::Nat(big_nat(k + salt, len))), (id(2), V::Int(low_zero_int(k + salt, len)))]
-        } else {
-            vec![(id(0), V::U(k)), (id(1), V::U(k * 7 + salt)), (id(2), V::I(-(k as i64) - salt as i64))]
-        }
-    };
-    let digest = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 112, &img).unwrap();
-        let mut model: Rows = BTreeMap::new();
-        let mut units = Units::default();
-        let mut k = 0u64;
-        while frozen(&tb) == 0 {
-            put_row(&mut tb, &mut model, row(k, 0));
-            k += 1;
-        }
-        let keys: Vec<u64> = model.keys().copied().filter(|k| *k < 4_096).collect();
-        let mut want = BTreeMap::new();
-        for (_, r) in model.values() {
-            move_totals(&mut want, None, Some(r));
-        }
-        let mut salt = 1u64;
-        for kind in [seal::SEAL, seal::COMPACTION] {
-            if kind == seal::COMPACTION {
-                let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-                let tbl = tb.root();
-                native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-            }
-            // Changes after the snapshot.
-            units_to(&mut tb, &mut units, kind, seal::STEP_PASS1, 0);
-            for key in keys.iter().step_by(13) {
-                if let Some((_, old)) = model.get(key).cloned() {
-                    put_row(&mut tb, &mut model, row(*key, salt));
-                    move_totals(&mut want, Some(&old), Some(&model[key].1));
-                    check_totals(&tb, &want);
-                }
-            }
-            units_to(&mut tb, &mut units, kind, seal::STEP_WRITE, 0);
-            // Writes between the rewrite's units: updates to big and small values, and deletes.
-            let mut i = 0usize;
-            while seal::running(tb.host(), tb.root(), kind).unwrap() != 0 {
-                one_unit(&mut tb, &mut units);
-                salt += 1;
-                let key = keys[(i * 37 + 11) % keys.len()];
-                if let Some((_, old)) = model.get(&key).cloned() {
-                    if i % 9 == 8 {
-                        tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(key))])).unwrap();
-                        model.remove(&key);
-                    } else {
-                        put_row(&mut tb, &mut model, row(key, salt));
-                    }
-                    move_totals(&mut want, Some(&old), model.get(&key).map(|(_, r)| r.as_slice()));
-                    check_totals(&tb, &want);
-                }
-                i += 1;
-            }
-            run_all(&mut tb, &mut units);
-            check_reads(&tb, &model);
-            check_groups(&tb);
-        }
-        check_ownership(&tb);
-        units
-    });
-    eprintln!("big_values_changed_during_rewrites: {digest:?}");
-}
-
 /// A group drop after every row of the group was updated to another value of a u8 column, then deleted: the
 /// group is dropped, and the totals stay exact.
 #[test]
@@ -3614,7 +2503,7 @@ fn drop_of_a_group_of_updated_rows() {
         let mut model: Rows = BTreeMap::new();
         let mut units = Units::default();
         let mut k = 0u64;
-        while frozen(&tb) == 0 {
+        while seals(&tb) == 0 {
             put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::U(k % 200)), (id(2), V::I(k as i64))]);
             k += 1;
         }
@@ -3638,12 +2527,12 @@ fn drop_of_a_group_of_updated_rows() {
     eprintln!("drop_of_a_group_of_updated_rows: {digest:?}");
 }
 
-// ---------------------------------------------------------------- stale tables and the drain
+// ---------------------------------------------------------------- stale tables
 
-/// A table opened with a newer schema image while its seal runs: its units run on the stored schema, each
-/// within the bound, and leave it stale; its next write adopts the image.
+/// A table opened with a newer schema image while a compaction waits: its steps run on the stored schema and
+/// leave it stale; its next write adopts the image.
 #[test]
-fn stale_table_units_adopt_nothing() {
+fn stale_table_steps_adopt_nothing() {
     let cols = model_cols();
     let digest = per_fill(|h, _| {
         let mut e = Evo::new(&cols);
@@ -3654,8 +2543,10 @@ fn stale_table_units_adopt_nothing() {
         let mut next_key = 0u64;
         let mut units = Units::default();
         fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        for _ in 0..40 {
-            one_unit(&mut tb, &mut units);
+        let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
+        for k in keys.iter().take(COMPACT_DEAD as usize + 10) {
+            tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
+            model.remove(k);
         }
         e.bump();
         let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0x07])));
@@ -3664,10 +2555,10 @@ fn stale_table_units_adopt_nothing() {
         drop(tb);
         let mut tb = Table::open(h, root, &img2).unwrap();
         assert!(tb.stale());
-        for _ in 0..200 {
-            one_unit(&mut tb, &mut units);
-            assert!(tb.stale(), "a unit adopts nothing");
+        while one_unit(&mut tb, &mut units) != Ran::Nothing {
+            assert!(tb.stale(), "a step adopts nothing");
         }
+        assert!(units.by.contains_key("Compaction"), "{units:?}");
         evolve_model(&mut model, &[(a, V::U(7)), (b, V::Null)], &[]);
         let key = *model.keys().next().unwrap();
         set_cell(&mut tb, &mut model, key, a, V::U(70));
@@ -3678,268 +2569,10 @@ fn stale_table_units_adopt_nothing() {
         check_running(&tb, &model);
         units
     });
-    eprintln!("stale_table_units_adopt_nothing: {digest:?}");
+    eprintln!("stale_table_steps_adopt_nothing: {digest:?}");
 }
 
-/// A frozen group none of whose rows holds a long value: its walk on the drain reads no row, so freeing its
-/// buffer takes a few drain units; a group with a long row image, or a row with a long value, has its rows
-/// read and their long values freed.
-#[test]
-fn drain_reads_rows_only_with_long_values() {
-    let img = schema(&[t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::TEXT)]).0;
-    let digest = per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 115, &img).unwrap();
-        let mut model: Rows = BTreeMap::new();
-        let mut units = Units::default();
-        let mut drains = Vec::new();
-        for long in [false, true] {
-            let first = model.len() as u64;
-            let before = frozen(&tb);
-            let mut k = first;
-            while frozen(&tb) == before {
-                let text = if long && k % 512 == 3 { vec![b'x'; HUGE_VALUE as usize + 10] } else { b"t".to_vec() };
-                put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::U(k)), (id(2), V::U(k * 3)), (id(3), V::Bytes(text))]);
-                k += 1;
-            }
-            let desc = root::u64_at(tb.host(), tb.root(), root::FROZEN_HEAD).unwrap();
-            let flags = buffer::u16_of(tb.host(), desc, buffer::D_FLAGS).unwrap();
-            assert_eq!(flags & u64::from(buffer::LONG_ROWS) != 0, long, "the frozen group's long-values flag");
-            if long {
-                // A row of the frozen group updated to a long row image too.
-                let key = *model.keys().nth(first as usize + 7).unwrap();
-                let mut row = model[&key].1.clone();
-                row[3].1 = V::Bytes(vec![b'y'; 5_000]);
-                put_row(&mut tb, &mut model, row);
-            }
-            let mut n = 0u64;
-            while one_unit(&mut tb, &mut units) != Ran::Nothing {
-                n += 1;
-            }
-            drains.push((units.by.get("Drain").map(|x| x.2).unwrap_or(0), n));
-            check_reads(&tb, &model);
-            check_ownership(&tb);
-        }
-        drains
-    });
-    eprintln!("drain_reads_rows_only_with_long_values: (drain units so far, units) {digest:?}");
-    assert!(digest[0].0 <= 40, "a group with no long value is freed in a few drain units: {digest:?}");
-}
-
-// ---------------------------------------------------------------- leaves added or dropped while a seal runs
-
-/// A column added after a seal's snapshot, a frozen row's value of it written during the seal (a
-/// post-snapshot patch, so the sealed image lacks the leaf), the seal ended, then the same row's value written
-/// again by `set` or by upsert, to another value and to null: every row reads back.
-#[test]
-fn late_leaf_written_again_after_seal() {
-    let cols = model_cols();
-    for (second, upsert) in [
-        (V::Bytes(b"xyz".to_vec()), false),
-        (V::Bytes(b"xyz".to_vec()), true),
-        (V::Null, false),
-        (V::Null, true),
-    ] {
-        let res = per_fill(|h, _| {
-            let mut e = Evo::new(&cols);
-            let (mut tb, _) = Table::create(h, 120, &e.image()).unwrap();
-            let mut r = XorShift(0x7A7E);
-            let mut model: Rows = BTreeMap::new();
-            let mut next_key = 0u64;
-            let mut units = Units::default();
-            fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-            units_to(&mut tb, &mut units, seal::SEAL, seal::STEP_PASS1, 0);
-            e.bump();
-            let a = id(e.add_col(&t::opt(t::scalar(ty::TEXT)), None));
-            tb.change_schema(&e.image()).unwrap();
-            evolve_model(&mut model, &[(a, V::Null)], &[]);
-            let k = *model.keys().next().unwrap();
-            set_cell(&mut tb, &mut model, k, a, V::Bytes(b"abc".to_vec()));
-            run_all(&mut tb, &mut units);
-            check_reads(&tb, &model);
-            if upsert {
-                let mut row = model[&k].1.clone();
-                row.iter_mut().find(|(x, _)| *x == a).unwrap().1 = second.clone();
-                put_row(&mut tb, &mut model, row);
-            } else {
-                set_cell(&mut tb, &mut model, k, a, second.clone());
-            }
-            check_reads(&tb, &model);
-            check_groups(&tb);
-            check_running(&tb, &model);
-            model.len()
-        });
-        eprintln!("late_leaf_written_again_after_seal: {second:?}, upsert {upsert}: {res:?}");
-    }
-}
-
-/// As `late_leaf_written_again_after_seal`, for a Bool and a Nat column added after the seal's snapshot: the
-/// second write succeeds, the rows read back and the Nat's total matches the live rows.
-#[test]
-fn late_leaf_kinds_written_again_after_seal() {
-    let cols = model_cols();
-    let kinds: Vec<(&str, Vec<u8>, Option<Vec<u8>>, V, V, V)> = vec![
-        ("bool", t::scalar(ty::BOOL), None, V::Bool(false), V::Bool(true), V::Bool(false)),
-        ("nat", t::scalar(ty::NAT), Some(vec![0x05]), V::U(5), V::U(1_000), V::U(7)),
-    ];
-    for (name, ty_img, dflt, def, first, second) in kinds {
-        let res = per_fill(|h, _| {
-            let mut e = Evo::new(&cols);
-            let (mut tb, _) = Table::create(h, 121, &e.image()).unwrap();
-            let mut r = XorShift(0x7A7F);
-            let mut model: Rows = BTreeMap::new();
-            let mut next_key = 0u64;
-            let mut units = Units::default();
-            fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-            units_to(&mut tb, &mut units, seal::SEAL, seal::STEP_PASS1, 0);
-            e.bump();
-            let a = id(e.add_col(&ty_img, dflt.as_deref()));
-            tb.change_schema(&e.image()).unwrap();
-            evolve_model(&mut model, &[(a, def.clone())], &[]);
-            let k = *model.keys().next().unwrap();
-            set_cell(&mut tb, &mut model, k, a, first.clone());
-            run_all(&mut tb, &mut units);
-            set_cell(&mut tb, &mut model, k, a, second.clone());
-            check_reads(&tb, &model);
-            check_groups(&tb);
-            check_running(&tb, &model);
-            // Every row of the group again, in turn to the first value and the second.
-            let keys: Vec<u64> = model.keys().copied().take(40).collect();
-            for (i, k) in keys.iter().enumerate() {
-                set_cell(&mut tb, &mut model, *k, a, if i % 2 == 0 { first.clone() } else { second.clone() });
-            }
-            check_reads(&tb, &model);
-            check_groups(&tb);
-            check_running(&tb, &model);
-            model.len()
-        });
-        eprintln!("late_leaf_kinds_written_again_after_seal: {name}: {res:?}");
-    }
-}
-
-/// A column dropped once a seal has taken its snapshot (its pass 1 begun): the seal writes the dropped leaf,
-/// and the column release cleans the group once the seal has flipped, before it clears the release flag.
-#[test]
-fn drop_during_seal_pass1_released() {
-    let cols = model_cols();
-    let res = per_fill(|h, _| {
-        let mut e = Evo::new(&cols);
-        let (mut tb, _) = Table::create(h, 132, &e.image()).unwrap();
-        let mut r = XorShift(0xB0DA);
-        let mut model: Rows = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        units_to(&mut tb, &mut units, seal::SEAL, seal::STEP_PASS1, 0);
-        e.bump();
-        e.drop_col(13);
-        tb.change_schema(&e.image()).unwrap();
-        evolve_model(&mut model, &[], &[id(13)]);
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        no_dropped_cells(&tb);
-        let flags = root::u8_at(tb.host(), tb.root(), root::FLAGS).unwrap();
-        (flags & root::FLAG_RELEASE, root::u32_at(tb.host(), tb.root(), root::CLEANED).unwrap())
-    });
-    assert_eq!(res, (0, 1), "(release flag, cleaned columns)");
-}
-
-/// A column dropped at unit boundaries all through a seal (every `stride`th unit and the first four of each
-/// step), with and without writes of the group's rows after the drop: once maintenance ends, no sealed group
-/// holds the dropped leaf and the release flag is clear.
-#[test]
-fn drop_at_seal_unit_boundaries() {
-    let cols = model_cols();
-    let stride = env_u64("NT_STRIDE", if large() { 23 } else { 500 });
-    let mut h = VecHost::new(FILLS[0]);
-    let mut model: Rows = BTreeMap::new();
-    let mut units = Units::default();
-    let e0 = Evo::new(&cols);
-    let img0 = e0.image();
-    let root = {
-        let (mut tb, root) = Table::create(&mut h, 133, &img0).unwrap();
-        let mut r = XorShift(0xB0DA);
-        let mut next_key = 0u64;
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        root
-    };
-    let mut fails = Vec::new();
-    let (mut n, mut branches, mut started, mut last_step, mut in_step) = (0u64, 0u64, false, 255u8, 0u64);
-    loop {
-        let step = {
-            let tb = Table::open(&mut h, root, &img0).unwrap();
-            let st = seal::running(tb.host(), root, seal::SEAL).unwrap();
-            if st == 0 { 255 } else { rewrite_step(tb.host(), st) }
-        };
-        if step != 255 {
-            started = true;
-        }
-        if started && step == 255 {
-            break;
-        }
-        if step != last_step {
-            last_step = step;
-            in_step = 0;
-        }
-        if n % stride == 0 || in_step < 4 {
-            for writes in [false, true] {
-                branches += 1;
-                let mut h2 = h.clone();
-                let mut model2 = model.clone();
-                let mut e = Evo::new(&cols);
-                e.bump();
-                e.drop_col(13);
-                let b = id(e.add_col(&t::scalar(ty::BOOL), None));
-                let img = e.image();
-                let mut tb = Table::open(&mut h2, root, &img0).unwrap();
-                tb.change_schema(&img).unwrap();
-                evolve_model(&mut model2, &[(b, V::Bool(false))], &[id(13)]);
-                if writes {
-                    let keys: Vec<u64> = model2.keys().copied().take(60).collect();
-                    for (i, k) in keys.iter().enumerate() {
-                        set_cell(&mut tb, &mut model2, *k, b, V::Bool(i % 2 == 0));
-                    }
-                }
-                let mut u2 = Units::default();
-                let mut guard = 0u64;
-                while one_unit(&mut tb, &mut u2) != Ran::Nothing {
-                    guard += 1;
-                    assert!(guard < 1_000_000, "maintenance ends");
-                }
-                check_reads(&tb, &model2);
-                let dropped = dropped_ordinals(&tb);
-                let clean = sealed_groups(&tb).iter().all(|&(_, pg)| {
-                    let gv = GroupView::open(tb.host(), pg).unwrap();
-                    dropped.iter().all(|&o| gv.leaf_by_ordinal(o).unwrap().is_none())
-                });
-                let flag = root::u8_at(tb.host(), tb.root(), root::FLAGS).unwrap() & root::FLAG_RELEASE;
-                if !clean || flag != 0 {
-                    fails.push((n, step, writes, clean, flag));
-                }
-            }
-        }
-        let mut tb = Table::open(&mut h, root, &img0).unwrap();
-        assert_ne!(one_unit(&mut tb, &mut units), Ran::Nothing);
-        n += 1;
-        in_step += 1;
-    }
-    eprintln!("drop_at_seal_unit_boundaries: {n} seal units, {branches} branches");
-    assert!(fails.is_empty(), "(unit, step, writes, no dropped cells, release flag) {fails:?}");
-}
-
-/// The model's rows across schema versions at 10,000 writes a version, with no meter, for two seeds that
-/// once met a column added after a seal's snapshot and written again after the seal.
-#[test]
-fn rows_model_versions_late_leaves() {
-    if !large() && env_u64("NT_LATE", 0) == 0 {
-        eprintln!("rows_model_versions_late_leaves runs in the large suite (NT_LARGE=1)");
-        return;
-    }
-    for seed in [3u64, 46] {
-        model_versions(10_000, seed, 0);
-    }
-}
-
-// ---------------------------------------------------------------- leaves added during rewrites
+// ---------------------------------------------------------------- big defaults
 
 /// The text of a check's panic, or "ok".
 fn checked(f: impl FnOnce()) -> String {
@@ -3947,47 +2580,6 @@ fn checked(f: impl FnOnce()) -> String {
         Ok(()) => "ok".to_string(),
         Err(p) => p.downcast_ref::<String>().cloned().unwrap_or_default().chars().take(300).collect(),
     }
-}
-
-/// Columns added while a seal holds a frozen group past its snapshot, and some of the group's rows given
-/// values of them during the seal (one row written, then deleted): after the flip every row reads back and
-/// the new Nat leaf's total counts those values.
-#[test]
-fn late_leaf_record_through_a_seal() {
-    let cols = model_cols();
-    let out = per_fill(|h, _| {
-        let mut e = Evo::new(&cols);
-        let (mut tb, _) = Table::create(h, 171, &e.image()).unwrap();
-        let mut r = XorShift(0x1A7E);
-        let mut model: Rows = BTreeMap::new();
-        let mut next_key = 0u64;
-        let mut units = Units::default();
-        fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-        units_to(&mut tb, &mut units, seal::SEAL, seal::STEP_PASS1, 0);
-        e.bump();
-        let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0xAC, 0x02])));
-        let b = id(e.add_col(&t::opt(t::scalar(ty::TEXT)), None));
-        let c = id(e.add_col(&t::scalar(ty::BOOL), None));
-        tb.change_schema(&e.image()).unwrap();
-        evolve_model(&mut model, &[(a, V::U(300)), (b, V::Null), (c, V::Bool(false))], &[]);
-        let g0: Vec<u64> =
-            model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).take(12).collect();
-        for k in g0.iter().take(10) {
-            set_cell(&mut tb, &mut model, *k, a, V::U(7));
-            set_cell(&mut tb, &mut model, *k, b, V::Bytes(b"late".to_vec()));
-            set_cell(&mut tb, &mut model, *k, c, V::Bool(true));
-        }
-        // A row written, then deleted, during the seal.
-        set_cell(&mut tb, &mut model, g0[10], a, V::U(9));
-        let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(g0[10]))])).unwrap();
-        assert_eq!(gone, model.remove(&g0[10]).map(|x| x.0));
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        check_running(&tb, &model);
-        check_groups(&tb);
-        model.values().filter(|(rid, _)| rid / GROUP_SLOTS == 0).count() as u32
-    });
-    assert!(out > 1_000, "the group's live rows: {out}");
 }
 
 /// 2^140 - 1 as a Nat's LEB128 bytes (20 groups), and -(2^139) as an Int's.
@@ -4011,7 +2603,7 @@ fn big_default_case(kind: u32, upsert: bool) -> String {
             let mut model: Rows = BTreeMap::new();
             let mut units = Units::default();
             let mut k = 0u64;
-            while frozen(&tb) == 0 {
+            while seals(&tb) == 0 {
                 put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::U(k % 7))]);
                 k += 1;
             }
@@ -4066,307 +2658,4 @@ fn big_default_first_write() {
         }
     }
     assert!(out.iter().all(|x| x.ends_with(": ok")), "{out:#?}");
-}
-
-/// A Nat column with a declared default past 64 bits added after a compaction's or a seal's snapshot, then a
-/// row of the rewrite's group given a value of it: the leaf is later than the snapshot; every row reads back
-/// and its total counts every row.
-fn big_default_under(seal_it: bool) -> String {
-    checked(|| {
-        per_fill(|h, _| {
-            let mut e = Evo::new(&[t::scalar(ty::NAT), t::scalar(ty::U16)]);
-            let (mut tb, _) = Table::create(h, 332, &e.image()).unwrap();
-            let mut model: Rows = BTreeMap::new();
-            let mut units = Units::default();
-            let mut k = 0u64;
-            while frozen(&tb) == 0 {
-                put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::U(k % 7))]);
-                k += 1;
-            }
-            let kind = if seal_it {
-                seal::SEAL
-            } else {
-                run_all(&mut tb, &mut units);
-                let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-                let tbl = tb.root();
-                native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                seal::COMPACTION
-            };
-            units_to(&mut tb, &mut units, kind, seal::STEP_PASS1, 0);
-            e.bump();
-            let (nat, _) = past_64_bits();
-            let a = id(e.add_col(&t::scalar(ty::NAT), Some(&nat)));
-            tb.change_schema(&e.image()).unwrap();
-            evolve_model(&mut model, &[(a, V::Nat(nat.clone()))], &[]);
-            set_cell(&mut tb, &mut model, 3, a, V::U(5));
-            run_all(&mut tb, &mut units);
-            check_reads(&tb, &model);
-            check_groups(&tb);
-            check_running(&tb, &model);
-        })
-    })
-}
-
-#[test]
-fn big_default_first_write_under_rewrite() {
-    let out: Vec<String> = [false, true].iter().map(|&s| format!("seal {s}: {}", big_default_under(s))).collect();
-    assert!(out.iter().all(|x| x.ends_with(": ok")), "{out:#?}");
-}
-
-/// The same frozen rows give one group image whatever their history. A group is sealed as inserted, and
-/// again after a quarter of its rows were updated while frozen: a Bool set and set back by `set` (`how` 0)
-/// or by upsert (1), or by `set` after a schema change that adds a column (2). Such an update writes each of
-/// the row's items longer than `LONG_VALUE` as a long value, written or not. The seal places a value of at
-/// most `HUGE_VALUE` bytes by its length, out of line, as the first seal and a compaction of the same rows
-/// do; it adopts only longer ones. A compaction of the second group gives the same image again, and every
-/// page of area 15 is owned once after each.
-fn frozen_update_images(how: u32) -> (usize, u32, u32) {
-    let cols = model_cols();
-    per_fill(|h, _| {
-        let mut out = Vec::new();
-        let mut updated_medium = 0u32;
-        for pass in 0..2 {
-            // Both tables in the one host, one after the other, with the same uid.
-            let mut e = Evo::new(&cols);
-            let (mut tb, _) = Table::create(&mut *h, 400, &e.image()).unwrap();
-            let mut r = XorShift(0xB0F);
-            let mut model: Rows = BTreeMap::new();
-            let mut next_key = 0u64;
-            let mut units = Units::default();
-            fill_group(&mut tb, &mut r, &mut model, &mut next_key);
-            if how == 2 {
-                e.bump();
-                let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0xAC, 0x02])));
-                tb.change_schema(&e.image()).unwrap();
-                evolve_model(&mut model, &[(a, V::U(300))], &[]);
-            }
-            if pass == 1 {
-                let keys: Vec<u64> = model.keys().copied().filter(|k| k % 4 == 1).collect();
-                for k in keys {
-                    if matches!(&model[&k].1[1].1, V::Bytes(b) if b.len() as u64 > LONG_VALUE) {
-                        updated_medium += 1;
-                    }
-                    let was = model[&k].1[2].1.clone();
-                    let flipped = V::Bool(was != V::Bool(true));
-                    if how == 1 {
-                        for v in [flipped, was] {
-                            let mut row = model[&k].1.clone();
-                            row[2].1 = v;
-                            put_row(&mut tb, &mut model, row);
-                        }
-                    } else {
-                        set_cell(&mut tb, &mut model, k, id(2), flipped);
-                        set_cell(&mut tb, &mut model, k, id(2), was);
-                    }
-                }
-            }
-            run_all(&mut tb, &mut units);
-            check_reads(&tb, &model);
-            check_groups(&tb);
-            check_ownership(&tb);
-            let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-            let lv = rd_u32(tb.host().get(Region::Block(pg)).unwrap(), page::P_LV_COUNT).unwrap();
-            out.push((group_image(&tb, pg), lv));
-            if pass == 1 {
-                let tbl = tb.root();
-                native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
-                run_all(&mut tb, &mut units);
-                assert!(units.by.keys().any(|x| x.starts_with("Compaction")), "{units:?}");
-                check_reads(&tb, &model);
-                check_groups(&tb);
-                check_ownership(&tb);
-                let pg = root::group(tb.host(), tb.root(), 0).unwrap();
-                let lv = rd_u32(tb.host().get(Region::Block(pg)).unwrap(), page::P_LV_COUNT).unwrap();
-                out.push((group_image(&tb, pg), lv));
-            }
-        }
-        assert!(updated_medium > 0, "some updated rows hold a medium Text");
-        for (i, what) in [(1, "the seal after updates"), (2, "the compaction")] {
-            assert_eq!(
-                (out[0].0.len(), out[0].1),
-                (out[i].0.len(), out[i].1),
-                "how {how}: image length and long-value list of the first seal and {what}"
-            );
-            if let Some(b) = out[0].0.iter().zip(&out[i].0).position(|(x, y)| x != y) {
-                panic!("how {how}: the first seal's image and {what}'s differ at byte {b}");
-            }
-        }
-        (out[0].0.len(), out[0].1, updated_medium)
-    })
-}
-
-#[test]
-fn frozen_update_seal_bytes() {
-    for how in 0..3 {
-        let (len, lv, medium) = frozen_update_images(how);
-        eprintln!("how {how}: image {len} bytes, long-value list {lv}, updated rows with a medium Text {medium}");
-    }
-}
-
-/// A host meter whose every reading advances by the same `jump`.
-struct JumpMeter {
-    used: std::cell::Cell<u64>,
-    jump: u64,
-}
-
-impl native_table::Budget for JumpMeter {
-    fn used(&self) -> u64 {
-        self.used.set(self.used.get() + self.jump);
-        self.used.get()
-    }
-    fn limit(&self) -> u64 {
-        u64::MAX
-    }
-}
-
-// ---------------------------------------------------------------- rewrites of groups with no live row
-
-/// The write step's phases whose walk over the leaves a snapshot with no live row leaves without output: the
-/// cells (3) and the segment table (6); and the step's end (7).
-const W_CELLS: u64 = 3;
-const W_SEGTABLE: u64 = 6;
-const W_DONE: u64 = 7;
-
-/// Where the write step of the rewrite at state block `st` stands: (phase, leaf), before the step (0, 0),
-/// after it (`W_DONE`, 0).
-fn write_cursor(tb: &Table<'_, VecHost>, st: u64) -> (u64, u64) {
-    if st == 0 {
-        return (W_DONE, 0);
-    }
-    let step = rewrite_step(tb.host(), st);
-    if step < seal::STEP_WRITE {
-        return (0, 0);
-    }
-    if step > seal::STEP_WRITE {
-        return (W_DONE, 0);
-    }
-    let b = tb.host().get(Region::Block(st)).unwrap();
-    (rd_u64(b, seal::RW_SUB).unwrap() & 0xFF, u64::from(rd_u32(b, seal::RW_LEAF).unwrap()))
-}
-
-/// The leaves of a table of `leaves` leaves crossed in the cells and segment-table phases from write cursor
-/// `from` to `to`.
-fn leaves_crossed(from: (u64, u64), to: (u64, u64), leaves: u64) -> u64 {
-    [W_CELLS, W_SEGTABLE]
-        .iter()
-        .map(|&p| {
-            if p < from.0 || p > to.0 {
-                return 0;
-            }
-            let a = if p == from.0 { from.1 } else { 0 };
-            let b = if p == to.0 { to.1 } else { leaves };
-            b.saturating_sub(a)
-        })
-        .sum()
-}
-
-/// Runs units on `meter` until the rewrite of `kind` ends, the others too; returns the most leaves one unit
-/// crossed in its write step's cells and segment-table phases, and the live rows of its snapshot (each write
-/// step's).
-fn run_crossing<B: native_table::Budget>(
-    tb: &mut Table<'_, VecHost>,
-    units: &mut Units,
-    meter: &B,
-    kind: u8,
-    leaves: u64,
-) -> (u64, Vec<u64>) {
-    let mut most = 0;
-    let mut live = Vec::new();
-    let mut guard = 0;
-    loop {
-        let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-        let from = write_cursor(tb, st);
-        if st != 0 && rewrite_step(tb.host(), st) == seal::STEP_WRITE {
-            let n = u64::from(rd_u16(tb.host().get(Region::Block(st)).unwrap(), seal::RW_N).unwrap());
-            if live.last() != Some(&n) {
-                live.push(n);
-            }
-        }
-        if one_unit_m(tb, units, meter) == Ran::Nothing {
-            break;
-        }
-        // The same state block until the rewrite ends.
-        let after = seal::running(tb.host(), tb.root(), kind).unwrap();
-        if st != 0 && (after == st || after == 0) {
-            most = most.max(leaves_crossed(from, write_cursor(tb, after), leaves));
-        }
-        guard += 1;
-        assert!(guard < 1_000_000, "maintenance ends");
-    }
-    (most, live)
-}
-
-/// A rewrite whose snapshot holds no live row, in compacted form (the group has at least `COMPACT_DEAD` dead
-/// positions, so its stored count is 0): every leaf's cells are empty and no leaf has a segment, yet each leaf
-/// the write step crosses costs the replica several thousand instructions (the leaf found, its plan loaded,
-/// its segments walked). Two such rewrites of a group of a key and 200 u8 leaves: a seal of a frozen group
-/// whose rows were all deleted before it began (`compaction` false), and a compaction of a sealed group
-/// whose last live rows were deleted at its snapshot (true). With estimates only (`metered` false) and under
-/// a meter whose readings advance by 5,000, no unit may cross more than `UNIT_WORK / 4_000` leaves in the two
-/// phases. Returns the most one unit crossed and the snapshot's live rows.
-fn empty_snapshot_case(compaction: bool, metered: bool) -> (u64, Vec<u64>) {
-    let n = 200usize;
-    let leaves = n as u64 + 1;
-    let img = many_schema(n);
-    per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 460, &img).unwrap();
-        let mut model = BTreeMap::new();
-        let mut units = Units::default();
-        let mut k = 0u64;
-        while frozen(&tb) == 0 {
-            put_row(&mut tb, &mut model, many_row(n, k, &BTreeMap::new()));
-            k += 1;
-        }
-        let rows: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
-        assert!(rows.len() as u64 >= COMPACT_DEAD, "the group has {} rows", rows.len());
-        let remove = |tb: &mut Table<'_, VecHost>, model: &mut Rows, keys: &[u64]| {
-            for k in keys {
-                tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(*k))])).unwrap();
-                model.remove(k);
-            }
-        };
-        let kind = if compaction {
-            run_all(&mut tb, &mut units);
-            // More than `COMPACT_DEAD` rows deleted queue the compaction; the rest at its snapshot.
-            let cut = COMPACT_DEAD as usize + 10;
-            remove(&mut tb, &mut model, &rows[..cut]);
-            units_to(&mut tb, &mut units, seal::COMPACTION, seal::STEP_SNAPSHOT, 0);
-            remove(&mut tb, &mut model, &rows[cut..]);
-            seal::COMPACTION
-        } else {
-            remove(&mut tb, &mut model, &rows);
-            seal::SEAL
-        };
-        let meter = JumpMeter { used: std::cell::Cell::new(0), jump: 5_000 };
-        let out = if metered {
-            run_crossing(&mut tb, &mut units, &meter, kind, leaves)
-        } else {
-            run_crossing(&mut tb, &mut units, &everything(), kind, leaves)
-        };
-        run_all(&mut tb, &mut units);
-        check_reads(&tb, &model);
-        check_groups(&tb);
-        check_ownership(&tb);
-        out
-    })
-}
-
-#[test]
-fn empty_snapshot_units_bounded() {
-    let mut out = Vec::new();
-    for compaction in [false, true] {
-        for metered in [false, true] {
-            let mut res = None;
-            let ran = checked(|| res = Some(empty_snapshot_case(compaction, metered)));
-            let ok = matches!(&res, Some((most, live)) if *most <= UNIT_WORK / 4_000 && live == &[0]);
-            out.push((
-                ok,
-                format!("compaction {compaction}, metered {metered}: {ran}, (most leaves a unit, live rows) {res:?}"),
-            ));
-        }
-    }
-    for (_, s) in &out {
-        eprintln!("{s}");
-    }
-    assert!(out.iter().all(|(ok, _)| *ok), "{out:#?}");
 }

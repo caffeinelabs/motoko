@@ -4,7 +4,7 @@
 //! calibration.
 
 use native_table::area::new_root;
-use native_table::consts::{BLOCK, BYTE_UNIT, PAGE};
+use native_table::consts::{BLOCK, PAGE};
 use native_table::image::{Image, ImageReader};
 use native_table::index::runlist::{image_radix, RunDesc, RunList, D_BELIEVED, D_RELATIVE};
 use native_table::index::secondary::Secondary;
@@ -693,8 +693,8 @@ pub fn key_steps(mem: &mut [u8], rows: u64, options: u64, rev: bool, mark: &mut 
     Ok(n)
 }
 
-/// A copy-heavy unit, for the cost meter's calibration: `rounds` copies of `BYTE_UNIT` bytes between two
-/// pages through the crate's region copy. Returns two words of the last page written.
+/// A copy-heavy unit, for the cost meter's calibration: `rounds` copies of a page's bytes between two pages
+/// through the crate's region copy. Returns two words of the last page written.
 #[no_mangle]
 pub extern "C" fn nt_copy_unit(rounds: u64) -> u64 {
     let mut h = crate::ArrayHost::new();
@@ -714,7 +714,7 @@ fn copy_unit(h: &mut crate::ArrayHost, rounds: u64) -> Result<u64, Fault> {
     let mut last = a;
     while r < rounds {
         let (from, to) = if r % 2 == 0 { (a, b) } else { (b, a) };
-        native_table::mem::copy(h, Region::Page(from), 0, Region::Page(to), 0, BYTE_UNIT)?;
+        native_table::mem::copy(h, Region::Page(from), 0, Region::Page(to), 0, PAGE)?;
         last = to;
         r = r.wrapping_add(1);
     }

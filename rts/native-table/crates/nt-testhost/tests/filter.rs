@@ -23,7 +23,7 @@ use native_table::value::ty;
 use native_table::{Progress, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{schema_versioned, t, Sink, Src, VCol, V};
-use nt_testhost::{TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{open_group, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 fn id(col: u32) -> u32 {
     col << 16
@@ -430,14 +430,14 @@ fn filtered_scans_model() {
     let mut r = XorShift(0x5EED_F117);
     let mut v = 1u32;
     let mut next_key = 0u64;
-    let (mut units, mut compaction_units, mut seal_units, mut checks) = (0u64, 0u64, 0u64, 0u64);
+    let (mut units, mut compaction_units, mut checks) = (0u64, 0u64, 0u64);
     let mut unit = |tb: &mut Table<'_, VecHost>| -> Ran {
-        let ran = tb.unit(&TestBudget::new(u64::MAX)).unwrap().0;
+        let ran = tb.step().unwrap();
         units += 1;
         ran
     };
 
-    // Rows past three groups, keys rising, with updates, removes and maintenance units between them.
+    // Rows past three groups, keys rising, with updates, removes and maintenance steps between them.
     let mut step = 0u64;
     while next_key < 3 * GROUP_SLOTS + GROUP_SLOTS / 2 {
         step += 1;
@@ -454,9 +454,7 @@ fn filtered_scans_model() {
                 remove(&mut tb, &mut m, k);
             }
             _ => {
-                if unit(&mut tb) == Ran::Seal {
-                    seal_units += 1;
-                }
+                unit(&mut tb);
             }
         }
         if step % 4_000 == 0 {
@@ -468,18 +466,16 @@ fn filtered_scans_model() {
     maintain_all(&mut tb);
     check(&tb, &m, v, &mut r);
 
-    // Half of group 0's rows removed: its compaction, run a unit at a time, with updates and removes between
-    // the units, checked as it goes.
+    // Half of group 0's rows removed: its compaction, run a step at a time, with updates and removes between
+    // the steps, checked as it goes.
     let in_group0: Vec<u64> = m.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).collect();
     for k in in_group0.iter().step_by(2) {
         remove(&mut tb, &mut m, *k);
     }
     let mut n = 0u64;
     while tb.wake().unwrap() != Wake::Idle {
-        match unit(&mut tb) {
-            Ran::Compaction => compaction_units += 1,
-            Ran::Seal => seal_units += 1,
-            _ => {}
+        if unit(&mut tb) == Ran::Compaction {
+            compaction_units += 1;
         }
         n += 1;
         if n <= 150 {
@@ -523,9 +519,7 @@ fn filtered_scans_model() {
                 remove(&mut tb, &mut m, k);
             }
             _ => {
-                if unit(&mut tb) == Ran::Seal {
-                    seal_units += 1;
-                }
+                unit(&mut tb);
             }
         }
         if step % 1_500 == 0 {
@@ -536,12 +530,13 @@ fn filtered_scans_model() {
     check(&tb, &m, v, &mut r);
     maintain_all(&mut tb);
     let matched = check(&tb, &m, v, &mut r);
+    let seals = open_group(tb.host(), tb.root());
     eprintln!(
-        "rows {}, units {units} (seal {seal_units}, compaction {compaction_units}), checks {checks}, matched {matched}",
+        "rows {}, steps {units} (compaction {compaction_units}), seals {seals}, checks {checks}, matched {matched}",
         m.len()
     );
-    assert!(seal_units >= 3, "seal units: {seal_units}");
-    assert!(compaction_units >= 1, "compaction units: {compaction_units}");
+    assert!(seals >= 3, "seals: {seals}");
+    assert!(compaction_units >= 1, "compaction steps: {compaction_units}");
 
     // Bad filters.
     let mut buf = [0u8; 64];

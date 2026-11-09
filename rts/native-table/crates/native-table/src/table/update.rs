@@ -1,13 +1,9 @@
-//! Writes to sealed rows, and to the rows of a group a rewrite holds a snapshot of.
+//! Writes to sealed rows.
 //!
-//! An update of a sealed row writes each changed leaf in place when its cell can take the value (a fixed
-//! form whose width holds it, `Bool`, a variable value of exactly its length that is not out of line, a null transition where the segment has validity; never `Seq`), no patch entry
-//! names the leaf at the row, and no rewrite holds a snapshot of the group; otherwise it upserts a patch. An
-//! integer leaf's total and the group's extremes move by difference.
-//!
-//! While a rewrite holds a snapshot of the group, nothing writes the snapshot: an update writes a
-//! post-snapshot patch on the pending page, and a delete clears the row's bit on the pending page's live
-//! bitmap; the rewrite's flip hands both to the group.
+//! An update of a sealed row writes each changed leaf in place when its cell can take the value (a fixed form
+//! whose width holds it, `Bool`, a variable value of exactly its length that is not out of line, a null
+//! transition where the segment has validity; never `Seq`) and no patch entry names the leaf at the row;
+//! otherwise it upserts a patch. An integer leaf's total and the group's extremes move by difference.
 
 use crate::consts::{HUGE_VALUE, LONG_VALUE};
 use crate::fault::{corrupt, rt, Corruption, Fault, ImageId};
@@ -24,11 +20,11 @@ use super::hot::{self, RunCursor, Sign};
 use super::jobs;
 use super::layout::{LeafInfo, Shape, Ty};
 use super::long::{LongOut, Meta};
-use super::overlay::{self, Buffered, Sealed};
+use super::overlay::{self, Sealed};
 use super::page;
 use super::patch::{self, ChainOut, Data};
 use super::root;
-use super::row::{self, RowRef, Walk};
+use super::row;
 use super::totals::{self, At, TSrc};
 use super::RowSource;
 
@@ -402,11 +398,11 @@ fn in_place<H: PageHost>(h: &mut H, s: &Sealed, l: &LeafInfo, pos: u64, v: &Val<
 // ---------------------------------------------------------------- updates of sealed rows
 
 /// Frees a value a patch or a delete leaves behind: a huge value of the image's long-value list (its entry
-/// moved to the drain), or nothing for an image cell.
+/// cleared), or nothing for an image cell.
 fn release_image_value<H: PageHost>(h: &mut H, tbl: u64, v: &SVal) -> Result<(), Fault> {
     if let SVal::Huge { img, owner: cur::Owner::List { page: pg, index }, .. } = *v {
         let (b, off) = page::lv_entry(&*h, pg, index)?;
-        drain::push_image(h, tbl, &img)?;
+        drain::free_image(h, tbl, &img)?;
         fill(h.get_mut(Region::Block(b))?, off, crate::image::REF_BYTES, 0)?;
     }
     Ok(())
@@ -486,17 +482,6 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     } else {
         None
     };
-    if let Some(rw) = s.rw {
-        // A rewrite holds the snapshot: a post-snapshot patch.
-        let (pv, filled) = patch_value(h, tbl, shape, l, src)?;
-        let up = patch::upsert(h, tbl, rw.pending, page::P_POST_PATCH, o, pos, &pv.data())?;
-        patch::release(h, tbl, up.old)?;
-        if let Some((tail, at, ext)) = tot {
-            let new = new_value(&*h, rw.pending, page::P_POST_PATCH, l, pos)?;
-            hot::apply_at(h, tbl, tail, at, l, &new, Sign::Add, ext)?;
-        }
-        return Ok(filled);
-    }
     let patched = s.dir != 0 && patch::lookup(&*h, s.dir, o, pos)?.is_some();
     let mut filled = 0u64;
     let wrote = if patched {
@@ -548,16 +533,15 @@ fn new_value<H: PageHost + ?Sized>(h: &H, holder: u64, off: u64, l: &LeafInfo, p
 
 // ---------------------------------------------------------------- deletes of sealed rows
 
-/// Deletes a sealed row: its live bit, its integer leaves' totals, its huge values' list entries moved to the
-/// drain, and the live count. While a rewrite holds a snapshot of the group, the pending page's live bit only
-/// (the snapshot keeps its values).
+/// Deletes a sealed row: its live bit, its integer leaves' totals, its huge values freed with their list
+/// entries cleared, and the live count.
 pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed, pos: u64) -> Result<(), Fault> {
     let pg = s.page;
     let ext = super::extremes::of_page(&*h, pg)?;
     let tail = root::u64_at(&*h, tbl, root::TAIL)?;
     let mut rc = RunCursor::open(&*h, tail)?;
-    // Outside a rewrite, a group whose image holds huge values frees the row's: every leaf is read then.
-    let huge = s.rw.is_none() && buffer::u16_of(&*h, pg, page::P_FLAGS)? & u64::from(page::PF_HUGE) != 0;
+    // A group whose image holds huge values frees the row's: every leaf is read then.
+    let huge = buffer::u16_of(&*h, pg, page::P_FLAGS)? & u64::from(page::PF_HUGE) != 0;
     let slot = GroupView::from_meta(&*h, &s.meta).slot(pos)?;
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
@@ -569,7 +553,7 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
         let ld = gv.leaf_by_ordinal(u64::from(l.ordinal))?;
         // In a group with no patches, the image cell itself: a total takes it as it is, unless it is a huge
         // value or a Nat's or Int's bytes.
-        if let (Some(ld), Some(slot), 0, 0) = (&ld, slot, s.dir, s.post) {
+        if let (Some(ld), Some(slot), 0) = (&ld, slot, s.dir) {
             let c = gv.cell(ld, slot, pos)?;
             if !matches!(c, GCell::Huge { .. }) {
                 match (run, cur::whole(c, ld.form, l.ty)) {
@@ -582,134 +566,23 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
                 }
             }
         }
-        let v = match (&ld, slot, s.dir, s.post) {
-            (Some(ld), Some(slot), 0, 0) => cur::from_cell(&gv, ld, &l, slot, pos)?,
+        let v = match (&ld, slot, s.dir) {
+            (Some(ld), Some(slot), 0) => cur::from_cell(&gv, ld, &l, slot, pos)?,
             _ => overlay::leaf_value(&gv, shape, s, &l, ld.as_ref(), slot, pos)?,
         };
         hot::apply_at(h, tbl, tail, run, &l, &v, Sign::Remove, ext)?;
-        if s.rw.is_none() {
-            release_image_value(h, tbl, &v)?;
-        }
+        release_image_value(h, tbl, &v)?;
     }
-    page::clear_live(h, s.live_page, pos)?;
+    page::clear_live(h, pg, pos)?;
     {
-        let b = h.get_mut(Region::Block(s.live_page))?;
+        let b = h.get_mut(Region::Block(pg))?;
         let live = rd_u16(b, page::P_LIVE)?;
         put_u16(b, page::P_LIVE, live.saturating_sub(1))?;
-        if s.rw.is_none() {
-            let dead = rd_u16(b, page::P_DEAD)?;
-            put_u16(b, page::P_DEAD, dead.saturating_add(1))?;
-        }
+        let dead = rd_u16(b, page::P_DEAD)?;
+        put_u16(b, page::P_DEAD, dead.saturating_add(1))?;
     }
     let t = h.get_mut(Region::Block(tail))?;
     let live = rd_u64(t, H_LIVE)?;
     put_u64(t, H_LIVE, live.wrapping_sub(1))?;
-    if s.rw.is_none() {
-        jobs::after_delete(h, tbl, s.meta.g, pg)?;
-    }
-    Ok(())
-}
-
-// ---------------------------------------------------------------- buffered rows under a seal's snapshot
-
-/// Updates a buffered row of a frozen group a seal holds a snapshot of: each changed leaf as a post-snapshot
-/// patch on the seal's pending page, an integer leaf's total by difference.
-pub fn update_snapshot<H: PageHost, R: RowSource + ?Sized>(
-    h: &mut H,
-    tbl: u64,
-    shape: &Shape,
-    src: &mut R,
-    b: &Buffered,
-) -> Result<(bool, u64), Fault> {
-    let rw = b.rw.ok_or(rt(Corruption::Link, b.at.desc))?;
-    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
-    let ext = super::extremes::of_desc(&*h, b.at.desc)?;
-    // Which leaves change; a key leaf never does.
-    let mut any = false;
-    {
-        let row = RowRef::new(&*h, b.loc)?;
-        let mut walk = Walk::of(shape, &row)?;
-        for o in 0..shape.leaves {
-            let l = shape.leaf(&*h, o)?;
-            let cur = overlay::buffered_value(&*h, shape, b, &row, &mut walk, &l)?;
-            if !l.live() {
-                continue;
-            }
-            let v = row::cell_of(src, &l)?;
-            if cur::same(&*h, &l, &cur, &v)? {
-                continue;
-            }
-            if l.key {
-                return Err(Fault::BadValue { leaf: l.id });
-            }
-            any = true;
-        }
-    }
-    if !any {
-        return Ok((false, 0));
-    }
-    let mut filled = 0u64;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        if !l.live() {
-            continue;
-        }
-        let b2 = overlay::buffered(&*h, &b.at)?;
-        let old = overlay::buffered_leaf(&*h, shape, &b2, &l)?;
-        {
-            let v = row::cell_of(src, &l)?;
-            if cur::same(&*h, &l, &old, &v)? {
-                continue;
-            }
-        }
-        // An integer leaf's total loses the old value before the patch replaces it (a value of the same size
-        // takes its bytes), and takes the new one once it is written.
-        let at = if l.ty.running().is_some() {
-            let at = hot::place_of(&*h, shape, tail, &l)?;
-            hot::apply_at(h, tbl, tail, at, &l, &old, Sign::Remove, ext)?;
-            Some(at)
-        } else {
-            None
-        };
-        let (pv, f) = patch_value(h, tbl, shape, &l, src)?;
-        filled = filled.saturating_add(f);
-        let up = patch::upsert(h, tbl, rw.pending, page::P_POST_PATCH, o, b.at.pos, &pv.data())?;
-        patch::release(h, tbl, up.old)?;
-        if let Some(at) = at {
-            let new = new_value(&*h, rw.pending, page::P_POST_PATCH, &l, b.at.pos)?;
-            hot::apply_at(h, tbl, tail, at, &l, &new, Sign::Add, ext)?;
-        }
-    }
-    Ok((true, filled))
-}
-
-/// Deletes a buffered row of a frozen group a seal holds a snapshot of: the pending page's live bit, the
-/// integer leaves' totals by the row's current values, the live count; its long values stay with the
-/// snapshot: the seal adopts its huge ones, and the others go to the drain with the group's buffer blocks
-/// after the flip.
-pub fn delete_snapshot<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, b: &Buffered) -> Result<(), Fault> {
-    let rw = b.rw.ok_or(rt(Corruption::Link, b.at.desc))?;
-    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
-    let ext = super::extremes::of_desc(&*h, b.at.desc)?;
-    let mut rc = RunCursor::open(&*h, tail)?;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        let run = rc.place(h.get(Region::Block(tail))?, &l)?;
-        if run == At::None || !l.live() {
-            continue;
-        }
-        let v = overlay::buffered_leaf(&*h, shape, b, &l)?;
-        hot::apply_at(h, tbl, tail, run, &l, &v, Sign::Remove, ext)?;
-    }
-    page::clear_live(h, rw.pending, b.at.pos)?;
-    {
-        let p = h.get_mut(Region::Block(rw.pending))?;
-        let live = rd_u16(p, page::P_LIVE)?;
-        put_u16(p, page::P_LIVE, live.saturating_sub(1))?;
-    }
-    let t = h.get_mut(Region::Block(tail))?;
-    let live = rd_u64(t, H_LIVE)?;
-    put_u64(t, H_LIVE, live.wrapping_sub(1))?;
-    let buffered = rd_u64(t, buffer::H_BUFFERED)?;
-    put_u64(t, buffer::H_BUFFERED, buffered.wrapping_sub(1))
+    jobs::after_delete(h, tbl, s.meta.g, pg)
 }

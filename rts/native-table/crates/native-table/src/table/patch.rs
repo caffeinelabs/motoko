@@ -319,13 +319,69 @@ pub fn old_of<H: PageHost + ?Sized>(h: &H, e: &Entry) -> Result<Old, Fault> {
     Ok(Old::None)
 }
 
-/// Hands a released value to the drain.
+/// Frees a released value.
 pub fn release<H: PageHost>(h: &mut H, tbl: u64, old: Old) -> Result<(), Fault> {
     match old {
         Old::None => Ok(()),
-        Old::Chain { head } => drain::push(h, tbl, &drain::Rec::new(drain::K_CHAIN, head, 0)),
-        Old::Long { img } => drain::push_image(h, tbl, &img),
+        Old::Chain { head } => free_chain(h, tbl, head, 0),
+        Old::Long { img } => drain::free_image(h, tbl, &img),
     }
+}
+
+/// Frees a chain of area-0 blocks, each naming the next at offset `next_at`.
+fn free_chain<H: PageHost>(h: &mut H, tbl: u64, first: u64, next_at: u64) -> Result<(), Fault> {
+    let mut b = first;
+    while b != 0 {
+        let next = rd_u64(h.get(Region::Block(b))?, next_at)?;
+        crate::area::free_block(h, tbl, 0, b)?;
+        b = next;
+    }
+    Ok(())
+}
+
+/// Frees a patch directory: each unit's patch blocks with the value chains and long values of their live
+/// entries, then the directory's blocks.
+pub fn free_dir<H: PageHost>(h: &mut H, tbl: u64, dir: u64) -> Result<(), Fault> {
+    if dir == 0 {
+        return Ok(());
+    }
+    let total = units(&*h, dir)?;
+    let mut d = dir;
+    let mut k = 0u64;
+    while d != 0 {
+        for i in 0..in_block(total, k) {
+            let at = D_RECORDS.wrapping_add(i.wrapping_mul(D_REC));
+            let mut b = rd_u64(h.get(Region::Block(d))?, at.wrapping_add(R_FIRST))?;
+            let mut first = true;
+            while b != 0 {
+                let (n, next) = {
+                    let s = h.get(Region::Block(b))?;
+                    (u64::from(rd_u16(s, B_ENTRIES)?), rd_u64(s, B_NEXT)?)
+                };
+                // A chain's first block holds the bitmap: its entries start after it.
+                let base = if first { FIRST_ENTRIES } else { LATER_ENTRIES };
+                for j in 0..n {
+                    let at = base.wrapping_add(j.wrapping_mul(ENTRY));
+                    let (flags, data) = {
+                        let s = h.get(Region::Block(b))?;
+                        (rd_u8(s, at.wrapping_add(2))?, u64::from(rd_u16(s, at.wrapping_add(6))?))
+                    };
+                    if flags & F_DEAD == 0 {
+                        let e = Entry { block: b, at, pos: 0, flags, len: 0, data };
+                        release(h, tbl, old_of(&*h, &e)?)?;
+                    }
+                }
+                crate::area::free_block(h, tbl, 0, b)?;
+                b = next;
+                first = false;
+            }
+        }
+        let next = rd_u64(h.get(Region::Block(d))?, D_LINK.wrapping_add(8))?;
+        crate::area::free_block(h, tbl, 0, d)?;
+        d = next;
+        k = k.wrapping_add(1);
+    }
+    Ok(())
 }
 
 /// The result of an upsert.
@@ -674,8 +730,8 @@ where
     Ok(())
 }
 
-/// Clears an entry's long-value reference after a rewrite adopted the value, so the drain of the old patch
-/// directory does not free it.
+/// Clears an entry's long-value reference after a rewrite adopted the value, so the free of the old patch
+/// directory leaves it.
 pub fn forget_long<H: PageHost>(h: &mut H, block: u64, data: u64) -> Result<(), Fault> {
     fill(h.get_mut(Region::Block(block))?, data, REF_BYTES, 0)
 }

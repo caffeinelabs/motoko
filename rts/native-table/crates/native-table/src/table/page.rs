@@ -3,8 +3,7 @@
 //! present; bit 4 believed; bit 5 quarantined); group number u64 @8; group image record 80 B @16; positions
 //! p u16 @96; live rows u16 @98; dead positions still stored u16 @100; zero u16 @102; schema version u32
 //! @104; long-value list entries u32 @108; patch directory u64 @112; long-value list u64 @120; live bitmap
-//! 512 B @128; post-snapshot patch directory u64 @640; rewrite state block u64 @648; extremes block u64 @656
-//! (0: none); bytes 664–4,095 unused}.
+//! 512 B @128; zero u64 @640 and @648; extremes block u64 @656 (0: none); bytes 664–4,095 unused}.
 //!
 //! **Long-value list** (area 0, zero-filled when allocated): {magic `NTLL` u32 @0; `FORMAT_TABLE` u16 @4; zero
 //! u16 @6; next block u64 @8; first list index u32 @16; entries in this block u32 @20; zero u64 @24; 168
@@ -26,8 +25,6 @@ pub const P_LV_COUNT: u64 = 108;
 pub const P_PATCH_DIR: u64 = 112;
 pub const P_LV_LIST: u64 = 120;
 pub const P_BITMAP: u64 = 128;
-pub const P_POST_PATCH: u64 = 640;
-pub const P_REWRITE: u64 = 648;
 /// The group's extremes block (`extremes`), 0 when it has none.
 pub const P_EXT: u64 = 656;
 /// The end of the page's fields before its unused bytes.
@@ -109,16 +106,6 @@ pub struct LvBuilder {
 impl LvBuilder {
     pub const fn new() -> Self {
         LvBuilder { head: 0, tail: 0, count: 0 }
-    }
-
-    /// A list being built, from its saved head, last block and count.
-    pub const fn resume(head: u64, tail: u64, count: u64) -> Self {
-        LvBuilder { head, tail, count }
-    }
-
-    /// The list's last block.
-    pub fn tail(&self) -> u64 {
-        self.tail
     }
 
     /// Appends one image reference; returns its index.

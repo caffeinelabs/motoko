@@ -13,7 +13,7 @@ pub mod search;
 pub mod shape;
 
 pub use cursor::{Cursor, Dir, Direction, Fwd, Rev};
-pub use insert::{insert_at, insert_first, split_ahead};
+pub use insert::{insert_at, insert_first};
 pub use remove::remove_found;
 pub use search::{descend, find, search, Search, Shared};
 pub use shape::{IndexShape, NodeShape, Shape, Typed, TypedShape};

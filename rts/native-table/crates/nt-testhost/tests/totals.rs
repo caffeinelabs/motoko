@@ -20,7 +20,7 @@ use native_table::value::ty;
 use native_table::{PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{rid_of, schema, t, uleb, Src, V};
-use nt_testhost::{Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// A digest of host calls, folded as they are taken.
 #[derive(Default)]
@@ -279,7 +279,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
     let mut r = XorShift(seed);
     let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
     let mut trace = Vec::new();
-    let (mut seals, mut sealed_updates) = (0u64, 0u64);
+    let mut sealed_updates = 0u64;
     let pick = |r: &mut XorShift, model: &BTreeMap<u64, Vec<(u32, V)>>| {
         *model.keys().nth(r.below(model.len() as u64) as usize).unwrap()
     };
@@ -323,13 +323,11 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone.is_some(), model.remove(&k).is_some());
         } else {
-            let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
             if r.below(2) == 0 {
                 tb.write_step(&TestBudget::new(u64::MAX)).unwrap();
             } else {
                 maintain_all(&mut tb);
             }
-            seals += u64::from(before - root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap());
         }
         if step % 500 == 499 {
             let (hot, space, longest) = check(&tb, s, &model);
@@ -345,6 +343,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
         model.remove(&k);
     }
     assert_eq!(check(&tb, s, &BTreeMap::new()).2, 0);
+    let seals = open_group(tb.host(), tb.root());
     assert!(seals >= 2, "groups sealed: {seals}");
     assert!(sealed_updates > 0, "sealed rows updated");
     trace.push((seals, hot, space, longest));
@@ -414,9 +413,10 @@ fn huge_values() {
             model.remove(&k);
             longest.push(check(&tb, &s, &model).2);
         }
-        // Small rows until the group freezes, then the seal: the totals stay.
+        // Small rows until the insert that fills the group seals it: the totals stay.
         let mut k = 40u64;
-        while root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() == 0 {
+        let g0 = open_group(tb.host(), tb.root());
+        while open_group(tb.host(), tb.root()) == g0 {
             let w = row(&s, &mut r, k);
             write(&mut tb, &mut model, w);
             k += 1;
@@ -593,7 +593,8 @@ fn big_values_move_their_totals_in_pieces() {
     }
     check(&tb, &s, &model);
     let mut k = 40u64;
-    while root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap() == 0 {
+    let g0 = open_group(tb.host(), tb.root());
+    while open_group(tb.host(), tb.root()) == g0 {
         let w = row(&s, &mut r, k);
         tb.upsert(&mut key_scratch(), &mut Src::new(&w)).unwrap();
         model.insert(k, w);

@@ -371,7 +371,7 @@ fn row_op<H: PageHost, S: native_table::Scratch, R: RowSource>(
 /// A table {key Nat, amount Nat, kind Nat, ts Nat} with w2 secondary indexes (0 to 3, W 16: on amount, 10^3
 /// values; then on kind, 3 values; then on ts, nearly every key one row) at its insert and delete, or with w2
 /// = 16 + x the rows of `OpsRowR` and x indexes (on ts, then kind, then amount): w1 rows
-/// inserted first, in key order (`OpsRow`), and every frozen group sealed; then w3 measured operations by
+/// inserted first, in key order (`OpsRow`), and every full group sealed; then w3 measured operations by
 /// w0: 0 inserts of the next rows; 1 removes of rows taken `DELETE_STRIDE` apart among the first w1, each
 /// once; 2 updates of the last w3 rows of the first w1, which the open group still buffers; 3 updates of rows
 /// taken `DELETE_STRIDE` apart among the first w1 / 2, sealed, each once. None runs the maintenance its write
@@ -379,9 +379,13 @@ fn row_op<H: PageHost, S: native_table::Scratch, R: RowSource>(
 /// took, removed or replaced their row, the caller's counter read around them through `mark` and the return;
 /// 1 the most instructions one operation took, read with `counter`; 2 the rows after them. w5 the seed.
 ///
+/// w0 = 5 instead fills the table from empty as a canister runs its writes, the write-first step (metered by
+/// `counter`) before each insert of the next row, w3 inserts, then the maintenance left: w4 0 the operations'
+/// window as above, 1 the most instructions one message (a step and its insert) took, 2 the rows after them.
+///
 /// w0 = 4 instead adds index w2 + 1 (of the three, after the w2 the table is made with) by a schema change
-/// after the w1 rows are sealed, and runs maintenance units, metered by `counter`, until the index is built
-/// (w3 unused): w4 0 the units, 1 the most instructions one unit took, 2 the rows when the built index counts
+/// after the w1 rows are sealed, and runs maintenance steps, metered by `counter`, until the index is built
+/// (w3 unused): w4 0 the steps, 1 the most instructions one step took, 2 the rows when the built index counts
 /// the first row's key, else `u64::MAX`.
 pub fn table_ops(mem: &mut [u8], w: [u64; 6], counter: fn() -> u64, mark: &mut dyn FnMut()) -> Result<u64, Fault> {
     let [op, pre, k, n, what, seed] = w;
@@ -411,6 +415,24 @@ pub fn table_ops(mem: &mut [u8], w: [u64; 6], counter: fn() -> u64, mark: &mut d
     let len = crate::probe_schema(pool, cols, indexes, &mut img)?;
     let (mut t, _) = Table::create(&mut h, 1, img.get(..len).unwrap_or(&[]))?;
     let mut sc = crate::ProbeScratch { buf: [0; 81_920] };
+    if op == 5 {
+        let mut most = 0u64;
+        mark();
+        for i in 0..n {
+            let t0 = if what == 1 { counter() } else { 0 };
+            t.write_step(&crate::ProbeBudget)?;
+            table_op(&mut t, &mut sc, 0, i, seed, r)?;
+            if what == 1 {
+                most = most.max(counter().saturating_sub(t0));
+            }
+        }
+        t.maintain(&crate::ProbeBudget)?;
+        return match what {
+            1 => Ok(most),
+            2 => t.len(),
+            _ => Ok(0),
+        };
+    }
     for i in 0..pre {
         table_op(&mut t, &mut sc, 0, i, seed, r)?;
     }
@@ -436,18 +458,6 @@ pub fn table_ops(mem: &mut [u8], w: [u64; 6], counter: fn() -> u64, mark: &mut d
         1 => Ok(most),
         2 => t.len(),
         _ => Ok(sum),
-    }
-}
-
-/// A budget whose meter is the caller's instruction counter.
-struct Counted(fn() -> u64);
-
-impl native_table::Budget for Counted {
-    fn used(&self) -> u64 {
-        (self.0)()
-    }
-    fn limit(&self) -> u64 {
-        u64::MAX
     }
 }
 
@@ -480,14 +490,13 @@ fn index_build(
     }
     t.maintain(&crate::ProbeBudget)?;
     t.change_schema(img2.get(..len2).unwrap_or(&[]))?;
-    let meter = Counted(counter);
-    let (mut units, mut most) = (0u64, 0u64);
+    let (mut steps, mut most) = (0u64, 0u64);
     mark();
     while native_table::table::indexes::building(t.host(), t.root())? != 0 {
         let t0 = counter();
-        t.unit(&meter)?;
+        t.step()?;
         most = most.max(counter().saturating_sub(t0));
-        units = units.wrapping_add(1);
+        steps = steps.wrapping_add(1);
     }
     match what {
         1 => Ok(most),
@@ -495,7 +504,7 @@ fn index_build(
             let id = u8::try_from(k.wrapping_add(1)).map_err(|_| Fault::BadRef)?;
             Ok(if t.count(&mut sc, id, &mut OpsRow::of(0, seed))? >= 1 { t.len()? } else { u64::MAX })
         }
-        _ => Ok(units),
+        _ => Ok(steps),
     }
 }
 
@@ -535,7 +544,7 @@ impl RowSink for Digest {
     }
 }
 
-/// The filtered scans of a table of w0 rows `ScanRow` (inserted in key order, every frozen group sealed, so
+/// The filtered scans of a table of w0 rows `ScanRow` (inserted in key order, every full group sealed, so
 /// all but the open group's rows sealed), counted from the end of the build, by w1: 0 the count of cat = 7
 /// (`count_where`); 1 the count of ts in [0.47 w0, 0.53 w0), a contiguous 6 % of the rows; 2 the count of ts
 /// at least 0, every row; 3 every row through `scan_where` (ts at least 0) in batches of w2 rows, into a
@@ -746,7 +755,7 @@ impl PageHost for InPlace<'_, '_> {
     }
 }
 
-/// The table of `filter_scans`, w0 rows `ScanRow` inserted in key order and every frozen group sealed, then,
+/// The table of `filter_scans`, w0 rows `ScanRow` inserted in key order and every full group sealed, then,
 /// counted from the end of the build, by w1: 0 the minimum of amount (`extreme`); 1 its maximum; 2 the
 /// minimum of ts; 3 its maximum; 4 the table opened again (`Table::open`) with its own schema page in place,
 /// as the runtime opens it, and nothing else. Results: the extreme, or for 4 the table's leaves when the open

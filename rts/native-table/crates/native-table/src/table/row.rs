@@ -32,11 +32,10 @@ pub const LONG_ITEM: u64 = 32;
 pub const STAGE: usize = 3_072;
 const _: () = assert!(STAGE as u64 == ROW_INLINE_MAX);
 
-/// Whether a variable value of `n` bytes is a long value: past `HUGE_VALUE`, or past `LONG_VALUE` in a row
-/// of a frozen group.
+/// Whether a variable value of `n` bytes is a long value: past `HUGE_VALUE`.
 #[inline]
-pub fn is_long(n: u64, frozen: bool) -> bool {
-    n > HUGE_VALUE || (frozen && n > LONG_VALUE)
+pub fn is_long(n: u64) -> bool {
+    n > HUGE_VALUE
 }
 
 /// Bytes of an item of `n` value bytes.
@@ -78,7 +77,6 @@ pub fn plan<H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     shape: &Shape,
     h: &H,
     src: &mut R,
-    frozen: bool,
     key: &mut K,
 ) -> Result<Plan, Fault> {
     let mut p = Plan::default();
@@ -100,7 +98,7 @@ pub fn plan<H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
             p.big = true;
         }
         if let Some(n) = item {
-            let long = is_long(n, frozen);
+            let long = is_long(n);
             let b = item_bytes(n, long);
             items = items.checked_add(b).ok_or(rt(Corruption::Range, b))?;
             if long {
@@ -216,7 +214,6 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     uid: u64,
     src: &mut R,
     p: &Plan,
-    frozen: bool,
     out: &mut O,
     reuse: Option<RowLoc>,
 ) -> Result<u64, Fault> {
@@ -298,7 +295,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
         let mut off = 0u32;
         if let Some(n) = item {
             off = u32::try_from(at).map_err(|_| rt(Corruption::Range, at))?;
-            at = at.checked_add(item_bytes(n, is_long(n, frozen))).ok_or(rt(Corruption::Range, at))?;
+            at = at.checked_add(item_bytes(n, is_long(n))).ok_or(rt(Corruption::Range, at))?;
         }
         out.put(h, &off.to_le_bytes())?;
     }
@@ -321,7 +318,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
             }
             (cell::var_len(&v, l.ty), matches!(v, Val::Arg(_)), matches!(l.ty, Ty::Text))
         };
-        if is_long(n, frozen) {
+        if is_long(n) {
             let old = match reuse {
                 Some(loc) => reusable(shape, &*h, loc, &l, this, src)?,
                 None => None,
