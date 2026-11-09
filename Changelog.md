@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * perf: a `switch` on a tuple, such as `switch (a, b)` or
+    `switch (f())`, no longer allocates the tuple on the heap when every case
+    is a tuple pattern (or a wildcard). Neither does a projection from a
+    tuple-returning call like `f().0` (#6486).
+
   * bugfix: a canister with more than about 20,000 static allocations (for
     example, that many distinct text literals) no longer fails to install with
     `IC0505` (function complexity exceeds the maximum allowed). Static variables
