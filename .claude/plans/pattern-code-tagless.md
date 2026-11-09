@@ -83,13 +83,57 @@ module type PAT_CODE = sig
 end
 ```
 
-The exact primitive set is open (see "Open questions"). Two points are
-deliberate:
+The exact primitive set is open and grows as we go (see "Growing the
+signature" and "Open questions"). Two points are deliberate:
 
 - `tag` carries the variant's label set. That is *type* information, not
   IR shape, and it is what lets facts like `Not {l1}` imply `Is l2`.
 - `opaque` must declare its stack effect. Arm bodies stay `G.t` blobs;
   the analysis treats their result as unknown, but still knows the stack.
+
+## Growing the signature
+
+The primitive set is fleshed out incrementally, not designed up front.
+Two properties keep that safe: the signature must stay **covering** and
+**orthogonal**.
+
+### Covering
+
+- **Start coarse.** Whatever is not yet modelled goes through `opaque`.
+  Emit (migration step 1) can then land early, byte-identical, with only
+  part of `fill_pat` behind real primitives.
+- **Peel, one at a time.** Each later refactor moves one operation out of
+  an `opaque` block into a primitive. Emit's output must stay
+  byte-identical, so every step is independently safe and reviewable.
+- **Measure.** Coverage is the number of `opaque` uses reachable from
+  `fill_pat` (arm bodies excluded); the goal is zero. Analyse can also
+  report the `Opaque` atoms it creates *inside pattern code*; a test over
+  `test/run/` and `test/bench/` pins that count, so a regression in
+  coverage is caught.
+- **The compiler enforces completeness across interpreters.** Adding a
+  primitive to `PAT_CODE` is a type error in every interpreter until it
+  implements it; none can silently fall behind.
+
+### Orthogonal
+
+- **One operation per primitive**, not expressible by the others. Two
+  spellings of the same operation split what Analyse sees, so facts and
+  sharing are lost across them.
+- **Composites are derived, not primitive.** `Variant.test_is` (tag load,
+  `eq_hash`, `guard`) becomes a combinator defined once over the
+  signature. Emit stays byte-identical as long as the derived spelling
+  emits today's instruction sequence.
+- **Check derivability first.** A proposed primitive that can be written
+  with existing ones goes into the derived layer instead.
+
+### Semantics in the value model, not in Wasm
+
+Each primitive is specified in terms of Motoko values: `tag` is "the tag
+hash of this variant", `tuple_get k` is "component `k` of this tuple".
+How that is reached (forwarding pointers, field offsets, boxed vs.
+unboxed representation, classical vs. enhanced persistence) is Emit's
+business only. Otherwise Analyse ends up modelling GC and layout details,
+and the backends' persistence modes diverge in what Analyse can prove.
 
 ## Interpreters
 
@@ -231,7 +275,9 @@ getter sharing may make some of them unnecessary).
 ## Migration
 
 1. Signature + Emit; `fill_pat`, `orElse`, `with_fail` and friends
-   through it. Byte-identical output; all `.ok` files unchanged.
+   through it, with `opaque` for everything not yet modelled.
+   Byte-identical output; all `.ok` files unchanged. Then peel primitives
+   out of `opaque` one by one, each step byte-identical too.
 2. Analyse; the switch recognizer uses it instead of `flatten_tag_leaves`.
    Same `Dispatch` plans.
 3. Specialised emit replaces `known_tag_pat`.
