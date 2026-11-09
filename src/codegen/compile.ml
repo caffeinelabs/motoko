@@ -7250,14 +7250,23 @@ module Serialization = struct
     | Candid
     | Persistence
 
+  (* Persistence tells `Char` from `Nat32` and `()` from `Null`, as their runtime values differ, see Note [persistence type descriptor] *)
   let to_idl_prim mode = let open Type in function
-    | Prim Null | Tup [] -> Some 1l
+    | Prim Null -> Some 1l
+    | Tup [] ->
+      (match mode with
+      | Candid -> Some 1l
+      | Persistence -> None)
     | Prim Bool -> Some 2l
     | Prim Nat -> Some 3l
     | Prim Int -> Some 4l
     | Prim Nat8 -> Some 5l
     | Prim Nat16 -> Some 6l
-    | Prim (Nat32|Char) -> Some 7l
+    | Prim Nat32 -> Some 7l
+    | Prim Char ->
+      (match mode with
+      | Candid -> Some 7l
+      | Persistence -> Some 132l)
     | Prim Nat64 -> Some 8l
     | Prim Int8 -> Some 9l
     | Prim Int16 -> Some 10l
@@ -7290,7 +7299,34 @@ module Serialization = struct
   (* only used for memory compatibility checks *)
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
+  let idl_var_vec  = -133l
 
+  (*
+  Note [persistence type descriptor]
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Types whose values are represented differently in memory need different persistence descriptors.
+  On upgrade, the RTS compares the stored and the new descriptor (`memory_compatible` in rts/motoko-rts/src/idl.rs)
+  and lets the new program read the old values in place, so a shared encoding makes it misread them.
+  Candid mode can share encodings, as its values are decoded into fresh objects. Hence, unlike there:
+
+   * `[var t]` is `idl_var_vec t`, while a `var [t]` field is `alias (vec t)`.
+     A `[var t]` field points to the array, a `var [t]` field to a `MutBox` that points to the array.
+   * `Char` has its own code: its 21-bit code point is shifted left by 43 bits, a `Nat32` by 32, and their tags differ.
+   * `()` is the empty `idl_tuple`: its value is the `unit_tag` scalar, while `null` is the `null_vanilla_pointer`.
+
+  For example, the type `{var f : [Nat]; g : [var Nat]}` yields these type table entries,
+  with codes before their LEB128 encoding and fields sorted by hash:
+
+    0: record {f : 1; g : 3}   -20 2 <hash f> 1 <hash g> 3
+    1: alias 2                   1 2                           var [Nat]
+    2: vec nat                 -19 -3                          [Nat]
+    3: var_vec nat            -133 -3                          [var Nat]
+
+  Persistence descriptors start with "EOP1". Descriptors stored by older compilers start with "DIDL"
+  and encode each pair above alike, so the RTS accepts either reading of those.
+  This relies on each encoding meaning a subset of what it meant in those descriptors, unless the encoding is new.
+  *)
 
   (* TODO: use record *)
   let type_desc env mode ts :
@@ -7314,7 +7350,10 @@ module Serialization = struct
           | Tup ts -> List.iter go ts
           | Obj (_, fs, _) ->
             List.iter (fun f -> go f.typ) fs
-          | Array (Mut t) -> go (Array t)
+          | Array (Mut t) ->
+            (match mode with
+            | Candid -> go (Array t)
+            | Persistence -> go t)
           | Array t -> go t
           | Opt t -> go t
           | Variant vs -> List.iter (fun f -> go f.typ) vs
@@ -7402,7 +7441,9 @@ module Serialization = struct
           add_idx f.typ
         ) (sort_by_hash fs)
       | Array (Mut t) ->
-        add_sleb128 idl_alias; add_idx (Array t)
+        (match mode with
+        | Candid -> add_sleb128 idl_alias; add_idx (Array t)
+        | Persistence -> add_sleb128 idl_var_vec; add_idx t)
       | Array t ->
         add_sleb128 idl_vec; add_idx t
       | Opt t ->
@@ -7446,7 +7487,9 @@ module Serialization = struct
          add_sleb128 idl_weak; add_idx t
       | _ -> assert false in
 
-    Buffer.add_string buf "DIDL";
+    Buffer.add_string buf (match mode with
+      | Candid -> "DIDL"
+      | Persistence -> "EOP1");
     add_leb128 (List.length typs);
     let offsets = List.map (fun typ ->
       let offset = Buffer.length buf in
@@ -8945,7 +8988,7 @@ or
    for all other occurrences of v, where offset is the relative position of the
    above occurrences from this reference.
 
-We map Motoko types to this as follows:
+We map Motoko types to this as follows (persistence descriptors differ, see Note [persistence type descriptor]):
 
   e([var t]) = alias e([t]) = alias vec e(t)
   e({var field : t}) = record { field : alias e(t) }
@@ -11836,8 +11879,25 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.concat_map (compile_exp_vanilla env ae) es
   | ProjPrim n, [e1] ->
     SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^ (* offset to tuple (an array) *)
-    Tuple.load_n env (Int64.of_int n)
+    (* Ask for the tuple unboxed, so that e.g. `f().0` does not allocate it.
+       Only take it if it comes that way: a tuple that is boxed anyway (e.g.
+       a variable) is cheaper to project with a single load. *)
+    let arity = match Type.promote e1.note.Note.typ with
+      | Type.Tup ts -> List.length ts
+      | _ -> 1 (* e.g. None *) in
+    begin match compile_exp_with_hint env ae (Some (StackRep.of_arity arity)) e1 with
+    | SR.UnboxedTuple k, code1 ->
+      (* The components are on the stack, the last one on top *)
+      let (set_x, get_x) = new_local env "proj" in
+      code1 ^^
+      G.table (k - 1 - n) (fun _ -> G.i Drop) ^^ (* those after n *)
+      set_x ^^
+      G.table n (fun _ -> G.i Drop) ^^ (* those before n *)
+      get_x
+    | sr, code1 ->
+      code1 ^^ StackRep.adjust env sr SR.Vanilla ^^ (* offset to tuple (an array) *)
+      Tuple.load_n env (Int64.of_int n)
+    end
 
   | OptPrim, [e] ->
     SR.Vanilla,
@@ -13148,6 +13208,18 @@ and flatten_tag_leaves (p : Ir.pat) : (string * Ir.pat) list option =
      | _ -> None)
   | _ -> None
 
+(* A switch on a tuple need not allocate the tuple when every case is a
+   tuple pattern or a wildcard, i.e. no case binds the tuple as a whole.
+   Then return its arity. *)
+and tuple_switch_arity e (cs : Ir.case list) =
+  match Type.promote e.note.Note.typ with
+  | Type.Tup ts ->
+    let is_tuple_or_wild (c : case) = match c.it.pat.it with
+      | TupP _ -> true
+      | _ -> Ir_utils.is_irrefutable_nonbinding c.it.pat in
+    if List.for_all is_tuple_or_wild cs then Some (List.length ts) else None
+  | _ -> None
+
 and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
@@ -13247,9 +13319,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     )
 
   | SwitchE (e, cs) ->
-    let code1 = compile_exp_vanilla env ae e in
-    let (set_i, get_i) = new_local env "switch_in" in
-
+    let cs = simplify_cases e cs in
     (* Recognizer: if every case is tag-leafy (`TagP` possibly wrapped in
        nested `AltP` legs), stream each case's leaf hashes to the
        `Dispatch` handler via `Match_arm`, then request the plan via
@@ -13272,6 +13342,9 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
     (match maybe_plan with
     | Some ((Dispatch.MaskShift _ | Dispatch.ModPrime _) as plan) ->
+      (* A variant scrutinee: one boxed local, read for the tag. *)
+      let code1 = compile_exp_vanilla env ae e in
+      let (set_i, get_i) = new_local env "switch_in" in
       (* Per case: compile the body once (using the first leaf's sub-pattern
          — Motoko or-pattern typing ensures all legs bind the same variables). *)
       let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
@@ -13340,20 +13413,44 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
       )
 
     | Some Dispatch.Linear | None ->
-      (* Linear hash-compare chain (default). *)
-      let codes = List.map (fun {it={pat; exp=e}; _} ->
-        let (ae1, pat_code) = compile_pat_local env ae pat in
-        let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-        (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
-      ) (simplify_cases e cs) in
+      (* The scrutinee is kept in locals, as every case needs to look at it.
+         A tuple that no case binds as a whole gets one local per component and
+         is never allocated (as in `let (x, y) = e`); anything else gets a
+         single local. fill_case matches a case's pattern against the locals. *)
+      let scrut_code, fill_case =
+        match tuple_switch_arity e cs with
+        | Some n ->
+          let locals = Lib.List.table n (fun _ -> new_local env "switch_in") in
+          let set_locals = G.concat_map fst (List.rev locals) in (* last is on top *)
+          let fill_case ae1 pat = match pat.it with
+            | TupP ps ->
+              List.map2 (fun (_, get_i) p -> CannotFail get_i ^^^ fill_pat env ae1 p) locals ps
+              |> List.fold_left (^^^) (CannotFail G.nop)
+            | _ -> CannotFail G.nop (* wildcard *) in
+          compile_exp_as env ae (SR.UnboxedTuple n) e ^^ set_locals, fill_case
+        | None ->
+          let (set_i, get_i) = new_local env "switch_in" in
+          let fill_case ae1 pat = CannotFail get_i ^^^ fill_pat env ae1 pat in
+          compile_exp_vanilla env ae e ^^ set_i, fill_case
+      in
 
+      (* compile subexpressions and collect the provided stack reps *)
+      let codes = List.map (fun {it={pat; exp=e}; _} ->
+        let ae1 = alloc_pat_local env ae pat in
+        let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
+        (sr, fill_case ae1 pat ^^^ CannotFail rhs_code)
+        ) cs in
+
+      (* Use the expected stackrep, if given, else infer from the branches *)
       let final_sr = match sr_hint with
         | Some sr -> sr
         | None -> StackRep.joins (List.map fst codes)
       in
 
       final_sr,
-      code1 ^^ set_i ^^
+      (* Run scrut *)
+      scrut_code ^^
+      (* Run rest in block to exit from *)
       MultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
          orsPatternFailure env (List.map (fun (sr, c) ->
             c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)

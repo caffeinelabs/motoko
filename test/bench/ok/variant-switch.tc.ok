@@ -1,2 +1,0 @@
-variant-switch.mo:356.22-356.26: warning [M0269], member `.vals()` is deprecated; use `.values()` instead
-variant-switch.mo:363.22-363.26: warning [M0269], member `.vals()` is deprecated; use `.values()` instead
