@@ -115,10 +115,6 @@ func ntCodecLayout<T>(codec : NtCodec<T>) : Blob {
   (prim "nt_codec_layout" : NtCodec<T> -> Blob)(codec)
 };
 
-func ntCodecLabels<T>(codec : NtCodec<T>) : Blob {
-  (prim "nt_codec_labels" : NtCodec<T> -> Blob)(codec)
-};
-
 func ntCreate<K, R>(codec : NtCodec<(K, R)>) : Nat64 {
   (prim "nt_create" : NtCodec<(K, R)> -> Nat64)(codec)
 };

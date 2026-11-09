@@ -239,7 +239,6 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
     natToNat32 : (n : Nat) -> Nat32;
     natToNat64 : (n : Nat) -> Nat64;
     natToNat8 : (n : Nat) -> Nat8;
-    ntCodecLabels : <T>(codec : NtCodec<T>) -> Blob;
     ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
     ntCount :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

@@ -240,7 +240,6 @@ error[M0072]: field region does not exist in type:
     natToNat32 : (n : Nat) -> Nat32;
     natToNat64 : (n : Nat) -> Nat64;
     natToNat8 : (n : Nat) -> Nat8;
-    ntCodecLabels : <T>(codec : NtCodec<T>) -> Blob;
     ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
     ntCount :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

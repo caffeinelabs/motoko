@@ -12554,11 +12554,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae codec ^^
     Tuple.load_n env 0L
 
-  | OtherPrim "nt_codec_labels", [codec] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae codec ^^
-    Tuple.load_n env 1L
-
   | OtherPrim p, es when (match List.assoc_opt p native_table_prims with
       | Some (args, _) -> List.length args = List.length es
       | None -> false) ->

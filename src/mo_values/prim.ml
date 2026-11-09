@@ -262,7 +262,6 @@ let prim trap =
   (* A native-table codec is the pair of its layout and its hash list *)
   | "nt_codec" -> fun _ v k -> let layout, labels = as_pair v in k (Tup [layout; labels])
   | "nt_codec_layout" -> fun _ v k -> k (fst (as_pair v))
-  | "nt_codec_labels" -> fun _ v k -> k (snd (as_pair v))
   | (  "rts_memory_size"
      | "rts_heap_size"
      | "rts_total_allocation"
