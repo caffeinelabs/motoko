@@ -7,6 +7,7 @@ actor {
 
   let users = NativeTable.empty<Nat, User>().createIndex(["city"]).build();
   let places = NativeTable.empty<Text, Text>().build();
+  let none = NativeTable.empty<Text, Bool>().build();
   var counts : ?NativeTable.NativeTable<Nat, Nat> = null
 }
 

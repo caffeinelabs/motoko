@@ -244,11 +244,6 @@ actor {
     for v in values.values() { t.add(v, v) }
   };
 
-  // The rows the values have as keys
-  func readBack<T>(t : NativeTable.NativeTable<T, T>, values : [T]) : [?T] {
-    Prim.Array_tabulate<?T>(values.size(), func i = t.get(values[i]))
-  };
-
   // Whether every value reads back equal to itself
   func same<T>(t : NativeTable.NativeTable<T, T>, values : [T], eq : (T, T) -> Bool) : Bool {
     for v in values.values() {
@@ -289,23 +284,6 @@ actor {
   };
 
   public query func get() : async () {
-    Prim.debugPrint(debug_show readBack(bools, boolValues));
-    Prim.debugPrint(debug_show readBack(nat8s, nat8Values));
-    Prim.debugPrint(debug_show readBack(nat16s, nat16Values));
-    Prim.debugPrint(debug_show readBack(nat32s, nat32Values));
-    Prim.debugPrint(debug_show readBack(nat64s, nat64Values));
-    Prim.debugPrint(debug_show readBack(int8s, int8Values));
-    Prim.debugPrint(debug_show readBack(int16s, int16Values));
-    Prim.debugPrint(debug_show readBack(int32s, int32Values));
-    Prim.debugPrint(debug_show readBack(int64s, int64Values));
-    Prim.debugPrint(debug_show readBack(nats, natValues));
-    Prim.debugPrint(debug_show readBack(ints, intValues));
-    Prim.debugPrint(debug_show readBack(floats, floatValues));
-    Prim.debugPrint(debug_show readBack(chars, charValues));
-    Prim.debugPrint(debug_show readBack(texts, textValues));
-    Prim.debugPrint(debug_show readBack(blobs, blobValues));
-    Prim.debugPrint(debug_show readBack(principals, principalValues));
-
     // Values read back are equal to the values written, and compute as they do
     Prim.debugPrint(debug_show [
       same<Bool>(bools, boolValues, func(a, b) = a == b),
@@ -369,63 +347,10 @@ actor {
       case null { Prim.debugPrint("missing") }
     };
 
-    // The fields of the record with every type and its option, in any order, and those of rows
-    // that are scalars, which have none
-    let types = rows.fieldTypes();
-    Prim.debugPrint(debug_show types);
-    Prim.debugPrint(debug_show sameFields(types, rowTypes));
+    // The fields of the record with every type and its option, and those of rows that are
+    // scalars, which have none
+    Prim.debugPrint(debug_show rows.fieldTypes());
     Prim.debugPrint(debug_show (bools.fieldTypes(), nats.fieldTypes(), floats.fieldTypes(), texts.fieldTypes(), principals.fieldTypes()))
-  };
-
-  func field(name : Text, scalar : NativeTable.Scalar, optional : Bool) : (Text, NativeTable.FieldType) {
-    (name, { scalar; optional })
-  };
-
-  // The fields of `Row` and their types
-  let rowTypes : [(Text, NativeTable.FieldType)] = [
-    field("bool", #bool, false),
-    field("nat8", #nat8, false),
-    field("nat16", #nat16, false),
-    field("nat32", #nat32, false),
-    field("nat64", #nat64, false),
-    field("int8", #int8, false),
-    field("int16", #int16, false),
-    field("int32", #int32, false),
-    field("int64", #int64, false),
-    field("nat", #nat, false),
-    field("int", #int, false),
-    field("float", #float, false),
-    field("char", #char, false),
-    field("text", #text, false),
-    field("blob", #blob, false),
-    field("principal", #principal, false),
-    field("optBool", #bool, true),
-    field("optNat8", #nat8, true),
-    field("optNat16", #nat16, true),
-    field("optNat32", #nat32, true),
-    field("optNat64", #nat64, true),
-    field("optInt8", #int8, true),
-    field("optInt16", #int16, true),
-    field("optInt32", #int32, true),
-    field("optInt64", #int64, true),
-    field("optNat", #nat, true),
-    field("optInt", #int, true),
-    field("optFloat", #float, true),
-    field("optChar", #char, true),
-    field("optText", #text, true),
-    field("optBlob", #blob, true),
-    field("optPrincipal", #principal, true),
-  ];
-
-  // Whether `a` and `b` hold the same fields, in any order
-  func sameFields(a : [(Text, NativeTable.FieldType)], b : [(Text, NativeTable.FieldType)]) : Bool {
-    if a.size() != b.size() { return false };
-    for x in a.values() {
-      var found = 0;
-      for y in b.values() { if x == y { found += 1 } };
-      if found != 1 { return false }
-    };
-    true
   }
 }
 

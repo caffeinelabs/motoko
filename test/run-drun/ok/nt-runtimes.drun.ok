@@ -3,6 +3,7 @@ ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
 debug.print: ([(7, {amount = 40; city = "Basel"; name = "Ana"})], 1_000, ?{amount = 1; city = "Bern"; name = "user 1"}, null, 500)
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000

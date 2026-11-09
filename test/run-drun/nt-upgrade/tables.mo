@@ -2,14 +2,16 @@ import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
 // Rows, handles and indexes survive upgrades that keep main memory, and writes keep working
-// after them. Keys 0 to 1,999 get rows first; after the upgrade, keys below 2,000 with remainder 0
-// by 3 are removed, those with remainder 1 get the next key's row, and keys 2,000 to 2,999 get
-// rows. The index on city counts the rows of each city, and walks them by city.
+// after them; so does a table that stays empty. Keys 0 to 1,999 get rows first; after the
+// upgrade, keys below 2,000 with remainder 0 by 3 are removed, those with remainder 1 get the
+// next key's row, and keys 2,000 to 2,999 get rows. The index on city counts the rows of each
+// city, and walks them by city.
 actor {
   type User = { name : Text; city : Text; amount : Nat };
 
   let users = NativeTable.empty<Nat, User>().createIndex(["city"]).build();
   let places = NativeTable.empty<Text, Text>().build();
+  let none = NativeTable.empty<Text, Bool>().build();
   // A handle made by a message and kept in a variable
   var counts : ?NativeTable.NativeTable<Nat, Nat> = null;
 
@@ -69,8 +71,6 @@ actor {
       else if r == null { missing += 1 };
       i += 1
     };
-    Prim.debugPrint(debug_show { size = users.size(); same; next; missing });
-    Prim.debugPrint(debug_show (users.get(1), users.get(2_999)));
     let city = ["city"];
     var walked = 0;
     var last = "";
@@ -79,16 +79,13 @@ actor {
       last := u.city;
       walked += 1
     };
-    Prim.debugPrint(debug_show { indexes = users.indexes; Basel = users.count(city, [#text "Basel"]); Bern = users.count(city, [#text "Bern"]); Chur = users.count(city, [#text "Chur"]); walked });
-    switch users.get(5_000) {
-      case ?gil { Prim.debugPrint(debug_show (gil.name, gil.city == long(), gil.amount == 2 ** 20_000)) }
-      case null { Prim.debugPrint("long row missing") }
+    let gil = users.get(5_000) == ?{ name = "Gil"; city = long(); amount = 2 ** 20_000 };
+    Prim.debugPrint(debug_show { size = users.size(); same; next; missing; walked; gil; indexes = users.indexes; Basel = users.count(city, [#text "Basel"]); Bern = users.count(city, [#text "Bern"]); Chur = users.count(city, [#text "Chur"]) });
+    let c = switch counts {
+      case ?c { (c.size(), c.get(1), c.get(2)) }
+      case null { Prim.trap("no counts table") }
     };
-    Prim.debugPrint(debug_show (places.size(), places.get("Zürich"), places.get(""), places.get("Genève")));
-    switch counts {
-      case ?c { Prim.debugPrint(debug_show (c.size(), c.get(1), c.get(2))) }
-      case null { Prim.debugPrint("no counts table") }
-    }
+    Prim.debugPrint(debug_show (users.get(1), users.get(2_999), places.size(), places.get("Zürich"), places.get(""), places.get("Genève"), c, none.size(), none.isEmpty()))
   }
 }
 

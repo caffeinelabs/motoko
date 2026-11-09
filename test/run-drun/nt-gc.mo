@@ -2,10 +2,10 @@ import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
 // 200,000 rows of about 1 KiB are added in batches, so the table takes store partitions beyond
-// the one it starts in, between rounds of heap garbage: arrays of which every eighth stays alive
-// until the next round, and one array larger than a partition. The program runs with the debug
-// runtime's checks, and the collector runs after every message. Every row then reads back right,
-// in batches between more rounds of garbage, and the arrays kept alive stay intact
+// the one it starts in, each batch followed by a round of heap garbage: arrays of which every
+// eighth stays alive until the next round, and one array larger than a partition. The program
+// runs with the debug runtime's checks, and the collector runs after every message. Every row then
+// reads back right, in batches each followed by more garbage, and the arrays kept alive stay intact
 actor {
   type Row = { text : Text; n : Nat };
 
@@ -38,19 +38,8 @@ actor {
   // heap size at once
   var partitions = 0;
 
-  public func add() : async () {
-    let stop = added + batch;
-    while added < stop {
-      let r = row(added);
-      let before = Prim.rts_heap_size();
-      rows.add(added, r);
-      if Prim.rts_heap_size() >= before + 64 * 1024 * 1024 { partitions += 1 };
-      added += 1
-    };
-    Prim.debugPrint(debug_show { added; size = rows.size(); partitions })
-  };
-
-  public func garbage() : async () {
+  // A round of garbage, after checking the arrays the last round kept alive
+  func garbage() : { round : Nat; wrong : Nat; large : Nat } {
     var wrong = 0;
     var slot = 0;
     while slot < kept.size() {
@@ -75,7 +64,19 @@ actor {
     };
     // 72,000,000 bytes, more than a partition of 64 MiB
     let large = Prim.Array_init<Nat>(9_000_000, round);
-    Prim.debugPrint(debug_show { round; wrong; large = large.size() })
+    { round; wrong; large = large.size() }
+  };
+
+  public func add() : async () {
+    let stop = added + batch;
+    while added < stop {
+      let r = row(added);
+      let before = Prim.rts_heap_size();
+      rows.add(added, r);
+      if Prim.rts_heap_size() >= before + 64 * 1024 * 1024 { partitions += 1 };
+      added += 1
+    };
+    Prim.debugPrint(debug_show ({ added; size = rows.size(); partitions }, garbage()))
   };
 
   public func check() : async () {
@@ -85,7 +86,7 @@ actor {
       if rows.get(checked) != ?row(checked) { wrong += 1 };
       checked += 1
     };
-    Prim.debugPrint(debug_show { checked; wrong; size = rows.size() })
+    Prim.debugPrint(debug_show ({ checked; wrong; size = rows.size() }, garbage()))
   }
 }
 
@@ -96,42 +97,22 @@ actor {
 //MOC-FLAG --sanity-checks
 //MOC-FLAG --package native-table ../../lib/native-table
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress add "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
-//CALL ingress garbage "DIDL\x00\x00"

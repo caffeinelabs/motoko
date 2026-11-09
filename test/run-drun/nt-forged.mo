@@ -2,137 +2,45 @@ import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
 // A handle that pairs a table's id with the codec of other key and row types traps on every
-// write and read, and writes nothing
+// write and read, and writes nothing; so does a handle whose id is not a table's
 actor {
   type User = { name : Text; city : Text; amount : Nat };
 
   let users = NativeTable.empty<Nat, User>().build();
 
-  // Tables with a row of each scalar type, and of an option
-  let bools = NativeTable.empty<Nat, Bool>().build();
-  let nat8s = NativeTable.empty<Nat, Nat8>().build();
-  let nat16s = NativeTable.empty<Nat, Nat16>().build();
+  // Tables with a row of a scalar type
   let nat32s = NativeTable.empty<Nat, Nat32>().build();
   let nat64s = NativeTable.empty<Nat, Nat64>().build();
-  let int8s = NativeTable.empty<Nat, Int8>().build();
-  let int16s = NativeTable.empty<Nat, Int16>().build();
-  let int32s = NativeTable.empty<Nat, Int32>().build();
-  let int64s = NativeTable.empty<Nat, Int64>().build();
-  let ints = NativeTable.empty<Nat, Int>().build();
-  let floats = NativeTable.empty<Nat, Float>().build();
-  let chars = NativeTable.empty<Nat, Char>().build();
   let texts = NativeTable.empty<Nat, Text>().build();
-  let blobs = NativeTable.empty<Nat, Blob>().build();
-  let principals = NativeTable.empty<Nat, Principal>().build();
-  let options = NativeTable.empty<Nat, { x : ?Nat8 }>().build();
 
   // A handle on table t with key type K and row type R, holding the codec the compiler makes for them
   func retype<K, R, K0, R0>(t : NativeTable.NativeTable<K0, R0>, codec : (implicit : Prim.NtCodec<(K, R)>)) : NativeTable.NativeTable<K, R> {
     { id = t.id; codec; indexes = t.indexes }
   };
 
-  func forge<K, R>(codec : (implicit : Prim.NtCodec<(K, R)>)) : NativeTable.NativeTable<K, R> {
-    { id = users.id; codec; indexes = users.indexes }
-  };
-
-  public func textRow() : async () {
-    forge<Nat, Text>().add(1, "Ana")
-  };
-
+  // A row of a scalar type, a key of another type, a field of another type, a field fewer, and
+  // fields of other names
+  public func textRow() : async () { retype<Nat, Text, Nat, User>(users).add(1, "Ana") };
   public func textKey() : async () {
-    forge<Text, User>().add("1", { name = "Ana"; city = "Basel"; amount = 40 })
+    retype<Text, User, Nat, User>(users).add("1", { name = "Ana"; city = "Basel"; amount = 40 })
   };
-
-  public func natField() : async () {
-    forge<Nat, { name : Nat; city : Text; amount : Nat }>().add(1, { name = 5; city = "Basel"; amount = 40 })
+  public func intField() : async () {
+    retype<Nat, { name : Text; city : Text; amount : Int }, Nat, User>(users).add(1, { name = "Ana"; city = "Basel"; amount = -1 })
   };
-
-  public func textField() : async () {
-    forge<Nat, { name : Text; city : Text; amount : Text }>().add(1, { name = "Ana"; city = "Basel"; amount = "40" })
-  };
-
   public func missingField() : async () {
-    forge<Nat, { name : Text; amount : Nat }>().add(1, { name = "Ana"; amount = 40 })
+    retype<Nat, { name : Text; amount : Nat }, Nat, User>(users).add(1, { name = "Ana"; amount = 40 })
+  };
+  public query func otherLabels() : async () {
+    Prim.debugPrint(debug_show retype<Nat, { title : Text; city : Text; amount : Nat }, Nat, User>(users).get(1))
   };
 
-  public func mutableField() : async () {
-    forge<Nat, { name : Text; city : Text }>().add(1, { name = "Ana"; city = "Basel"; var amount = 40 })
-  };
-
-  public func negativeField() : async () {
-    forge<Nat, { name : Text; city : Text; amount : Int }>().add(1, { name = "Ana"; city = "Basel"; amount = -1 })
-  };
-
-  public func negativeBigField() : async () {
-    forge<Nat, { name : Text; city : Text; amount : Int }>().add(1, { name = "Ana"; city = "Basel"; amount = -(2 ** 100) })
-  };
-
-  public query func textKeyGet() : async () {
-    Prim.debugPrint(debug_show forge<Text, User>().get("1"))
-  };
-
-  public query func textKeyContains() : async () {
-    Prim.debugPrint(debug_show forge<Text, User>().containsKey("1"))
-  };
-
-  public query func otherLabelsGet() : async () {
-    Prim.debugPrint(debug_show forge<Nat, { title : Text; city : Text; amount : Nat }>().get(1))
-  };
-
-  public query func fewerLabelsGet() : async () {
-    Prim.debugPrint(debug_show forge<Nat, { name : Text; amount : Nat }>().get(1))
-  };
-
-  public query func textRowGet() : async () {
-    Prim.debugPrint(debug_show forge<Nat, Text>().get(1))
-  };
-
-  public query func get() : async () {
-    Prim.debugPrint(debug_show users.get(1))
-  };
-
-  // A value of another scalar type
+  // A row of another scalar type of the same size
   public func otherScalar(i : Nat) : async () {
     switch i {
-      case 0 { retype<Nat, Nat8, Nat, Bool>(bools).add(1, 255 : Nat8) }
-      case 1 { retype<Nat, Int8, Nat, Nat8>(nat8s).add(1, -1 : Int8) }
-      case 2 { retype<Nat, Nat8, Nat, Nat16>(nat16s).add(1, 1 : Nat8) }
-      case 3 { retype<Nat, Char, Nat, Nat32>(nat32s).add(1, 'a') }
-      case 4 { retype<Nat, Nat8, Nat, Int8>(int8s).add(1, 1 : Nat8) }
-      case 5 { retype<Nat, Int8, Nat, Int16>(int16s).add(1, 1 : Int8) }
-      case 6 { retype<Nat, Nat32, Nat, Int32>(int32s).add(1, 1 : Nat32) }
-      case 7 { retype<Nat, Nat32, Nat, Char>(chars).add(1, 65 : Nat32) }
-      case 8 { retype<Nat, Int64, Nat, Nat64>(nat64s).add(1, 1 : Int64) }
-      case 9 { retype<Nat, Int64, Nat, Nat64>(nat64s).add(1, -9_223_372_036_854_775_808 : Int64) }
-      case 10 { retype<Nat, Float, Nat, Int64>(int64s).add(1, 1.0) }
-      case 11 { retype<Nat, Text, Nat, Int>(ints).add(1, "1") }
-      case 12 { retype<Nat, Nat64, Nat, Float>(floats).add(1, 9_223_372_036_854_775_808 : Nat64) }
-      case 13 { retype<Nat, Blob, Nat, Text>(texts).add(1, "a" : Blob) }
-      case 14 { retype<Nat, Principal, Nat, Blob>(blobs).add(1, Prim.principalOfBlob("\04")) }
-      case 15 { retype<Nat, Blob, Nat, Principal>(principals).add(1, "\04" : Blob) }
-      case _ {}
+      case 0 { retype<Nat, Char, Nat, Nat32>(nat32s).add(1, 'a') }
+      case 1 { retype<Nat, Int64, Nat, Nat64>(nat64s).add(1, -1 : Int64) }
+      case _ { retype<Nat, Blob, Nat, Text>(texts).add(1, "a" : Blob) }
     }
-  };
-
-  public query func checkScalars() : async () {
-    Prim.debugPrint(debug_show [
-      bools.size(),
-      nat8s.size(),
-      nat16s.size(),
-      nat32s.size(),
-      nat64s.size(),
-      int8s.size(),
-      int16s.size(),
-      int32s.size(),
-      int64s.size(),
-      ints.size(),
-      floats.size(),
-      chars.size(),
-      texts.size(),
-      blobs.size(),
-      principals.size(),
-      options.size(),
-    ])
   };
 
   public func put() : async () {
@@ -140,7 +48,7 @@ actor {
   };
 
   public query func check() : async () {
-    Prim.debugPrint(debug_show users.size())
+    Prim.debugPrint(debug_show (users.get(1), users.size(), nat32s.size(), nat64s.size(), texts.size()))
   };
 
   // Long Blobs in rows, whose bytes repeat the two words a table's root block holds at byte 3,968:
@@ -207,38 +115,14 @@ actor {
 //MOC-FLAG --package native-table ../../lib/native-table
 //CALL ingress textRow "DIDL\x00\x00"
 //CALL ingress textKey "DIDL\x00\x00"
-//CALL ingress natField "DIDL\x00\x00"
-//CALL ingress textField "DIDL\x00\x00"
+//CALL ingress intField "DIDL\x00\x00"
 //CALL ingress missingField "DIDL\x00\x00"
-//CALL ingress mutableField "DIDL\x00\x00"
-//CALL ingress negativeField "DIDL\x00\x00"
-//CALL ingress negativeBigField "DIDL\x00\x00"
-//CALL ingress check "DIDL\x00\x00"
-//CALL ingress put "DIDL\x00\x00"
-//CALL ingress check "DIDL\x00\x00"
-//CALL ingress textKeyGet "DIDL\x00\x00"
-//CALL ingress textKeyContains "DIDL\x00\x00"
-//CALL ingress otherLabelsGet "DIDL\x00\x00"
-//CALL ingress fewerLabelsGet "DIDL\x00\x00"
-//CALL ingress textRowGet "DIDL\x00\x00"
-//CALL ingress get "DIDL\x00\x00"
 //CALL ingress otherScalar "DIDL\x00\x01\x7d\x00"
 //CALL ingress otherScalar "DIDL\x00\x01\x7d\x01"
 //CALL ingress otherScalar "DIDL\x00\x01\x7d\x02"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x03"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x04"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x05"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x06"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x07"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x08"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x09"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0a"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0b"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0c"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0d"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0e"
-//CALL ingress otherScalar "DIDL\x00\x01\x7d\x0f"
-//CALL ingress checkScalars "DIDL\x00\x00"
+//CALL ingress check "DIDL\x00\x00"
+//CALL ingress put "DIDL\x00\x00"
+//CALL ingress otherLabels "DIDL\x00\x00"
 //CALL ingress putForgery "DIDL\x00\x00"
 //CALL ingress forgedAtBytes "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"

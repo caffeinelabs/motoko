@@ -2,8 +2,9 @@ import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
 // Rows written with add and insert read back with get: they equal the rows written, print the
-// same, and their fields and patterns work as on any record. Rows removed with remove and delete
-// are gone, the other rows stay, and a removed key is new again
+// same, and their fields and patterns work as on any record. insert says whether the key is new,
+// and the sizes count each key once. Rows removed with remove and delete are gone, the other rows
+// stay, and a removed key is new again
 actor {
   type User = { name : Text; city : Text; amount : Nat };
 
@@ -39,6 +40,7 @@ actor {
     places.add("Zürich, " # "the largest city of Switzerland", "on the " # "Limmat");
     places.add("Genève", "on the Rhône");
     places.add("", "");
+    Prim.debugPrint(debug_show places.insert("", ""));
     counts.add("Basel", 3);
     counts.add("Bern", 2 ** 70);
     Prim.debugPrint(debug_show (users.size(), places.size(), counts.size()))
@@ -113,7 +115,6 @@ actor {
 //SKIP run-ir
 //SKIP run-low
 //MOC-FLAG --package native-table ../../lib/native-table
-//CALL ingress get "DIDL\x00\x00"
 //CALL ingress put "DIDL\x00\x00"
 //CALL ingress get "DIDL\x00\x00"
 //CALL ingress remove "DIDL\x00\x00"

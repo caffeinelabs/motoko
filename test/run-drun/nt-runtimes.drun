@@ -1,7 +1,8 @@
 # One canister switches between the runtime without native tables and the runtime with them across
-# upgrades that keep main memory, and keeps its table
+# upgrades, and keeps its table. Graph copy works while it has no table
 install $ID nt-runtimes/plain.mo ""
 ingress $ID put "DIDL\x00\x00"
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
 upgrade $ID nt-runtimes/tables.mo ""
 ingress $ID makeTable "DIDL\x00\x00"
 ingress $ID check "DIDL\x00\x00"

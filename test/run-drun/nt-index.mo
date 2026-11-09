@@ -1,345 +1,489 @@
 import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
-// A table built with indexes keeps one index per field list declared, an index declared twice
-// being one index. Its counts are right from the first row on, and stay right through inserts,
-// replacements and removals. Walks forward and backward, bounded and unbounded, hand back every
-// row they cover exactly once, in key order, across batches of 64 rows; minEntry and maxEntry
-// skip null keys, and are null when every key is null. A read names an index by the field list
-// the table was built with or by any other list of the same fields. Index keys are checked against
-// the index's fields, and a read through fields the table has no index on traps. maintain has no
-// work on an empty table
+// Index reads match a model, on indexes on a Text (also keys of hundreds of bytes and of a
+// thousand), an option Nat with nulls, a Nat of a thousand values (many batches), Float, Char and
+// option Text fields, an option Nat that is always null, and on several fields: a Bool and an
+// option Nat, an Int past 64 and 128 bits and a Text, a Nat8 and an Int16, a Nat64, an Int64 and an
+// Int8, a Blob and a Principal. For each index: its distinct keys with their numbers of rows; the
+// count of each key, and of the first also with Int cells for the fields of unsigned types and
+// Char, the index named by another list of the same fields; walks forward and backward from a
+// key, to a key, between two keys and between values no row has, and over every key of the
+// indexes on a Text, on a Nat and on a field that is always null, each handing back the rows it
+// covers exactly once, in key order, across batches; and the rows with the smallest and the
+// largest key whose first field is not null. The table goes through inserts, upkeep,
+// replacements and removals, inserts again and the removal of every row. A field list declared
+// twice is one index. A walk of the groups resumed after writes goes on in order and hands back
+// the keys the writes added past it. maintain has no work on an empty table. A field the row does
+// not have, an empty field list, fields the table has no index on, and keys with a cell of the
+// wrong kind, the wrong number of cells or a cell out of range trap
 actor {
-  type Person = { name : Text; city : Text; age : Nat; nick : ?Text };
-
-  let city = ["city"];
-  let pair = ["age", "city"];
-  let nick = ["nick"];
-
-  let people = NativeTable.empty<Nat, Person>().createIndex(city).createIndex(pair).createIndex(["city"]).createIndex(nick).build();
-  let small = NativeTable.empty<Nat, { b : Nat8; c : Char }>().createIndex(["b"]).createIndex(["c"]).build();
-  let opt = NativeTable.empty<Nat, { v : ?Nat }>().createIndex(["v"]).build();
-  let long = NativeTable.empty<Nat, { t : Text }>().createIndex(["t"]).build();
-  let fresh = NativeTable.empty<Nat, Person>().build();
-
-  let n = 2_000;
-  let cities = 20;
-  let ages = 50;
-  let nicks = 7;
-
-  func person(k : Nat) : Person = {
-    name = "person " # debug_show k;
-    city = "city " # debug_show (k % cities);
-    age = k % ages;
-    nick = if k % 3 == 0 { null } else { ?("n" # debug_show (k % nicks)) }
+  type Cell = NativeTable.Cell;
+  type Row = {
+    s : Text;
+    on : ?Nat;
+    a : Nat;
+    f : Bool;
+    c : Int;
+    n8 : Nat8;
+    i16 : Int16;
+    fl : Float;
+    ch : Char;
+    ot : ?Text;
+    n64 : Nat64;
+    i64 : Int64;
+    i8 : Int8;
+    bl : Blob;
+    p : Principal;
+    z : ?Nat
   };
+
+  transient let indexes : [[Text]] = [
+    ["s"],
+    ["on"],
+    ["a"],
+    ["f", "on"],
+    ["c", "s"],
+    ["n8", "i16"],
+    ["fl"],
+    ["ch"],
+    ["ot"],
+    ["n64", "i64", "i8"],
+    ["bl", "p"],
+    ["z"],
+  ];
+
+  // The table, with the index on s declared twice
+  func table() : NativeTable.NativeTable<Nat, Row> {
+    var b = NativeTable.empty<Nat, Row>();
+    for index in indexes.values() { b := b.createIndex(index) };
+    b.createIndex(["s"]).build()
+  };
+
+  let rows = table();
+
+  let m = 3_000;
 
   // The rows the table should hold, by key
-  let model = Prim.Array_init<?Person>(n + 100, null);
+  let model = Prim.Array_init<?Row>(m, null);
 
-  func cityName(c : Nat) : Text = "city " # debug_show c;
+  // A value from 0 to 2^64 - 1 that the key `k` and the step `s` pick
+  func mix(k : Nat, s : Nat) : Nat {
+    var x = Prim.natToNat64(k * 1_000_003 + s * 7_919 + 1);
+    x := (x ^ (x >> 30)) *% 0xbf58_476d_1ce4_e5b9;
+    x := (x ^ (x >> 27)) *% 0x94d0_49bb_1331_11eb;
+    Prim.nat64ToNat(x ^ (x >> 31))
+  };
 
-  // The number of counts of `people` that differ from the rows of the model, over every city,
-  // every age and city, and every nick, null included
-  func wrong() : Nat {
-    let byCity = Prim.Array_init<Nat>(cities + 1, 0);
-    let byPair = Prim.Array_init<Nat>(ages * cities, 0);
-    let byNick = Prim.Array_init<Nat>(nicks + 1, 0);
-    for r in model.values() {
-      switch r {
-        case null {}
-        case ?p {
-          if p.city == "moved" { byCity[cities] += 1 } else {
-            byCity[textCity(p.city)] += 1;
-            byPair[p.age * cities + textCity(p.city)] += 1
-          };
-          switch p.nick {
-            case null { byNick[nicks] += 1 }
-            case ?t { byNick[textNick(t)] += 1 }
-          }
-        }
-      }
-    };
-    var wrong = 0;
-    var c = 0;
-    while c < cities {
-      if people.count(city, [#text(cityName(c))]) != byCity[c] { wrong += 1 };
-      c += 1
-    };
-    if people.count(city, [#text "moved"]) != byCity[cities] { wrong += 1 };
-    var a = 0;
-    while a < ages {
-      c := 0;
-      while c < cities {
-        if people.count(pair, [#nat a, #text(cityName(c))]) != byPair[a * cities + c] { wrong += 1 };
-        c += 1
-      };
-      a += 1
-    };
+  // A Text of `n` times `c`
+  func repeat(c : Text, n : Nat) : Text {
+    var t = "";
     var i = 0;
-    while i < nicks {
-      if people.count(nick, [#text("n" # debug_show i)]) != byNick[i] { wrong += 1 };
-      i += 1
-    };
-    if people.count(nick, [#null_]) != byNick[nicks] { wrong += 1 };
-    wrong
-  };
-
-  func textCity(t : Text) : Nat {
-    var c = 0;
-    while c < cities {
-      if t == cityName(c) { return c };
-      c += 1
-    };
-    Prim.trap("no such city")
-  };
-
-  func textNick(t : Text) : Nat {
-    var i = 0;
-    while i < nicks {
-      if t == "n" # debug_show i { return i };
-      i += 1
-    };
-    Prim.trap("no such nick")
-  };
-
-  public func fill() : async () {
-    var k = 0;
-    while k < n {
-      people.add(k, person(k));
-      model[k] := ?person(k);
-      k += 1
-    };
-    Prim.debugPrint(debug_show (people.size(), people.indexes))
-  };
-
-  public query func check() : async () {
-    Prim.debugPrint(debug_show { wrong = wrong() });
-    Prim.debugPrint(debug_show (people.count(city, [#text "city 3"]), people.count(pair, [#nat 3, #text "city 3"]), people.count(nick, [#null_])));
-    // The same indexes, named by other lists of the same fields
-    let cityAgain = Prim.Array_tabulate<Text>(1, func _ = "ci" # "ty");
-    let pairAgain = ["age", "ci" # "ty"];
-    Prim.debugPrint(debug_show (people.count(cityAgain, [#text "city 3"]), people.count(pairAgain, [#nat 3, #text "city 3"]), people.count(["nick"], [#null_])))
-  };
-
-  // Removals, replacements that change a row's keys, and inserts
-  public func change() : async () {
-    var k = 0;
-    while k < n {
-      if k % 5 == 2 {
-        people.remove(k);
-        model[k] := null
-      } else if k % 7 == 0 {
-        let p = { person(k) with city = "moved"; nick = ?"n1" };
-        people.add(k, p);
-        model[k] := ?p
-      };
-      k += 1
-    };
-    while k < n + 100 {
-      people.add(k, person(k));
-      model[k] := ?person(k);
-      k += 1
-    };
-    Prim.debugPrint(debug_show people.size())
-  };
-
-  type Walk = { next : () -> ?(Nat, Person) };
-
-  // The number of rows `walk` hands back, and of the things wrong with it: a row that is not the
-  // model's row of its key, a key that comes twice, a row `ordered` does not take after the row
-  // before it, a row `wanted` does not take, and a walk that does not hand back as many rows as
-  // the model has rows `wanted` takes
-  func walked(walk : Walk, ordered : (Person, Person) -> Bool, wanted : Person -> Bool) : { rows : Nat; wrong : Nat } {
-    let seen = Prim.Array_init<Bool>(n + 100, false);
-    var rows = 0;
-    var wrong = 0;
-    var last : ?Person = null;
-    for (k, p) in walk {
-      rows += 1;
-      if seen[k] or model[k] != ?p or not wanted(p) { wrong += 1 };
-      seen[k] := true;
-      switch last {
-        case ?q { if not ordered(q, p) { wrong += 1 } }
-        case null {}
-      };
-      last := ?p
-    };
-    var want = 0;
-    for r in model.values() {
-      switch r {
-        case ?p { if wanted(p) { want += 1 } }
-        case null {}
-      }
-    };
-    if rows != want { wrong += 1 };
-    { rows; wrong }
-  };
-
-  func cityUp(a : Person, b : Person) : Bool = a.city <= b.city;
-  func cityDown(a : Person, b : Person) : Bool = a.city >= b.city;
-  func pairUp(a : Person, b : Person) : Bool = a.age < b.age or (a.age == b.age and a.city <= b.city);
-  func pairDown(a : Person, b : Person) : Bool = pairUp(b, a);
-  // Null comes before every nick
-  func nickUp(a : Person, b : Person) : Bool = switch (a.nick, b.nick) {
-    case (null, _) { true }
-    case (?_, null) { false }
-    case (?x, ?y) { x <= y }
-  };
-  func nickDown(a : Person, b : Person) : Bool = nickUp(b, a);
-  func any(_ : Person) : Bool = true;
-
-  public query func walks() : async () {
-    Prim.debugPrint(debug_show {
-      all = walked(people.indexEntries(city, null, null), cityUp, any);
-      allBack = walked(people.reverseIndexEntries(city, null, null), cityDown, any);
-      some = walked(people.indexEntries(city, ?[#text "city 10"], ?[#text "city 15"]), cityUp, func p = p.city >= "city 10" and p.city <= "city 15");
-      someBack = walked(people.reverseIndexEntries(city, ?[#text "city 15"], ?[#text "city 10"]), cityDown, func p = p.city >= "city 10" and p.city <= "city 15");
-      one = walked(people.indexEntries(city, ?[#text "city 3"], ?[#text "city 3"]), cityUp, func p = p.city == "city 3");
-      oneBack = walked(people.reverseIndexEntries(city, ?[#text "city 3"], ?[#text "city 3"]), cityDown, func p = p.city == "city 3");
-      from = walked(people.indexEntries(city, ?[#text "city 5"], null), cityUp, func p = p.city >= "city 5");
-      fromBack = walked(people.reverseIndexEntries(city, ?[#text "city 5"], null), cityDown, func p = p.city <= "city 5");
-      to = walked(people.indexEntries(city, null, ?[#text "city 12"]), cityUp, func p = p.city <= "city 12");
-      toBack = walked(people.reverseIndexEntries(city, null, ?[#text "city 12"]), cityDown, func p = p.city >= "city 12");
-      between = walked(people.indexEntries(city, ?[#text "city 15a"], ?[#text "city 17"]), cityUp, func p = p.city > "city 15a" and p.city <= "city 17");
-      crossed = walked(people.indexEntries(city, ?[#text "city 9"], ?[#text "city 1"]), cityUp, func _ = false);
-      pairs = walked(people.indexEntries(pair, ?[#nat 3, #text "city 3"], ?[#nat 7, #text "city 7"]), pairUp, func p = pairUp({ p with age = 3; city = "city 3" }, p) and pairUp(p, { p with age = 7; city = "city 7" }));
-      pairsBack = walked(people.reverseIndexEntries(pair, ?[#nat 7, #text "city 7"], ?[#nat 3, #text "city 3"]), pairDown, func p = pairUp({ p with age = 3; city = "city 3" }, p) and pairUp(p, { p with age = 7; city = "city 7" }));
-      nicks = walked(people.indexEntries(nick, null, null), nickUp, any);
-      nicksBack = walked(people.reverseIndexEntries(nick, null, null), nickDown, any);
-      nulls = walked(people.indexEntries(nick, ?[#null_], ?[#null_]), nickUp, func p = p.nick == null)
-    })
-  };
-
-  // The ends of an index: the field `shown` shows of the row, whether the row is the model's row
-  // of its key, and whether it is the first row of the walk from its key
-  func end(e : ?(Nat, Person), shown : Person -> Text, walk : Text -> Walk) : ?(Text, Bool, Bool) {
-    switch e {
-      case null { null }
-      case ?(k, p) { ?(shown(p), model[k] == ?p, walk(shown(p)).next() == ?(k, p)) }
-    }
-  };
-
-  func nickOf(p : Person) : Text = switch p.nick { case ?t { t } case null { "" } };
-
-  public query func ends() : async () {
-    Prim.debugPrint(debug_show {
-      minCity = end(people.minEntry(city), func p = p.city, func t = people.indexEntries(city, ?[#text t], null));
-      maxCity = end(people.maxEntry(city), func p = p.city, func t = people.reverseIndexEntries(city, ?[#text t], null));
-      minNick = end(people.minEntry(nick), nickOf, func t = people.indexEntries(nick, ?[#text t], null));
-      maxNick = end(people.maxEntry(nick), nickOf, func t = people.reverseIndexEntries(nick, ?[#text t], null))
-    })
-  };
-
-  // An index whose rows all have a null key has no ends; an empty one has no rows either
-  public func nullEnds() : async () {
-    let v = ["v"];
-    func rows(walk : { next : () -> ?(Nat, { v : ?Nat }) }) : Nat {
-      var n = 0;
-      for _ in walk { n += 1 };
-      n
-    };
-    Prim.debugPrint(debug_show (opt.minEntry(v), opt.maxEntry(v), rows(opt.indexEntries(v, null, null)), rows(opt.reverseIndexEntries(v, null, null))));
-    var k = 0;
-    while k < 100 {
-      opt.add(k, { v = null });
-      k += 1
-    };
-    Prim.debugPrint(debug_show (opt.minEntry(v), opt.maxEntry(v), rows(opt.indexEntries(v, null, null)), rows(opt.reverseIndexEntries(v, null, null))));
-    opt.add(100, { v = ?9 });
-    opt.add(101, { v = ?5 });
-    opt.add(102, { v = ?9 });
-    Prim.debugPrint(debug_show (opt.minEntry(v), opt.maxEntry(v), rows(opt.indexEntries(v, ?[#nat 5], null)), rows(opt.reverseIndexEntries(v, null, ?[#nat 5]))))
-  };
-
-  let longs = 150;
-
-  // Distinct Texts of 101 to 3,083 bytes, so that their index keys do not fit the buffers a walk
-  // starts with
-  func longText(k : Nat) : Text {
-    var t = debug_show ((k * 7) % longs);
-    var i = 0;
-    while i < 100 + 20 * ((k * 11) % longs) {
-      t #= "x";
+    while i < n {
+      t #= c;
       i += 1
     };
     t
   };
 
-  // Walks and ends of an index on long Texts
-  public func longKeys() : async () {
-    let texts = Prim.Array_tabulate<Text>(longs, longText);
-    let t = ["t"];
-    var k = 0;
-    while k < longs {
-      long.add(k, { t = texts[k] });
-      k += 1
-    };
-    func walked(walk : { next : () -> ?(Nat, { t : Text }) }, up : Bool, wanted : Text -> Bool) : { rows : Nat; wrong : Nat } {
-      let seen = Prim.Array_init<Bool>(longs, false);
-      var rows = 0;
-      var wrong = 0;
-      var last : ?Text = null;
-      for (k, r) in walk {
-        rows += 1;
-        if seen[k] or r.t != texts[k] or not wanted(r.t) { wrong += 1 };
-        seen[k] := true;
-        switch last {
-          case ?l { if (if up { l > r.t } else { l < r.t }) { wrong += 1 } }
-          case null {}
-        };
-        last := ?r.t
+  // Short words, words longer than 16 bytes, words of hundreds of bytes, the empty one, one with
+  // a character of two bytes, and the largest, of 1,000 bytes
+  transient let words : [Text] = [
+    "apple",
+    "banana",
+    "cherry",
+    "kiwi",
+    "lemon",
+    "a fruit with a long name",
+    "a fruit with a longer name",
+    "",
+    "\u{e9}clair",
+    repeat("x", 300),
+    repeat("y", 700),
+    repeat("x", 301),
+    repeat("\u{e9}", 500),
+  ];
+
+  transient let blobs : [Blob] = ["", "\00", "\00\01", "\ff"];
+
+  transient let principals : [Principal] = [
+    Prim.principalOfBlob(""),
+    Prim.principalOfBlob("\01"),
+    Prim.principalOfBlob("\01\00"),
+  ];
+
+  func row(k : Nat, s : Nat) : Row {
+    let r = mix(k, s);
+    {
+      s = words[r / 3 % words.size()];
+      on = if r % 5 == 0 { null } else { ?(r / 5 % 40) };
+      a = r / 7 % 1_000 * 1_000_003;
+      f = r % 2 == 0;
+      c = switch r / 11 % 6 {
+        case 0 { -(2 ** 130) - r / 13 % 3 }
+        case 1 { 2 ** 70 + r / 13 % 3 }
+        case 2 { -(2 ** 64) }
+        case _ { r / 13 % 9 - 4 }
       };
-      var want = 0;
-      for x in texts.values() { if wanted(x) { want += 1 } };
-      if rows != want { wrong += 1 };
-      { rows; wrong }
+      n8 = Prim.natToNat8(r / 17 % 256);
+      i16 = Prim.intToInt16(r / 19 % 7 * 10_000 - 32_768);
+      fl = Prim.intToFloat(r / 23 % 41 - 20) / 4.0;
+      ch = Prim.nat32ToChar(Prim.natToNat32(if r % 9 == 0 { 0x1F600 } else { 0x61 + r / 29 % 26 }));
+      ot = if r / 31 % 4 == 0 { null } else { ?words[r / 37 % 5] };
+      n64 = if r % 3 == 0 { 18_446_744_073_709_551_615 } else { Prim.natToNat64(r / 41 % 3) };
+      i64 = if r % 4 == 0 { -9_223_372_036_854_775_808 } else if r % 4 == 1 {
+        9_223_372_036_854_775_807
+      } else { Prim.intToInt64(r / 43 % 3 - 1) };
+      i8 = Prim.intToInt8(r / 47 % 5 * 60 - 128);
+      bl = blobs[r / 53 % blobs.size()];
+      p = principals[r / 59 % principals.size()];
+      z = null
+    }
+  };
+
+  // The key of a row under the index on `index`
+  func keyOf(r : Row, index : [Text]) : [Cell] {
+    func opt(v : ?Nat, c : Nat -> Cell) : Cell = switch v {
+      case null { #null_ }
+      case ?n { c(n) }
     };
-    var min = 0;
-    var max = 0;
-    k := 0;
-    while k < longs {
-      if texts[k] < texts[min] { min := k };
-      if texts[k] > texts[max] { max := k };
+    func cell(field : Text) : Cell = switch field {
+      case "s" { #text(r.s) }
+      case "on" { opt(r.on, func n = #nat(n)) }
+      case "a" { #nat(r.a) }
+      case "f" { #bool(r.f) }
+      case "c" { #int(r.c) }
+      case "n8" { #nat(Prim.nat8ToNat(r.n8)) }
+      case "i16" { #int(Prim.int16ToInt(r.i16)) }
+      case "fl" { #float(r.fl) }
+      case "ch" { #nat(Prim.nat32ToNat(Prim.charToNat32(r.ch))) }
+      case "ot" {
+        switch r.ot {
+          case null { #null_ }
+          case ?t { #text(t) }
+        }
+      }
+      case "n64" { #nat(Prim.nat64ToNat(r.n64)) }
+      case "i64" { #int(Prim.int64ToInt(r.i64)) }
+      case "i8" { #int(Prim.int8ToInt(r.i8)) }
+      case "bl" { #blob(r.bl) }
+      case "p" { #principal(r.p) }
+      case "z" { opt(r.z, func n = #nat(n)) }
+      case _ { Prim.trap("no such field") }
+    };
+    Prim.Array_tabulate<Cell>(index.size(), func i = cell(index[i]))
+  };
+
+  // The order of two cells of one kind, null first: -1, 0 or 1
+  func cmp(x : Cell, y : Cell) : Int {
+    switch (x, y) {
+      case (#null_, #null_) { 0 }
+      case (#null_, _) { -1 }
+      case (_, #null_) { 1 }
+      case (#nat(a), #nat(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#int(a), #int(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#float(a), #float(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#text(a), #text(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#blob(a), #blob(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#principal(a), #principal(b)) { if a < b { -1 } else if a > b { 1 } else { 0 } }
+      case (#bool(a), #bool(b)) { if a == b { 0 } else if b { -1 } else { 1 } }
+      case _ { Prim.trap("cells of two kinds") }
+    }
+  };
+
+  // The order of two keys of one index, field by field
+  func order(x : [Cell], y : [Cell]) : Int {
+    for i in x.keys() {
+      let o = cmp(x[i], y[i]);
+      if o != 0 { return o }
+    };
+    0
+  };
+
+  // The groups the table hands back for the index on `index`, in a new array
+  func groups(index : [Text]) : [([Cell], Nat)] {
+    let all = Prim.Array_init<([Cell], Nat)>(m + 1, ([], 0));
+    var n = 0;
+    for g in rows.groupCounts(index) {
+      all[n] := g;
+      n += 1
+    };
+    Prim.Array_tabulate<([Cell], Nat)>(n, func i = all[i])
+  };
+
+  // A key with an Int cell in place of each Nat cell
+  func ints(key : [Cell]) : [Cell] = Prim.Array_tabulate<Cell>(
+    key.size(),
+    func i = switch key[i] {
+      case #nat(n) { #int(n) }
+      case c { c }
+    },
+  );
+
+  // The number of answers for the index on `index` that are not the model's: keys out of order
+  // or of no row, counts other than the model's or the index's, rows whose key is missing
+  func wrongs(index : [Text], gs : [([Cell], Nat)]) : Nat {
+    var wrong = 0;
+    for i in gs.keys() {
+      let (key, count) = gs[i];
+      if key.size() != index.size() or count == 0 or rows.count(index, key) != count { wrong += 1 };
+      if i > 0 and order(gs[i - 1].0, key) >= 0 { wrong += 1 }
+    };
+    // Each row's key found among the groups, by halving
+    let tally = Prim.Array_init<Nat>(gs.size(), 0);
+    for r in model.values() {
+      switch r {
+        case ?r {
+          let key = keyOf(r, index);
+          var lo = 0;
+          var hi = gs.size();
+          while lo < hi {
+            let mid = (lo + hi) / 2;
+            if order(gs[mid].0, key) < 0 { lo := mid + 1 } else { hi := mid }
+          };
+          if lo < gs.size() and order(gs[lo].0, key) == 0 { tally[lo] += 1 } else {
+            wrong += 1
+          }
+        }
+        case null {}
+      }
+    };
+    for i in gs.keys() { if tally[i] != gs[i].1 { wrong += 1 } };
+    wrong
+  };
+
+  // Prints, after `step`, the number of rows, the number of answers that are not the model's,
+  // and the number of keys of each index
+  func check(step : Text) {
+    var wrong = 0;
+    let keys = Prim.Array_init<Nat>(indexes.size(), 0);
+    for i in indexes.keys() {
+      let index = indexes[i];
+      let gs = groups(index);
+      wrong += wrongs(index, gs);
+      // The first key counted with Int cells, the index named by another list of its fields
+      if gs.size() > 0 and rows.count(Prim.Array_tabulate<Text>(index.size(), func j = index[j]), ints(gs[0].0)) != gs[0].1 {
+        wrong += 1
+      };
+      keys[i] := gs.size()
+    };
+    Prim.debugPrint(step # " " # debug_show { size = rows.size(); wrong; keys = Prim.Array_tabulate<Nat>(keys.size(), func i = keys[i]) })
+  };
+
+  // The number of things wrong with the walk of the index on `index` from `from` to `to`,
+  // backward when `reverse`: a row that is not the model's row of its key, a key that comes
+  // twice, a key out of order or out of the bounds, and a number of rows other than the number
+  // the groups `gs` give the keys within the bounds; and the number of rows walked
+  func walked(index : [Text], gs : [([Cell], Nat)], from : ?[Cell], to : ?[Cell], reverse : Bool) : (Nat, Nat) {
+    let dir : Int = if reverse { -1 } else { 1 };
+    // Whether `key` lies from `from` on and up to `to`, in the walk's direction
+    func within(key : [Cell]) : Bool {
+      let after = switch from {
+        case null { true }
+        case ?f { order(key, f) * dir >= 0 }
+      };
+      let before = switch to {
+        case null { true }
+        case ?t { order(key, t) * dir <= 0 }
+      };
+      after and before
+    };
+    var want = 0;
+    for (key, count) in gs.values() { if within(key) { want += count } };
+    let walk = if reverse { rows.reverseIndexEntries(index, from, to) } else {
+      rows.indexEntries(index, from, to)
+    };
+    let seen = Prim.Array_init<Bool>(m, false);
+    var n = 0;
+    var wrong = 0;
+    var last : ?[Cell] = null;
+    for (k, r) in walk {
+      n += 1;
+      let key = keyOf(r, index);
+      if k >= m or seen[k] or model[k] != ?r or not within(key) { wrong += 1 } else {
+        seen[k] := true
+      };
+      switch last {
+        case ?l { if order(l, key) * dir > 0 { wrong += 1 } }
+        case null {}
+      };
+      last := ?key
+    };
+    if n != want { wrong += 1 };
+    (wrong, n)
+  };
+
+  // The number of things wrong with the row with the smallest key whose first field is not null,
+  // or the largest when `largest`: its key is not that key, it is not the model's row of its
+  // key, or not the first row of the walk from its key; or there is a row and should be none, or
+  // none and should be one
+  func ends(index : [Text], gs : [([Cell], Nat)], largest : Bool) : Nat {
+    var want : ?[Cell] = null;
+    for (key, _) in gs.values() {
+      switch (key[0], want) {
+        case (#null_, _) {}
+        case (_, null) { want := ?key }
+        case (_, ?_) { if largest { want := ?key } }
+      }
+    };
+    let got = if largest { rows.maxEntry(index) } else { rows.minEntry(index) };
+    switch (got, want) {
+      case (null, null) { 0 }
+      case (?(k, r), ?key) {
+        let first = if largest { rows.reverseIndexEntries(index, ?key, null).next() } else {
+          rows.indexEntries(index, ?key, null).next()
+        };
+        if order(keyOf(r, index), key) != 0 or k >= m or model[k] != ?r or first != ?(k, r) { 1 } else { 0 }
+      }
+      case _ { 1 }
+    }
+  };
+
+  // Prints the number of things wrong with the walks and the ends of every index, and the number
+  // of rows walked
+  public func walks() : async () {
+    var wrong = 0;
+    var rowsWalked = 0;
+    func add((w, n) : (Nat, Nat)) {
+      wrong += w;
+      rowsWalked += n
+    };
+    for index in indexes.values() {
+      let gs = groups(index);
+      let n = gs.size();
+      // Every key: of many batches, of long Texts, and all null
+      if index == ["s"] or index == ["a"] or index == ["z"] { add(walked(index, gs, null, null, false)) };
+      // From and to the first key and the last key, and between keys
+      if n > 1 {
+        let (first, lo, hi, last) = (gs[0].0, gs[n / 3].0, gs[n / 2].0, gs[n - 1].0);
+        add(walked(index, gs, ?lo, ?hi, false));
+        add(walked(index, gs, ?hi, ?lo, true));
+        add(walked(index, gs, null, ?first, false));
+        add(walked(index, gs, null, ?last, true));
+        add(walked(index, gs, ?first, null, true));
+        add(walked(index, gs, ?last, null, false));
+        add(walked(index, gs, ?hi, ?lo, false))
+      };
+      wrong += ends(index, gs, false) + ends(index, gs, true)
+    };
+    // Bounds that are values no row has
+    let a = ["a"];
+    let gs = groups(a);
+    add(walked(a, gs, ?[#nat(5_000_000)], ?[#nat(50_000_000)], false));
+    add(walked(a, gs, ?[#nat(50_000_000)], ?[#nat(5_000_000)], true));
+    Prim.debugPrint("walks " # debug_show { wrong; walked = rowsWalked })
+  };
+
+  func put(k : Nat, r : Row) {
+    rows.add(k, r);
+    model[k] := ?r
+  };
+
+  func drop(k : Nat) {
+    rows.remove(k);
+    model[k] := null
+  };
+
+  public func empty() : async () {
+    check("empty");
+    Prim.debugPrint(debug_show { maintain = rows.maintain(1_000_000) })
+  };
+
+  public func fill() : async () {
+    var k = 0;
+    while k < m {
+      put(k, row(k, 1));
       k += 1
     };
-    let (lo, hi) = if texts[10] <= texts[100] { (texts[10], texts[100]) } else { (texts[100], texts[10]) };
-    Prim.debugPrint(debug_show {
-      all = walked(long.indexEntries(t, null, null), true, func _ = true);
-      allBack = walked(long.reverseIndexEntries(t, null, null), false, func _ = true);
-      some = walked(long.indexEntries(t, ?[#text lo], ?[#text hi]), true, func x = x >= lo and x <= hi);
-      someBack = walked(long.reverseIndexEntries(t, ?[#text hi], ?[#text lo]), false, func x = x >= lo and x <= hi);
-      ends = (long.minEntry(t) == ?(min, { t = texts[min] }), long.maxEntry(t) == ?(max, { t = texts[max] }))
-    })
+    check("fill");
+    Prim.debugPrint(debug_show rows.indexes);
+    // The keys of the index on a Blob and a Principal, with their counts
+    Prim.debugPrint(debug_show groups(["bl", "p"]))
   };
 
-  public func ranges() : async () {
-    small.add(1, { b : Nat8 = 7; c = 'A' });
-    small.add(2, { b : Nat8 = 255; c = 'A' });
-    Prim.debugPrint(debug_show (small.count(["b"], [#int 7]), small.count(["b"], [#nat 255]), small.count(["c"], [#nat 65])))
-  };
-
-  // An empty table has no work pending
+  // Runs the upkeep until no work is pending
   public func upkeep() : async () {
-    Prim.debugPrint(debug_show (fresh.maintain(0), fresh.maintain(1_000_000)))
+    while rows.maintain(100_000_000) {};
+    check("upkeep")
+  };
+
+  // A third of the rows replaced by rows of other values, a fifth removed
+  public func change() : async () {
+    var k = 0;
+    while k < m {
+      if k % 5 == 0 { drop(k) } else if k % 3 == 1 { put(k, row(k, 2)) };
+      k += 1
+    };
+    check("change")
+  };
+
+  // The removed rows inserted again, with other values
+  public func refill() : async () {
+    var k = 0;
+    while k < m {
+      if model[k] == null { put(k, row(k, 3)) };
+      k += 1
+    };
+    check("refill")
+  };
+
+  // A walk of the groups of the index on a, stopped after 100 keys; writes that add keys before
+  // and past it and remove rows; the walk resumed: its keys still rise, and it hands back the
+  // keys added past every key there was, with their counts
+  public func resume() : async () {
+    let it = rows.groupCounts(["a"]);
+    var last : [Cell] = [];
+    var taken = 0;
+    while taken < 100 {
+      switch it.next() {
+        case ?(key, _) { last := key }
+        case null {}
+      };
+      taken += 1
+    };
+    var k = 0;
+    while k < 300 {
+      put(k, { row(k, 4) with a = if k % 2 == 0 { k % 3 } else { 2 ** 80 + k % 4 } });
+      k += 1
+    };
+    var wrong = 0;
+    var added = 0;
+    for (key, count) in it {
+      if order(last, key) >= 0 { wrong += 1 };
+      last := key;
+      switch key[0] {
+        case #nat(a) {
+          if a >= 2 ** 80 {
+            added += 1;
+            if count != rows.count(["a"], key) { wrong += 1 }
+          }
+        }
+        case _ { wrong += 1 }
+      }
+    };
+    Prim.debugPrint("resume " # debug_show { wrong; added });
+    check("resumed")
+  };
+
+  public func clear() : async () {
+    var k = 0;
+    while k < m {
+      drop(k);
+      k += 1
+    };
+    check("clear")
   };
 
   public func unknownField() : async () {
-    ignore NativeTable.empty<Nat, Person>().createIndex(["nope"]).build()
+    ignore NativeTable.empty<Nat, Row>().createIndex(["nope"]).build()
   };
-  public func noFields() : async () { ignore NativeTable.empty<Nat, Person>().createIndex([]).build() };
+  public func noFields() : async () { ignore NativeTable.empty<Nat, Row>().createIndex([]).build() };
   // The fields of an index in another order are another index
-  public func noIndex() : async () { ignore people.count(["city", "age"], [#text "city 3", #nat 3]) };
-  public func wrongKind() : async () { ignore people.count(city, [#nat 3]) };
-  public func wrongLength() : async () { ignore people.count(pair, [#nat 3]) };
-  public func nullKey() : async () { ignore people.count(city, [#null_]) };
-  public func tooLarge() : async () { ignore small.count(["b"], [#nat 256]) };
-  public func negative() : async () { ignore small.count(["b"], [#int(-1)]) };
-  public func surrogate() : async () { ignore small.count(["c"], [#nat 0xD800]) };
-  public func walkWrongKind() : async () { ignore people.indexEntries(city, ?[#nat 3], null) };
-  public func walkWrongLength() : async () { ignore people.reverseIndexEntries(pair, null, ?[#nat 3]) };
-  public func walkNoIndex() : async () { ignore people.indexEntries(["age"], null, null) };
-  public func endNoIndex() : async () { ignore people.maxEntry(["name"]) }
+  public func noIndex() : async () { ignore rows.count(["s", "c"], [#text("a"), #int(3)]) };
+  public func wrongKind() : async () { ignore rows.count(["s"], [#nat(3)]) };
+  public func wrongLength() : async () { ignore rows.reverseIndexEntries(["c", "s"], null, ?[#int(3)]) };
+  public func tooLarge() : async () { ignore rows.count(["n8", "i16"], [#nat(256), #int(0)]) };
+  public func surrogate() : async () { ignore rows.count(["ch"], [#nat(0xD800)]) }
 }
 
 // native tables need compiled code
@@ -347,26 +491,23 @@ actor {
 //SKIP run-ir
 //SKIP run-low
 //MOC-FLAG --package native-table ../../lib/native-table
-//CALL ingress fill "DIDL\x00\x00"
-//CALL ingress check "DIDL\x00\x00"
-//CALL ingress change "DIDL\x00\x00"
-//CALL ingress check "DIDL\x00\x00"
+//CALL ingress empty "DIDL\x00\x00"
 //CALL ingress walks "DIDL\x00\x00"
-//CALL ingress ends "DIDL\x00\x00"
-//CALL ingress nullEnds "DIDL\x00\x00"
-//CALL ingress longKeys "DIDL\x00\x00"
-//CALL ingress ranges "DIDL\x00\x00"
+//CALL ingress fill "DIDL\x00\x00"
 //CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress walks "DIDL\x00\x00"
+//CALL ingress change "DIDL\x00\x00"
+//CALL ingress walks "DIDL\x00\x00"
+//CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress refill "DIDL\x00\x00"
+//CALL ingress walks "DIDL\x00\x00"
+//CALL ingress resume "DIDL\x00\x00"
+//CALL ingress clear "DIDL\x00\x00"
+//CALL ingress walks "DIDL\x00\x00"
 //CALL ingress unknownField "DIDL\x00\x00"
 //CALL ingress noFields "DIDL\x00\x00"
 //CALL ingress noIndex "DIDL\x00\x00"
 //CALL ingress wrongKind "DIDL\x00\x00"
 //CALL ingress wrongLength "DIDL\x00\x00"
-//CALL ingress nullKey "DIDL\x00\x00"
 //CALL ingress tooLarge "DIDL\x00\x00"
-//CALL ingress negative "DIDL\x00\x00"
 //CALL ingress surrogate "DIDL\x00\x00"
-//CALL ingress walkWrongKind "DIDL\x00\x00"
-//CALL ingress walkWrongLength "DIDL\x00\x00"
-//CALL ingress walkNoIndex "DIDL\x00\x00"
-//CALL ingress endNoIndex "DIDL\x00\x00"

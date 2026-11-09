@@ -1,12 +1,14 @@
 import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
 
-// min and max of integer fields, of every integer type with and without an option, match a model
-// through inserts, replacements that move a field's smallest or largest value, and removals of
-// the rows that hold them, in a table of one row group and in one of several, sealed and still
-// buffered, also for values past 64, 128 and 256 bits and at the bounds of every type. A table
-// with no rows, and a field whose values are all null, have none. A field of any other type, or
-// an option of one, has none, and a name the row does not have traps
+// sum, sumCount, avg, min and max of integer fields, of every integer type with and without an
+// option, match a model through inserts, replacements that move a field's smallest or largest
+// value, and removals of the rows that hold them, in a table of one row group and in one of
+// several, sealed and still buffered, also for values past 64, 128 and 256 bits and at the bounds
+// of every type, and for sums that cross 64 and 128 bits both ways. A table with no rows, and a
+// field whose values are all null, sum to 0 over 0 values and have no average, smallest or
+// largest value. A field of any other type, or an option of one, has none of them, and a name the
+// row does not have traps
 actor {
   type Row = {
     n : Nat;
@@ -34,14 +36,18 @@ actor {
     t : Text;
     b : Bool;
     c : Char;
+    bl : Blob;
+    p : Principal;
     ofl : ?Float;
     ot : ?Text
   };
   type Item = { v : Int; o : ?Nat; w : Nat16 };
+  type Big = { v : Int; w : ?Nat };
 
-  // A table of one row group, and one of several
+  // A table of one row group, one of several, and one of a few rows
   let rows = NativeTable.empty<Nat, Row>().build();
   let items = NativeTable.empty<Nat, Item>().build();
+  let big = NativeTable.empty<Nat, Big>().build();
 
   let n = 1_000;
   let m = 12_000;
@@ -50,6 +56,7 @@ actor {
   // The rows the tables should hold, by key
   let model = Prim.Array_init<?Row>(n, null);
   let itemModel = Prim.Array_init<?Item>(m, null);
+  let bigModel = Prim.Array_init<?Big>(9, null);
 
   // A value from 0 to 2^64 - 1 that the key `k` and the step `s` pick
   func mix(k : Nat, s : Nat) : Nat {
@@ -100,6 +107,8 @@ actor {
       t = debug_show k;
       b = r % 2 == 0;
       c = Prim.nat32ToChar(Prim.natToNat32(0x41 + r % 26));
+      bl = Prim.arrayToBlob([Prim.natToNat8(k % 256)]);
+      p = Prim.principalOfBlob(Prim.arrayToBlob([Prim.natToNat8(k % 256)]));
       ofl = some(r, Prim.intToFloat(i));
       ot = some(r, debug_show k)
     }
@@ -204,81 +213,79 @@ actor {
     ("w", func r = ?Prim.nat16ToNat(r.w)),
   ];
 
-  // The fields of the other types and their options
-  let others = ["f", "t", "b", "c", "ofl", "ot"];
+  transient let bigFields : [(Text, Big -> ?Int)] = [("v", func r = ?r.v), ("w", func r = r.w)];
 
-  // The smallest and the largest value of `field` over the rows of `model`, null when no row
-  // holds one
-  func extremes<T>(model : [var ?T], field : T -> ?Int) : (?Int, ?Int) {
+  // The fields of the other types and their options
+  let others = ["f", "t", "b", "c", "bl", "p", "ofl", "ot"];
+
+  // The sum, the number, the smallest and the largest of the values of `field` over the rows of
+  // `model`, the last two null when no row holds one
+  func totals<T>(model : [var ?T], field : T -> ?Int) : (Int, Nat, ?Int, ?Int) {
+    var sum : Int = 0;
+    var count = 0;
     var lo : ?Int = null;
     var hi : ?Int = null;
     for r in model.values() {
-      switch r {
+      switch (do ? { field(r!)! }) {
         case null {}
-        case ?r {
-          switch field(r) {
-            case null {}
-            case ?v {
-              switch lo {
-                case ?x { if v < x { lo := ?v } }
-                case null { lo := ?v }
-              };
-              switch hi {
-                case ?x { if v > x { hi := ?v } }
-                case null { hi := ?v }
-              }
-            }
+        case ?v {
+          sum += v;
+          count += 1;
+          switch lo {
+            case ?x { if v < x { lo := ?v } }
+            case null { lo := ?v }
+          };
+          switch hi {
+            case ?x { if v > x { hi := ?v } }
+            case null { hi := ?v }
           }
         }
       }
     };
-    (lo, hi)
+    (sum, count, lo, hi)
   };
 
   // The first key of `model` whose row holds the value `v` of `field`, null when there is none
   func holder<T>(model : [var ?T], field : T -> ?Int, v : ?Int) : ?Nat {
     if v == null { return null };
-    var k = 0;
-    while k < model.size() {
+    for k in model.keys() {
       switch model[k] {
         case ?r { if field(r) == v { return ?k } }
         case null {}
-      };
-      k += 1
+      }
     };
     null
   };
 
-  // The number of `fields` whose min or max in `table` is not the model's, printing each field's
-  // min and max when `show`
-  func wrongs<T>(table : NativeTable.NativeTable<Nat, T>, model : [var ?T], fields : [(Text, T -> ?Int)], show : Bool) : Nat {
+  // The number of `fields` whose totals in `table` are not the model's
+  func wrongs<T>(table : NativeTable.NativeTable<Nat, T>, model : [var ?T], fields : [(Text, T -> ?Int)]) : Nat {
     var wrong = 0;
     for (name, field) in fields.values() {
-      let (lo, hi) = extremes(model, field);
-      let (min, max) = (table.min(name), table.max(name));
-      if min != lo or max != hi { wrong += 1 };
-      if show { Prim.debugPrint(name # " " # debug_show (min, max)) }
+      let (s, c, lo, hi) = totals(model, field);
+      let avg = if c == 0 { null } else { ?(Prim.intToFloat(s) / Prim.intToFloat(c)) };
+      if table.sumCount(name) != ?(s, c) or table.sum(name) != ?s or table.avg(name) != avg or table.min(name) != lo or table.max(name) != hi {
+        wrong += 1
+      }
     };
     wrong
   };
 
-  // Prints, after `step`, the number of integer fields of `rows` whose min or max is not the
-  // model's, and the number of other fields that have neither
-  func check(step : Text, show : Bool) {
-    let wrong = wrongs(rows, model, fields, show);
+  // Prints, after `step`, the number of integer fields of `rows` whose totals are not the model's,
+  // and the number of other fields that have none
+  func check(step : Text) {
+    let wrong = wrongs(rows, model, fields);
     var none = 0;
     for name in others.values() {
-      if rows.min(name) == null and rows.max(name) == null { none += 1 }
+      if rows.sumCount(name) == null and rows.sum(name) == null and rows.avg(name) == null and rows.min(name) == null and rows.max(name) == null {
+        none += 1
+      }
     };
     Prim.debugPrint(step # " " # debug_show { size = rows.size(); wrong; none })
   };
 
-  // Prints, after `step`, the min and max of every field of `items`, and the number of them that
-  // are not the model's
+  // Prints, after `step`, the number of fields of `items` whose totals are not the model's
   func checkItems(step : Text) {
-    let wrong = wrongs(items, itemModel, itemFields, false);
-    Prim.debugPrint(step # " " # debug_show { size = items.size(); wrong });
-    Prim.debugPrint(debug_show (items.min("v"), items.max("v"), items.min("o"), items.max("o"), items.min("w"), items.max("w")))
+    Prim.debugPrint(step # " " # debug_show { size = items.size(); wrong = wrongs(items, itemModel, itemFields) })
   };
 
   func put(k : Nat, r : Row) {
@@ -305,7 +312,7 @@ actor {
   // removed when `replace` is null
   func moveEnds<T>(model : [var ?T], fields : [(Text, T -> ?Int)], replace : ?(Nat -> T), set : (Nat, T) -> (), unset : Nat -> ()) {
     for (_, field) in fields.values() {
-      let (lo, hi) = extremes(model, field);
+      let (_, _, lo, hi) = totals(model, field);
       for v in [lo, hi].values() {
         switch (holder(model, field, v), replace) {
           case (?k, ?by) { set(k, by(k)) }
@@ -317,7 +324,7 @@ actor {
   };
 
   public func empty() : async () {
-    check("empty", true);
+    check("empty");
     checkItems("items empty")
   };
 
@@ -327,7 +334,7 @@ actor {
       put(k, row(k, 1));
       k += 1
     };
-    check("fill", true)
+    check("fill")
   };
 
   // Removals, and replacements that change every field, null to a value and back
@@ -337,7 +344,7 @@ actor {
       if k % 3 == 0 { drop(k) } else if k % 7 == 1 { put(k, row(k, 2)) };
       k += 1
     };
-    check("change", false)
+    check("change")
   };
 
   // Three times: the rows that hold each field's smallest and largest value replaced by rows of
@@ -346,9 +353,9 @@ actor {
     var round = 0;
     while round < 3 {
       moveEnds(model, fields, ?(func(k : Nat) : Row = row(k, 3 + round)), put, drop);
-      check("replaced " # debug_show round, false);
+      check("replaced " # debug_show round);
       moveEnds(model, fields, null, put, drop);
-      check("removed " # debug_show round, false);
+      check("removed " # debug_show round);
       round += 1
     }
   };
@@ -357,10 +364,10 @@ actor {
   public func bounds() : async () {
     put(1, bound(false));
     put(2, bound(true));
-    check("bounds", true);
+    check("bounds");
     put(1, row(1, 9));
     put(2, row(2, 9));
-    check("bounds replaced", true)
+    check("bounds replaced")
   };
 
   public func clear() : async () {
@@ -369,7 +376,7 @@ actor {
       drop(k);
       k += 1
     };
-    check("clear", true)
+    check("clear")
   };
 
   // The next 4,000 rows of `items`
@@ -432,8 +439,41 @@ actor {
     checkItems("items clear")
   };
 
-  public func noField() : async () { ignore rows.min("nope") };
-  public func emptyName() : async () { ignore rows.max("") }
+  // Sums past 64 bits, then past 128 bits, both signs, and back
+  public func bigs() : async () {
+    func putBig(k : Nat, r : Big) {
+      big.add(k, r);
+      bigModel[k] := ?r
+    };
+    func check(step : Text) {
+      Prim.debugPrint(step # " " # debug_show (big.sum("v"), wrongs(big, bigModel, bigFields)))
+    };
+    putBig(0, { v = 2 ** 62; w = ?1 });
+    putBig(1, { v = 2 ** 62; w = null });
+    check("2^63");
+    putBig(2, { v = -(2 ** 64); w = null });
+    check("-2^63");
+    putBig(3, { v = -1; w = ?2 });
+    check("-2^63 - 1");
+    var k = 4;
+    while k < 8 {
+      putBig(k, { v = 2 ** 126; w = ?(2 ** 200) });
+      k += 1
+    };
+    check("past 128 bits");
+    putBig(8, { v = -(2 ** 130); w = null });
+    check("below -2^128");
+    k := 4;
+    while k < 9 {
+      big.remove(k);
+      bigModel[k] := null;
+      k += 1
+    };
+    check("back")
+  };
+
+  public func noField() : async () { ignore rows.sum("nope") };
+  public func noExtremeField() : async () { ignore rows.min("nope") }
 }
 
 // native tables need compiled code
@@ -455,5 +495,6 @@ actor {
 //CALL ingress itemBounds "DIDL\x00\x00"
 //CALL ingress itemGroup "DIDL\x00\x00"
 //CALL ingress itemClear "DIDL\x00\x00"
+//CALL ingress bigs "DIDL\x00\x00"
 //CALL ingress noField "DIDL\x00\x00"
-//CALL ingress emptyName "DIDL\x00\x00"
+//CALL ingress noExtremeField "DIDL\x00\x00"
