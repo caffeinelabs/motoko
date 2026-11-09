@@ -1,5 +1,14 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * perf: a `switch` on a tuple, such as `switch (a, b)` or
+    `switch (f())`, no longer allocates the tuple on the heap when every case
+    is a tuple pattern (or a wildcard). Neither does a projection from a
+    tuple-returning call like `f().0` (#6486).
+
 ## 2.2.1 (2026-11-03)
 
 * motoko (`moc`)
