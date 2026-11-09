@@ -335,7 +335,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
             assert_eq!(gone.is_some(), model.remove(&k).is_some());
         } else {
             if r.below(2) == 0 {
-                tb.write_step(&TestBudget::new(u64::MAX)).unwrap();
+                tb.write_step().unwrap();
             } else {
                 maintain_all(&mut tb);
             }

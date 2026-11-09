@@ -674,9 +674,9 @@ impl<'h, H: PageHost> Table<'h, H> {
         jobs::step(&mut *self.host, self.root, &self.shape)
     }
 
-    /// The write-first step: exactly one step when work is pending, however much budget is left; O(1) otherwise.
-    /// Steps take no scratch. The budget is not read: each job bounds its own step.
-    pub fn write_step<B: Budget>(&mut self, _b: &B) -> Result<Wake, Fault> {
+    /// The write-first step: exactly one step when work is pending; O(1) otherwise. Steps take no scratch: each
+    /// job bounds its own step.
+    pub fn write_step(&mut self) -> Result<Wake, Fault> {
         if self.wake()? == Wake::Idle {
             return Ok(Wake::Idle);
         }

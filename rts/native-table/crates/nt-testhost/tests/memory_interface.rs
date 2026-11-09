@@ -4,7 +4,7 @@
 use native_table::bytes::{put_uleb, rd_uleb, uleb_len};
 use native_table::consts::{self, seal_scratch, v_choice, BLOCK, PAGE};
 use native_table::fault::{bounds, corrupt};
-use native_table::host::{wake_from_state, STATE_PENDING, STATE_URGENT};
+use native_table::host::{wake_from_state, STATE_PENDING};
 use native_table::mem::{copy, fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, shift, sub};
 use native_table::tree::IndexShape;
 use native_table::{CorruptAt, Corruption, Fault, ImageId, PageHost, Region, SchemaError, Scratch, Wake};
@@ -204,7 +204,5 @@ fn constants_and_form_codes() {
 fn wake_from_the_state_byte() {
     assert_eq!(wake_from_state(0), Wake::Idle);
     assert_eq!(wake_from_state(STATE_PENDING), Wake::Later);
-    assert_eq!(wake_from_state(STATE_URGENT), Wake::Now);
-    assert_eq!(wake_from_state(STATE_PENDING | STATE_URGENT), Wake::Now);
     assert_eq!(wake_from_state(0xFC), Wake::Idle);
 }

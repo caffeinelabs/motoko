@@ -72,20 +72,15 @@ pub trait Scratch {
 pub enum Wake {
     Idle,
     Later,
-    Now,
 }
 
-/// The maintenance state byte: bit 0 pending, bit 1 urgent.
+/// The maintenance state byte: bit 0 pending.
 pub const STATE_PENDING: u8 = 1;
-/// See `STATE_PENDING`.
-pub const STATE_URGENT: u8 = 2;
 
 /// `Wake` from the table root's maintenance state byte.
 #[inline]
 pub fn wake_from_state(state: u8) -> Wake {
-    if state & STATE_URGENT != 0 {
-        Wake::Now
-    } else if state & STATE_PENDING != 0 {
+    if state & STATE_PENDING != 0 {
         Wake::Later
     } else {
         Wake::Idle

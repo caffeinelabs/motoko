@@ -1432,7 +1432,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 let before = h.clone();
                 let mut tb = Table::open(&mut h, tbl).unwrap();
                 if step_first {
-                    tb.write_step(&everything()).unwrap();
+                    tb.write_step().unwrap();
                 }
                 let got = tb.upsert(&mut scratch, &mut Src::new(&row_cells(&s, row, &mut r)));
                 assert_eq!(got.map(|x| x.0), Err(Fault::BadValue { leaf: 0 }), "upsert {key:?} over {:?}", e.1[0]);
@@ -1444,7 +1444,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
         }
         let mut tb = Table::open(&mut h, tbl).unwrap();
         if step_first {
-            tb.write_step(&everything()).unwrap();
+            tb.write_step().unwrap();
         }
         match &write {
             Some((key, Some(row))) => {
@@ -1473,7 +1473,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             }
             None => match r.below(4) {
                 0 => {
-                    tb.write_step(&everything()).unwrap();
+                    tb.write_step().unwrap();
                 }
                 1 => {
                     tb.maintain(&TestBudget::new(0)).unwrap();

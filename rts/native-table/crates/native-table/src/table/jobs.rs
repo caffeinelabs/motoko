@@ -2,9 +2,8 @@
 //! runs.
 //!
 //! The one job is the compaction queue: compactions and group drops. A step runs its next piece: a compaction
-//! rewrites one whole group (`seal`), a drop frees one group. A queued compaction is urgent while a patch chain
-//! or a group's patch units passed their bounds; the seal of a full group is no job: the write that fills the
-//! group runs it (`write::freeze`).
+//! rewrites one whole group (`seal`), a drop frees one group. The seal of a full group is no job: the write that
+//! fills the group runs it (`write::freeze`).
 //!
 //! **Compaction queue** `NTQB` (area 0, zero-filled when allocated): {magic u32 @0; `FORMAT_TABLE` u16 @4;
 //! kind u8 @6 (1 compaction); head u16 @8 (the next entry to pop); entries written u16 @10; next block u64
@@ -12,9 +11,9 @@
 //! the tail block at 120, and at 128 a group a write recorded for the next step to push (`after_patch`). A
 //! group is queued at most once (its group page's flag bit 1).
 
-use crate::consts::{magic, COMPACT_DEAD, FORMAT_TABLE, PATCH_BLOCKS_MAX, PATCH_FOLD_BLOCKS, PATCH_UNITS_PER_DIR};
+use crate::consts::{magic, COMPACT_DEAD, FORMAT_TABLE, PATCH_FOLD_BLOCKS, PATCH_UNITS_PER_DIR};
 use crate::fault::{rt, Corruption, Fault};
-use crate::host::{wake_from_state, Wake, STATE_PENDING, STATE_URGENT};
+use crate::host::{wake_from_state, Wake, STATE_PENDING};
 use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, PageHost, Region};
 
 use super::buffer::{self, DESC_BIT};
@@ -111,18 +110,12 @@ fn push_recorded<H: PageHost>(h: &mut H, tbl: u64) -> Result<(), Fault> {
     root::set_u64(h, tbl, root::GROUP_TO_QUEUE, 0)
 }
 
-/// Queues group g's compaction (or drop), once; `urgent` makes the compaction job urgent.
-pub fn queue<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64, urgent: bool) -> Result<(), Fault> {
+/// Queues group g's compaction (or drop), once.
+pub fn queue<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64) -> Result<(), Fault> {
     let flags = buffer::u16_of(&*h, pg, page::P_FLAGS)?;
     if flags & u64::from(page::PF_QUEUED) == 0 {
         put_u16(h.get_mut(Region::Block(pg))?, page::P_FLAGS, u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED)?;
         push(h, tbl, g)?;
-    }
-    if urgent {
-        let f = root::u8_at(&*h, tbl, root::FLAGS)?;
-        if f & root::FLAG_COMPACT_URGENT == 0 {
-            root::set_u8(h, tbl, root::FLAGS, f | root::FLAG_COMPACT_URGENT)?;
-        }
     }
     Ok(())
 }
@@ -133,37 +126,31 @@ pub fn after_delete<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64) -> Result
     let live = buffer::u16_of(&*h, pg, page::P_LIVE)?;
     let dead = buffer::u16_of(&*h, pg, page::P_DEAD)?;
     if live == 0 || dead >= COMPACT_DEAD {
-        queue(h, tbl, g, pg, false)?;
+        queue(h, tbl, g, pg)?;
     }
     Ok(())
 }
 
 /// After a patch: a chain at `PATCH_FOLD_BLOCKS` blocks, or live patch bytes at half the image's variable
-/// bytes, queue the group's compaction; a chain at `PATCH_BLOCKS_MAX` blocks (which passed the first trigger)
-/// or a 255th unit make it urgent. A group whose 255th unit finds it not queued passes no fold trigger: it is
-/// recorded in the root's group to queue, which the write changes anyway, and the next step pushes it.
+/// bytes, queue the group's compaction, as does a 255th unit. A group whose 255th unit finds it not queued passes
+/// no fold trigger: it is recorded in the root's group to queue, which the write changes anyway, and the next step
+/// pushes it.
 pub fn after_patch<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64, u: &patch::Upserted) -> Result<(), Fault> {
-    let urgent = u.blocks >= PATCH_BLOCKS_MAX || u.units > PATCH_UNITS_PER_DIR;
     let var = variable_bytes(&*h, pg)?;
     if u.blocks >= PATCH_FOLD_BLOCKS || u.live_bytes.saturating_mul(2) >= var.max(1) {
-        return queue(h, tbl, g, pg, urgent);
+        return queue(h, tbl, g, pg);
     }
-    if !urgent {
+    if u.units <= PATCH_UNITS_PER_DIR {
         return Ok(());
     }
     let flags = buffer::u16_of(&*h, pg, page::P_FLAGS)?;
     let recorded = root::u64_at(&*h, tbl, root::GROUP_TO_QUEUE)?;
     if flags & u64::from(page::PF_QUEUED) != 0 || recorded != 0 {
         // Queued already, or another group recorded with no step run since: the queue takes this one now.
-        return queue(h, tbl, g, pg, true);
+        return queue(h, tbl, g, pg);
     }
     put_u16(h.get_mut(Region::Block(pg))?, page::P_FLAGS, u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED)?;
-    root::set_u64(h, tbl, root::GROUP_TO_QUEUE, g.checked_add(1).ok_or(rt(Corruption::Range, g))?)?;
-    let f = root::u8_at(&*h, tbl, root::FLAGS)?;
-    if f & root::FLAG_COMPACT_URGENT == 0 {
-        root::set_u8(h, tbl, root::FLAGS, f | root::FLAG_COMPACT_URGENT)?;
-    }
-    Ok(())
+    root::set_u64(h, tbl, root::GROUP_TO_QUEUE, g.checked_add(1).ok_or(rt(Corruption::Range, g))?)
 }
 
 /// A group image's bytes past its front metadata: its cells, inline data and out-of-line values.
@@ -178,7 +165,7 @@ fn variable_bytes<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<u64, Fault> {
 /// holds no patch, and fewer than `COMPACT_DEAD` dead positions (`seal::compacted_form`).
 pub fn after_rewrite<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64) -> Result<(), Fault> {
     if buffer::u16_of(&*h, pg, page::P_LIVE)? == 0 {
-        queue(h, tbl, g, pg, false)?;
+        queue(h, tbl, g, pg)?;
     }
     Ok(())
 }
@@ -233,25 +220,10 @@ fn compaction<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fa
     Ok(Ran::Compaction)
 }
 
-/// The maintenance state: pending while a compaction waits, urgent while an urgent one does; the root's state
-/// byte is written only when it changes.
+/// The maintenance state: pending while a compaction waits; the root's state byte is written only when it
+/// changes.
 pub fn settle<H: PageHost>(h: &mut H, tbl: u64) -> Result<Wake, Fault> {
-    let comp_w = queued(&*h, tbl)?;
-    let mut flags = root::u8_at(&*h, tbl, root::FLAGS)?;
-    let old_flags = flags;
-    if !comp_w {
-        flags &= !root::FLAG_COMPACT_URGENT;
-    }
-    if flags != old_flags {
-        root::set_u8(h, tbl, root::FLAGS, flags)?;
-    }
-    let mut s = 0u8;
-    if comp_w {
-        s |= STATE_PENDING;
-    }
-    if comp_w && flags & root::FLAG_COMPACT_URGENT != 0 {
-        s |= STATE_URGENT;
-    }
+    let s = if queued(&*h, tbl)? { STATE_PENDING } else { 0 };
     let old = root::u8_at(&*h, tbl, root::STATE)?;
     if s != old {
         root::set_u8(h, tbl, root::STATE, s)?;

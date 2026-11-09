@@ -57,14 +57,9 @@ unsafe extern "C" {
 }
 
 /// The instruction meter maintenance reads: performance counter 0. `maintain` starts no step once
-/// the counter has reached `limit`; a write's step reads no limit.
+/// the counter has reached `limit`.
 struct Meter {
     limit: u64,
-}
-
-impl Meter {
-    /// The meter of a write's step.
-    const WRITE: Meter = Meter { limit: u64::MAX };
 }
 
 impl Budget for Meter {
@@ -219,7 +214,7 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
     let mut scratch = BlobScratch { mem };
-    or_trap(table.write_step(&Meter::WRITE));
+    or_trap(table.write_step());
     let (done, _) = or_trap(table.upsert(&mut scratch, &mut row));
     matches!(done, Upsert::Inserted(_)) as u64
 }
@@ -253,7 +248,7 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value)
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
     let mut scratch = BlobScratch { mem };
-    or_trap(table.write_step(&Meter::WRITE));
+    or_trap(table.write_step());
     let (removed, _) = or_trap(table.remove(&mut scratch, &mut k));
     removed.is_some() as u64
 }

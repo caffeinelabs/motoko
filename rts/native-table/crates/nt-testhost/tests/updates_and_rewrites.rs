@@ -646,7 +646,7 @@ fn seal_and_compaction_bytes() {
                         kill(&mut tb, &mut model);
                         let pg = root::group(tb.host(), tb.root(), 0).unwrap();
                         let tbl = tb.root();
-                        native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg, false).unwrap();
+                        native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg).unwrap();
                         run_all(&mut tb, &mut units);
                         assert!(units.by.keys().any(|x| x.starts_with("Compaction")), "{units:?}");
                     }
@@ -751,7 +751,7 @@ fn patch_units_over_255() {
         assert_eq!(dirs[507], 2);
         assert_eq!(dirs[508], 3, "the 509th unit takes a new directory block");
         check_reads(&tb, &model);
-        assert_eq!(tb.wake().unwrap(), Wake::Now, "past 254 units the compaction is urgent");
+        assert_eq!(tb.wake().unwrap(), Wake::Later, "past 254 units a compaction is pending");
         // No fold trigger passed: the 255th unit recorded the group in the root for the next step to push,
         // and no write changed the compaction queue.
         assert_eq!(root::u64_at(tb.host(), tb.root(), root::GROUP_TO_QUEUE).unwrap(), 1, "group 0 recorded");
@@ -759,7 +759,7 @@ fn patch_units_over_255() {
         let mut units = Units::default();
         assert_eq!(one_unit(&mut tb, &mut units), Ran::Compaction, "the next step pushes it and compacts");
         assert_eq!(root::u64_at(tb.host(), tb.root(), root::GROUP_TO_QUEUE).unwrap(), 0);
-        // The urgent compaction folds them all.
+        // The compaction folds them all.
         maintain_all(&mut tb);
         let pg2 = root::group(tb.host(), tb.root(), 0).unwrap();
         assert_eq!(buffer::u64_of(tb.host(), pg2, page::P_PATCH_DIR).unwrap(), 0, "every patch folded");
@@ -773,7 +773,7 @@ fn patch_units_over_255() {
 
 // ---------------------------------------------------------------- no forced steps
 
-/// Maintenance withheld: writes go on past every urgent threshold (patch chains and units) and run no
+/// Maintenance withheld: writes go on past every threshold that queues a compaction (patch chains and units) and run no
 /// maintenance of their own beyond the seal of the group an insert fills: every group sealed before a write
 /// keeps its page (no compaction or drop).
 #[test]
@@ -790,16 +790,12 @@ fn no_forced_steps() {
             fill_group(&mut tb, &mut r, &mut model, &mut next_key);
         }
         run_all(&mut tb, &mut units);
-        let mut urgent = 0;
         for step in 0..12_000u64 {
             let before = sealed_groups(&tb);
             random_write(&mut tb, &mut r, &mut model, &mut next_key, false);
             let after = sealed_groups(&tb);
             assert!(before.iter().all(|x| after.contains(x)), "step {step}: a write rewrote or dropped a group");
             assert!(after.len() <= before.len() + 1, "step {step}: a write sealed one group at most");
-            if tb.wake().unwrap() == Wake::Now {
-                urgent += 1;
-            }
             if step % 4_000 == 3_999 {
                 check_reads(&tb, &model);
                 lh.take(tb.host_mut());
@@ -810,7 +806,7 @@ fn no_forced_steps() {
         check_reads(&tb, &model);
         check_groups(&tb);
         check_running(&tb, &model);
-        (model.len(), urgent, units)
+        (model.len(), units)
     });
     eprintln!("no_forced_steps: {digest:?}");
 }
@@ -932,7 +928,7 @@ fn crash_equivalence() {
                     next_key = saved_next;
                 }
                 let mut tb = Table::open(&mut h, root).unwrap();
-                tb.write_step(&everything()).unwrap();
+                tb.write_step().unwrap();
                 let op = r.below(10);
                 if op < 5 || model.len() < 20 {
                     let mut row = vec![(id(0), V::U(next_key))];
@@ -975,7 +971,7 @@ fn crash_equivalence() {
 }
 
 /// Long patch chains: a few sealed rows' Text updated thousands of times with changing lengths (short, medium
-/// in block chains, huge in long values) and no maintenance, the chains far past `PATCH_BLOCKS_MAX`; then
+/// in block chains, huge in long values) and no maintenance, the chains far past `PATCH_FOLD_BLOCKS`; then
 /// writes between the maintenance steps that fold them, twice.
 #[test]
 fn long_patch_chains() {
@@ -1043,7 +1039,7 @@ fn long_patch_chains() {
         }
         (longest, model.len())
     });
-    assert!(digest.0 > native_table::consts::PATCH_BLOCKS_MAX, "chains past their bound: {digest:?}");
+    assert!(digest.0 > 4 * native_table::consts::PATCH_FOLD_BLOCKS, "chains far past their bound: {digest:?}");
 }
 
 // ---------------------------------------------------------------- big values

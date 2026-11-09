@@ -20,7 +20,7 @@ pub const DIR_ROOT: u64 = 88;
 /// The compaction queue's head and tail blocks.
 pub const COMPACT_HEAD: u64 = 112;
 pub const COMPACT_TAIL: u64 = 120;
-/// The group to queue (group number + 1; 0: none): a group a write's 255th patched unit made urgent while it was
+/// The group to queue (group number + 1; 0: none): a group a write's 255th patched unit had to queue while it was
 /// not queued, recorded here in the root the write changes anyway instead of pushed onto the compaction queue,
 /// whose blocks the write would change besides; the next maintenance step pushes it first.
 pub const GROUP_TO_QUEUE: u64 = 128;
@@ -29,7 +29,7 @@ pub const INDEX_DIRS: u64 = 928;
 pub const FMT_IMAGE: u64 = 2_128;
 pub const FMT_KEY: u64 = 2_130;
 pub const FMT_VALUE: u64 = 2_132;
-/// The maintenance state byte: bit 0 pending, bit 1 urgent.
+/// The maintenance state byte: bit 0 pending.
 pub const STATE: u64 = 2_449;
 /// The table's shape, what every call needs of the schema image, derived when the image is written
 /// (`layout::Shape::store`, `layout::STORED_BYTES` bytes).
@@ -41,9 +41,6 @@ const HOST_WORDS_END: u64 = 4_032;
 /// Kind byte: a table, or a set (rows that hold only their key).
 pub const KIND_TABLE: u8 = 1;
 pub const KIND_SET: u8 = 2;
-/// Flags bit 3: a queued compaction is urgent (a patch chain at `PATCH_BLOCKS_MAX` blocks, or a 255th
-/// patched unit).
-pub const FLAG_COMPACT_URGENT: u8 = 8;
 
 /// Writes every byte of a new root the crate owns, except the area records (160–927, written by
 /// `area::new_root`): zeros, then the header fields; the host words are left as they are.
