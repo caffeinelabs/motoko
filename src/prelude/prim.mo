@@ -208,9 +208,10 @@ func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)]
 };
 
 // The sum and the number of the non-null values of the field `column` of R over every row, or
-// null when the field is not of an integer type
-func ntSum<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text) : ?(Int, Nat) {
-  (prim "nt_sum" : (Nat64, NtCodec<(K, R)>, Text) -> ?(Int, Nat))(id, codec, column)
+// with `filter` = ?(field, f) over the rows whose field `field` meets `f`; null when `column` is
+// not of an integer type
+func ntSum<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, filter : ?(Text, NtFilter)) : ?(Int, Nat) {
+  (prim "nt_sum" : (Nat64, NtCodec<(K, R)>, Text, ?(Text, NtFilter)) -> ?(Int, Nat))(id, codec, column, filter)
 };
 
 // The smallest non-null value of the field `column` of R over every row, or the largest when
@@ -251,18 +252,6 @@ func ntScanCells<K, R>(id : Nat64, codec : NtCodec<(K, R)>, key : Bool, fields :
 // The number of rows whose field `field` meets `filter`
 func ntCountWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter : NtFilter) : Nat {
   (prim "nt_count_where" : (Nat64, NtCodec<(K, R)>, Text, NtFilter) -> Nat)(id, codec, field, filter)
-};
-
-// The sum and the number of the non-null values of the field `sumField` of R over the rows whose
-// field `field` meets `filter`, or null when `sumField` is not of an integer type
-func ntSumWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, sumField : Text, field : Text, filter : NtFilter) : ?(Int, Nat) {
-  (prim "nt_sum_where" : (Nat64, NtCodec<(K, R)>, Text, Text, NtFilter) -> ?(Int, Nat))(
-    id,
-    codec,
-    sumField,
-    field,
-    filter,
-  )
 };
 
 // Up to `limit` keys (1 to 64) of the index on `fields` in its order, each with the number of

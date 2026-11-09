@@ -51,16 +51,14 @@ actor {
     Prim.debugPrint(debug_show (users.get(1), users.size(), nat32s.size(), nat64s.size(), texts.size()))
   };
 
-  // Long Blobs in rows, whose bytes repeat the two words a table's root block holds at byte 3,968:
-  // the table magic and the codec hash of `users`. The Blobs start the repetition at each of its 16
-  // bytes, so one of them puts the two words at that byte of every block its stored bytes fill,
-  // wherever its bytes start.
+  // Long Blobs in rows, whose bytes repeat the word a table's root block holds at byte 3,968: the
+  // codec hash of `users`. The Blobs start the repetition at each of 16 bytes, so one of them puts
+  // the word at that byte of every block its stored bytes fill, wherever its bytes start.
   let longs = NativeTable.empty<Nat, Blob>().build();
 
   public func putForgery() : async () {
     let layout = Prim.blobToArray(Prim.ntCodecLayout(users.codec));
-    let magic = Prim.blobToArray("MOTOKONT");
-    let words = Prim.Array_tabulate<Nat8>(16, func i = if i < 8 { magic[i] } else { layout[i] });
+    let words = Prim.Array_tabulate<Nat8>(16, func i = layout[8 + i % 8]);
     var k = 0;
     while k < 16 {
       longs.add(k, Prim.arrayToBlob(Prim.Array_tabulate<Nat8>(65_536, func i = words[(i + k) % 16])));

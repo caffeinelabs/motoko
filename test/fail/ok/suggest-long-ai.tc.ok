@@ -287,11 +287,8 @@ suggest-long-ai.mo:4.6-4.12: type error [M0072], field region does not exist in 
         ([(K, R)], ?Nat64);
     ntSize : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Nat;
     ntSum :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text) ->
-        ?(Int, Nat);
-    ntSumWhere :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, sumField : Text,
-             field : Text, filter : NtFilter) ->
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
+             filter : ?(Text, NtFilter)) ->
         ?(Int, Nat);
     ntWalk :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

@@ -343,27 +343,27 @@ module {
   /// field `field` meets `filter`, (0, 0) when there are none; null when `sumField` is not of an
   /// integer type.
   public func sumWhere<K, R>(self : NativeTable<K, R>, sumField : Text, field : Text, filter : Filter) : ?(Int, Nat) {
-    Prim.ntSumWhere(self.id, self.codec, sumField, field, filter)
+    Prim.ntSum(self.id, self.codec, sumField, ?(field, filter))
   };
 
   /// The sum of the non-null values of the named field over every row, 0 when there are none;
   /// null when the field is not of an integer type. The table keeps the sum up to date as rows
   /// are written, so this is one read at any table size.
   public func sum<K, R>(self : NativeTable<K, R>, column : Text) : ?Int {
-    do ? { Prim.ntSum(self.id, self.codec, column)!.0 }
+    do ? { Prim.ntSum(self.id, self.codec, column, null)!.0 }
   };
 
   /// The sum and the number of the non-null values of the named field over every row, (0, 0) when
   /// there are none; null when the field is not of an integer type. One read at any table size,
   /// as for `sum`.
   public func sumCount<K, R>(self : NativeTable<K, R>, column : Text) : ?(Int, Nat) {
-    Prim.ntSum(self.id, self.codec, column)
+    Prim.ntSum(self.id, self.codec, column, null)
   };
 
   /// The average of the non-null values of the named field over every row, their sum over their
   /// number; null when there are none, or when the field is not of an integer type.
   public func avg<K, R>(self : NativeTable<K, R>, column : Text) : ?Float {
-    switch Prim.ntSum(self.id, self.codec, column) {
+    switch Prim.ntSum(self.id, self.codec, column, null) {
       case ?(s, n) { if n == 0 { null } else { ?(Prim.intToFloat(s) / Prim.intToFloat(n)) } }
       case null { null }
     }
