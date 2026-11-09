@@ -12,7 +12,7 @@ PROBE=target/wasm64-unknown-unknown/release/nt_probe.wasm
 
 echo "== native build, lints and tests (Rust 1.83.0), with the wasm64 probe for cross-target checks"
 cargo build -q --workspace
-cargo clippy -q -p native-table --all-targets -- -D warnings
+cargo clippy -q -p native-table -p nt-builder --all-targets -- -D warnings
 NT_PROBE_WASM="$PWD/$PROBE" cargo test -q --workspace --profile test-fast
 
 echo "== the large suite in release mode: rows_model at 10^6 writes and across schema versions, rewrite_units writing while a compaction runs, post-snapshot patches past 254 units"

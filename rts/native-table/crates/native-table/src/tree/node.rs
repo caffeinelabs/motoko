@@ -1,4 +1,4 @@
-//! Node offsets and the primitive moves, all through `NodeMem`'s field methods.
+//! Node offsets and the primitive moves, all through the node host's field methods.
 //!
 //! For a typed shape these compute today's offsets with today's arithmetic (wrapping, unchecked); for an
 //! index shape every count is clamped to the node's capacity, every entry index to c − 1 and every child
@@ -7,30 +7,27 @@
 use super::shape::{NodeShape, Shape};
 use crate::consts::FLAG_LEAF;
 use crate::fault::Fault;
-use crate::host::NodeMem;
+use crate::host::{NodeMem, NodeRead};
 
-/// Whether node n is a leaf.
 #[inline(always)]
-pub fn is_leaf<M: NodeMem + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {
+pub fn is_leaf<M: NodeRead + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {
     Ok(m.flags(n)? & FLAG_LEAF != 0)
 }
 
-/// The node's shape by its leaf bit.
 #[inline(always)]
-pub fn shape_of<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64) -> Result<(bool, NodeShape), Fault> {
+pub fn shape_of<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64) -> Result<(bool, NodeShape), Fault> {
     let leaf = is_leaf(m, n)?;
     Ok((leaf, s.shape(leaf)))
 }
 
-/// The capacity of node n.
 #[inline(always)]
-pub fn cap<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, Fault> {
+pub fn cap<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, Fault> {
     Ok(shape_of(s, m, n)?.1.cap)
 }
 
 /// The count of node n, clamped to its capacity when the shape is checked.
 #[inline(always)]
-pub fn count<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, Fault> {
+pub fn count<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, Fault> {
     let c = u64::from(m.count(n)?);
     if S::CHECKED {
         Ok(c.min(cap(s, m, n)?))
@@ -39,7 +36,6 @@ pub fn count<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, 
     }
 }
 
-/// Sets the count of node n.
 #[inline(always)]
 pub fn set_count<M: NodeMem + ?Sized>(m: &mut M, n: u64, c: u64) -> Result<(), Fault> {
     // A count is at most a capacity, below 4,080.
@@ -76,13 +72,11 @@ pub fn co<S: Shape>(s: S, j: u64) -> u64 {
     internal.coff.wrapping_add(j.wrapping_mul(8))
 }
 
-/// Child j of internal node n.
 #[inline(always)]
-pub fn child<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64, j: u64) -> Result<u64, Fault> {
+pub fn child<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64, j: u64) -> Result<u64, Fault> {
     m.word(n, co(s, j))
 }
 
-/// Sets child j of internal node n.
 #[inline(always)]
 pub fn set_child<S: Shape, M: NodeMem + ?Sized>(s: S, m: &mut M, n: u64, j: u64, c: u64) -> Result<(), Fault> {
     m.set_word(n, co(s, j), c)
@@ -138,7 +132,7 @@ fn key_off(ks: u64, i: u64) -> u64 {
 
 /// Value offset of entry i of node n, unclamped: the node's voff by its leaf bit, + i·vs.
 #[inline(always)]
-fn value_off<S: Shape, M: NodeMem + ?Sized>(s: S, m: &M, n: u64, i: u64) -> Result<u64, Fault> {
+fn value_off<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64, i: u64) -> Result<u64, Fault> {
     let voff = s.shape(is_leaf(m, n)?).voff;
     Ok(voff.wrapping_add(i.wrapping_mul(s.vs())))
 }

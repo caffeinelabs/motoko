@@ -591,7 +591,6 @@ impl<'a> SchemaView<'a> {
         })
     }
 
-    /// The type pool.
     pub fn types(&self) -> &'a [u8] {
         self.bytes.get(self.layout.types as usize..self.layout.defaults as usize).unwrap_or(&[])
     }

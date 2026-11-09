@@ -22,25 +22,18 @@
 
 use crate::area::{alloc_block, alloc_zeroed};
 use crate::consts::{magic, BIGSUM_INLINE, BLOCK, FORMAT_TABLE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::image::{Image, ImageReader};
-use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::fault::{rt, Corruption, Fault};
+use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::Radix;
 use crate::stats::running::{self, RKind, R_BIG_LEN, R_BIG_ROOM, R_NONNULL, R_SUM};
 use crate::stats::I192;
 
-use super::buffer::{RowLoc, H_TOTALS, H_TOTALS_HEIGHT};
+use super::buffer::{H_TOTALS, H_TOTALS_HEIGHT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
-use super::group::{align8, form, GCell};
+use super::group::align8;
 use super::hot::Sign;
 use super::layout::{LeafInfo, Ty};
-use super::long;
-use super::row::{self, RowRef, Stored};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Bytes before a totals block's share of the space.
 pub const BLOCK_HEAD: u64 = 16;
@@ -115,7 +108,7 @@ impl Totals {
     }
 
     fn write_hot<H: PageHost>(&self, h: &mut H, tail: u64) -> Result<(), Fault> {
-        let b = h.get_mut(Region::Block(tail), Owner(0))?;
+        let b = h.get_mut(Region::Block(tail))?;
         put_u64(b, H_TOTALS, self.blocks.root)?;
         put_u8(b, H_TOTALS_HEIGHT, self.blocks.height)
     }
@@ -190,7 +183,7 @@ impl Totals {
             let (b, o, room) = self.locate_kept(&*h, at)?;
             let n = usize::try_from(room).map_err(|_| rt(Corruption::Range, at))?.min(rest.len());
             let (now, later) = rest.split_at_checked(n).ok_or(rt(Corruption::Range, at))?;
-            put(h.get_mut(Region::Block(b), Owner(0))?, o, now)?;
+            put(h.get_mut(Region::Block(b))?, o, now)?;
             at = at.wrapping_add(n as u64);
             rest = later;
         }
@@ -210,7 +203,7 @@ impl Totals {
 
     fn set_byte<H: PageHost>(&mut self, h: &mut H, off: u64, v: u8) -> Result<(), Fault> {
         let (b, o, _) = self.locate_kept(&*h, off)?;
-        put_u8(h.get_mut(Region::Block(b), Owner(0))?, o, v)
+        put_u8(h.get_mut(Region::Block(b))?, o, v)
     }
 
     /// Extends the space's blocks to cover `end` bytes, each new block's header written and, with `zero`, its
@@ -221,7 +214,7 @@ impl Totals {
         while k < need {
             let b = if zero { alloc_zeroed(h, tbl, 0)? } else { alloc_block(h, tbl, 0)? };
             {
-                let s = h.get_mut(Region::Block(b), Owner(0))?;
+                let s = h.get_mut(Region::Block(b))?;
                 put_u32(s, 0, magic::NTTS)?;
                 put_u16(s, 4, FORMAT_TABLE)?;
                 put_u16(s, 6, 0)?;
@@ -259,15 +252,6 @@ impl Totals {
 pub enum TSrc<'a> {
     /// A checked host cell.
     Val(&'a Val<'a>),
-    /// A value stored in the buffered row at the `RowLoc`.
-    Stored(&'a Stored<'static>, &'a RowLoc),
-    /// A sealed cell's value read as unsigned, in the cell form (the u8) it was read from.
-    SealedU(u64, u8),
-    /// A sealed cell's value read as signed.
-    SealedI(i64),
-    /// Any other sealed value: leaf o's cell at stored slot `slot`, position `pos`, of the group on `page`,
-    /// read again when it is needed.
-    Sealed { page: u64, o: u64, slot: u64, pos: u64 },
     /// A value wherever it lies, as an update or a rewrite holds it.
     Cur(&'a SVal),
 }
@@ -277,16 +261,11 @@ pub enum TSrc<'a> {
 enum Leb<'a> {
     /// In a slice: a host's cell.
     Slice(&'a [u8]),
-    /// A buffered row's stored value.
-    Row(&'a RowLoc, &'a Stored<'static>),
-    /// A sealed value: in group g's image `img` at `off`, or, when `huge`, the content of its long value `img`.
-    Image { g: u64, img: &'a Image, off: u64, huge: bool },
     /// A value wherever it lies.
     Cur(&'a SVal),
 }
 
 impl Leb<'_> {
-    /// Byte j.
     fn byte<H: PageHost + ?Sized>(&self, h: &H, j: u64) -> Result<u8, Fault> {
         let mut b = [0u8; 1];
         self.read(h, j, &mut b)?;
@@ -300,13 +279,7 @@ impl Leb<'_> {
                 crate::mem::copy_bytes(out, crate::mem::sub(s, j, out.len() as u64)?);
                 Ok(())
             }
-            Leb::Row(loc, s) => row::value_read(&RowRef::new(h, **loc)?, s, j, out),
-            Leb::Image { huge: true, img, .. } => long::read(h, **img, j, out),
             Leb::Cur(s) => cur::read(h, s, j, out),
-            Leb::Image { g, img, off, .. } => {
-                let r = ImageReader::new(h, ImageId::Group(*g), **img);
-                long::read_image(&r, off.checked_add(j).ok_or(rt(Corruption::Range, j))?, out)
-            }
         }
     }
 }
@@ -360,19 +333,6 @@ fn of_val<'a>(l: &LeafInfo, v: &Val<'a>) -> Result<TVal<'a>, Fault> {
     })
 }
 
-/// The value of leaf `l` stored in the buffered row at `loc`.
-fn of_stored<'a>(l: &LeafInfo, s: &'a Stored<'static>, loc: &'a RowLoc) -> Result<TVal<'a>, Fault> {
-    match s {
-        Stored::Null => Ok(TVal::None),
-        Stored::Val(v) => of_val(l, v),
-        Stored::Item(row::Item::Inline { .. } | row::Item::Long { .. }) if l.ty.running() == Some(RKind::Num) => {
-            Ok(TVal::Leb(Leb::Row(loc, s), row::value_len(s)))
-        }
-        _ if l.ty.running().is_none() => Ok(TVal::None),
-        _ => Err(rt(Corruption::Encoding, u64::from(l.ordinal))),
-    }
-}
-
 /// The value of leaf `l` held as `s`.
 fn of_cur<'a>(l: &LeafInfo, s: &'a SVal) -> Result<TVal<'a>, Fault> {
     match s {
@@ -384,37 +344,6 @@ fn of_cur<'a>(l: &LeafInfo, s: &'a SVal) -> Result<TVal<'a>, Fault> {
         _ if l.ty.running().is_none() => Ok(TVal::None),
         _ => Err(rt(Corruption::Encoding, u64::from(l.ordinal))),
     }
-}
-
-/// The value of leaf `l` in a sealed cell of form `f`; a LEB128 value lies in group g's image `img`.
-fn of_cell<'a>(l: &LeafInfo, c: &'a GCell, f: u8, g: u64, img: &'a Image) -> Result<TVal<'a>, Fault> {
-    let Some(kind) = l.ty.running() else { return Ok(TVal::None) };
-    let signed = matches!(l.ty, Ty::I(_) | Ty::Int);
-    let x = match *c {
-        GCell::Null => return Ok(TVal::None),
-        // A `Seq` cell holds a signed leaf's value as its bits.
-        GCell::U(x) if f == form::SEQ && signed => i128::from(x as i64),
-        GCell::U(x) => i128::from(x),
-        GCell::I(x) => i128::from(x),
-        GCell::X16(b) => {
-            return Ok(match l.ty {
-                Ty::U128 => TVal::U128(u128::from_le_bytes(b)),
-                _ => TVal::I128(i128::from_le_bytes(b)),
-            })
-        }
-        GCell::Bytes { off, len } if kind == RKind::Num => {
-            return Ok(TVal::Leb(Leb::Image { g, img, off, huge: false }, len))
-        }
-        GCell::Huge { len, .. } if kind == RKind::Num => {
-            let GCell::Huge { img, .. } = c else { return Err(rt(Corruption::Encoding, u64::from(l.ordinal))) };
-            return Ok(TVal::Leb(Leb::Image { g, img, off: 0, huge: true }, len));
-        }
-        _ => return Err(rt(Corruption::Encoding, u64::from(l.ordinal))),
-    };
-    Ok(match kind {
-        RKind::Num => num(l.ty, x),
-        _ => TVal::Small(x),
-    })
 }
 
 /// A `TVal::Leb` of at most 19 bytes that fits i128 as the value's class, within 64 bits or `Big128`, so a
@@ -444,7 +373,6 @@ pub enum Rank {
     Big,
 }
 
-/// Whether integer leaf type `t` is signed.
 pub fn signed(t: Ty) -> bool {
     matches!(t, Ty::I(_) | Ty::Int | Ty::I128)
 }
@@ -519,46 +447,22 @@ pub fn apply<H: PageHost>(
     // The common case first: a value within 64 bits (any integer of at most 64 bits, a Nat below 2^64, an
     // Int inside i64), read straight from the form it comes in.
     let small = match src {
-        TSrc::Val(Val::Null) | TSrc::Stored(Stored::Null, _) | TSrc::Cur(SVal::Null) => return Ok(()),
-        TSrc::Val(Val::U(x)) | TSrc::Stored(Stored::Val(Val::U(x)), _) | TSrc::Cur(SVal::V(Val::U(x))) => {
-            Some(i128::from(*x))
-        }
-        TSrc::Val(Val::I(x)) | TSrc::Stored(Stored::Val(Val::I(x)), _) | TSrc::Cur(SVal::V(Val::I(x))) => {
-            Some(i128::from(*x))
-        }
-        TSrc::SealedU(x, _) if matches!(l.ty, Ty::U(_) | Ty::Nat) => Some(i128::from(x)),
-        TSrc::SealedI(x) => Some(i128::from(x)),
+        TSrc::Val(Val::Null) | TSrc::Cur(SVal::Null) => return Ok(()),
+        TSrc::Val(Val::U(x)) | TSrc::Cur(SVal::V(Val::U(x))) => Some(i128::from(*x)),
+        TSrc::Val(Val::I(x)) | TSrc::Cur(SVal::V(Val::I(x))) => Some(i128::from(*x)),
         _ => None,
     };
     if let (Some(x), At::Hot(o)) = (small, at) {
-        let b = h.get_mut(Region::Block(tail), Owner(0))?;
+        let b = h.get_mut(Region::Block(tail))?;
         running::add_count(b, o.wrapping_add(R_NONNULL), if sub { -1 } else { 1 })?;
         running::add_sum(b, o.wrapping_add(R_SUM), if sub { x.wrapping_neg() } else { x })?;
         return super::extremes::apply(h, ext, l, Rank::In(rank_of_int(l.ty, x)), sign);
     }
     let Some(n) = rec_len(l) else { return Ok(()) };
-    let (img, cell);
     let tv = match (small, src) {
         (Some(x), _) => TVal::Small(x),
         (None, TSrc::Val(v)) => of_val(l, v)?,
-        (None, TSrc::Stored(s, loc)) => of_stored(l, s, loc)?,
         (None, TSrc::Cur(s)) => of_cur(l, s)?,
-        // A signed leaf's value in an unsigned cell: a `Seq` cell holds its bits.
-        (None, TSrc::SealedU(x, f)) => {
-            let v = if f == form::SEQ { i128::from(x as i64) } else { i128::from(x) };
-            if l.ty.running() == Some(RKind::Num) {
-                num(l.ty, v)
-            } else {
-                TVal::Small(v)
-            }
-        }
-        (None, TSrc::SealedI(x)) => TVal::Small(i128::from(x)),
-        (None, TSrc::Sealed { page, o, slot, pos }) => {
-            let gv = super::group::GroupView::open(&*h, page)?;
-            let ld = gv.leaf(o)?;
-            (img, cell) = (gv.img, gv.cell(&ld, slot, pos)?);
-            of_cell(l, &cell, ld.form, gv.g, &img)?
-        }
     };
     let v = &tv;
     if matches!(v, TVal::None) {
@@ -579,10 +483,10 @@ pub fn apply<H: PageHost>(
     match at {
         At::None => Ok(()),
         At::Hot(o) => {
-            let big = move_rec(h.get_mut(Region::Block(tail), Owner(0))?, o, v, sign)?;
+            let big = move_rec(h.get_mut(Region::Block(tail))?, o, v, sign)?;
             if let Some((len, room)) = big {
                 let (len, room) = move_big(h, tbl, tail, len, room, l, v, sign)?;
-                let b = h.get_mut(Region::Block(tail), Owner(0))?;
+                let b = h.get_mut(Region::Block(tail))?;
                 put_u32(b, o.wrapping_add(R_BIG_LEN), len)?;
                 put_u32(b, o.wrapping_add(R_BIG_ROOM), room)?;
             }
@@ -1009,59 +913,4 @@ pub(super) fn bytes_total(b: &[u8], buf: &mut [u8]) -> Result<Total, Fault> {
     let out = buf.get_mut(..n).ok_or(Fault::Scratch { need: n as u64 })?;
     crate::mem::copy_bytes(out, b);
     Ok(Total::Big(n))
-}
-
-/// The nearest f64 to a two's-complement number (ties to even), as `as` converts an i128.
-pub fn to_f64(b: &[u8]) -> f64 {
-    let neg = b.last().is_some_and(|&x| x & 0x80 != 0);
-    let Some(z) = b.iter().position(|&x| x != 0) else { return 0.0 };
-    // The magnitude's byte i: the bytes themselves, or for a negative number their complement plus one, whose
-    // carry runs through the low zero bytes into the lowest non-zero one.
-    let mag = |i: usize| -> u8 {
-        let x = b.get(i).copied().unwrap_or(0);
-        match (neg, i.cmp(&z)) {
-            (false, _) => x,
-            (true, core::cmp::Ordering::Less) => 0,
-            (true, core::cmp::Ordering::Equal) => (!x).wrapping_add(1),
-            (true, core::cmp::Ordering::Greater) => !x,
-        }
-    };
-    let mut t = b.len().saturating_sub(1);
-    while t > 0 && mag(t) == 0 {
-        t = t.wrapping_sub(1);
-    }
-    // The top 16 bytes of the magnitude, from byte t down: the value is w · 2^(8(t − 15)), and the bytes below
-    // decide only whether a tie is one.
-    let mut w: u128 = 0;
-    for k in 0..16usize {
-        w = (w << 8) | u128::from(t.checked_sub(k).map_or(0, mag));
-    }
-    let sticky = t >= 16 && (0..=t.wrapping_sub(16)).any(|i| mag(i) != 0);
-    if w == 0 {
-        return 0.0;
-    }
-    let lz = w.leading_zeros();
-    let m = w << lz;
-    // The 53 bits kept, the 75 below them.
-    #[allow(clippy::cast_possible_truncation)]
-    let mut mant = (m >> 75) as u64;
-    let rest = m & ((1u128 << 75).wrapping_sub(1));
-    let half = 1u128 << 74;
-    if rest > half || (rest == half && (sticky || mant & 1 == 1)) {
-        mant = mant.wrapping_add(1);
-    }
-    // value = mant · 2^e2, mant in [2^52, 2^53] after rounding.
-    let mut e2 = (t as i64).wrapping_sub(15).wrapping_mul(8).wrapping_sub(i64::from(lz)).wrapping_add(75);
-    if mant == 1u64 << 53 {
-        mant >>= 1;
-        e2 = e2.wrapping_add(1);
-    }
-    let exp = e2.wrapping_add(52);
-    let sign = if neg { 1u64 << 63 } else { 0 };
-    if exp > 1_023 {
-        return f64::from_bits(sign | 0x7FF0_0000_0000_0000);
-    }
-    // An integer: exp ≥ 0.
-    let biased = u64::try_from(exp.wrapping_add(1_023)).unwrap_or(0);
-    f64::from_bits(sign | (biased << 52) | (mant & ((1u64 << 52).wrapping_sub(1))))
 }

@@ -20,11 +20,9 @@
 //! adopt a long one as a huge value. A null is flag bit 0 with length 0.
 
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, PATCH_UNITS_PER_DIR};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::image::{Image, REF_BYTES};
-use crate::mem::{
-    fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region,
-};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
 use super::drain;
 
@@ -62,10 +60,6 @@ pub const CHAIN_ROOM: u64 = BLOCK - CHAIN_DATA;
 pub const CHAIN_STUB: u64 = 12;
 
 const _: () = assert!(D_RECORDS + PATCH_UNITS_PER_DIR * D_REC == D_LINK);
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 fn w16(x: u64) -> Result<u16, Fault> {
     u16::try_from(x).map_err(|_| rt(Corruption::Range, x))
@@ -106,7 +100,6 @@ impl Entry {
     }
 }
 
-/// Units of the directory whose first block is `dir`.
 pub fn units<H: PageHost + ?Sized>(h: &H, dir: u64) -> Result<u64, Fault> {
     if dir == 0 {
         return Ok(0);
@@ -245,7 +238,6 @@ pub fn lookup_in<H: PageHost + ?Sized>(h: &H, u: &Unit, pos: u64) -> Result<Opti
     Ok(None)
 }
 
-/// The live entry of leaf `ordinal` at position `pos`, or `None`.
 pub fn lookup<H: PageHost + ?Sized>(h: &H, dir: u64, ordinal: u64, pos: u64) -> Result<Option<Entry>, Fault> {
     match unit(h, dir, ordinal)? {
         Some(u) => lookup_in(h, &u, pos),
@@ -355,7 +347,7 @@ pub struct Upserted {
 /// A new directory block, zero-filled, with its header.
 fn new_dir<H: PageHost>(h: &mut H, tbl: u64) -> Result<u64, Fault> {
     let d = crate::area::alloc_zeroed(h, tbl, 0)?;
-    let b = h.get_mut(Region::Block(d), Owner(0))?;
+    let b = h.get_mut(Region::Block(d))?;
     put_u32(b, 0, magic::NTPD)?;
     put_u16(b, 4, FORMAT_TABLE)?;
     put_u16(b, D_LINK, 0xFFFF)?;
@@ -365,7 +357,7 @@ fn new_dir<H: PageHost>(h: &mut H, tbl: u64) -> Result<u64, Fault> {
 /// A new patch block of leaf `ordinal`: the first of a chain carries the zeroed bitmap.
 fn new_block<H: PageHost>(h: &mut H, tbl: u64, ordinal: u64, first: bool) -> Result<u64, Fault> {
     let p = crate::area::alloc_block(h, tbl, 0)?;
-    let b = h.get_mut(Region::Block(p), Owner(0))?;
+    let b = h.get_mut(Region::Block(p))?;
     put_u32(b, 0, magic::NTPB)?;
     put_u16(b, 4, FORMAT_TABLE)?;
     put_u16(b, B_ENTRIES, 0)?;
@@ -398,13 +390,13 @@ fn add_unit<H: PageHost>(h: &mut H, tbl: u64, dir: u64, ordinal: u64) -> Result<
     let mut new_block_made = false;
     if n >= PATCH_UNITS_PER_DIR {
         let d = new_dir(h, tbl)?;
-        put_u64(h.get_mut(Region::Block(last), Owner(0))?, D_LINK.wrapping_add(8), d)?;
+        put_u64(h.get_mut(Region::Block(last))?, D_LINK.wrapping_add(8), d)?;
         last = d;
         n = 0;
         new_block_made = true;
     }
     let first = new_block(h, tbl, ordinal, true)?;
-    let b = h.get_mut(Region::Block(last), Owner(0))?;
+    let b = h.get_mut(Region::Block(last))?;
     // The insertion point in this block's sorted records.
     let (mut lo, mut hi) = (0u64, n);
     while lo < hi {
@@ -421,7 +413,7 @@ fn add_unit<H: PageHost>(h: &mut H, tbl: u64, dir: u64, ordinal: u64) -> Result<
     put_u16(b, at, w16(ordinal)?)?;
     put_u16(b, at.wrapping_add(R_BLOCKS), 1)?;
     put_u64(b, at.wrapping_add(R_FIRST), first)?;
-    put_u16(h.get_mut(Region::Block(dir), Owner(0))?, D_UNITS, w16(total.wrapping_add(1))?)?;
+    put_u16(h.get_mut(Region::Block(dir))?, D_UNITS, w16(total.wrapping_add(1))?)?;
     Ok((Unit { dir_block: last, rec: at, ordinal, blocks: 1, live: 0, first }, new_block_made))
 }
 
@@ -444,7 +436,7 @@ pub fn upsert<H: PageHost>(
     let mut dir = rd_u64(h.get(Region::Block(holder))?, holder_off)?;
     if dir == 0 {
         dir = new_dir(h, tbl)?;
-        put_u64(h.get_mut(Region::Block(holder), Owner(0))?, holder_off, dir)?;
+        put_u64(h.get_mut(Region::Block(holder))?, holder_off, dir)?;
     }
     let (u, new_unit, new_dir_block) = match unit(h, dir, ordinal)? {
         Some(u) => (u, false, false),
@@ -473,14 +465,14 @@ pub fn upsert<H: PageHost>(
         entries_delta = 0;
         if e.len == bytes {
             // Overwritten in place.
-            let b = h.get_mut(Region::Block(e.block), Owner(0))?;
+            let b = h.get_mut(Region::Block(e.block))?;
             d.write(b, e.data)?;
             put_u8(b, e.at.wrapping_add(2), d.flags())?;
             finish_counters(h, dir, &u, live_delta, entries_delta, 0)?;
             out.live_bytes = live_bytes(&*h, dir)?;
             return Ok(out);
         }
-        let b = h.get_mut(Region::Block(e.block), Owner(0))?;
+        let b = h.get_mut(Region::Block(e.block))?;
         put_u8(b, e.at.wrapping_add(2), e.flags | F_DEAD)?;
     }
     // The chain's newest block.
@@ -504,12 +496,12 @@ pub fn upsert<H: PageHost>(
         (last, first, n, low)
     } else {
         let nb = new_block(h, tbl, ordinal, false)?;
-        put_u64(h.get_mut(Region::Block(last), Owner(0))?, B_NEXT, nb)?;
+        put_u64(h.get_mut(Region::Block(last))?, B_NEXT, nb)?;
         added_blocks = 1;
         (nb, false, 0, BLOCK)
     };
     let data_at = low.wrapping_sub(bytes);
-    let b = h.get_mut(Region::Block(blk), Owner(0))?;
+    let b = h.get_mut(Region::Block(blk))?;
     let base = entries_at(first_blk);
     // The insertion point: after every entry of a smaller or equal position.
     let (mut lo, mut hi) = (0u64, n);
@@ -532,7 +524,7 @@ pub fn upsert<H: PageHost>(
     put_u16(b, B_ENTRIES, w16(n.wrapping_add(1))?)?;
     put_u16(b, B_LOW, w16(data_at)?)?;
     // The bitmap bit, in the chain's first block.
-    let fb = h.get_mut(Region::Block(u.first), Owner(0))?;
+    let fb = h.get_mut(Region::Block(u.first))?;
     let bit_at = B_BITMAP.wrapping_add(pos / 8);
     let v = rd_u8(fb, bit_at)?;
     put_u8(fb, bit_at, v | (1u8 << (pos % 8)))?;
@@ -569,14 +561,14 @@ fn finish_counters<H: PageHost>(
     added_blocks: u64,
 ) -> Result<(), Fault> {
     if entries_delta != 0 || added_blocks != 0 {
-        let b = h.get_mut(Region::Block(u.dir_block), Owner(0))?;
+        let b = h.get_mut(Region::Block(u.dir_block))?;
         let live = u64::from(rd_u16(b, u.rec.wrapping_add(R_LIVE))?).wrapping_add_signed(entries_delta);
         put_u16(b, u.rec.wrapping_add(R_LIVE), u16::try_from(live).unwrap_or(u16::MAX))?;
         let blocks = u64::from(rd_u16(b, u.rec.wrapping_add(R_BLOCKS))?).saturating_add(added_blocks);
         put_u16(b, u.rec.wrapping_add(R_BLOCKS), u16::try_from(blocks).unwrap_or(u16::MAX))?;
     }
     if live_delta != 0 {
-        let b = h.get_mut(Region::Block(dir), Owner(0))?;
+        let b = h.get_mut(Region::Block(dir))?;
         let v = u64::from(rd_u32(b, D_LIVE)?).saturating_add_signed(live_delta);
         put_u32(b, D_LIVE, u32::try_from(v).unwrap_or(u32::MAX))?;
     }
@@ -628,9 +620,9 @@ impl ChainOut {
     pub fn piece<'h, H: PageHost>(&mut self, h: &'h mut H, tbl: u64, want: u64) -> Result<&'h mut [u8], Fault> {
         if self.used >= CHAIN_ROOM {
             let b = crate::area::alloc_block(h, tbl, 0)?;
-            put_u64(h.get_mut(Region::Block(b), Owner(0))?, 0, 0)?;
+            put_u64(h.get_mut(Region::Block(b))?, 0, 0)?;
             if self.tail != 0 {
-                put_u64(h.get_mut(Region::Block(self.tail), Owner(0))?, 0, b)?;
+                put_u64(h.get_mut(Region::Block(self.tail))?, 0, b)?;
             } else {
                 self.head = b;
             }
@@ -641,20 +633,7 @@ impl ChainOut {
         let at = CHAIN_DATA.wrapping_add(self.used);
         self.used = self.used.wrapping_add(n);
         self.len = self.len.wrapping_add(n);
-        crate::mem::sub_mut(h.get_mut(Region::Block(self.tail), Owner(0))?, at, n)
-    }
-
-    /// Appends bytes.
-    pub fn put<H: PageHost>(&mut self, h: &mut H, tbl: u64, b: &[u8]) -> Result<(), Fault> {
-        let mut rest = b;
-        while !rest.is_empty() {
-            let dst = self.piece(h, tbl, rest.len() as u64)?;
-            let n = dst.len();
-            let (now, later) = rest.split_at_checked(n).ok_or(rt(Corruption::Range, 0))?;
-            crate::mem::copy_bytes(dst, now);
-            rest = later;
-        }
-        Ok(())
+        crate::mem::sub_mut(h.get_mut(Region::Block(self.tail))?, at, n)
     }
 }
 
@@ -698,8 +677,5 @@ where
 /// Clears an entry's long-value reference after a rewrite adopted the value, so the drain of the old patch
 /// directory does not free it.
 pub fn forget_long<H: PageHost>(h: &mut H, block: u64, data: u64) -> Result<(), Fault> {
-    fill(h.get_mut(Region::Block(block), Owner(0))?, data, REF_BYTES, 0)
+    fill(h.get_mut(Region::Block(block))?, data, REF_BYTES, 0)
 }
-
-/// The number of blocks of a patch block chain and of directory blocks are bounded by the u16 counters.
-pub const MAX_CHAIN: u64 = u16::MAX as u64;

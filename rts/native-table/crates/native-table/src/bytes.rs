@@ -1,29 +1,8 @@
-//! Checked big-endian reads and writes, and unsigned LEB128, over slices.
-//!
-//! Keys are compared as bytes (memcmp), so the key encoding stores integers big-endian; images and every
-//! runtime structure store little-endian through `mem`. Every function here returns `Corrupt(Runtime,
-//! Bounds)` for a range outside the slice and never panics.
+//! Unsigned LEB128 over slices. Every function here returns `Corrupt(Runtime, Bounds)` for a range outside
+//! the slice and never panics.
 
 use crate::fault::{bounds, corrupt, Corruption, Fault, ImageId};
-use crate::mem::{put, rd_array};
-
-/// The big-endian u16 at `off`.
-#[inline]
-pub fn rd_be_u16(b: &[u8], off: u64) -> Result<u16, Fault> {
-    rd_array::<2>(b, off).map(u16::from_be_bytes)
-}
-
-/// The big-endian u64 at `off`.
-#[inline]
-pub fn rd_be_u64(b: &[u8], off: u64) -> Result<u64, Fault> {
-    rd_array::<8>(b, off).map(u64::from_be_bytes)
-}
-
-/// Writes the big-endian u64 `v` at `off`.
-#[inline]
-pub fn put_be_u64(b: &mut [u8], off: u64, v: u64) -> Result<(), Fault> {
-    put(b, off, &v.to_be_bytes())
-}
+use crate::mem::put;
 
 /// Bytes of the unsigned LEB128 form of `v`: 1 to 10.
 #[inline(always)]

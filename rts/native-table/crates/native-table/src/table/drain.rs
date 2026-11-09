@@ -21,11 +21,11 @@
 use crate::area::{alloc_zeroed, free_block};
 use crate::consts::PATH_STACK;
 use crate::consts::{magic, BLOCK, BUFFER_BLOCKS_MAX, FORMAT_TABLE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::host::Progress;
 use crate::image::{Blocks, Image};
 use crate::index::area_nodes::{AreaView, KeyLog};
-use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::{Radix, Units, HEIGHT_MAX};
 use crate::tree::{node, IndexShape};
 
@@ -61,10 +61,6 @@ const REC: u64 = 32;
 /// writes them, which its record's digit 4 says (`HEAD_SET`).
 const D_HEAD: u64 = buffer::D_SPARE;
 const HEAD_SET: usize = 4;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// One drain record.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -134,7 +130,7 @@ pub fn push<H: PageHost>(h: &mut H, tbl: u64, r: &Rec) -> Result<(), Fault> {
     let n = if n >= PER_BLOCK {
         let b = alloc_zeroed(h, tbl, 0)?;
         {
-            let s = h.get_mut(Region::Block(b), Owner(0))?;
+            let s = h.get_mut(Region::Block(b))?;
             put_u32(s, 0, magic::NTDR)?;
             put_u16(s, 4, FORMAT_TABLE)?;
             put_u64(s, 8, top)?;
@@ -145,7 +141,7 @@ pub fn push<H: PageHost>(h: &mut H, tbl: u64, r: &Rec) -> Result<(), Fault> {
     } else {
         n
     };
-    let s = h.get_mut(Region::Block(top), Owner(0))?;
+    let s = h.get_mut(Region::Block(top))?;
     r.write(s, RECORDS.wrapping_add(n.wrapping_mul(REC)))?;
     // n < 127.
     put_u16(s, 6, u16::try_from(n.wrapping_add(1)).map_err(|_| rt(Corruption::Count, n))?)
@@ -164,14 +160,14 @@ const WALKS_LAST: u64 = WALKS + 8;
 /// record is the caller's to place), `false` when it waits after the last one. Changes `d`'s block, the last
 /// waiting descriptor's block and the root.
 fn enter_walk<H: PageHost>(h: &mut H, tbl: u64, d: u64) -> Result<bool, Fault> {
-    put_u64(h.get_mut(Region::Block(d), Owner(0))?, buffer::D_NEXT, 0)?;
+    put_u64(h.get_mut(Region::Block(d))?, buffer::D_NEXT, 0)?;
     if root::u64_at(&*h, tbl, WALKS)? == 0 {
         root::set_u64(h, tbl, WALKS, d)?;
         root::set_u64(h, tbl, WALKS_LAST, d)?;
         return Ok(true);
     }
     let last = root::u64_at(&*h, tbl, WALKS_LAST)?;
-    put_u64(h.get_mut(Region::Block(last), Owner(0))?, buffer::D_NEXT, d)?;
+    put_u64(h.get_mut(Region::Block(last))?, buffer::D_NEXT, d)?;
     root::set_u64(h, tbl, WALKS_LAST, d)?;
     Ok(false)
 }
@@ -192,7 +188,6 @@ pub fn push_image<H: PageHost>(h: &mut H, tbl: u64, img: &Image) -> Result<(), F
     }
 }
 
-/// Whether the drain holds a record.
 pub fn pending<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<bool, Fault> {
     Ok(root::u64_at(h, tbl, root::DRAIN_TOP)? != 0)
 }
@@ -225,7 +220,7 @@ fn pop<H: PageHost>(h: &mut H, tbl: u64, block: u64) -> Result<bool, Fault> {
         free_block(h, tbl, 0, block)?;
         Ok(true)
     } else {
-        put_u16(h.get_mut(Region::Block(block), Owner(0))?, 6, n)?;
+        put_u16(h.get_mut(Region::Block(block))?, 6, n)?;
         Ok(false)
     }
 }
@@ -257,7 +252,7 @@ pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, units: &mut Units) 
             Ok((if pending(&*h, tbl)? { Progress::More } else { Progress::Done }, true))
         }
         Done::Stop(r) => {
-            let s = h.get_mut(Region::Block(block), Owner(0))?;
+            let s = h.get_mut(Region::Block(block))?;
             r.write(s, at)?;
             Ok((Progress::More, r != rec))
         }
@@ -375,7 +370,7 @@ fn index_tree<H: PageHost>(h: &mut H, tbl: u64, rec: Rec, units: &mut Units) -> 
             return Ok(Done::Pop);
         }
         let c = node::count(shape, &AreaView::new(&*h, shape, KeyLog::default()), parent)?;
-        let b = h.get_mut(Region::Block(parent), Owner(1))?;
+        let b = h.get_mut(Region::Block(parent))?;
         if c > 0 {
             put_u16(b, 0, u16::try_from(c.wrapping_sub(1)).map_err(|_| rt(Corruption::Count, parent))?)?;
         } else {
@@ -455,7 +450,7 @@ fn push_child<H: PageHost>(h: &mut H, tbl: u64, rec: Rec, child: &Rec) -> Result
         let s = h.get(Region::Block(top_now))?;
         RECORDS.wrapping_add(u64::from(rd_u16(s, 6)?).saturating_sub(1).wrapping_mul(REC))
     };
-    rec.write(h.get_mut(Region::Block(top_now), Owner(0))?, at)?;
+    rec.write(h.get_mut(Region::Block(top_now))?, at)?;
     push(h, tbl, child)?;
     Ok(Done::Pushed)
 }
@@ -543,7 +538,7 @@ fn desc_head<H: PageHost>(
         // The descriptor is a changed block of the unit: counted once per piece.
         units.blocks = units.blocks.saturating_sub(1);
         let w = |x: u64| u32::try_from(x).map_err(|_| rt(Corruption::Range, x));
-        let b = h.get_mut(Region::Block(d), Owner(0))?;
+        let b = h.get_mut(Region::Block(d))?;
         put_u32(b, D_HEAD, v)?;
         if let Some(s) = rec.digits.get_mut(HEAD_SET) {
             *s = 1;

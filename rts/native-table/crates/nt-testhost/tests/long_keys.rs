@@ -1,24 +1,23 @@
 //! Secondary index keys of any length over the tree and the uploaded segments, against a model of the rows.
 //!
-//! A run's count of a key handed over in pieces (`Run::count_fed`), which never holds the key whole, equals its
-//! count of the key whole (`Run::count_key`) for every key it holds and keys it does not: text keys of up to
-//! 30,000 bytes, short and long beside each other, sharing long starts (so the run's shared prefix is longer
+//! A run's count of a key (`Run::count_key`) equals the items' count for every key it holds and keys it does
+//! not: text keys of up to 30,000 bytes, short and long beside each other, sharing long starts (so the run's shared prefix is longer
 //! than the key area), one a prefix of another, at several (W, V), with posting chunks; and key runs of keys
 //! of 5,000 bytes, items stepping by one in their last 8 bytes.
 //!
 //! The walk, the ends and the counts of an index whose tree and two uploaded segments hold such keys: the
 //! walks' buffers start small and grow to the bytes each `Scratch` names, a walk resumed after the last row it
 //! handed out, and every row comes out once, in the model's order; every key's count through the tree and the
-//! segments, whole and handed over in pieces, is the model's.
+//! segments is the model's.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use native_table::index::secondary::{Secondary, Start};
-use native_table::index::{Run, RunImage, RunParams};
-use native_table::key::probe::KeyFeed;
-use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec, Sink};
+use native_table::index::{Run, RunImage};
+use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec};
 use native_table::tree::{Dir, Path};
 use native_table::Fault;
+use nt_builder::RunParams;
 use nt_testhost::runs::{build, VecItems};
 use nt_testhost::uploads::TTable;
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};
@@ -34,18 +33,6 @@ fn text(t: &[u8]) -> Vec<u8> {
     let mut s = VecSink::default();
     enc_bytes(&mut s, t).unwrap();
     s.0
-}
-
-/// A key handed over in pieces of `piece` bytes.
-struct Pieces<'a>(&'a [u8], usize);
-
-impl KeyFeed for Pieces<'_> {
-    fn feed<S: Sink>(&self, s: &mut S) -> Result<(), Fault> {
-        for p in self.0.chunks(self.1) {
-            s.put(p)?;
-        }
-        Ok(())
-    }
 }
 
 /// Texts of 0 to 30 letters, and long ones: starts of one 30,000-byte text (one a prefix of another), with
@@ -92,8 +79,7 @@ fn params(relative: bool, key_run_l: u8, force: Option<(u64, u64)>) -> RunParams
     }
 }
 
-/// `run`'s count of each key, handed over in pieces of several sizes, against its count of the key whole and
-/// the items' count.
+/// `run`'s count of each key against the items' count.
 fn check_counts<I: RunImage>(run: &Run<I>, items: &Items, absent: &[Vec<u8>], what: &str) {
     let mut want: BTreeMap<&[u8], i64> = BTreeMap::new();
     for (k, _, _) in items {
@@ -102,15 +88,12 @@ fn check_counts<I: RunImage>(run: &Run<I>, items: &Items, absent: &[Vec<u8>], wh
     let keys = want.keys().copied().chain(absent.iter().map(|k| k.as_slice()));
     for k in keys {
         let n = want.get(k).copied().unwrap_or(0);
-        assert_eq!(run.count_key(k).unwrap(), n, "{what}: the key whole, {} bytes", k.len());
-        for piece in [1, 13, 4_096] {
-            assert_eq!(run.count_fed(&Pieces(k, piece), k.len() as u64).unwrap(), n, "{what}: {} bytes", k.len());
-        }
+        assert_eq!(run.count_key(k).unwrap(), n, "{what}: {} bytes", k.len());
     }
 }
 
 #[test]
-fn run_counts_of_keys_handed_over_in_pieces() {
+fn run_counts_of_long_keys() {
     let mut r = XorShift(0x1_0C6E);
     let keys = texts(&mut r);
     // Every key, of one to 40 rows (posting chunks); and the long keys alone, which share a start longer
@@ -288,7 +271,6 @@ fn check(ix: &Secondary, h: &VecHost, m: &Model, counts: &Counts, probes: &[Vec<
     for k in m.keys().chain(probes) {
         let n = counts.get(k).copied().unwrap_or(0);
         assert_eq!(ix.count(h, k).unwrap(), n, "{what}: the count of {} bytes", k.len());
-        assert_eq!(ix.count_fed(h, &Pieces(k, 777)).unwrap(), n, "{what}: the count of {} bytes, fed", k.len());
     }
 }
 

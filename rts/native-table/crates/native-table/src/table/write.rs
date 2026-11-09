@@ -3,8 +3,8 @@
 //! keeping the integer leaves' totals and the group's extremes.
 
 use crate::consts::{BLOCK, BUFFER_BLOCKS_MAX, GROUP_BYTES, GROUP_LARGE, GROUP_OOL_BYTES, GROUP_SLOTS, ROW_INLINE_MAX};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::mem::{fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, Owner, PageHost, Region};
+use crate::fault::{rt, Corruption, Fault};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, PageHost, Region};
 
 use super::buffer::{
     self, Located, RowLoc, Slot, B_ROWS_END, B_SLOTS, B_SLOTS_START, DESC_BIT, D_BLOCKS, D_RECORDS, H_LIVE,
@@ -22,10 +22,6 @@ use super::root;
 use super::row::{self, Item, Plan, RowRef, StackOut, Stored, Walk};
 use super::totals::{self, At, TSrc};
 use super::RowSource;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Bytes a stored inline row image reserves in its block: 8-aligned and at least a long stub, so that its
 /// place can always hold the stub a later update leaves there.
@@ -113,7 +109,7 @@ pub fn freeze<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fau
     // The descriptor: frozen, and its counters.
     let open_long = buffer::u64_of(&*h, tail, buffer::H_FLAGS)? & buffer::OPEN_LONG != 0;
     {
-        let d = h.get_mut(Region::Block(desc), Owner(0))?;
+        let d = h.get_mut(Region::Block(desc))?;
         let flags = rd_u16(d, buffer::D_FLAGS)?;
         let long = if open_long { buffer::LONG_ROWS } else { 0 };
         put_u16(d, buffer::D_FLAGS, flags | buffer::FROZEN | long)?;
@@ -128,7 +124,7 @@ pub fn freeze<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fau
     // The frozen queue.
     let prev = root::u64_at(&*h, tbl, root::FROZEN_TAIL)?;
     if prev != 0 {
-        put_u64(h.get_mut(Region::Block(prev), Owner(0))?, buffer::D_NEXT, desc)?;
+        put_u64(h.get_mut(Region::Block(prev))?, buffer::D_NEXT, desc)?;
     } else {
         root::set_u64(h, tbl, root::FROZEN_HEAD, desc)?;
     }
@@ -145,9 +141,9 @@ pub fn freeze<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fau
     let nb = buffer::new_block(h, tbl, shape, g2, 0, 0, Some(tail))?;
     let d2 = buffer::new_descriptor(h, tbl, g2, nb)?;
     let ext = super::extremes::create(h, tbl, shape, g2)?;
-    put_u64(h.get_mut(Region::Block(d2), Owner(0))?, buffer::D_EXT, ext)?;
+    put_u64(h.get_mut(Region::Block(d2))?, buffer::D_EXT, ext)?;
     {
-        let b = h.get_mut(Region::Block(nb), Owner(0))?;
+        let b = h.get_mut(Region::Block(nb))?;
         put_u64(b, buffer::B_DESC, d2)?;
         put_u16(b, H_OPEN_POS, 0)?;
         put_u32(b, H_OPEN_INLINE, 0)?;
@@ -172,7 +168,7 @@ fn new_tail<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<u64, Faul
     let tail_slots = buffer::u16_of(&*h, tail, B_SLOTS)?;
     let nb = buffer::new_block(h, tbl, shape, g, pos, desc, Some(tail))?;
     {
-        let d = h.get_mut(Region::Block(desc), Owner(0))?;
+        let d = h.get_mut(Region::Block(desc))?;
         let last = D_RECORDS.wrapping_add(blocks.saturating_sub(1).wrapping_mul(16));
         put_u16(d, last.wrapping_add(10), u16::try_from(tail_slots).map_err(|_| rt(Corruption::Range, tail_slots))?)?;
         let rec = D_RECORDS.wrapping_add(blocks.wrapping_mul(16));
@@ -253,7 +249,7 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
     let pos = buffer::u16_of(&*h, tail, H_OPEN_POS)?;
     let rid = g.checked_mul(GROUP_SLOTS).and_then(|x| x.checked_add(pos)).ok_or(rt(Corruption::Range, g))?;
     {
-        let b = h.get_mut(Region::Block(tail), Owner(0))?;
+        let b = h.get_mut(Region::Block(tail))?;
         let end = u64::from(rd_u16(b, B_ROWS_END)?);
         let slots = u64::from(rd_u16(b, B_SLOTS)?);
         match stub {
@@ -389,18 +385,13 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
                 }
             };
             let Some((img, len)) = st else { continue };
-            let keep = l.live() && {
-                let row = RowRef::new(&*h, old)?;
-                let v = row::cell_of(src, &l)?;
-                match v {
+            let keep = l.live()
+                && match row::cell_of(src, &l)? {
                     Val::Bytes(b) | Val::Big(b) => {
-                        b.len() as u64 == len
-                            && row::same(&row, &l, &Stored::Item(Item::Long { img, len }), &v)?
-                            && row::is_long(len, frozen)
+                        cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len, frozen)
                     }
                     _ => false,
-                }
-            };
+                };
             if !keep {
                 drain::push_image(h, tbl, &img)?;
             }
@@ -423,13 +414,13 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
         let mut so = StackOut::new();
         filled = row::write(shape, h, tbl, uid, src, &p, frozen, &mut so, Some(old))?.saturating_add(so.filled);
         let (block, off, _) = old_inline.ok_or(rt(Corruption::Link, 0))?;
-        let b = h.get_mut(Region::Block(block), Owner(0))?;
+        let b = h.get_mut(Region::Block(block))?;
         put(b, off, so.bytes())?;
         let len16 = u16::try_from(p.len).map_err(|_| rt(Corruption::Range, p.len))?;
         if slot.flags & SLOT_MOVED != 0 {
-            put_u16(h.get_mut(Region::Block(at.block), Owner(0))?, slot.off.wrapping_add(10), len16)?;
+            put_u16(h.get_mut(Region::Block(at.block))?, slot.off.wrapping_add(10), len16)?;
         } else {
-            buffer::write_slot(h.get_mut(Region::Block(at.block), Owner(0))?, at.slot, &Slot { len: p.len, ..slot })?;
+            buffer::write_slot(h.get_mut(Region::Block(at.block))?, at.slot, &Slot { len: p.len, ..slot })?;
         }
         new_loc = RowLoc::Inline { block, off, len: p.len };
     } else {
@@ -442,7 +433,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             filled = row::write(shape, h, tbl, uid, src, &p, frozen, &mut so, Some(old))?.saturating_add(so.filled);
             let end = buffer::u16_of(&*h, tail, B_ROWS_END)?;
             {
-                let b = h.get_mut(Region::Block(tail), Owner(0))?;
+                let b = h.get_mut(Region::Block(tail))?;
                 put(b, end, so.bytes())?;
                 fill(b, end.wrapping_add(p.len), reserve(p.len).wrapping_sub(p.len), 0)?;
                 put_u16(
@@ -455,7 +446,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             put_u64(&mut stub, 0, tail)?;
             put_u16(&mut stub, 8, u16::try_from(end).map_err(|_| rt(Corruption::Range, end))?)?;
             put_u16(&mut stub, 10, u16::try_from(p.len).map_err(|_| rt(Corruption::Range, p.len))?)?;
-            let b = h.get_mut(Region::Block(at.block), Owner(0))?;
+            let b = h.get_mut(Region::Block(at.block))?;
             put(b, slot.off, &stub)?;
             buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: MOVED_STUB, flags: SLOT_MOVED })?;
             new_loc = RowLoc::Inline { block: tail, off: end, len: p.len };
@@ -469,7 +460,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let mut stub = [0u8; 32];
             put_u32(&mut stub, 0, 1)?;
             img.put_ref(&mut stub, 8)?;
-            let b = h.get_mut(Region::Block(at.block), Owner(0))?;
+            let b = h.get_mut(Region::Block(at.block))?;
             put(b, slot.off, &stub)?;
             buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: LONG_STUB, flags: SLOT_LONG })?;
             new_loc = RowLoc::Long(img);
@@ -487,12 +478,12 @@ fn mark_long<H: PageHost>(h: &mut H, tail: u64, at: &Located) -> Result<(), Faul
         let flags = buffer::u16_of(&*h, at.desc, buffer::D_FLAGS)?;
         if flags & u64::from(buffer::LONG_ROWS) == 0 {
             let f = u16::try_from(flags).unwrap_or(0) | buffer::LONG_ROWS;
-            put_u16(h.get_mut(Region::Block(at.desc), Owner(0))?, buffer::D_FLAGS, f)?;
+            put_u16(h.get_mut(Region::Block(at.desc))?, buffer::D_FLAGS, f)?;
         }
     } else {
         let f = buffer::u64_of(&*h, tail, buffer::H_FLAGS)?;
         if f & buffer::OPEN_LONG == 0 {
-            put_u64(h.get_mut(Region::Block(tail), Owner(0))?, buffer::H_FLAGS, f | buffer::OPEN_LONG)?;
+            put_u64(h.get_mut(Region::Block(tail))?, buffer::H_FLAGS, f | buffer::OPEN_LONG)?;
         }
     }
     Ok(())
@@ -531,10 +522,10 @@ pub fn delete_buffered<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, at: &Loc
     if let RowLoc::Long(img) = loc {
         drain::push_image(h, tbl, &img)?;
     }
-    let b = h.get_mut(Region::Block(at.block), Owner(0))?;
+    let b = h.get_mut(Region::Block(at.block))?;
     let slot = buffer::read_slot(b, at.slot)?;
     buffer::write_slot(b, at.slot, &Slot { flags: slot.flags | SLOT_DEAD, ..slot })?;
-    let t = h.get_mut(Region::Block(tail), Owner(0))?;
+    let t = h.get_mut(Region::Block(tail))?;
     let live = rd_u64(t, H_LIVE)?;
     put_u64(t, H_LIVE, live.wrapping_sub(1))?;
     let buffered = rd_u64(t, buffer::H_BUFFERED)?;

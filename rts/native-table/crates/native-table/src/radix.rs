@@ -15,7 +15,7 @@ use crate::area::{alloc_zeroed, free_block};
 use crate::consts::{RADIX_FAN, RADIX_STEP, UNIT_BLOCKS_MAX};
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
 use crate::host::Progress;
-use crate::mem::{put_u64, rd_u64, Owner, PageHost, Region};
+use crate::mem::{put_u64, rd_u64, PageHost, Region};
 
 /// The greatest height a radix array takes: 512^7 = 2^63 entries, more than any count the formats name
 /// (`GROUP_MAX` < 2^49 groups, `IMAGE_MAX` / `PAGE` = 2^44 image blocks). The format names no maximum;
@@ -152,7 +152,7 @@ impl Radix {
             }
             if self.root != 0 {
                 let b = alloc_zeroed(h, tbl, 0)?;
-                put_u64(h.get_mut(Region::Block(b), Owner(0))?, 0, self.root)?;
+                put_u64(h.get_mut(Region::Block(b))?, 0, self.root)?;
                 self.root = b;
             }
             // height < HEIGHT_MAX.
@@ -172,12 +172,12 @@ impl Radix {
             level = level.wrapping_sub(1);
             let at = slot(digit(i, level));
             if level == 0 {
-                return put_u64(h.get_mut(Region::Block(node), Owner(0))?, at, v);
+                return put_u64(h.get_mut(Region::Block(node))?, at, v);
             }
             let mut child = rd_u64(h.get(Region::Block(node))?, at)?;
             if child == 0 {
                 child = alloc_zeroed(h, tbl, 0)?;
-                put_u64(h.get_mut(Region::Block(node), Owner(0))?, at, child)?;
+                put_u64(h.get_mut(Region::Block(node))?, at, child)?;
             }
             node = child;
         }
@@ -212,7 +212,7 @@ impl Radix {
         }
         let mut level = 0u8;
         let mut block = node;
-        put_u64(h.get_mut(Region::Block(block), Owner(0))?, slot(digit(i, 0)), 0)?;
+        put_u64(h.get_mut(Region::Block(block))?, slot(digit(i, 0)), 0)?;
         loop {
             if !zeroed(h.get(Region::Block(block))?) {
                 return Ok(());
@@ -225,22 +225,13 @@ impl Radix {
                 return Ok(());
             }
             block = path.get(usize::from(level)).copied().ok_or(corrupt(ImageId::Runtime, Corruption::Depth, block))?;
-            put_u64(h.get_mut(Region::Block(block), Owner(0))?, slot(digit(i, level)), 0)?;
+            put_u64(h.get_mut(Region::Block(block))?, slot(digit(i, level)), 0)?;
         }
     }
 
     /// Walks the entries from index `from` in order, calling `f(index, value)` for each present entry, and
-    /// examines at most `RADIX_STEP` entries, present or absent, at any level; an absent inner entry is skipped
-    /// with everything below it as one examined entry. Resume with `Walk::next`.
-    pub fn walk<H, F>(self, h: &H, from: u64, f: F) -> Result<Walk, Fault>
-    where
-        H: PageHost,
-        F: FnMut(u64, u64) -> Result<(), Fault>,
-    {
-        self.walk_max(h, from, RADIX_STEP, f)
-    }
-
-    /// `walk`, examining at most `max` entries.
+    /// examines at most `max` entries, present or absent, at any level; an absent inner entry is skipped with
+    /// everything below it as one examined entry. Resume with `Walk::next`.
     pub fn walk_max<H, F>(self, h: &H, from: u64, max: u64, mut f: F) -> Result<Walk, Fault>
     where
         H: PageHost,

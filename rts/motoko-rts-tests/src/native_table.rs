@@ -8,7 +8,7 @@ use motoko_rts::gc::incremental::{IncrementalGC, set_incremental_gc_state};
 use motoko_rts::native_table::store::StoreHost;
 use motoko_rts::types::Bytes;
 use native_table::consts::{BLOCK, PAGE};
-use native_table::{Fault, Owner, PageHost, Region};
+use native_table::{Fault, PageHost, Region};
 use oorandom::Rand32;
 
 use std::collections::BTreeSet;
@@ -21,7 +21,6 @@ const MAX_LIVE: usize = 1_500;
 const FREE_RUNS: [usize; 8] = [1, 2, 509, 511, 512, 1, 1, 463];
 /// References a stack block holds.
 const STACK_SLOTS: usize = 511;
-const W: Owner = Owner(0);
 
 struct Store {
     mem: TestMemory,
@@ -39,8 +38,8 @@ impl Store {
     /// Takes a page and writes each block's reference into the block's first word.
     fn alloc(&mut self) -> u64 {
         let mut host = self.host();
-        let page = host.page_alloc(W).unwrap();
-        let bytes = host.get_mut(Region::Page(page), W).unwrap();
+        let page = host.page_alloc().unwrap();
+        let bytes = host.get_mut(Region::Page(page)).unwrap();
         for block in 0..PAGE / BLOCK {
             let at = (block * BLOCK) as usize;
             bytes[at..at + 8].copy_from_slice(&(page + block * BLOCK).to_le_bytes());
@@ -68,7 +67,7 @@ impl Store {
                 "live page {page:#x} overwritten"
             );
         }
-        host.page_free(page, W).unwrap();
+        host.page_free(page).unwrap();
         assert!(self.handed_out.remove(&page));
     }
 
@@ -144,7 +143,7 @@ fn test_free_blocks(store: &mut Store) {
     for index in 0..store.live.len() {
         let page = store.live[index];
         let mut host = store.host();
-        let bytes = host.get_mut(Region::Page(page), W).unwrap();
+        let bytes = host.get_mut(Region::Page(page)).unwrap();
         for block in 0..PAGE / BLOCK {
             let at = (block * BLOCK) as usize;
             bytes[at + 8..at + BLOCK as usize].fill(0xA5);
@@ -204,32 +203,32 @@ fn test_gate(store: &mut Store) {
     assert!(host.get(Region::Page(page)).is_ok());
     for r in bad {
         assert_eq!(host.get(r).err(), Some(Fault::BadRef));
-        assert_eq!(host.get_mut(r, W).err(), Some(Fault::BadRef));
+        assert_eq!(host.get_mut(r).err(), Some(Fault::BadRef));
         assert_eq!(
-            host.pair_mut(r, Region::Page(page), W).err(),
+            host.pair_mut(r, Region::Page(page)).err(),
             Some(Fault::BadRef)
         );
         assert_eq!(
-            host.pair_mut(Region::Page(page), r, W).err(),
+            host.pair_mut(Region::Page(page), r).err(),
             Some(Fault::BadRef)
         );
         assert_eq!(
-            host.read_write(r, Region::Page(page), W).err(),
+            host.read_write(r, Region::Page(page)).err(),
             Some(Fault::BadRef)
         );
         assert_eq!(
-            host.read_write(Region::Page(page), r, W).err(),
+            host.read_write(Region::Page(page), r).err(),
             Some(Fault::BadRef)
         );
         if let Region::Page(p) = r {
-            assert_eq!(host.page_free(p, W), Err(Fault::BadRef));
+            assert_eq!(host.page_free(p), Err(Fault::BadRef));
         }
     }
     // Overlapping pairs.
     let (p, b) = (Region::Page(page), Region::Block(page + BLOCK));
-    assert_eq!(host.pair_mut(p, b, W).err(), Some(Fault::BadRef));
-    assert_eq!(host.pair_mut(b, b, W).err(), Some(Fault::BadRef));
-    assert_eq!(host.read_write(b, p, W).err(), Some(Fault::BadRef));
-    assert!(host.pair_mut(Region::Block(page), b, W).is_ok());
+    assert_eq!(host.pair_mut(p, b).err(), Some(Fault::BadRef));
+    assert_eq!(host.pair_mut(b, b).err(), Some(Fault::BadRef));
+    assert_eq!(host.read_write(b, p).err(), Some(Fault::BadRef));
+    assert!(host.pair_mut(Region::Block(page), b).is_ok());
     store.free(0);
 }

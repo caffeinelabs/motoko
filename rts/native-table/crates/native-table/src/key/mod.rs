@@ -71,7 +71,6 @@ impl<'a> SliceSink<'a> {
         SliceSink { buf, len: 0 }
     }
 
-    /// The bytes written so far.
     pub fn written(&self) -> &[u8] {
         self.buf.get(..self.len).unwrap_or(&[])
     }

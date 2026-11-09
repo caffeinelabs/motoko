@@ -6,18 +6,20 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::ops::Bound::{self, *};
 
-use native_table::consts::{BLOCK, CHUNK_RIDS_MAX, NODE_SIZE, PAGE, RID_PAYLOAD, SENT_MIN, V_CHOICES, W_MAX};
+use native_table::consts::{
+    BLOCK, CHUNK_RIDS_MAX, NODE_SIZE, PAGE, RID_PAYLOAD, SENT_MIN, TRAILER_UNIT, V_CHOICES, W_MAX,
+};
 use native_table::index::chunk::{self, Chunk, Chunker};
 use native_table::index::nodes::StructureCheck;
 use native_table::index::run::{at, check_header, stored_key, RunExpect};
-use native_table::index::{plan_run, Finger, MemImage, Run, RunParams};
+use native_table::index::{Finger, MemImage, Run};
 use native_table::key::enc_bytes;
 use native_table::key::probe::{
     count_field, is_count, is_ovf, is_tomb, ovf_field, payload, payload_to_count, KeyProbe, Kind,
 };
-use native_table::tree::bulk::{Plan, TRAILER_UNIT};
-use native_table::tree::{BulkState, Dir, Direction, Fwd, IndexShape, Rev, RunGeometry, Shape};
+use native_table::tree::{Dir, Direction, Fwd, IndexShape, Rev, Shape};
 use native_table::{CorruptAt, Corruption, Fault, ImageId, Progress, RefusalCode};
+use nt_builder::{plan_run, BulkState, Plan, RunGeometry, RunParams};
 use nt_testhost::runs::{build, model, model_posting, stored, Built, CoverSink, MEnt, VecItems};
 use nt_testhost::{VecSink, XorShift, FILLS};
 
@@ -274,7 +276,7 @@ fn bulk_plan_invariants_every_n() {
                 assert_eq!(p.count(l as u64, nodes), 0);
             }
             assert_eq!(sum, n);
-            assert_eq!(native_table::tree::bulk::plan_nodes(n, nl, ni).unwrap(), p.nodes());
+            assert_eq!(nt_builder::bulk::plan_nodes(n, nl, ni).unwrap(), p.nodes());
         }
     }
 }
@@ -501,7 +503,7 @@ fn bulk_plan_main_and_count_tree_in_one_image() {
         let lay = b.plan.layout;
         let (ents, keys) = model(&items.0, v, 0);
         let mut image = vec![0u8; lay.len as usize];
-        let mut sink = native_table::tree::MemRunSink;
+        let mut sink = nt_builder::MemRunSink;
         let mut rec = 0u64;
         let mut key_at = lay.ok;
         let mut write_rec = |image: &mut Vec<u8>, payload: u64, key: &[u8]| -> u64 {
@@ -1000,11 +1002,11 @@ fn widths_follow_the_keys() {
     for (len, b) in
         [(0u64, 0usize), (1, 0), (8, 0), (9, 1), (16, 1), (17, 2), (1_016, 126), (1_017, 127), (99_999, 127)]
     {
-        assert_eq!(native_table::index::plan::bucket(len), b);
+        assert_eq!(nt_builder::plan::bucket(len), b);
     }
-    assert_eq!(native_table::index::plan::bucket_len(126), 1_016);
+    assert_eq!(nt_builder::plan::bucket_len(126), 1_016);
     // The measure alone: one key of 300 bytes among short ones overflows at every candidate width but 1,016.
-    let mut m = native_table::index::plan::Measure::new();
+    let mut m = nt_builder::plan::Measure::new();
     for i in 0..99u64 {
         m.begin_key();
         m.item(5, i, false).unwrap();
@@ -1017,7 +1019,7 @@ fn widths_follow_the_keys() {
     assert_eq!(m.candidate_widths(24), [24, 24, 24, 24, 304, 64]);
     assert_eq!(m.candidate_widths(128), [128, 128, 128, 128, 304, 128]);
     // No key longer than 64 bytes: no candidate of 64.
-    let mut m = native_table::index::plan::Measure::new();
+    let mut m = nt_builder::plan::Measure::new();
     m.begin_key();
     m.item(64, 1, false).unwrap();
     m.end_key().unwrap();
@@ -2040,7 +2042,7 @@ fn runs_are_identical_on_every_target() {
 // ---------------------------------------------------------------- the measure's tally
 
 /// The tally of a key's items one `Chunker::offer` at a time, as the measure counted them first.
-fn offer_items(t: &mut native_table::index::plan::Tally, rids: &[u64], tomb: bool) {
+fn offer_items(t: &mut nt_builder::plan::Tally, rids: &[u64], tomb: bool) {
     t.items += rids.len() as u64;
     if tomb {
         t.tombs += rids.len() as u64;
@@ -2088,7 +2090,7 @@ fn tally_rids(g: &mut XorShift, n: usize) -> Vec<u64> {
 
 #[test]
 fn tally_items_equal_offers_one_at_a_time() {
-    use native_table::index::plan::Tally;
+    use nt_builder::plan::Tally;
     let mut g = XorShift(0x7A11_7A11);
     for round in 0..400 {
         let (mut a, mut b) = (Tally::new(), Tally::new());

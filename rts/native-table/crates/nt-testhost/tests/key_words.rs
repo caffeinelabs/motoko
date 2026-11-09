@@ -7,7 +7,7 @@ use std::ops::Bound;
 
 use native_table::key::probe::{KeyProbe, Kind};
 use native_table::key::words::{
-    area_cmp, area_key_cmp, bytes_cmp, bytes_cmp_any, bytes_cmp_long, cmp_bytes, search_fits, KeyWords,
+    area_cmp, area_key_cmp, bytes_cmp, bytes_cmp_any, bytes_cmp_long, search_fits, KeyWords,
 };
 use native_table::tree::{descend, find, Cursor, Fwd, IndexShape, Path, Probe};
 use native_table::Fault;
@@ -54,7 +54,6 @@ fn byte_strings_compare_as_memcmp() {
     let s = strings(&mut XorShift(3));
     for a in &s {
         for b in &s {
-            assert_eq!(cmp_bytes(a, b), a.cmp(b), "{a:?} {b:?}");
             let n = a.len().min(b.len());
             let shared = a.iter().zip(b).take_while(|(x, y)| x == y).count();
             assert_eq!(bytes_cmp(a, b), (a[..n].cmp(&b[..n]), shared), "{a:?} {b:?}");

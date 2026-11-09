@@ -8,7 +8,7 @@
 
 use crate::consts::{F_COUNT, F_OVF, F_TOMB, KEY_PIECE, PART_MAX, PAYLOAD, RID_PAYLOAD};
 use crate::fault::{bounds, Fault};
-use crate::host::{NodeMem, Pending};
+use crate::host::{NodeRead, Pending};
 use crate::key::words::{self, KeyWords};
 use crate::mem::{copy_bytes, rd_array};
 use crate::tree::Probe;
@@ -259,7 +259,7 @@ pub(crate) fn rank_fits(f: u64, kind: Kind, base: u64) -> Ordering {
 }
 
 /// Index nodes: a tree of W-byte key areas, through a host that lends key parts.
-impl<M: NodeMem + ResolveKey + ?Sized> Probe<M> for KeyProbe<'_> {
+impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for KeyProbe<'_> {
     const PREFIX: bool = true;
 
     #[inline]
@@ -437,7 +437,7 @@ impl<R: ResolveKey + ?Sized> crate::key::Sink for StoredCmp<'_, R> {
 }
 
 /// The comparator of entry `koff` of node n against a key of any length that `feed` hands over.
-pub fn cmp_stored<M: NodeMem + ResolveKey + ?Sized>(
+pub fn cmp_stored<M: NodeRead + ResolveKey + ?Sized>(
     mem: &M,
     n: u64,
     koff: u64,
@@ -465,7 +465,7 @@ pub struct RecProbe<'k> {
     pub kind: Kind,
 }
 
-impl<M: NodeMem + ResolveKey + ?Sized> Probe<M> for RecProbe<'_> {
+impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for RecProbe<'_> {
     fn cmp_at(&self, mem: &M, n: u64, koff: u64) -> Result<Ordering, Fault> {
         use crate::key::Sink;
         cmp_stored(mem, n, koff, self.kind, |c| {
@@ -498,7 +498,7 @@ impl RecProbe<'_> {
     /// `cmp_at` resumed from byte `from`, the key's first `from` bytes known equal to the stored key's,
     /// reading at most `most` more bytes of the key: `Err(at)` when no byte differed up to `at`, from where it
     /// resumes, so no comparison reads more than its share of a long key.
-    pub fn cmp_part<M: NodeMem + ResolveKey + ?Sized>(
+    pub fn cmp_part<M: NodeRead + ResolveKey + ?Sized>(
         &self,
         mem: &M,
         n: u64,
@@ -541,58 +541,6 @@ impl RecProbe<'_> {
         }
         let base = mem.rid_base();
         Ok(Ok(Part { ord: c.finish(self.kind, base)?, count: c.finish(Kind::Count, base)?, shared, at }))
-    }
-}
-
-/// A key handed over in order, as often as a comparison asks: its full encoding, of any length, never held
-/// whole (a count of a key too long for a stack buffer encodes it again from its cells each time).
-pub trait KeyFeed {
-    fn feed<S: crate::key::Sink>(&self, s: &mut S) -> Result<(), Fault>;
-}
-
-/// A sink that drops the first `skip` bytes it is handed (a run's shared prefix) and passes the rest on.
-pub struct Skip<'a, S: ?Sized> {
-    pub skip: u64,
-    pub inner: &'a mut S,
-}
-
-impl<S: crate::key::Sink + ?Sized> crate::key::Sink for Skip<'_, S> {
-    fn put(&mut self, bytes: &[u8]) -> Result<(), Fault> {
-        let n = usize::try_from(self.skip).unwrap_or(usize::MAX).min(bytes.len());
-        self.skip = self.skip.wrapping_sub(n as u64);
-        match bytes.get(n..) {
-            Some(rest) if !rest.is_empty() => self.inner.put(rest),
-            _ => Ok(()),
-        }
-    }
-}
-
-/// The comparator of a stored entry (its key area and field) against the key `key` hands over past its first
-/// `skip` bytes, the stored key on the left.
-pub fn cmp_fed<R: ResolveKey + ?Sized, F: KeyFeed + ?Sized>(
-    r: &R,
-    area: &[u8],
-    field: u64,
-    key: &F,
-    skip: u64,
-    kind: Kind,
-) -> Result<Ordering, Fault> {
-    let mut c = StoredCmp::new(r, area, field)?;
-    key.feed(&mut Skip { skip, inner: &mut c })?;
-    c.finish(kind, r.rid_base())
-}
-
-/// A probe of the key a `KeyFeed` hands over, past its first `skip` bytes: each comparison takes the key's
-/// bytes as they come (`StoredCmp`).
-pub struct FeedProbe<'a, F: ?Sized> {
-    pub key: &'a F,
-    pub skip: u64,
-    pub kind: Kind,
-}
-
-impl<M: NodeMem + ResolveKey + ?Sized, F: KeyFeed + ?Sized> Probe<M> for FeedProbe<'_, F> {
-    fn cmp_at(&self, mem: &M, n: u64, koff: u64) -> Result<Ordering, Fault> {
-        cmp_stored(mem, n, koff, self.kind, |c| self.key.feed(&mut Skip { skip: self.skip, inner: c }))
     }
 }
 

@@ -109,36 +109,4 @@ impl Big {
             }
         }
     }
-
-    /// The nearest f64 (ties to even), through the decimal digits Rust parses exactly; a magnitude of more
-    /// than 129 bytes is past 2^1024, an infinity.
-    pub fn to_f64(&self) -> f64 {
-        let neg = self.ext() == 0xFF;
-        let mut mag = if neg { self.neg().0 } else { self.0.clone() };
-        if Big::trim(mag.clone()).0.len() > 129 {
-            return if neg { f64::NEG_INFINITY } else { f64::INFINITY };
-        }
-        // Decimal digits by repeated division by 10.
-        let mut digits = Vec::new();
-        while mag.iter().any(|&x| x != 0) {
-            let mut rem = 0u32;
-            for x in mag.iter_mut().rev() {
-                let cur = (rem << 8) | u32::from(*x);
-                *x = (cur / 10) as u8;
-                rem = cur % 10;
-            }
-            digits.push(b'0' + rem as u8);
-        }
-        if digits.is_empty() {
-            return 0.0;
-        }
-        digits.reverse();
-        let s = String::from_utf8(digits).unwrap();
-        let f: f64 = s.parse().unwrap();
-        if neg {
-            -f
-        } else {
-            f
-        }
-    }
 }

@@ -11,8 +11,8 @@
 #![allow(clippy::option_map_unit_fn, clippy::should_implement_trait, clippy::unnecessary_cast)]
 
 use native_table::area::{self, AreaRecord};
-use native_table::bytes::{put_be_u64, put_uleb, rd_be_u64, rd_uleb};
-use native_table::consts::{form_code, seal_scratch, BLOCK, PAGE};
+use native_table::bytes::{put_uleb, rd_uleb};
+use native_table::consts::{form_code, seal_scratch, BLOCK, PAGE, RADIX_STEP};
 use native_table::hash::{nt_hash64, Hasher64};
 use native_table::host::{wake_from_state, Progress};
 use native_table::image::{Image, ImageReader};
@@ -22,7 +22,7 @@ use native_table::radix::{Radix, Units};
 use native_table::table::cell::{enc_key, Val};
 use native_table::table::layout::{LeafInfo, Ty};
 use native_table::value::{self, Utf8Stream};
-use native_table::{CorruptAt, Corruption, Fault, ImageId, Owner, PageHost, Region, Wake};
+use native_table::{CorruptAt, Corruption, Fault, ImageId, PageHost, Region, Wake};
 
 #[cfg(all(target_family = "wasm", not(test)))]
 #[panic_handler]
@@ -74,11 +74,11 @@ impl<const M: usize> PageHost for ArrayHostN<M> {
         let (s, e) = Self::span(r)?;
         self.mem.get(s..e).ok_or(Fault::BadRef)
     }
-    fn get_mut(&mut self, r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault> {
         let (s, e) = Self::span(r)?;
         self.mem.get_mut(s..e).ok_or(Fault::BadRef)
     }
-    fn pair_mut(&mut self, a: Region, b: Region, _w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         let (sa, ea) = Self::span(a)?;
         let (sb, eb) = Self::span(b)?;
         if sa < eb && sb < ea {
@@ -96,11 +96,11 @@ impl<const M: usize> PageHost for ArrayHostN<M> {
             Ok((x, y))
         }
     }
-    fn read_write(&mut self, r: Region, wr: Region, w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
-        let (a, b) = self.pair_mut(r, wr, w)?;
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
+        let (a, b) = self.pair_mut(r, wr)?;
         Ok((&*a, b))
     }
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         if self.next > (M as u64) / PAGE {
             return Err(Fault::OutOfMemory);
         }
@@ -108,7 +108,7 @@ impl<const M: usize> PageHost for ArrayHostN<M> {
         self.next = self.next.wrapping_add(1);
         Ok(p)
     }
-    fn page_free(&mut self, p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, p: u64) -> Result<(), Fault> {
         Self::span(Region::Page(p)).map(|_| ())
     }
     fn alloc_changes(&self) -> u64 {
@@ -139,17 +139,16 @@ fn code(r: Result<u64, Fault>) -> u64 {
 #[no_mangle]
 pub extern "C" fn nt_mem(off: u64, len: u64, from: u64, to: u64, v: u64) -> u64 {
     let mut h = ArrayHost::new();
-    let w = Owner(0);
     let r = (|| -> Result<u64, Fault> {
-        let p = h.page_alloc(w)?;
-        let q = h.page_alloc(w)?;
+        let p = h.page_alloc()?;
+        let q = h.page_alloc()?;
         {
-            let b = h.get_mut(Region::Page(p), w)?;
+            let b = h.get_mut(Region::Page(p))?;
             put_u64(b, off, v)?;
             shift(b, from, to, len)?;
         }
         let qb = h.block_of(q, 1);
-        copy(&mut h, Region::Page(p), from, Region::Block(qb), to, len, w)?;
+        copy(&mut h, Region::Page(p), from, Region::Block(qb), to, len)?;
         let b = h.get(Region::Block(qb))?;
         let x = rd_u64(b, to)? ^ u64::from(rd_u32(b, off)?) ^ u64::from(rd_u16(b, from)?);
         Ok(x ^ u64::try_from(sub(b, off, len)?.len()).unwrap_or(0))
@@ -172,24 +171,22 @@ pub extern "C" fn nt_put(off: u64, v: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn nt_pair(a: u64, b: u64) -> u64 {
     let mut h = ArrayHost::new();
-    code(h.pair_mut(Region::Block(a), Region::Block(b), Owner(0)).map(|(x, y)| (x.len() ^ y.len()) as u64))
+    code(h.pair_mut(Region::Block(a), Region::Block(b)).map(|(x, y)| (x.len() ^ y.len()) as u64))
 }
 
 #[no_mangle]
 pub extern "C" fn nt_copy(from: u64, to: u64, len: u64) -> u64 {
     let mut h = ArrayHost::new();
-    let w = Owner(0);
-    code(copy(&mut h, Region::Page(PAGE), from, Region::Page(2 * PAGE), to, len, w).map(|_| 0))
+    code(copy(&mut h, Region::Page(PAGE), from, Region::Page(2 * PAGE), to, len).map(|_| 0))
 }
 
 #[no_mangle]
 pub extern "C" fn nt_bytes(off: u64, v: u64) -> u64 {
     let mut buf = [0u8; 64];
     let r = (|| -> Result<u64, Fault> {
-        put_be_u64(&mut buf, off, v)?;
         let n = put_uleb(&mut buf, off.wrapping_add(8), v)?;
         let (x, m) = rd_uleb(&buf, off.wrapping_add(8), ImageId::Group(off))?;
-        Ok(rd_be_u64(&buf, off)? ^ x ^ n ^ m)
+        Ok(x ^ v ^ n ^ m)
     })();
     code(r)
 }
@@ -205,12 +202,11 @@ pub extern "C" fn nt_fault_text(sel: u32, x: u64) -> u64 {
         Corruption::Order,
         Corruption::Encoding,
         Corruption::Leaf,
-        Corruption::Utf8,
         Corruption::Range,
         Corruption::Link,
         Corruption::Depth,
     ];
-    let kind = kinds.get(usize::try_from(x % 12).unwrap_or(0)).copied().unwrap_or(Corruption::Header);
+    let kind = kinds.get(usize::try_from(x % 11).unwrap_or(0)).copied().unwrap_or(Corruption::Header);
     let image = match sel % 4 {
         0 => ImageId::Runtime,
         1 => ImageId::Group(x),
@@ -245,7 +241,7 @@ pub extern "C" fn nt_selftest() -> u32 {
     if nt_mem(PAGE - 4, 8, 0, 0, 1) < u64::MAX - 64 {
         return 2;
     }
-    // The big-endian read and the LEB round trip give 300 back, and both LEB forms take 2 bytes: they cancel.
+    // The LEB round trip gives 300 back, and both LEB forms take 2 bytes: they cancel.
     if nt_bytes(3, 300) != 0 {
         return 3;
     }
@@ -354,7 +350,7 @@ pub extern "C" fn nt_radix(i: u64, v: u64, j: u64, from: u64) -> u64 {
         r.set(&mut h, t, j, v ^ 1)?;
         let g = r.get(&h, i)? ^ r.get(&h, from)?;
         let mut sum = 0u64;
-        let w = r.walk(&h, from, |k, x| {
+        let w = r.walk_max(&h, from, RADIX_STEP, |k, x| {
             sum = sum.wrapping_add(k ^ x);
             Ok(())
         })?;
@@ -374,7 +370,7 @@ pub extern "C" fn nt_radix(i: u64, v: u64, j: u64, from: u64) -> u64 {
 
 /// Images: `8 · (words % 16,385)` bytes appended in 1 KiB pieces (at most 2 image blocks), the record round
 /// trip, the reference form when `sel` is odd, the reference round trip, a read of [off, off + len) through
-/// the reader, and one release unit.
+/// the reader.
 #[no_mangle]
 pub extern "C" fn nt_image(words: u64, off: u64, len: u64, sel: u32) -> u64 {
     let mut h = ArrayHost::new();
@@ -400,10 +396,7 @@ pub extern "C" fn nt_image(words: u64, off: u64, len: u64, sel: u32) -> u64 {
             let b = rd.bytes(off, len)?;
             (b.len() as u64) ^ u64::from(b.first().copied().unwrap_or(0)) ^ rd.length()
         };
-        let mut cursor = 0u64;
-        let mut u = Units::DRAIN;
-        let done = rf.release_step(&mut h, t, &mut cursor, &mut u)?;
-        Ok(x ^ cursor ^ u.pages ^ u64::from(done == Progress::Done))
+        Ok(x)
     })();
     code(r)
 }
@@ -492,9 +485,6 @@ pub fn key_digest(seed: u64, n: u32) -> u64 {
         let _ = key::enc_i128(&mut s, ((u128::from(y) << 64) | u128::from(x)) as i128);
         let _ = key::enc_nat_u64(&mut s, x >> (y % 64));
         let _ = key::enc_int_i64(&mut s, (x as i64) >> (y % 64));
-        if let Some(c) = char::from_u32((x % 0x11_0000) as u32) {
-            let _ = key::enc_char(&mut s, c);
-        }
         let len = (y % 64) as usize;
         let mut b = [0u8; 64];
         for (i, slot) in b.iter_mut().enumerate().take(len) {
@@ -619,7 +609,7 @@ pub extern "C" fn nt_value(sel: u32, a: u64, b: u64, c: u64) -> u64 {
 
 // ---- the one B-tree, typed form, over a panic-free node arena ----
 
-use native_table::host::{NodeMem, Pending};
+use native_table::host::{NodeMem, NodeRead, Pending};
 use native_table::tree::{self, Cursor, Fwd, Path, Probe, Rev, Search, Typed, TypedShape};
 
 const NODES: usize = 24;
@@ -672,18 +662,12 @@ impl Pending for ProbePending {
     }
 }
 
-impl NodeMem for ArrayNodes {
-    type Entry<'k> = ProbePending;
+impl NodeRead for ArrayNodes {
     type Bytes<'a> = &'a [u8];
     fn count(&self, n: u64) -> Result<u16, Fault> {
         let (s, e) = self.at(n, 0, 2)?;
         let b: [u8; 2] = self.mem.get(s..e).and_then(|x| x.try_into().ok()).ok_or(Fault::BadRef)?;
         Ok(u16::from_le_bytes(b))
-    }
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
-        let (s, e) = self.at(n, 0, 2)?;
-        self.mem.get_mut(s..e).ok_or(Fault::BadRef)?.copy_from_slice(&c.to_le_bytes());
-        Ok(())
     }
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         let (s, e) = self.at(n, 2, 2)?;
@@ -695,13 +679,22 @@ impl NodeMem for ArrayNodes {
         let b: [u8; 8] = self.mem.get(s..e).and_then(|x| x.try_into().ok()).ok_or(Fault::BadRef)?;
         Ok(u64::from_le_bytes(b))
     }
+    fn bytes(&self, _n: u64, _off: u64, _len: u64) -> Result<&[u8], Fault> {
+        Err(Fault::BadRef)
+    }
+}
+
+impl NodeMem for ArrayNodes {
+    type Entry<'k> = ProbePending;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
+        let (s, e) = self.at(n, 0, 2)?;
+        self.mem.get_mut(s..e).ok_or(Fault::BadRef)?.copy_from_slice(&c.to_le_bytes());
+        Ok(())
+    }
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
         let (s, e) = self.at(n, off, 8)?;
         self.mem.get_mut(s..e).ok_or(Fault::BadRef)?.copy_from_slice(&w.to_le_bytes());
         Ok(())
-    }
-    fn bytes(&self, _n: u64, _off: u64, _len: u64) -> Result<&[u8], Fault> {
-        Err(Fault::BadRef)
     }
     fn copy(&mut self, src: u64, so: u64, dst: u64, doff: u64, len: u64) -> Result<(), Fault> {
         let (a, _) = self.at(src, so, len)?;
@@ -834,14 +827,10 @@ pub struct ArrayIndexNodes {
     shape: IndexShape,
 }
 
-impl NodeMem for ArrayIndexNodes {
-    type Entry<'k> = IndexPending<'k>;
+impl NodeRead for ArrayIndexNodes {
     type Bytes<'a> = &'a [u8];
     fn count(&self, n: u64) -> Result<u16, Fault> {
         self.inner.count(n)
-    }
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
-        self.inner.set_count(n, c)
     }
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         self.inner.flags(n)
@@ -849,12 +838,19 @@ impl NodeMem for ArrayIndexNodes {
     fn word(&self, n: u64, off: u64) -> Result<u64, Fault> {
         self.inner.word(n, off)
     }
-    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
-        self.inner.set_word(n, off, w)
-    }
     fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
         let (s, e) = self.inner.at(n, off, len)?;
         self.inner.mem.get(s..e).ok_or(Fault::BadRef)
+    }
+}
+
+impl NodeMem for ArrayIndexNodes {
+    type Entry<'k> = IndexPending<'k>;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
+        self.inner.set_count(n, c)
+    }
+    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
+        self.inner.set_word(n, off, w)
     }
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault> {
         self.inner.copy(s, so, d, doff, len)
@@ -1110,10 +1106,11 @@ pub extern "C" fn nt_secondary(seed: u64, count: u32, w: u64, run_list: u64) -> 
 // ---- runs ----
 
 use native_table::index::chunk::{self as ck, Chunker};
-use native_table::index::plan::{filter_lines, has_count_tree, Measure};
-use native_table::index::run::{check_header, RunExpect};
-use native_table::index::{build_run, plan_run, Finger, Item, MemImage, Run, RunInput, RunParams, StructureCheck};
-use native_table::tree::{BulkState, Dir, MemRunSink, RunGeometry};
+use native_table::index::run::{check_header, filter_lines, RunExpect};
+use native_table::index::{Finger, MemImage, Run, StructureCheck};
+use native_table::tree::Dir;
+use nt_builder::plan::{has_count_tree, Measure};
+use nt_builder::{build_run, plan_run, BulkState, Item, MemRunSink, RunGeometry, RunInput, RunParams};
 
 /// Bytes of the probe's run images.
 const RUN_BYTES: usize = 4 * PAGE as usize;
@@ -1581,10 +1578,10 @@ pub extern "C" fn nt_table(seed: u64, n: u32) -> u64 {
             }
             // A row's cells are its own key source under each index.
             let ix = 1 + (i % 2) as u8;
-            digest = native_table::hash::mix(digest ^ (t.count(ix, &mut row)? as u64));
+            digest = native_table::hash::mix(digest ^ (t.count(&mut sc, ix, &mut row)? as u64));
         }
-        t.write_step(&mut sc, &ProbeBudget)?;
-        let p = t.maintain(&mut sc, &ProbeBudget)?;
+        t.write_step(&ProbeBudget)?;
+        let p = t.maintain(&ProbeBudget)?;
         Ok(digest ^ t.len()? ^ u64::from(p == Progress::Done))
     })();
     code(r)
@@ -1623,8 +1620,8 @@ pub extern "C" fn nt_table_evolve(seed: u64, n: u32, sel: u32) -> u64 {
         while t.unit(&ProbeBudget)?.0 != native_table::table::jobs::Ran::Nothing {
             units = units.wrapping_add(1);
         }
-        t.write_step(&mut sc, &ProbeBudget)?;
-        t.maintain(&mut sc, &ProbeBudget)?;
+        t.write_step(&ProbeBudget)?;
+        t.maintain(&ProbeBudget)?;
         let mut s = ProbeSink(digest);
         if t.get(&mut sc, &mut ProbeKey(g.next() % 500), &mut s)? {
             digest = s.0;
@@ -1674,13 +1671,13 @@ pub extern "C" fn nt_table_seal(n: u32) -> u64 {
                 t.remove(&mut sc, &mut ProbeKey(k * 3))?;
             }
         }
-        t.maintain(&mut sc, &ProbeBudget)?;
+        t.maintain(&ProbeBudget)?;
         let mut s = ProbeSink(0);
         let found = t.get(&mut sc, &mut ProbeKey(30), &mut s)?;
         let mut buf = [0u8; 8];
         let big = t.read_large(10, 0, 0, &mut buf).unwrap_or(0) as u64;
         let (gone, _) = t.remove(&mut sc, &mut ProbeKey(30))?;
-        t.maintain(&mut sc, &ProbeBudget)?;
+        t.maintain(&ProbeBudget)?;
         Ok(s.0 ^ u64::from(found) ^ gone.unwrap_or(1) ^ big ^ t.len()?)
     })();
     code(r)
@@ -1692,10 +1689,10 @@ pub extern "C" fn nt_table_seal(n: u32) -> u64 {
 pub extern "C" fn nt_group_read(a: u64, b: u64, leaf: u64, pos: u64) -> u64 {
     let mut h = ArrayHost::new();
     let r = (|| -> Result<u64, Fault> {
-        let pg_page = h.page_alloc(Owner(0))?;
-        let im = h.page_alloc(Owner(15))?;
+        let pg_page = h.page_alloc()?;
+        let im = h.page_alloc()?;
         {
-            let page = h.get_mut(Region::Page(im), Owner(15))?;
+            let page = h.get_mut(Region::Page(im))?;
             let mut g = Gen(a | 1);
             for (i, x) in page.iter_mut().enumerate() {
                 *x = (g.next() ^ b.rotate_left(i as u32 % 64)) as u8;
@@ -1704,7 +1701,7 @@ pub extern "C" fn nt_group_read(a: u64, b: u64, leaf: u64, pos: u64) -> u64 {
             put_u64(page, 112, b % PAGE)?;
         }
         {
-            let pg = h.get_mut(Region::Block(pg_page), Owner(0))?;
+            let pg = h.get_mut(Region::Block(pg_page))?;
             pg.fill(0);
             native_table::mem::put_u32(pg, 0, native_table::consts::magic::NTGP)?;
             let img = Image {

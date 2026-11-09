@@ -7,7 +7,7 @@ use super::search::{search, Shared};
 use super::shape::Shape;
 use super::{Path, Probe};
 use crate::fault::Fault;
-use crate::host::NodeMem;
+use crate::host::NodeRead;
 use core::cmp::Ordering;
 use core::ops::Bound;
 
@@ -65,7 +65,7 @@ impl<D: Direction> Cursor<D> {
 
     /// A cursor at the first entry not before `start` in its direction.
     #[inline(always)]
-    pub fn seek<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    pub fn seek<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         s: S,
         m: &M,
         root: u64,
@@ -86,7 +86,7 @@ impl<D: Direction> Cursor<D> {
     /// traps on a fault and which the optimizer places as it places today's. Index forms keep an outlined
     /// body.
     #[inline(always)]
-    pub fn seek_here<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    pub fn seek_here<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -101,7 +101,7 @@ impl<D: Direction> Cursor<D> {
     }
 
     #[inline]
-    fn seek_outlined<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn seek_outlined<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -112,7 +112,7 @@ impl<D: Direction> Cursor<D> {
     }
 
     #[inline(always)]
-    fn seek_body<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn seek_body<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -136,7 +136,7 @@ impl<D: Direction> Cursor<D> {
     /// the same reference it hands out, as today's typed iterators do. Always inlined, like `advance`: out of
     /// line, their `Result`s would come back through memory.
     #[inline(always)]
-    pub fn peek<S: Shape, M: NodeMem + ?Sized>(&mut self, s: S, m: &M) -> Result<Option<(u64, u64)>, Fault> {
+    pub fn peek<S: Shape, M: NodeRead + ?Sized>(&mut self, s: S, m: &M) -> Result<Option<(u64, u64)>, Fault> {
         while let Some((n, j)) = self.path.last() {
             if D::REV {
                 if j == 0 {
@@ -161,7 +161,7 @@ impl<D: Direction> Cursor<D> {
 
     /// Moves past entry (n, i), which `peek` returned.
     #[inline(always)]
-    pub fn advance<S: Shape, M: NodeMem + ?Sized>(&mut self, s: S, m: &M, n: u64, i: u64) -> Result<(), Fault> {
+    pub fn advance<S: Shape, M: NodeRead + ?Sized>(&mut self, s: S, m: &M, n: u64, i: u64) -> Result<(), Fault> {
         if D::REV {
             self.path.set_last_index(i);
             if !is_leaf(m, n)? {
@@ -186,7 +186,7 @@ impl<D: Direction> Cursor<D> {
 
     /// The next (node, index), or None; beyond the bound or the last entry the path is cleared.
     #[inline]
-    pub fn next<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    pub fn next<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -204,7 +204,7 @@ impl<D: Direction> Cursor<D> {
     /// The frames from n down its leftmost path. Always inlined, as today's is: out of line, its `Result`
     /// would come back through memory.
     #[inline(always)]
-    fn leftmost<S: Shape, M: NodeMem + ?Sized>(&mut self, s: S, m: &M, mut n: u64) -> Result<(), Fault> {
+    fn leftmost<S: Shape, M: NodeRead + ?Sized>(&mut self, s: S, m: &M, mut n: u64) -> Result<(), Fault> {
         loop {
             self.path.push(n, 0)?;
             if is_leaf(m, n)? {
@@ -215,7 +215,7 @@ impl<D: Direction> Cursor<D> {
     }
 
     #[inline(always)]
-    fn seek_fwd<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn seek_fwd<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -251,7 +251,7 @@ impl<D: Direction> Cursor<D> {
     }
 
     #[inline]
-    fn next_fwd<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn next_fwd<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -284,7 +284,7 @@ impl<D: Direction> Cursor<D> {
     // ---- reverse: a frame (n, j) means entry j − 1 of n is next ----
 
     #[inline(always)]
-    fn rightmost<S: Shape, M: NodeMem + ?Sized>(&mut self, s: S, m: &M, mut n: u64) -> Result<(), Fault> {
+    fn rightmost<S: Shape, M: NodeRead + ?Sized>(&mut self, s: S, m: &M, mut n: u64) -> Result<(), Fault> {
         loop {
             let c = count(s, m, n)?;
             self.path.push(n, c)?;
@@ -296,7 +296,7 @@ impl<D: Direction> Cursor<D> {
     }
 
     #[inline(always)]
-    fn seek_rev<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn seek_rev<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -331,7 +331,7 @@ impl<D: Direction> Cursor<D> {
         }
     }
 
-    fn next_rev<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+    fn next_rev<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
         &mut self,
         s: S,
         m: &M,
@@ -370,7 +370,7 @@ impl<D: Direction> Cursor<D> {
 
 /// Stored key i of node n against the probe, from byte 0.
 #[inline(always)]
-fn key_cmp<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(s: S, m: &M, n: u64, i: u64, p: &P) -> Result<Ordering, Fault> {
+fn key_cmp<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(s: S, m: &M, n: u64, i: u64, p: &P) -> Result<Ordering, Fault> {
     let koff = if S::CHECKED {
         let sh = s.shape(is_leaf(m, n)?);
         ko(s, &sh, i)

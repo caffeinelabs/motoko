@@ -12,14 +12,14 @@
 
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, FORMAT_TABLE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::index::area_insert;
 use crate::index::area_nodes::{AreaNodes, AreaView, KeyLog};
 use crate::key::probe::{cmp_entry, is_ovf, ovf_field, payload, row_field, IndexPending, KeyProbe, Kind, ResolveKey};
-use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::Radix;
 use crate::tree::{self, IndexShape, Path, Search, Shape as _};
-use crate::NodeMem;
+use crate::NodeRead;
 
 use super::root;
 
@@ -38,10 +38,6 @@ const D_M_LOG_HEIGHT: u64 = 40;
 const KIND_PRIMARY: u8 = 1;
 /// Flags bit 2: keys unique.
 const KEYS_UNIQUE: u16 = 4;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Depth faults over table memory name the runtime structure.
 fn depth(f: Fault, root: u64) -> Fault {
@@ -64,6 +60,7 @@ pub struct Primary {
 
 impl Primary {
     /// The primary index, or `None` before the table's first index write made its directory block.
+    #[inline(always)]
     pub fn read<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<Option<Primary>, Fault> {
         let dir = root::u64_at(h, tbl, root::INDEX_DIRS)?;
         if dir == 0 {
@@ -100,7 +97,7 @@ impl Primary {
         let shape = IndexShape::new(w, 0).ok_or(rt(Corruption::Layout, w))?;
         let dir = alloc_zeroed(h, tbl, 0)?;
         {
-            let b = h.get_mut(Region::Block(dir), Owner(0))?;
+            let b = h.get_mut(Region::Block(dir))?;
             put_u32(b, 0, magic::NTIX)?;
             put_u16(b, 4, FORMAT_TABLE)?;
             put_u8(b, 6, 0)?;
@@ -120,7 +117,7 @@ impl Primary {
     fn write_m<H: PageHost>(&self, h: &mut H) -> Result<(), Fault> {
         let nodes = u32::try_from(self.nodes).map_err(|_| rt(Corruption::Count, self.nodes))?;
         let blocks = u32::try_from(self.log.blocks).map_err(|_| rt(Corruption::Count, self.log.blocks))?;
-        let b = h.get_mut(Region::Block(self.dir), Owner(0))?;
+        let b = h.get_mut(Region::Block(self.dir))?;
         let at = DESCRIPTORS;
         put_u64(b, at.wrapping_add(D_M_ROOT), self.root)?;
         put_u32(b, at.wrapping_add(D_M_NODES), nodes)?;
@@ -241,25 +238,6 @@ pub fn remove<H: PageHost>(h: &mut H, tbl: u64, p: &mut Primary, n: u64, i: u64,
     p.nodes = m.nodes;
     if *p != before {
         p.write_m(h)?;
-    }
-    Ok(())
-}
-
-/// Every (key, rid) entry of M in key order, through `f`; for checkers and tests.
-pub fn for_each<H: PageHost + ?Sized, F>(h: &H, p: &Primary, mut f: F) -> Result<(), Fault>
-where
-    F: FnMut(u64) -> Result<(), Fault>,
-{
-    let s = p.shape;
-    let m = AreaView::new(h, s, p.log);
-    let mut c: tree::Cursor<tree::Fwd> =
-        tree::Cursor::seek(s, &m, p.root, core::ops::Bound::<&KeyProbe<'_>>::Unbounded)?;
-    while let Some((n, i)) = c.next(s, &m, core::ops::Bound::<&KeyProbe<'_>>::Unbounded)? {
-        let ns = s.shape(tree::node::is_leaf(&m, n)?);
-        let part = m.bytes(n, tree::node::ko(s, &ns, i), s.w.wrapping_add(8))?;
-        let field = u64::from_be_bytes(crate::mem::rd_array::<8>(part, s.w)?);
-        let rid = if is_ovf(field) { m.record(field)?.0 } else { payload(field) };
-        f(rid)?;
     }
     Ok(())
 }

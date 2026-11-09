@@ -11,7 +11,7 @@ use std::cmp::Ordering;
 use std::marker::PhantomData;
 
 use native_table::consts::NODE_SIZE;
-use native_table::host::{NodeMem, Pending};
+use native_table::host::{NodeMem, NodeRead, Pending};
 use native_table::tree::{
     self, descend, find, insert_at, insert_first, remove_found, Cursor, Direction, Path, Probe, Search, Shape, Typed,
     TypedShape,
@@ -136,8 +136,7 @@ impl<K: Part, V: Part> TypedNodes<K, V> {
     }
 }
 
-impl<K: Part, V: Part> NodeMem for TypedNodes<K, V> {
-    type Entry<'k> = TPending;
+impl<K: Part, V: Part> NodeRead for TypedNodes<K, V> {
     type Bytes<'a>
         = &'a [u8]
     where
@@ -147,11 +146,6 @@ impl<K: Part, V: Part> NodeMem for TypedNodes<K, V> {
         let r = self.at(n, 0, 2)?;
         Ok(u16::from_le_bytes(self.mem[r].try_into().unwrap()))
     }
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
-        let r = self.at(n, 0, 2)?;
-        self.mem[r].copy_from_slice(&c.to_le_bytes());
-        Ok(())
-    }
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         let r = self.at(n, 2, 2)?;
         Ok(u16::from_le_bytes(self.mem[r].try_into().unwrap()))
@@ -160,13 +154,22 @@ impl<K: Part, V: Part> NodeMem for TypedNodes<K, V> {
         let r = self.at(n, off, 8)?;
         Ok(u64::from_le_bytes(self.mem[r].try_into().unwrap()))
     }
+    fn bytes(&self, _n: u64, _off: u64, _len: u64) -> Result<&[u8], Fault> {
+        Err(Fault::BadRef)
+    }
+}
+
+impl<K: Part, V: Part> NodeMem for TypedNodes<K, V> {
+    type Entry<'k> = TPending;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
+        let r = self.at(n, 0, 2)?;
+        self.mem[r].copy_from_slice(&c.to_le_bytes());
+        Ok(())
+    }
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
         let r = self.at(n, off, 8)?;
         self.mem[r].copy_from_slice(&w.to_le_bytes());
         Ok(())
-    }
-    fn bytes(&self, _n: u64, _off: u64, _len: u64) -> Result<&[u8], Fault> {
-        Err(Fault::BadRef)
     }
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault> {
         let a = self.at(s, so, len)?;

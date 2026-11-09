@@ -3,11 +3,12 @@
 
 use native_table::area::new_root;
 use native_table::image::{Image, ImageReader};
-use native_table::index::{Run, RunParams};
+use native_table::index::Run;
 use native_table::key::enc_bytes;
 use native_table::key::probe::{KeyProbe, Kind};
 use native_table::tree::find;
 use native_table::ImageId;
+use nt_builder::RunParams;
 use nt_testhost::runs::{build, VecItems};
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};
 

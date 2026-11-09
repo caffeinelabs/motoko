@@ -77,8 +77,8 @@ fn key_scratch() -> VecScratch {
     VecScratch::new(FILLS[0])
 }
 
-fn maintain_all(tb: &mut Table<'_, VecHost>, sc: &mut VecScratch) {
-    assert_eq!(tb.maintain(sc, &TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
+fn maintain_all(tb: &mut Table<'_, VecHost>) {
+    assert_eq!(tb.maintain(&TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 
@@ -313,7 +313,6 @@ fn groups(tb: &Table<'_, VecHost>) -> Vec<(u64, u64)> {
 /// Random writes against the model, checked every few hundred steps.
 fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> Vec<(u64, u64, u64)> {
     let (mut tb, _) = Table::create(h, 31, &s.img).unwrap();
-    let mut sc = VecScratch::new(FILLS[0]);
     let mut r = XorShift(seed);
     let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
     let mut trace = Vec::new();
@@ -363,9 +362,9 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
         } else {
             let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
             if r.below(2) == 0 {
-                tb.write_step(&mut sc, &TestBudget::new(u64::MAX)).unwrap();
+                tb.write_step(&TestBudget::new(u64::MAX)).unwrap();
             } else {
-                maintain_all(&mut tb, &mut sc);
+                maintain_all(&mut tb);
             }
             seals += u64::from(before - root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap());
         }
@@ -375,7 +374,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
             trace.push((step, kept, read));
         }
     }
-    maintain_all(&mut tb, &mut sc);
+    maintain_all(&mut tb);
     let (kept, read) = check(&tb, s, &model);
     // Every row removed: no extremes left.
     for k in model.keys().copied().collect::<Vec<_>>() {
@@ -383,7 +382,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
         model.remove(&k);
     }
     check(&tb, s, &BTreeMap::new());
-    maintain_all(&mut tb, &mut sc);
+    maintain_all(&mut tb);
     check(&tb, s, &BTreeMap::new());
     assert!(seals >= 2, "groups sealed: {seals}");
     assert!(sealed_updates > 0, "sealed rows updated");
@@ -436,7 +435,6 @@ fn records_exact_and_loose() {
     let s = build(&[(Ty::U(8), false), (Ty::Nat, true)]);
     per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 34, &s.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut model: BTreeMap<u64, (u64, Vec<(u32, V)>)> = BTreeMap::new();
         let mut buf = [0u8; 64];
         let put = |tb: &mut Table<'_, VecHost>, model: &mut BTreeMap<u64, (u64, Vec<(u32, V)>)>, k: u64, a: u64| {
@@ -465,7 +463,7 @@ fn records_exact_and_loose() {
         for k in 0..n {
             put(&mut tb, &mut model, k, (k * 7_919) % 100_003 + 10);
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         assert_eq!(check_records_exact(&tb, &model, 1), 4);
         assert_eq!(check_records_exact(&tb, &model, 2), 4);
         let rows = || model.values().map(|(_, r)| r);
@@ -513,7 +511,7 @@ fn records_exact_and_loose() {
             let got = tb.extreme(id(1), largest, &mut buf).unwrap();
             assert_eq!(of_total(got, &buf), want(&model, 1, largest));
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         lh.take(tb.host_mut());
 
         // The open group's rows: a delete of its maximum and an update past it.
@@ -534,7 +532,7 @@ fn records_exact_and_loose() {
         }
         model.clear();
         assert_eq!(tb.extreme(id(1), false, &mut buf).unwrap(), None);
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         assert_eq!(tb.extreme(id(2), true, &mut buf).unwrap(), None);
         assert!(groups(&tb).len() <= 2, "the emptied sealed groups are dropped");
         lh.take(tb.host_mut());
@@ -548,7 +546,6 @@ fn values_past_i128() {
     let s = build(&[(Ty::Nat, false), (Ty::Int, false), (Ty::U128, false)]);
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 35, &s.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut buf = vec![0u8; 512];
         let put = |tb: &mut Table<'_, VecHost>, k: u64, a: V, b: V, c: u128| {
             let r = vec![
@@ -573,7 +570,7 @@ fn values_past_i128() {
             };
             put(&mut tb, k, a, b, u128::MAX - u128::from(k));
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let get = |tb: &Table<'_, VecHost>, c: u32, largest: bool, buf: &mut [u8]| {
             of_total(tb.extreme(id(c), largest, buf).unwrap(), buf)
         };
@@ -605,7 +602,6 @@ fn many_groups_and_directory_levels() {
     let s = build(&[(Ty::U(8), false), (Ty::Int, true), (Ty::I128, false), (Ty::Int, false)]);
     per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 36, &s.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x5EED_0014);
         let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
         let height = |tb: &Table<'_, VecHost>| root::directory(tb.host(), tb.root()).unwrap().height;
@@ -636,7 +632,7 @@ fn many_groups_and_directory_levels() {
             }
             freeze(&mut tb);
             if g % 50 == 49 {
-                maintain_all(&mut tb, &mut sc);
+                maintain_all(&mut tb);
             }
         }
         assert_eq!(heights, [0, 1, 1, 1, 2, 2]);
@@ -695,14 +691,14 @@ fn many_groups_and_directory_levels() {
             } else if op < 97 {
                 freeze(&mut tb);
             } else {
-                maintain_all(&mut tb, &mut sc);
+                maintain_all(&mut tb);
             }
             if step % 250 == 249 {
                 check(&tb, &s, &model);
                 lh.take(tb.host_mut());
             }
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let (kept, read) = check(&tb, &s, &model);
         assert_eq!(height(&tb), 2);
         assert!(kept > 0 && read > 0, "records kept {kept}, read from rows {read}");

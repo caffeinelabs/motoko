@@ -11,7 +11,7 @@
 
 use crate::consts::{AREAS, BLOCK, BLOCKS_PER_PAGE};
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::mem::{fill, put_u64, put_u8, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{fill, put_u64, put_u8, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::{Radix, HEIGHT_MAX};
 
 /// Table root offset of the area records.
@@ -94,7 +94,7 @@ impl AreaRecord {
     }
 
     fn write<H: PageHost>(&self, h: &mut H, tbl: u64, a: u32) -> Result<(), Fault> {
-        self.put(h.get_mut(Region::Block(tbl), Owner(0))?, a)
+        self.put(h.get_mut(Region::Block(tbl))?, a)
     }
 }
 
@@ -102,9 +102,9 @@ impl AreaRecord {
 /// Writes the 16 area records (768 bytes from offset 160) and nothing else of the root; area 0 then owns
 /// that page, which is its newest with bump 1 and its page list of height 0.
 pub fn new_root<H: PageHost>(h: &mut H) -> Result<u64, Fault> {
-    let p = h.page_alloc(Owner(0))?;
+    let p = h.page_alloc()?;
     let tbl = h.block_of(p, 0);
-    let b = h.get_mut(Region::Block(tbl), Owner(0))?;
+    let b = h.get_mut(Region::Block(tbl))?;
     fill(b, AREA_RECORDS, AREAS.wrapping_mul(AREA_RECORD), 0)?;
     let rec = AreaRecord { page_list: Radix { root: p, height: 0 }, newest: p, free_head: 0, pages: 1, bump: 1 };
     rec.put(b, 0)?;
@@ -123,7 +123,7 @@ pub fn alloc_block<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Faul
         rec.free_head = rd_u64(h.get(Region::Block(b))?, 0)?;
         rec.write(h, tbl, a)?;
         if let Some(p) = h.test_fill() {
-            fill(h.get_mut(Region::Block(b), Owner(a))?, 0, 8, p)?;
+            fill(h.get_mut(Region::Block(b))?, 0, 8, p)?;
         }
         return Ok(b);
     }
@@ -134,7 +134,7 @@ pub fn alloc_block<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Faul
         rec.write(h, tbl, a)?;
         return Ok(b);
     }
-    let p = h.page_alloc(Owner(a))?;
+    let p = h.page_alloc()?;
     let index = rec.pages;
     rec.pages = rec.pages.checked_add(1).ok_or(corrupt(ImageId::Runtime, Corruption::Count, tbl))?;
     // The page is the newest, with its block 0 taken, before the page-list append, so the radix blocks the
@@ -155,7 +155,7 @@ pub fn alloc_block<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Faul
 /// queue, drain and totals blocks).
 pub fn alloc_zeroed<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Fault> {
     let b = alloc_block(h, tbl, a)?;
-    fill(h.get_mut(Region::Block(b), Owner(a))?, 0, BLOCK, 0)?;
+    fill(h.get_mut(Region::Block(b))?, 0, BLOCK, 0)?;
     Ok(b)
 }
 
@@ -163,15 +163,15 @@ pub fn alloc_zeroed<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Fau
 pub fn free_block<H: PageHost>(h: &mut H, tbl: u64, a: u32, b: u64) -> Result<(), Fault> {
     block_area(a)?;
     let mut rec = AreaRecord::read(h, tbl, a)?;
-    put_u64(h.get_mut(Region::Block(b), Owner(a))?, 0, rec.free_head)?;
+    put_u64(h.get_mut(Region::Block(b))?, 0, rec.free_head)?;
     rec.free_head = b;
     rec.write(h, tbl, a)
 }
 
-/// A page for image storage: `page_alloc(Owner(15))`, counted in area 15's record.
+/// A page for image storage: `page_alloc()`, counted in area 15's record.
 pub fn image_page_alloc<H: PageHost>(h: &mut H, tbl: u64) -> Result<u64, Fault> {
     let mut rec = AreaRecord::read(h, tbl, IMAGE_AREA)?;
-    let p = h.page_alloc(Owner(IMAGE_AREA))?;
+    let p = h.page_alloc()?;
     rec.pages = rec.pages.checked_add(1).ok_or(corrupt(ImageId::Runtime, Corruption::Count, tbl))?;
     rec.write(h, tbl, IMAGE_AREA)?;
     Ok(p)
@@ -181,6 +181,6 @@ pub fn image_page_alloc<H: PageHost>(h: &mut H, tbl: u64) -> Result<u64, Fault> 
 pub fn image_page_free<H: PageHost>(h: &mut H, tbl: u64, p: u64) -> Result<(), Fault> {
     let mut rec = AreaRecord::read(h, tbl, IMAGE_AREA)?;
     rec.pages = rec.pages.checked_sub(1).ok_or(corrupt(ImageId::Runtime, Corruption::Count, tbl))?;
-    h.page_free(p, Owner(IMAGE_AREA))?;
+    h.page_free(p)?;
     rec.write(h, tbl, IMAGE_AREA)
 }

@@ -21,7 +21,7 @@ use crate::host::NodeMem;
 use crate::index::area_nodes::AreaNodes;
 use crate::key::probe::IndexPending;
 use crate::key::words::KeyWords;
-use crate::mem::{copy_bytes, shift, sub, sub_mut, Owner, PageHost, Region};
+use crate::mem::{copy_bytes, shift, sub, sub_mut, PageHost, Region};
 use crate::tree::{self, IndexShape, Path};
 
 /// The widest key area inserted in place: four words.
@@ -168,7 +168,7 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
     let vo = |x: u64| g.voff_l.wrapping_add(x.wrapping_mul(vs));
     if cnt < g.cap_l {
         // Key parts j..cnt up by one part, then the value parts; cnt < cap, so both stay in the leaf.
-        let b = m.host.get_mut(Region::Block(n), Owner(m.area))?;
+        let b = m.host.get_mut(Region::Block(n))?;
         let moved = cnt.wrapping_sub(j);
         open(b, ko(j), ks, moved.wrapping_mul(ks))?;
         open(b, vo(j), vs, moved.wrapping_mul(vs))?;
@@ -187,7 +187,7 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
     let i = j;
     let mut up = [0u8; UP];
     {
-        let (ln, rn) = m.host.pair_mut(Region::Block(n), Region::Block(r), Owner(m.area))?;
+        let (ln, rn) = m.host.pair_mut(Region::Block(n), Region::Block(r))?;
         // The entry at x of the left leaf moves up.
         let take_up = |ln: &[u8], x: u64, up: &mut [u8; UP]| -> Result<(), Fault> {
             cross(ln, ko(x), up, 0, ks)?;
@@ -229,7 +229,7 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
     // The parent: entries pj..pc up by one, their value parts, children pj + 1..=pc up by one; the entry
     // that moved up at pj, the new leaf as child pj + 1.
     let (pj, pc) = (p.j, p.cnt);
-    let b = m.host.get_mut(Region::Block(p.n), Owner(m.area))?;
+    let b = m.host.get_mut(Region::Block(p.n))?;
     let k0 = 8u64.wrapping_add(pj.wrapping_mul(ks));
     let v0 = g.voff_i.wrapping_add(pj.wrapping_mul(vs));
     let c0 = g.coff_i.wrapping_add(pj.wrapping_add(1).wrapping_mul(8));

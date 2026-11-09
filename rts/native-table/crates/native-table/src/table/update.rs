@@ -10,9 +10,9 @@
 //! bitmap; the rewrite's flip hands both to the group.
 
 use crate::consts::{HUGE_VALUE, LONG_VALUE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{corrupt, rt, Corruption, Fault, ImageId};
 use crate::image::ImageReader;
-use crate::mem::{fill, put_u16, put_u64, rd_u16, rd_u32, rd_u64, Owner, PageHost, Region};
+use crate::mem::{fill, put_u16, put_u64, rd_u16, rd_u32, rd_u64, PageHost, Region};
 use crate::value::Utf8Stream;
 
 use super::buffer::{self, H_LIVE};
@@ -31,10 +31,6 @@ use super::root;
 use super::row::{self, RowRef, Walk};
 use super::totals::{self, At, TSrc};
 use super::RowSource;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Content kind of a long value holding a patch value.
 pub const CONTENT_PATCH: u8 = 3;
@@ -181,7 +177,7 @@ fn image_write<H: PageHost>(h: &mut H, img: &crate::image::Image, off: u64, src:
         // o < 65,536, so the block index is below 16.
         let j = u32::try_from(o / crate::consts::BLOCK).map_err(|_| rt(Corruption::Range, o))?;
         let b = h.block_of(p, j);
-        crate::mem::put(h.get_mut(Region::Block(b), Owner(crate::area::IMAGE_AREA))?, o % crate::consts::BLOCK, now)?;
+        crate::mem::put(h.get_mut(Region::Block(b))?, o % crate::consts::BLOCK, now)?;
         at = at.wrapping_add(n as u64);
         rest = later;
     }
@@ -411,7 +407,7 @@ fn release_image_value<H: PageHost>(h: &mut H, tbl: u64, v: &SVal) -> Result<(),
     if let SVal::Huge { img, owner: cur::Owner::List { page: pg, index }, .. } = *v {
         let (b, off) = page::lv_entry(&*h, pg, index)?;
         drain::push_image(h, tbl, &img)?;
-        fill(h.get_mut(Region::Block(b), Owner(0))?, off, crate::image::REF_BYTES, 0)?;
+        fill(h.get_mut(Region::Block(b))?, off, crate::image::REF_BYTES, 0)?;
     }
     Ok(())
 }
@@ -531,7 +527,7 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     let flags = buffer::u16_of(&*h, s.page, page::P_FLAGS)?;
     if flags & u64::from(page::PF_PATCHES) == 0 {
         put_u16(
-            h.get_mut(Region::Block(s.page), Owner(0))?,
+            h.get_mut(Region::Block(s.page))?,
             page::P_FLAGS,
             u16::try_from(flags).unwrap_or(0) | page::PF_PATCHES,
         )?;
@@ -544,7 +540,6 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     Ok(filled)
 }
 
-/// The value a patch entry now holds.
 fn new_value<H: PageHost + ?Sized>(h: &H, holder: u64, off: u64, l: &LeafInfo, pos: u64) -> Result<SVal, Fault> {
     let dir = rd_u64(h.get(Region::Block(holder))?, off)?;
     let e = patch::lookup(h, dir, u64::from(l.ordinal), pos)?.ok_or(rt(Corruption::Link, pos))?;
@@ -598,7 +593,7 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
     }
     page::clear_live(h, s.live_page, pos)?;
     {
-        let b = h.get_mut(Region::Block(s.live_page), Owner(0))?;
+        let b = h.get_mut(Region::Block(s.live_page))?;
         let live = rd_u16(b, page::P_LIVE)?;
         put_u16(b, page::P_LIVE, live.saturating_sub(1))?;
         if s.rw.is_none() {
@@ -606,7 +601,7 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
             put_u16(b, page::P_DEAD, dead.saturating_add(1))?;
         }
     }
-    let t = h.get_mut(Region::Block(tail), Owner(0))?;
+    let t = h.get_mut(Region::Block(tail))?;
     let live = rd_u64(t, H_LIVE)?;
     put_u64(t, H_LIVE, live.wrapping_sub(1))?;
     if s.rw.is_none() {
@@ -708,11 +703,11 @@ pub fn delete_snapshot<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, b: &Buff
     }
     page::clear_live(h, rw.pending, b.at.pos)?;
     {
-        let p = h.get_mut(Region::Block(rw.pending), Owner(0))?;
+        let p = h.get_mut(Region::Block(rw.pending))?;
         let live = rd_u16(p, page::P_LIVE)?;
         put_u16(p, page::P_LIVE, live.saturating_sub(1))?;
     }
-    let t = h.get_mut(Region::Block(tail), Owner(0))?;
+    let t = h.get_mut(Region::Block(tail))?;
     let live = rd_u64(t, H_LIVE)?;
     put_u64(t, H_LIVE, live.wrapping_sub(1))?;
     let buffered = rd_u64(t, buffer::H_BUFFERED)?;

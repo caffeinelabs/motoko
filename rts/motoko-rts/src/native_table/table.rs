@@ -19,7 +19,7 @@ use ::native_table::table::totals::Total;
 use ::native_table::table::{CellIn, CellOut, RowSink, Table, Upsert, buffer, indexes, root};
 use ::native_table::tree::Dir;
 use ::native_table::value::ty;
-use ::native_table::{Budget, Fault, Owner, PageHost, Region, Scratch, Wake};
+use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
 use motoko_rts_macros::ic_mem_fn;
 
 use super::layout::{Layout, SCHEMA_VERSION, schema_image, scratch};
@@ -148,7 +148,7 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, layout: Value) -> u64 {
     let image = or_trap(schema_image(mem, &layout, uid, SCHEMA_VERSION, &[]));
     let mut host = StoreHost::new(mem, store);
     let (_, id) = or_trap(Table::create(&mut host, uid, image));
-    let block = or_trap(host.get_mut(Region::Block(id), Owner(0)));
+    let block = or_trap(host.get_mut(Region::Block(id)));
     or_trap(put_u64(block, root::HOST_WORDS, TABLE_MAGIC));
     or_trap(put_u64(block, CODEC_HASH, layout.hash));
     or_trap(host.add_root(id));
@@ -177,7 +177,7 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value, r
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
     let mut scratch = BlobScratch { mem };
-    or_trap(table.write_step(&mut scratch, &Meter::WRITE));
+    or_trap(table.write_step(&Meter::WRITE));
     let (done, _) = or_trap(table.upsert(&mut scratch, &mut row));
     matches!(done, Upsert::Inserted(_)) as u64
 }
@@ -217,7 +217,7 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
     let mut scratch = BlobScratch { mem };
-    or_trap(table.write_step(&mut scratch, &Meter::WRITE));
+    or_trap(table.write_step(&Meter::WRITE));
     let (removed, _) = or_trap(table.remove(&mut scratch, &mut k));
     removed.is_some() as u64
 }
@@ -466,7 +466,8 @@ pub unsafe fn nt_count<M: Memory>(
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     let mut cells = index_cells(mem, &layout, &table, index, key);
-    match table.count(index, &mut cells) {
+    let mut scratch = BlobScratch { mem };
+    match table.count(&mut scratch, index, &mut cells) {
         Ok(n) => nat_of_u64(
             u64::try_from(n).unwrap_or_else(|_| rts_trap_with("native table: bad count")),
         ),
@@ -1038,10 +1039,9 @@ pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, layout: Value, budget
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
-    let mut scratch = BlobScratch { mem };
     let meter = Meter {
         limit: start.saturating_add(budget),
     };
-    or_trap(table.maintain(&mut scratch, &meter));
+    or_trap(table.maintain(&meter));
     (or_trap(table.wake()) != Wake::Idle) as u64
 }

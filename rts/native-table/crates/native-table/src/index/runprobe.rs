@@ -72,7 +72,7 @@ use core::cmp::Ordering;
 
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, BLOCK, FLAG_INDEX, FLAG_LEAF, FORMAT_TABLE, PAGE, PATH_STACK, RADIX_FAN, WALK_MAX};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::image::ImageReader;
 use crate::index::chunk::{key_field, B_MAX, KEY_RUN, POSTING};
 use crate::index::nodes::Run;
@@ -82,7 +82,7 @@ use crate::index::run::{
 use crate::index::runlist::{LoadedRecord, RunDesc, DESC, LOADED_PER_BLOCK};
 use crate::key::probe::{is_count, payload, payload_to_count};
 use crate::key::words::{area_cmp, bytes_cmp, bytes_cmp_any, diff_byte, word_below, word_padded, KeyWords, KEY_BYTES};
-use crate::mem::{put_u32, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{put_u32, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::Radix;
 use crate::tree::shape::index_node_shape;
 
@@ -90,10 +90,6 @@ use crate::tree::shape::index_node_shape;
 pub const PROBE: u64 = 64;
 
 const _: () = assert!(LOADED_PER_BLOCK * PROBE == BLOCK && PROBE == DESC);
-
-fn rt(kind: Corruption, off: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, off)
-}
 
 /// One probe record.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -295,7 +291,7 @@ pub fn set_loaded<H: PageHost>(h: &mut H, tbl: u64, store: &mut Radix, j: u64, d
         return Ok(());
     }
     let r = RunProbe::of(&*h, d);
-    r.write(h.get_mut(Region::Block(b), Owner(0))?, off)
+    r.write(h.get_mut(Region::Block(b))?, off)
 }
 
 // ---------------------------------------------------------------- the count

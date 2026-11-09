@@ -14,9 +14,8 @@
 //! key log, a piece at a time (a stored row's parts a step at a time, as a build writes a key over units); its
 //! descents compare the stored keys with that record (`LongKey`), each entry made under it takes a copy, and
 //! the record is handed back. An update compares the new cells with it, piece by piece, to see whether the key
-//! changes. A count, which holds the table shared, compares the stored keys of the tree and of each uploaded
-//! segment with the key its cells give, encoded again at each comparison (`long_key`). The walks (`walks`) take
-//! the caller's buffer for the keys they hold and answer `Scratch` with the bytes it needs when a key is longer.
+//! changes. A count encodes it into the caller's scratch. The walks (`walks`) take the caller's buffer for the
+//! keys they hold and answer `Scratch` with the bytes it needs when a key is longer.
 //!
 //! A schema change may remove indexes: those its image no longer declares, and those holding a leaf it drops.
 //! A removed index's tree and key log go to the drain (`remove`), which frees them in bounded units, and its
@@ -35,7 +34,7 @@
 //! the descriptor names; the row is taken once the key has ended.
 
 use crate::consts::{GROUP_SLOTS, INDEXES_MAX, PATH_STACK, UNIT_BLOCKS_MAX, W_MAX};
-use crate::fault::{corrupt, Corruption, Fault, ImageId, SchemaError};
+use crate::fault::{rt, Corruption, Fault, ImageId, SchemaError};
 use crate::index::area_nodes::AreaView;
 use crate::index::secondary::{LongAt, LongKey, Secondary, AT_FLAGS, KIND_SECONDARY, MID, RAISED, SEEN};
 use crate::key::probe::{ovf_field, row_field, StoredCmp};
@@ -49,11 +48,7 @@ use super::group::GroupView;
 use super::jobs::{Clock, Spent};
 use super::layout::{key_kind, LeafInfo, Shape, Ty};
 use super::primary::Primary;
-use super::{buffer, cell, drain, long_key, overlay, read, root, row, RowSource, Table, KEY_STACK, PIECE};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
+use super::{buffer, cell, drain, overlay, read, root, row, RowSource, Table, KEY_STACK, PIECE};
 
 /// Declarations a schema image may hold.
 const DECLS_MAX: u64 = 64;
@@ -320,18 +315,6 @@ fn in_pieces(l: &LeafInfo) -> bool {
 
 /// Writes the key the stored row `r` has under index `d` into `s`, from its current cells (the overlay's
 /// values); `piece` takes a value that does not lie in one piece of table memory.
-pub fn enc_stored<H: PageHost + ?Sized, S: Sink>(
-    shape: &Shape,
-    h: &H,
-    d: &Decl,
-    r: read::Row,
-    piece: &mut [u8],
-    s: &mut S,
-) -> Result<(), Fault> {
-    enc_live(shape, h, d, &read::Live::open(h, r)?, piece, s)
-}
-
-/// `enc_stored` of a row opened already.
 fn enc_live<H: PageHost + ?Sized, S: Sink>(
     shape: &Shape,
     h: &H,
@@ -732,22 +715,43 @@ impl<H: PageHost> Table<'_, H> {
 }
 
 /// The rows whose key under index `index` the cells of `key` give: one descent of the index's tree, plus the
-/// key's count in each of its uploaded segments.
-pub fn count<H: PageHost + ?Sized, K: RowSource + ?Sized>(
+/// key's count in each of its uploaded segments. A key longer than `KEY_STACK` is encoded into `scratch`.
+pub fn count<H: PageHost + ?Sized, K: RowSource + ?Sized, S: crate::host::Scratch>(
     h: &H,
     tbl: u64,
     shape: &Shape,
     index: u8,
     key: &mut K,
+    scratch: &mut S,
 ) -> Result<i128, Fault> {
     let d = find_built(shape, h, tbl, index)?;
     let mut buf = [0u8; KEY_STACK];
     let n = match key_of_source(shape, h, &d, key, &mut buf) {
         Ok(n) => n,
-        Err(Fault::Scratch { .. }) => return long_key::count_long(h, tbl, shape, &d, key),
+        Err(Fault::Scratch { .. }) => return count_long(h, tbl, shape, &d, key, scratch),
         Err(e) => return Err(e),
     };
     Secondary::read(h, tbl, index)?.count(h, buf.get(..n).unwrap_or(&[]))
+}
+
+/// `count` for a key longer than `KEY_STACK`: its length found first, then the key encoded into `scratch`.
+#[inline(never)]
+fn count_long<H: PageHost + ?Sized, K: RowSource + ?Sized, S: crate::host::Scratch>(
+    h: &H,
+    tbl: u64,
+    shape: &Shape,
+    d: &Decl,
+    key: &mut K,
+    scratch: &mut S,
+) -> Result<i128, Fault> {
+    let mut c = LenSink(0);
+    enc_source(shape, h, d, key, &mut c)?;
+    let need = usize::try_from(c.0).map_err(|_| Fault::Scratch { need: c.0 })?;
+    let buf = scratch.get(need)?.get_mut(..need).ok_or(Fault::Scratch { need: c.0 })?;
+    let mut s = SliceSink::new(buf);
+    enc_source(shape, h, d, key, &mut s)?;
+    let n = s.len;
+    Secondary::read(h, tbl, d.id)?.count(h, buf.get(..n).unwrap_or(&[]))
 }
 
 /// The key the cells of `cells` give index `index`, at the start of `out`; its length.
@@ -768,14 +772,7 @@ pub fn key<H: PageHost + ?Sized, K: RowSource + ?Sized>(
 /// declaration, the descriptor), of a rid whose row is gone or a group number with no group (looked up and
 /// passed), of a live row taken, plus its key's bytes (its cells read and encoded, one descent and the insert,
 /// the key-log record of a key longer than W written), of the descent that finds the full nodes on a row's
-/// path, and of a node split ahead of a row's insert (that descent again included). Measured on the replica's
-/// cost model with the escape's scan for zero bytes going a byte at a time: one step of a key written over
-/// units took about 25 a byte of its stored Text read, escaped and written into its record (the scan about 22
-/// of those), plus at most 25,000 (`BUILD_STEP_WORK`); a stored key's reading and encoding about 23 a byte.
-/// The scan now goes 8 bytes at a time. Measured again for rows taken whole under keys of 1,000 to 1,440 bytes
-/// (an index on Text, W 1,016, a tree about ten nodes high): with `BUILD_ROW_WORK`, scaled to the replica's
-/// count (5/2), they take up to 17 a byte, and up to 23 with the run of full nodes on their path looked up
-/// (`BUILD_RUN_WORK`): their insert, not their escape, takes most of it, so `BUILD_BYTE_WORK` stays.
+/// path, and of a node split ahead of a row's insert (that descent again included).
 const BUILD_LOAD: u64 = 2_000;
 const BUILD_SLOT_WORK: u64 = 600;
 const BUILD_ROW_WORK: u64 = 12_000;
@@ -790,10 +787,7 @@ fn build_row_work(n: u64) -> u64 {
 
 /// The estimate a row's insert adds for the run of `k` full nodes on its path it splits, 0 or two or more
 /// (`Secondary::insert_fitting`): `BUILD_SPLIT_WORK` for each. Such an insert takes the tree's general insert
-/// rather than splitting its leaf in place. Measured on PocketIC (an index of W 16 on a Nat over 10^5 rows,
-/// nearly every key one row): a row's insert that split its leaf and the node above it took up to about 43,000
-/// instructions, past the row's own estimate as the replica counts it (about 30,000); one that split at most
-/// its leaf, up to about 22,000.
+/// rather than splitting its leaf in place.
 fn run_work(k: u64) -> u64 {
     BUILD_SPLIT_WORK.saturating_mul(k)
 }
@@ -873,7 +867,7 @@ fn located<H: PageHost + ?Sized>(
         read::Row::Buffered(at) => {
             let b = overlay::buffered(h, &at)?;
             let rr = row::RowRef::new(h, b.loc)?;
-            // One walk while the parts' ordinals rise, as `enc_stored`.
+            // One walk while the parts' ordinals rise, as `enc_live`.
             let mut walk = row::Walk::of(shape, &rr)?;
             let mut next = 0u64;
             for (&o, slot) in d.ords().iter().zip(vals.iter_mut()) {
@@ -1115,9 +1109,7 @@ const LEB_STEP: usize = LEB_CHUNK / 8 * 7;
 
 /// Estimated instructions of a step of a Nat or Int beyond i128 from its facts known to the next decision: its
 /// `LEB_CHUNK` + 2 bytes read, its `LEB_STEP` key bytes made and written (a fresh block of its record at
-/// most), the facts kept. Measured on the replica's cost model (LEB forms of 1,000 to 140,000 bytes): at most
-/// 26,353, and its parts' most together 41,992; scaled to the replica's count (5/2), this estimate gives
-/// 42,500.
+/// most), the facts kept.
 const LEB_STEP_WORK: u64 = 17_000;
 
 /// Reads bytes [at, at + out.len()) of the stored value `v` of the leaf of ordinal `o` into `out`, all of them.
@@ -1190,17 +1182,12 @@ fn leb_step<H: PageHost, F: FnMut(&mut H, &[u8]) -> Result<(), Fault>>(
     Ok(if lo == 0 { None } else { Some(f.mag_len.wrapping_sub(lo)) })
 }
 
-/// Estimated instructions of one step of a key written over units beyond its bytes (`BUILD_BYTE_WORK` each).
-/// Measured on the replica's cost model (an index on Text of 64 KiB to 96 KiB): its value located, about
-/// 10,000 at most (none when the unit located it already), and its record's next block made, up to about
-/// 14,600 with a fresh page.
+/// Estimated instructions of one step of a key written over units beyond its bytes (`BUILD_BYTE_WORK` each):
+/// its value located (unless the unit located it already) and its record's next block made.
 const BUILD_STEP_WORK: u64 = 25_000;
 
 /// Estimated instructions of a unit's read-back of a key written over units once it has ended, beyond its
 /// bytes (one each): the row located again, the key's state block checked, the key copied out of its record.
-/// Measured on the replica's cost model (an index on Text of 1,000 to 4,000 letters, W 1,016): from the
-/// unit's start to the key read back, at most 17,552 and 2.5 a byte; this estimate and the build's state load
-/// (`BUILD_LOAD`), scaled to the replica's count (5/2), give 18,750 and 2.5 a byte.
 const BUILD_READ_WORK: u64 = 5_500;
 
 /// The pages one step of a key written over units may change: its record's block and a fresh one with an
@@ -1298,9 +1285,7 @@ fn read_long<H: PageHost>(h: &mut H, tbl: u64, id: u8, k: u64, n: u64, buf: &mut
 }
 
 /// Estimated instructions of one step of a key's second record (`AreaNodes::twin_step`): a block copied into
-/// a fresh one, the state block read and written. Measured on the replica's cost model (an index on Text of
-/// 64 KiB to 96 KiB): a whole record of 16 to 24 blocks copied in 230,253, allocation included, at most about
-/// 14,400 a block; scaled to the replica's count (5/2), this estimate gives 15,000.
+/// a fresh one, the state block read and written.
 const BUILD_TWIN_WORK: u64 = 6_000;
 
 /// The second record of the build's key of `len` bytes, longer than `KEY_STACK`, written over units into state
@@ -1514,9 +1499,7 @@ const LONG_BYTE_WORK: u64 = 2;
 const LONG_TAKE_WORK: u64 = 12_000;
 
 /// Estimated instructions of the step before it that moves a key's record of up to 4,096 bytes into a chunk
-/// (`AreaNodes::move_key`). Measured on the replica's cost model (an index on Text of 4,097 to about 5,100
-/// bytes, seven in eight `00`): at most about 10,700; scaled to the replica's count (5/2), this estimate gives
-/// 12,000.
+/// (`AreaNodes::move_key`).
 const BUILD_MOVE_WORK: u64 = 4_800;
 
 /// Inserts the build's row `rid` under its key of `len` bytes, longer than `KEY_STACK`, written over units into
@@ -1596,17 +1579,11 @@ fn long_steps<H: PageHost>(
 /// Estimated instructions of one step of a build's insert made over units (`Secondary::build_step`) beyond
 /// two comparisons through its key's bytes (a node's search, whose later comparisons skip the prefix its
 /// bounds share, and the check for the key's count entry): a node searched and its child split ahead.
-/// Measured on the replica's cost model (an index on Text of 1,000 to 4,000 letters, W 1,016, keys differing
-/// in their first bytes): a step and the check before the next at most 20,152, a step without a split under
-/// 3,700; scaled to the replica's count (5/2), this estimate gives 20,500, and 5 a key byte for comparisons
-/// through long shared prefixes, which those keys do not reach.
 const BUILD_LEVEL_WORK: u64 = 8_200;
 
 /// Estimated instructions of a build's insert step that reaches a leaf (`Secondary::build_step`) under a key
 /// of n bytes, with 1.25 a key byte: the leaf searched, the row's entry and its key's records written, a
-/// split; the key's blocks marked for hand-back. Measured on the replica's cost model (keys of 512 to 4,096
-/// bytes, trees of up to ten levels): from the step's check to the next decision at most 46,760; scaled to
-/// the replica's count (5/2), this estimate gives 41,000 and 3.125 a byte.
+/// split; the key's blocks marked for hand-back.
 const BUILD_LEAF_WORK: u64 = 16_400;
 
 /// Inserts the build's row `rid` under its key `key`, written over units into state block `k`, a node at a
@@ -1721,9 +1698,7 @@ fn drop_long<H: PageHost>(
 
 /// Estimated instructions of one block handed back (`AreaNodes::give_back`): the block put on its area's free
 /// stack, its key-log radix entry cleared and the radix blocks over it read for an entry left (512 words
-/// each), the state block's counts written. Measured on the replica's cost model (index builds handing back
-/// keys of up to 96 KiB): from its check to the next decision at most 16,506; scaled to the replica's count
-/// (5/2), this estimate gives 20,000.
+/// each), the state block's counts written.
 const BACK_WORK: u64 = 8_000;
 
 /// The pages one block handed back may change: the block, the radix blocks over it (freed when emptied), the
@@ -1867,7 +1842,6 @@ struct Scratch {
 }
 
 impl Scratch {
-    /// The path.
     fn path(&mut self) -> &mut Path {
         self.path.get_or_insert_with(Path::new)
     }
@@ -1878,7 +1852,6 @@ impl Scratch {
         (buf.get_or_insert_with(|| [0u8; KEY_STACK]), piece.get_or_insert_with(|| [0u8; PIECE]))
     }
 
-    /// The key buffer and the path.
     fn buf_path(&mut self) -> (&mut [u8; KEY_STACK], &mut Path) {
         let Scratch { buf, path, .. } = self;
         (buf.get_or_insert_with(|| [0u8; KEY_STACK]), path.get_or_insert_with(Path::new))

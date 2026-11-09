@@ -18,13 +18,14 @@
 //! bucket, whose extra bytes are the same at every candidate width). A count tree exists when 2d ≤ items; a
 //! filter when the main tree has more than one node. Ties go to the larger W, then to the smaller V.
 
-use crate::consts::{
-    BLOCK, CHUNK_RIDS_MAX, COUNT_TREE_DIV, FILTER_BITS, FILTER_LINES_PER_BLOCK, SENT_MIN, V_CHOICES, W_MAX, W_MIN,
+use crate::bulk::plan_nodes;
+use native_table::consts::{
+    BLOCK, CHUNK_RIDS_MAX, COUNT_TREE_DIV, FILTER_LINES_PER_BLOCK, SENT_MIN, V_CHOICES, W_MAX, W_MIN,
 };
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::index::chunk::{Chunker, KEY_RUN_MAX};
-use crate::tree::bulk::plan_nodes;
-use crate::tree::IndexShape;
+use native_table::fault::{corrupt, Corruption, Fault, ImageId};
+use native_table::index::chunk::{Chunker, KEY_RUN_MAX};
+use native_table::index::run::filter_lines;
+use native_table::tree::IndexShape;
 
 /// The fixed candidate width: keys of up to 64 bytes compare word by word in the key area alone.
 pub const CANDIDATE_64: u64 = 64;
@@ -55,13 +56,6 @@ pub fn bucket(len: u64) -> usize {
 /// The key length a bucket stands for: its upper end, 8(k + 1).
 pub fn bucket_len(k: usize) -> u64 {
     u64::try_from(k).unwrap_or(127).min(127).wrapping_add(1).wrapping_mul(8)
-}
-
-/// Filter lines for d distinct keys: max(64, ⌈10·d / 512⌉), rounded up to a multiple of 64.
-pub fn filter_lines(d: u64) -> Result<u64, Fault> {
-    let bitsum = d.checked_mul(FILTER_BITS).ok_or(ovf(d))?;
-    let lines = bitsum.div_ceil(512).max(FILTER_LINES_PER_BLOCK);
-    lines.div_ceil(FILTER_LINES_PER_BLOCK).checked_mul(FILTER_LINES_PER_BLOCK).ok_or(ovf(d))
 }
 
 /// Whether a run of d distinct keys over `items` items carries a count tree: d ≤ items / 2, compared
@@ -137,7 +131,7 @@ impl Tally {
         let all_open = self.cands.iter().all(|c| c.chunker.open);
         let (t0, last0) = self.cands.first().map_or((!tomb, 0), |c| (c.chunker.tomb, c.chunker.last));
         if all_open && t0 == tomb && rid >= last0 {
-            let gb = crate::index::chunk::bits(rid.wrapping_sub(last0));
+            let gb = native_table::index::chunk::bits(rid.wrapping_sub(last0));
             for c in self.cands.iter_mut() {
                 let ch = &mut c.chunker;
                 let nb = ch.b.max(gb);
@@ -145,7 +139,7 @@ impl Tally {
                 // nm ≤ 256 and nb ≤ 64: 3 + ⌈nm·nb / 8⌉ ≤ v without an overflow check.
                 if ch.v > 0
                     && nm < CHUNK_RIDS_MAX
-                    && nb <= crate::index::chunk::B_MAX
+                    && nb <= native_table::index::chunk::B_MAX
                     && (nm.wrapping_mul(u64::from(nb)).wrapping_add(7) >> 3).wrapping_add(3) <= ch.v
                 {
                     ch.m = nm;

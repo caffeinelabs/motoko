@@ -10,7 +10,7 @@ use native_table::index::runlist::{RunDesc, LOADED_PER_BLOCK, LOADED_RECORD};
 use native_table::index::runprobe::{self, RunProbe, PROBE};
 use native_table::index::Run;
 use native_table::key::enc_bytes;
-use native_table::mem::{Owner, PageHost, Region};
+use native_table::mem::{PageHost, Region};
 use native_table::{Fault, ImageId};
 use nt_testhost::runs::VecItems;
 use nt_testhost::uploads::TTable;
@@ -283,7 +283,7 @@ fn keys_longer_than_w_or_64_bytes_are_counted_through_the_records() {
         // the records.
         for d in &all {
             let p = header_page(&mut t, d);
-            t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+            t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
         }
         for (k, w) in keys.iter().zip(&want) {
             assert_eq!(probed(&t, k), Ok(*w), "{what}: key {k:02x?} without a header");
@@ -351,7 +351,7 @@ fn probe_records_hold_the_runs_shared_prefixes() {
         let b = store_block(&t, 1);
         for i in 0..runs.len() {
             if record(&t, i as u64).lo != u64::MAX {
-                t.h.get_mut(Region::Block(b), Owner(0)).unwrap()[i * PROBE as usize + 44..][..4].fill(0);
+                t.h.get_mut(Region::Block(b)).unwrap()[i * PROBE as usize + 44..][..4].fill(0);
             }
         }
         for k in &keys {
@@ -378,13 +378,13 @@ fn a_run_list_or_directory_of_another_table_format_is_refused() {
     // its records with this format's meaning.
     let rl = t.run_list;
     let old = (FORMAT_TABLE - 1).to_le_bytes();
-    t.h.get_mut(Region::Block(rl), Owner(0)).unwrap()[4..6].copy_from_slice(&old);
+    t.h.get_mut(Region::Block(rl)).unwrap()[4..6].copy_from_slice(&old);
     assert!(header(probed(&t, &k8(30))));
-    t.h.get_mut(Region::Block(rl), Owner(0)).unwrap()[4..6].copy_from_slice(&FORMAT_TABLE.to_le_bytes());
+    t.h.get_mut(Region::Block(rl)).unwrap()[4..6].copy_from_slice(&FORMAT_TABLE.to_le_bytes());
     assert_eq!(probed(&t, &k8(30)).unwrap(), 1);
     // The index directory likewise.
     let (dir, _) = directory::locate(&t.h, t.tbl, t.ix).unwrap().unwrap();
-    t.h.get_mut(Region::Block(dir), Owner(0)).unwrap()[4..6].copy_from_slice(&old);
+    t.h.get_mut(Region::Block(dir)).unwrap()[4..6].copy_from_slice(&old);
     assert!(header(directory::locate(&t.h, t.tbl, t.ix).map(|_| 0)));
 }
 
@@ -439,7 +439,7 @@ fn key_runs_of_overflowed_keys_are_counted_through_the_records() {
     }
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     for (k, w) in keys.iter().zip(&want) {
         assert_eq!(probed(&t, k), Ok(*w), "key {k:02x?} without a header");
@@ -524,14 +524,14 @@ fn records_that_name_no_run_and_a_missing_store_fall_back() {
     let m = model(&lists);
     // Record 1 left from another image, record 0 zeroed, the uploaded run's record from another sequence.
     let b = store_block(&t, 1);
-    let blk = t.h.get_mut(Region::Block(b), Owner(0)).unwrap();
+    let blk = t.h.get_mut(Region::Block(b)).unwrap();
     blk[PROBE as usize + 8] ^= 0x10;
     blk[..PROBE as usize].fill(0);
     blk[3 * PROBE as usize] ^= 1;
     check_counts(&t, &m, &mut g, 1, "records that name no run");
     // No store at all: every run is opened.
     let rl = t.run_list;
-    let s = t.h.get_mut(Region::Block(rl), Owner(0)).unwrap();
+    let s = t.h.get_mut(Region::Block(rl)).unwrap();
     s[LOADED_RECORD as usize + 56..LOADED_RECORD as usize + 64].fill(0);
     s[LOADED_RECORD as usize + 49] = 0;
     assert_eq!(t.list().loaded.probes.root, 0);
@@ -562,7 +562,7 @@ fn counts_read_no_run_header_and_fault_as_opened_runs() {
     let runs = t.runs();
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     let (mut short, mut answered) = (0usize, 0usize);
     for (k, w) in keys.iter().zip(&want) {
@@ -580,7 +580,7 @@ fn counts_read_no_run_header_and_fault_as_opened_runs() {
     assert!(answered * 1_000 >= short * 995, "{answered} of {short} keys of at most 8 bytes answered");
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     // Damaged roots (the main tree's, and the count tree's when there is one): both paths give the same
     // fault, for every key the fences and the filter admit.
@@ -593,7 +593,7 @@ fn counts_read_no_run_header_and_fault_as_opened_runs() {
         let img = d.image(&t.h).unwrap();
         for at in roots {
             let p = img.entry(&t.h, at / PAGE).unwrap();
-            t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[(at % PAGE) as usize + 2] = 9;
+            t.h.get_mut(Region::Page(p)).unwrap()[(at % PAGE) as usize + 2] = 9;
         }
     }
     let mut faults = 0usize;
@@ -702,7 +702,7 @@ fn keys_whose_entries_straddle_leaves_are_counted_without_a_header() {
     let runs = t.runs();
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     for k in &keys {
         assert_eq!(probed(&t, k), Ok(m.get(k).copied().unwrap_or(0)), "key {k:02x?} without a header");
@@ -758,7 +758,7 @@ fn key_run_items_are_counted_without_a_header() {
     }
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     for (k, w) in keys.iter().zip(&want) {
         assert_eq!(probed(&t, k), Ok(*w), "key {k:02x?} without a header");
@@ -903,7 +903,7 @@ fn keys_whose_entries_reach_above_the_kept_separators_node_are_counted() {
     let runs = t.runs();
     for d in &runs {
         let p = header_page(&mut t, d);
-        t.h.get_mut(Region::Page(p), Owner(15)).unwrap()[0] ^= 0xFF;
+        t.h.get_mut(Region::Page(p)).unwrap()[0] ^= 0xFF;
     }
     for k in &keys {
         assert_eq!(probed(&t, k), Ok(m.get(k).copied().unwrap_or(0)), "key {:02x?} without a header", &k[..8]);

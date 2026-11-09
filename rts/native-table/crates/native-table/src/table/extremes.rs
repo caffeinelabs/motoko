@@ -21,21 +21,17 @@ use core::cmp::Ordering;
 
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, RADIX_FAN};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::fault::{rt, Corruption, Fault};
+use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
 use super::buffer::{self, Located, DESC_BIT};
 use super::cur::{self, SVal};
 use super::hot::Sign;
-use super::layout::{LeafInfo, Shape, Ty};
+use super::layout::{LeafInfo, Shape};
 use super::overlay;
 use super::page;
 use super::root;
 use super::totals::{self, Rank, Total};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// The leaves field.
 pub const LEAVES: u64 = 16;
@@ -121,7 +117,7 @@ pub fn create<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, g: u64) -> Result
         return Ok(0);
     }
     let blk = alloc_zeroed(h, tbl, 0)?;
-    let b = h.get_mut(Region::Block(blk), Owner(0))?;
+    let b = h.get_mut(Region::Block(blk))?;
     put_u32(b, 0, magic::NTEX)?;
     put_u16(b, 4, FORMAT_TABLE)?;
     put_u64(b, 8, g)?;
@@ -129,12 +125,10 @@ pub fn create<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, g: u64) -> Result
     Ok(blk)
 }
 
-/// The extremes block of the buffered group whose descriptor is `desc`.
 pub fn of_desc<H: PageHost + ?Sized>(h: &H, desc: u64) -> Result<u64, Fault> {
     rd_u64(h.get(Region::Block(desc))?, buffer::D_EXT)
 }
 
-/// The extremes block of the sealed group whose page is `pg`.
 pub fn of_page<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<u64, Fault> {
     rd_u64(h.get(Region::Block(pg))?, page::P_EXT)
 }
@@ -165,7 +159,7 @@ pub fn apply<H: PageHost>(h: &mut H, blk: u64, l: &LeafInfo, r: Rank, sign: Sign
     }
     if new != old {
         let at = RECS.wrapping_add(u64::from(l.ordinal).wrapping_mul(REC));
-        new.write(h.get_mut(Region::Block(blk), Owner(0))?, at)?;
+        new.write(h.get_mut(Region::Block(blk))?, at)?;
     }
     Ok(())
 }
@@ -177,7 +171,7 @@ pub fn hand_over<H: PageHost>(h: &mut H, source: u64, seal: bool, pending: u64) 
     let at = if seal { buffer::D_EXT } else { page::P_EXT };
     let blk = rd_u64(h.get(Region::Block(source))?, at)?;
     if blk != 0 {
-        put_u64(h.get_mut(Region::Block(pending), Owner(0))?, page::P_EXT, blk)?;
+        put_u64(h.get_mut(Region::Block(pending))?, page::P_EXT, blk)?;
     }
     Ok(blk != 0)
 }
@@ -185,7 +179,7 @@ pub fn hand_over<H: PageHost>(h: &mut H, source: u64, seal: bool, pending: u64) 
 /// Clears the source's name of the extremes block it handed over, before the source goes to the drain.
 pub fn forget<H: PageHost>(h: &mut H, source: u64, seal: bool) -> Result<(), Fault> {
     let at = if seal { buffer::D_EXT } else { page::P_EXT };
-    put_u64(h.get_mut(Region::Block(source), Owner(0))?, at, 0)
+    put_u64(h.get_mut(Region::Block(source))?, at, 0)
 }
 
 // ---------------------------------------------------------------- reading
@@ -199,57 +193,30 @@ enum Best {
     Big(SVal),
 }
 
-/// Whether a Nat's or Int's LEB128 value beyond i128 is negative.
-fn negative<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, s: &SVal) -> Result<bool, Fault> {
-    if l.ty != Ty::Int {
-        return Ok(false);
-    }
-    let last = s.len().checked_sub(1).ok_or(rt(Corruption::Encoding, u64::from(l.ordinal)))?;
-    Ok(cur::byte(h, s, last)? & 0x40 != 0)
-}
-
-/// The order of two canonical LEB128 values beyond i128 of leaf `l`: by sign, then by length (a longer one is
-/// further from zero), then by their 7-bit groups from the most significant.
-fn order_big<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, a: &SVal, b: &SVal) -> Result<Ordering, Fault> {
-    let (na, nb) = (negative(h, l, a)?, negative(h, l, b)?);
-    if na != nb {
-        return Ok(if na { Ordering::Less } else { Ordering::Greater });
-    }
-    let (la, lb) = (a.len(), b.len());
-    if la != lb {
-        let o = la.cmp(&lb);
-        return Ok(if na { o.reverse() } else { o });
-    }
-    let mut j = la;
-    while j > 0 {
-        j = j.wrapping_sub(1);
-        let (x, y) = (cur::byte(h, a, j)? & 0x7F, cur::byte(h, b, j)? & 0x7F);
-        if x != y {
-            return Ok(x.cmp(&y));
-        }
-    }
-    Ok(Ordering::Equal)
-}
-
 /// The order of two values of leaf `l`, neither `Best::None`.
 fn order<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, a: &Best, b: &Best) -> Result<Ordering, Fault> {
     Ok(match (a, b) {
         (Best::In(x), Best::In(y)) => x.cmp(y),
         (Best::Big(s), Best::In(_)) => {
-            if negative(h, l, s)? {
+            if cur::big_negative(h, l, s)? {
                 Ordering::Less
             } else {
                 Ordering::Greater
             }
         }
         (Best::In(_), Best::Big(s)) => {
-            if negative(h, l, s)? {
+            if cur::big_negative(h, l, s)? {
                 Ordering::Greater
             } else {
                 Ordering::Less
             }
         }
-        (Best::Big(s), Best::Big(t)) => order_big(h, l, s, t)?,
+        (Best::Big(s), Best::Big(t)) => cur::big_order(
+            (s.len(), cur::big_negative(h, l, s)?),
+            (t.len(), cur::big_negative(h, l, t)?),
+            |j| cur::byte(h, s, j),
+            |j| cur::byte(h, t, j),
+        )?,
         _ => return Err(rt(Corruption::Range, u64::from(l.ordinal))),
     })
 }
@@ -277,7 +244,6 @@ impl Best {
         Ok(())
     }
 
-    /// Takes leaf `l`'s value `v` when it is better.
     fn offer_value<H: PageHost + ?Sized>(&mut self, h: &H, l: &LeafInfo, v: &SVal, largest: bool) -> Result<(), Fault> {
         match totals::rank_cur(h, l, v)? {
             Rank::Null => Ok(()),
@@ -325,7 +291,7 @@ fn from_rows<H: PageHost + ?Sized>(
 /// little-endian, without redundant sign bytes, at the start of `buf` (`Scratch` when `buf` is shorter).
 fn big_total<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, s: &SVal, buf: &mut [u8]) -> Result<Total, Fault> {
     let n = s.len();
-    let neg = negative(h, l, s)?;
+    let neg = cur::big_negative(h, l, s)?;
     // Seven bits a LEB128 byte, and a sign byte.
     let need = n.checked_mul(7).ok_or(rt(Corruption::Range, n))?.div_ceil(8).wrapping_add(1);
     let k = usize::try_from(need).map_err(|_| rt(Corruption::Range, need))?;

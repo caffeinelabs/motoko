@@ -20,10 +20,10 @@ use native_table::table::jobs::{Ran, UNIT_WORK};
 use native_table::table::layout::Ty;
 use native_table::table::{buffer, page, patch, read, root, seal, Table, Upsert};
 use native_table::value::ty;
-use native_table::{CorruptAt, Corruption, ImageId, Owner, PageHost, Progress, Region, Wake};
+use native_table::{CorruptAt, Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{idl_hash, schema, t, Sink, Src, V};
-use nt_testhost::{Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
+use nt_testhost::{rewrite_step, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// Scratch for keys longer than a point operation's stack.
 fn key_scratch() -> VecScratch {
@@ -136,7 +136,7 @@ fn one_unit_m<B: native_table::Budget>(tb: &mut Table<'_, VecHost>, units: &mut 
     tb.host_mut().end_message();
     let before: Vec<u64> = (1..=3).map(|k| seal::running(tb.host(), tb.root(), k).unwrap()).collect();
     let steps: Vec<u8> =
-        before.iter().map(|&st| if st == 0 { 0 } else { seal::step_of(tb.host(), st).unwrap() }).collect();
+        before.iter().map(|&st| if st == 0 { 0 } else { rewrite_step(tb.host(), st) }).collect();
     let drain_top = {
         let top = root::u64_at(tb.host(), tb.root(), root::DRAIN_TOP).unwrap();
         if top == 0 {
@@ -184,8 +184,7 @@ fn run_all(tb: &mut Table<'_, VecHost>, units: &mut Units) -> u64 {
 }
 
 fn maintain_all(tb: &mut Table<'_, VecHost>) {
-    let mut sc = VecScratch::new(FILLS[0]);
-    assert_eq!(tb.maintain(&mut sc, &everything()).unwrap(), Progress::Done);
+    assert_eq!(tb.maintain(&everything()).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 
@@ -1423,10 +1422,9 @@ fn no_forced_steps() {
         check_reads(&tb, &model);
         // The write-first step runs one unit, a bound shared across jobs: a cheap flip is followed by further
         // pending jobs (the drain) inside that bound, never by the seal's next unit or the next seal.
-        let mut sc = VecScratch::new(FILLS[0]);
         loop {
             let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
-            if st != 0 && seal::step_of(tb.host(), st).unwrap() == seal::STEP_FLIP {
+            if st != 0 && rewrite_step(tb.host(), st) == seal::STEP_FLIP {
                 break;
             }
             one_unit(&mut tb, &mut units);
@@ -1443,11 +1441,11 @@ fn no_forced_steps() {
         let drain_before = drain_state(&tb);
         assert!(drain_before.0 > 0, "drain records wait behind the flip");
         tb.host_mut().end_message();
-        tb.write_step(&mut sc, &everything()).unwrap();
+        tb.write_step(&everything()).unwrap();
         let changed = tb.host_mut().end_message();
         let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
         assert_eq!(
-            seal::step_of(tb.host(), st).unwrap(),
+            rewrite_step(tb.host(), st),
             seal::STEP_LAST,
             "the step ran the flip, and no seal unit after it"
         );
@@ -1466,11 +1464,11 @@ fn no_forced_steps() {
         }
         assert!(drain_records(&tb) > 0, "drain records wait");
         tb.host_mut().end_message();
-        tb.write_step(&mut sc, &everything()).unwrap();
+        tb.write_step(&everything()).unwrap();
         let changed = tb.host_mut().end_message();
         let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
         assert!(st != 0, "the next seal's snapshot ran");
-        assert_eq!(seal::step_of(tb.host(), st).unwrap(), seal::STEP_SNAPSHOT, "and no seal unit after it");
+        assert_eq!(rewrite_step(tb.host(), st), seal::STEP_SNAPSHOT, "and no seal unit after it");
         assert!(changed <= UNIT_BLOCKS_MAX, "{changed} blocks");
         run_all(&mut tb, &mut units);
         check_reads(&tb, &model);
@@ -2300,19 +2298,19 @@ impl PageHost for InPlace<'_> {
     fn get(&self, r: Region) -> Result<&[u8], Fault> {
         self.0.get(r)
     }
-    fn get_mut(&mut self, _r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, _r: Region) -> Result<&mut [u8], Fault> {
         Err(Fault::BadRef)
     }
-    fn pair_mut(&mut self, _a: Region, _b: Region, _w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, _a: Region, _b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         Err(Fault::BadRef)
     }
-    fn read_write(&mut self, _r: Region, _wr: Region, _w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
+    fn read_write(&mut self, _r: Region, _wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
         Err(Fault::BadRef)
     }
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         Err(Fault::BadRef)
     }
-    fn page_free(&mut self, _p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, _p: u64) -> Result<(), Fault> {
         Err(Fault::BadRef)
     }
     fn alloc_changes(&self) -> u64 {
@@ -2355,10 +2353,10 @@ fn open_with_schema_page_in_place() {
         bad[at] += 1;
         let refused = Err(Fault::Corrupt(CorruptAt { image: ImageId::Runtime, kind: Corruption::Header, offset: 24 }));
         assert_eq!(open(h, Some(&bad)), refused, "a corrupted copy");
-        h.get_mut(Region::Page(sp), Owner(0)).unwrap()[at] += 1;
+        h.get_mut(Region::Page(sp)).unwrap()[at] += 1;
         assert_eq!(open(h, None), Ok((false, 5)), "the corrupted stored page, in place, its shape stored");
         assert_eq!(open(h, Some(&stored)), Ok((false, 5)), "the corrupted stored page, with an intact copy");
-        h.get_mut(Region::Block(root), Owner(0)).unwrap()[root::SHAPE as usize] ^= 1;
+        h.get_mut(Region::Block(root)).unwrap()[root::SHAPE as usize] ^= 1;
         assert_eq!(open(h, None), refused, "the corrupted stored page, in place, its shape derived again");
         assert_eq!(open(h, Some(&stored)), refused, "the corrupted stored page, its shape derived again");
     });
@@ -2418,7 +2416,7 @@ fn schema_change_before_seal_snapshot() {
         assert_eq!(one_unit(&mut tb, &mut units), Ran::Seal);
         let st = seal::running(tb.host(), tb.root(), seal::SEAL).unwrap();
         assert_ne!(st, 0);
-        assert_eq!(seal::step_of(tb.host(), st).unwrap(), seal::STEP_SNAPSHOT);
+        assert_eq!(rewrite_step(tb.host(), st), seal::STEP_SNAPSHOT);
         e.bump();
         let a = id(e.add_col(&t::scalar(ty::NAT), Some(&[0xAC, 0x02])));
         tb.change_schema(&e.image()).unwrap();
@@ -2506,7 +2504,7 @@ fn schema_change_at_every_rewrite_step() {
                         step = 255;
                         break;
                     }
-                    step = seal::step_of(tb.host(), st).unwrap();
+                    step = rewrite_step(tb.host(), st);
                     if step > target || (step == target && left == 0) {
                         break;
                     }
@@ -2607,7 +2605,7 @@ fn run_all_with(tb: &mut Table<'_, VecHost>, b: &dyn native_table::Budget) -> u6
                         (0, 0, 0, 0)
                     } else {
                         let b = tb.host().get(Region::Block(st)).unwrap();
-                        (st, seal::step_of(tb.host(), st).unwrap(), rd_u32(b, seal::RW_LEAF).unwrap() as u64, rd_u64(b, seal::RW_SUB).unwrap())
+                        (st, rewrite_step(tb.host(), st), rd_u32(b, seal::RW_LEAF).unwrap() as u64, rd_u64(b, seal::RW_SUB).unwrap())
                     }
                 })
                 .collect();
@@ -3010,7 +3008,7 @@ fn crash_equivalence() {
                 }
                 let img = if version == 1 { img1.clone() } else { img2.clone() };
                 let mut tb = Table::open(&mut h, root, &img).unwrap();
-                tb.write_step(&mut key_scratch(), &meter).unwrap();
+                tb.write_step(&meter).unwrap();
                 if change {
                     tb.change_schema(&img2).unwrap();
                     if attempt + 1 == attempts {
@@ -3109,7 +3107,7 @@ fn post_snapshot_units_over_255() {
                 while step < target {
                     one_unit(&mut tb, &mut units);
                     let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-                    step = if st == 0 { 255 } else { seal::step_of(tb.host(), st).unwrap() };
+                    step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
                     guard += 1;
                     assert!(guard < 1_000_000);
                 }
@@ -3264,7 +3262,7 @@ fn progress_under_a_jumpy_meter() {
         }
         let b = tb.host().get(Region::Block(st)).unwrap();
         let now = (
-            seal::step_of(tb.host(), st).unwrap(),
+            rewrite_step(tb.host(), st),
             rd_u32(b, seal::RW_LEAF).unwrap() as u64,
             rd_u64(b, seal::RW_SUB).unwrap(),
             rd_u32(b, seal::RW_Q).unwrap() as u64,
@@ -3323,7 +3321,7 @@ fn post_snapshot_updates_with_schema_change() {
                 loop {
                     one_unit(&mut tb, &mut units);
                     let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-                    step = if st == 0 { 255 } else { seal::step_of(tb.host(), st).unwrap() };
+                    step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
                     if step > target || (step == target && left == 0) {
                         break;
                     }
@@ -3382,7 +3380,7 @@ fn units_to(tb: &mut Table<'_, VecHost>, units: &mut Units, kind: u8, target: u8
     }
     loop {
         let st = seal::running(tb.host(), tb.root(), kind).unwrap();
-        let step = if st == 0 { 255 } else { seal::step_of(tb.host(), st).unwrap() };
+        let step = if st == 0 { 255 } else { rewrite_step(tb.host(), st) };
         if step > target || (step == target && left == 0) {
             return step;
         }
@@ -3870,7 +3868,7 @@ fn drop_at_seal_unit_boundaries() {
         let step = {
             let tb = Table::open(&mut h, root, &img0).unwrap();
             let st = seal::running(tb.host(), root, seal::SEAL).unwrap();
-            if st == 0 { 255 } else { seal::step_of(tb.host(), st).unwrap() }
+            if st == 0 { 255 } else { rewrite_step(tb.host(), st) }
         };
         if step != 255 {
             started = true;
@@ -4235,7 +4233,7 @@ fn write_cursor(tb: &Table<'_, VecHost>, st: u64) -> (u64, u64) {
     if st == 0 {
         return (W_DONE, 0);
     }
-    let step = seal::step_of(tb.host(), st).unwrap();
+    let step = rewrite_step(tb.host(), st);
     if step < seal::STEP_WRITE {
         return (0, 0);
     }
@@ -4278,7 +4276,7 @@ fn run_crossing<B: native_table::Budget>(
     loop {
         let st = seal::running(tb.host(), tb.root(), kind).unwrap();
         let from = write_cursor(tb, st);
-        if st != 0 && seal::step_of(tb.host(), st).unwrap() == seal::STEP_WRITE {
+        if st != 0 && rewrite_step(tb.host(), st) == seal::STEP_WRITE {
             let n = u64::from(rd_u16(tb.host().get(Region::Block(st)).unwrap(), seal::RW_N).unwrap());
             if live.last() != Some(&n) {
                 live.push(n);

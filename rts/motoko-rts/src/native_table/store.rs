@@ -21,7 +21,7 @@
 //! So n frees change at most 1 + ⌈n/511⌉ stack blocks besides the state block.
 
 use ::native_table::consts::{BLOCK, PAGE};
-use ::native_table::{Fault, Owner, PageHost, Region};
+use ::native_table::{Fault, PageHost, Region};
 
 use crate::gc::incremental::get_partitioned_heap;
 use crate::gc::incremental::partitioned_heap::PARTITION_SIZE;
@@ -167,7 +167,7 @@ impl<'a, M: Memory> StoreHost<'a, M> {
         unsafe {
             let mut map = (*self.state()).roots[slot];
             if map == 0 {
-                map = self.page_alloc(Owner(0))?;
+                map = self.page_alloc()?;
                 core::ptr::write_bytes(map as *mut u8, 0, PAGE as usize);
                 (*self.state()).roots[slot] = map;
             }
@@ -199,17 +199,12 @@ impl<'a, M: Memory> PageHost for StoreHost<'a, M> {
         Ok(unsafe { core::slice::from_raw_parts(address as *const u8, size) })
     }
 
-    fn get_mut(&mut self, r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault> {
         let (address, size) = self.check(r)?;
         Ok(unsafe { core::slice::from_raw_parts_mut(address as *mut u8, size) })
     }
 
-    fn pair_mut(
-        &mut self,
-        a: Region,
-        b: Region,
-        _w: Owner,
-    ) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         let (a, b) = self.check_pair(a, b)?;
         Ok(unsafe {
             (
@@ -219,12 +214,7 @@ impl<'a, M: Memory> PageHost for StoreHost<'a, M> {
         })
     }
 
-    fn read_write(
-        &mut self,
-        r: Region,
-        wr: Region,
-        _w: Owner,
-    ) -> Result<(&[u8], &mut [u8]), Fault> {
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
         let (r, wr) = self.check_pair(r, wr)?;
         Ok(unsafe {
             (
@@ -234,7 +224,7 @@ impl<'a, M: Memory> PageHost for StoreHost<'a, M> {
         })
     }
 
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         unsafe {
             self.init();
             let state = self.state();
@@ -264,7 +254,7 @@ impl<'a, M: Memory> PageHost for StoreHost<'a, M> {
         }
     }
 
-    fn page_free(&mut self, p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, p: u64) -> Result<(), Fault> {
         self.check(Region::Page(p))?;
         unsafe {
             let state = self.state();

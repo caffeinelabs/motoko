@@ -5,7 +5,7 @@
 use std::cmp::Ordering;
 
 use native_table::consts::NODE_SIZE;
-use native_table::host::NodeMem;
+use native_table::host::{NodeMem, NodeRead};
 use native_table::key::probe::{
     count_field, is_ovf, ovf_field, payload, row_field, tomb_field, IndexPending, KeyProbe, Kind, ResolveKey,
 };
@@ -52,8 +52,7 @@ impl IndexNodes {
     }
 }
 
-impl NodeMem for IndexNodes {
-    type Entry<'k> = IndexPending<'k>;
+impl NodeRead for IndexNodes {
     type Bytes<'a>
         = &'a [u8]
     where
@@ -63,11 +62,6 @@ impl NodeMem for IndexNodes {
         let r = self.at(n, 0, 2)?;
         Ok(u16::from_le_bytes(self.mem[r].try_into().unwrap()))
     }
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
-        let r = self.at(n, 0, 2)?;
-        self.mem[r].copy_from_slice(&c.to_le_bytes());
-        Ok(())
-    }
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         let r = self.at(n, 2, 2)?;
         Ok(u16::from_le_bytes(self.mem[r].try_into().unwrap()))
@@ -76,14 +70,23 @@ impl NodeMem for IndexNodes {
         let r = self.at(n, off, 8)?;
         Ok(u64::from_le_bytes(self.mem[r].try_into().unwrap()))
     }
+    fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
+        let r = self.at(n, off, len)?;
+        Ok(&self.mem[r])
+    }
+}
+
+impl NodeMem for IndexNodes {
+    type Entry<'k> = IndexPending<'k>;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
+        let r = self.at(n, 0, 2)?;
+        self.mem[r].copy_from_slice(&c.to_le_bytes());
+        Ok(())
+    }
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
         let r = self.at(n, off, 8)?;
         self.mem[r].copy_from_slice(&w.to_le_bytes());
         Ok(())
-    }
-    fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
-        let r = self.at(n, off, len)?;
-        Ok(&self.mem[r])
     }
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault> {
         let a = self.at(s, so, len)?;

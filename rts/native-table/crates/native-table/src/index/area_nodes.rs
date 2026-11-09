@@ -33,11 +33,11 @@
 
 use crate::area::{alloc_block, alloc_zeroed, free_block};
 use crate::consts::{magic, BLOCK, FLAG_INDEX, FLAG_LEAF, W_MAX};
-use crate::fault::{bounds, corrupt, Corruption, Fault, ImageId};
-use crate::host::NodeMem;
+use crate::fault::{bounds, rt, Corruption, Fault};
+use crate::host::{NodeMem, NodeRead};
 use crate::key::probe::{payload, IndexPending, ResolveKey, PART};
 use crate::mem::{
-    copy, copy_bytes, put, put_u16, put_u32, put_u64, rd_u16, rd_u64, shift, sub, sub_mut, Owner, PageHost, Region,
+    copy, copy_bytes, put, put_u16, put_u32, put_u64, rd_u16, rd_u64, shift, sub, sub_mut, PageHost, Region,
 };
 use crate::radix::Radix;
 use crate::tree::IndexShape;
@@ -81,10 +81,6 @@ pub struct KeyLog {
     pub blocks: u64,
 }
 
-fn rt(at: u64, kind: Corruption) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
 /// The size class of a chunk of `s` bytes, 32 ≤ s ≤ 4,096: eight classes per power of two, 0 to 56.
 fn class(s: u64) -> u64 {
     // ⌊log2 s⌋ ≥ 5.
@@ -120,10 +116,9 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     }
 
     fn block_mut(&mut self, n: u64) -> Result<&mut [u8], Fault> {
-        self.host.get_mut(Region::Block(n), Owner(self.area))
+        self.host.get_mut(Region::Block(n))
     }
 
-    /// The log block of ordinal k.
     fn log_block(&self, k: u64) -> Result<u64, Fault> {
         log_block(&*self.host, self.log, k)
     }
@@ -156,7 +151,6 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         put_u64(s, at, if free { w | PREV_FREE } else { w & !PREV_FREE })
     }
 
-    /// The first free chunk of class c.
     fn first_free(&self, head: u64, c: u64) -> Result<u64, Fault> {
         rd_u64(self.block(head)?, H_FREE.wrapping_add(c.wrapping_mul(8)))
     }
@@ -190,7 +184,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     /// `n` fresh log blocks of consecutive ordinals; returns the first ordinal.
     fn fresh(&mut self, head: u64, n: u64) -> Result<u64, Fault> {
         let k = rd_u64(self.block(head)?, H_NEXT)?;
-        let end = k.checked_add(n).filter(|&e| e <= ORDINAL_END).ok_or(rt(k, Corruption::Range))?;
+        let end = k.checked_add(n).filter(|&e| e <= ORDINAL_END).ok_or(rt(Corruption::Range, k))?;
         let mut radix = self.log.radix;
         let mut i = k;
         while i < end {
@@ -199,7 +193,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             i = i.wrapping_add(1);
         }
         self.log.radix = radix;
-        self.log.blocks = self.log.blocks.checked_add(n).ok_or(rt(k, Corruption::Count))?;
+        self.log.blocks = self.log.blocks.checked_add(n).ok_or(rt(Corruption::Count, k))?;
         put_u64(self.block_mut(head)?, H_NEXT, end)?;
         Ok(k)
     }
@@ -211,7 +205,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         let mut radix = self.log.radix;
         radix.clear(&mut *self.host, self.tbl, k)?;
         self.log.radix = radix;
-        self.log.blocks = self.log.blocks.checked_sub(1).ok_or(rt(k, Corruption::Count))?;
+        self.log.blocks = self.log.blocks.checked_sub(1).ok_or(rt(Corruption::Count, k))?;
         Ok(())
     }
 
@@ -251,7 +245,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     fn free_size(&self, loc: u64) -> Result<u64, Fault> {
         let s = self.words(loc, 0)?.0 & SIZE_MASK;
         if s < CHUNK_MIN || (loc & 0xFFF).wrapping_add(s) > BLOCK {
-            return Err(rt(loc, Corruption::Bounds));
+            return Err(rt(Corruption::Bounds, loc));
         }
         Ok(s)
     }
@@ -296,7 +290,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         let w = usize::try_from(self.shape.w).map_err(|_| bounds(0))?;
         let tail = key.get(w..).filter(|t| !t.is_empty()).ok_or(bounds(0))?;
         if payload & FREE != 0 || key.len() as u64 > LEN_MASK {
-            return Err(rt(payload, Corruption::Range));
+            return Err(rt(Corruption::Range, payload));
         }
         let size = REC_HEAD.checked_add(tail.len() as u64).ok_or(bounds(0))?;
         let head = self.head()?;
@@ -335,7 +329,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     pub fn alloc_record(&mut self, payload: u64, len: u64) -> Result<u64, Fault> {
         let w = self.shape.w;
         if len <= w || payload & FREE != 0 || len > LEN_MASK {
-            return Err(rt(payload, Corruption::Range));
+            return Err(rt(Corruption::Range, payload));
         }
         // len > W.
         let size = REC_HEAD.checked_add(len.wrapping_sub(w)).ok_or(bounds(0))?;
@@ -394,8 +388,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             if sb == db {
                 shift(self.block_mut(sb)?, so, doff, n)?;
             } else {
-                let a = self.area;
-                copy(&mut *self.host, Region::Block(sb), so, Region::Block(db), doff, n, Owner(a))?;
+                copy(&mut *self.host, Region::Block(sb), so, Region::Block(db), doff, n)?;
             }
             at = at.wrapping_add(n);
         }
@@ -407,7 +400,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     pub fn free_record(&mut self, loc: u64) -> Result<(), Fault> {
         // Ordinal 0 is the head block, which holds no record.
         if loc >> 12 == 0 {
-            return Err(rt(loc, Corruption::Link));
+            return Err(rt(Corruption::Link, loc));
         }
         let (_, word) = self.words(loc, 0)?;
         let head = self.log_block(0)?;
@@ -417,9 +410,9 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
                 .checked_sub(self.shape.w)
                 .and_then(|t| t.checked_add(REC_HEAD))
                 .filter(|&n| n > BLOCK)
-                .ok_or(rt(loc, Corruption::Bounds))?;
+                .ok_or(rt(Corruption::Bounds, loc))?;
             let mut k = loc >> 12;
-            let end = k.checked_add(size.div_ceil(BLOCK)).ok_or(rt(loc, Corruption::Bounds))?;
+            let end = k.checked_add(size.div_ceil(BLOCK)).ok_or(rt(Corruption::Bounds, loc))?;
             while k < end {
                 self.free_ordinal(k)?;
                 k = k.wrapping_add(1);
@@ -427,7 +420,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         } else {
             let off = loc & 0xFFF;
             if s < CHUNK_MIN || off.wrapping_add(s) > BLOCK {
-                return Err(rt(loc, Corruption::Bounds));
+                return Err(rt(Corruption::Bounds, loc));
             }
             let mut start = loc;
             if off.wrapping_add(s) < BLOCK {
@@ -442,7 +435,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
                 // The free chunk before ends with its bytes.
                 let ps = if off >= CHUNK_MIN { self.words(loc.wrapping_sub(8), 0)?.0 } else { 0 };
                 if ps < CHUNK_MIN || ps > off {
-                    return Err(rt(loc, Corruption::Bounds));
+                    return Err(rt(Corruption::Bounds, loc));
                 }
                 start = loc.wrapping_sub(ps);
                 self.unlink(head, start, ps)?;
@@ -478,7 +471,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             .checked_add(1)
             .and_then(|e| e.checked_add(n))
             .filter(|&e| e <= ORDINAL_END)
-            .ok_or(rt(k, Corruption::Range))?;
+            .ok_or(rt(Corruption::Range, k))?;
         put_u64(self.block_mut(head)?, H_NEXT, end)?;
         let b = self.map_ordinal(k, true)?;
         put_u64(self.block_mut(b)?, KS_HELD, n)?;
@@ -495,7 +488,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         let mut radix = self.log.radix;
         radix.set(&mut *self.host, self.tbl, k, b)?;
         self.log.radix = radix;
-        self.log.blocks = self.log.blocks.checked_add(1).ok_or(rt(k, Corruption::Count))?;
+        self.log.blocks = self.log.blocks.checked_add(1).ok_or(rt(Corruption::Count, k))?;
         Ok(b)
     }
 
@@ -525,7 +518,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         if chunk != 0 {
             return Ok(chunk);
         }
-        Ok(k.checked_add(1).ok_or(rt(k, Corruption::Range))? << 12)
+        Ok(k.checked_add(1).ok_or(rt(Corruption::Range, k))? << 12)
     }
 
     /// Writes `bytes` as bytes [at, at + bytes.len()) of the key written over units whose state block has
@@ -548,7 +541,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             let s = self.block(sb)?;
             (rd_u64(s, KS_MADE)?, rd_u64(s, KS_HELD)?)
         };
-        let loc = k.checked_add(1).ok_or(rt(k, Corruption::Range))? << 12;
+        let loc = k.checked_add(1).ok_or(rt(Corruption::Range, k))? << 12;
         let last = at.checked_add((rest.len() as u64).wrapping_sub(1)).ok_or(bounds(at))?;
         let need = byte_place(loc, w, last).0.wrapping_sub(k);
         if need > held {
@@ -573,7 +566,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         let n = usize::try_from(len.min(w)).map_err(|_| bounds(len))?;
         let (head, mut rest) = out.split_at_mut(n);
         copy_bytes(head, sub(self.block(self.log_block(k)?)?, KS_HEAD, n as u64)?);
-        let loc = k.checked_add(1).ok_or(rt(k, Corruption::Range))? << 12;
+        let loc = k.checked_add(1).ok_or(rt(Corruption::Range, k))? << 12;
         let mut at = w;
         while !rest.is_empty() {
             let (kk, off) = byte_place(loc, w, at);
@@ -610,20 +603,19 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             (rd_u64(s, KS_MADE)?, rd_u64(s, KS_TWIN)?, rd_u64(s, KS_TWIN_MADE)?)
         };
         if made != n || i >= n {
-            return Err(rt(k, Corruption::Count));
+            return Err(rt(Corruption::Count, k));
         }
         if t == 0 {
             let head = self.head()?;
             t = rd_u64(self.block(head)?, H_NEXT)?;
-            let end = t.checked_add(n).filter(|&e| e <= ORDINAL_END).ok_or(rt(t, Corruption::Range))?;
+            let end = t.checked_add(n).filter(|&e| e <= ORDINAL_END).ok_or(rt(Corruption::Range, t))?;
             put_u64(self.block_mut(head)?, H_NEXT, end)?;
             put_u64(self.block_mut(sb)?, KS_TWIN, t)?;
         }
         // i < n ≤ the ordinals held after k, and t + n ≤ ORDINAL_END.
         let from = self.log_block(k.wrapping_add(1).wrapping_add(i))?;
         let to = self.map_ordinal(t.wrapping_add(i), false)?;
-        let a = self.area;
-        copy(&mut *self.host, Region::Block(from), 0, Region::Block(to), 0, BLOCK, Owner(a))?;
+        copy(&mut *self.host, Region::Block(from), 0, Region::Block(to), 0, BLOCK)?;
         put_u64(self.block_mut(sb)?, KS_TWIN_MADE, i.wrapping_add(1))
     }
 
@@ -661,9 +653,9 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             put_u64(s, 8, len)?;
             t << 12
         } else {
-            return Err(rt(k, Corruption::Count));
+            return Err(rt(Corruption::Count, k));
         };
-        let first = k.checked_add(1).ok_or(rt(k, Corruption::Range))?;
+        let first = k.checked_add(1).ok_or(rt(Corruption::Range, k))?;
         let loc = if len <= w {
             0
         } else if chunk != 0 {
@@ -673,7 +665,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         } else {
             let size = REC_HEAD.checked_add(len.wrapping_sub(w)).ok_or(bounds(len))?;
             if made != size.div_ceil(BLOCK) {
-                return Err(rt(k, Corruption::Count));
+                return Err(rt(Corruption::Count, k));
             }
             if size > BLOCK {
                 let s = self.block_mut(self.log_block(first)?)?;
@@ -697,8 +689,8 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         let to = self.alloc_record(0, len)?;
         let (db, off) = self.place(to)?;
         let off = off.wrapping_add(REC_HEAD);
-        let (n, a) = (len.saturating_sub(self.shape.w), self.area);
-        copy(&mut *self.host, Region::Block(b), REC_HEAD, Region::Block(db), off, n, Owner(a))?;
+        let n = len.saturating_sub(self.shape.w);
+        copy(&mut *self.host, Region::Block(b), REC_HEAD, Region::Block(db), off, n)?;
         self.free_ordinal(first)?;
         Ok(to)
     }
@@ -723,9 +715,9 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         }
         let sb = self.log_block(k)?;
         if rd_u64(self.block(sb)?, KS_MADE)? != 1 {
-            return Err(rt(k, Corruption::Count));
+            return Err(rt(Corruption::Count, k));
         }
-        let to = self.chunk_record(k.checked_add(1).ok_or(rt(k, Corruption::Range))?, len)?;
+        let to = self.chunk_record(k.checked_add(1).ok_or(rt(Corruption::Range, k))?, len)?;
         let s = self.block_mut(sb)?;
         put_u64(s, KS_MADE, 0)?;
         put_u64(s, KS_CHUNK, to)
@@ -758,7 +750,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
         };
         if t != 0 && tm != 0 {
             let i = tm.wrapping_sub(1);
-            self.free_ordinal(t.checked_add(i).ok_or(rt(t, Corruption::Range))?)?;
+            self.free_ordinal(t.checked_add(i).ok_or(rt(Corruption::Range, t))?)?;
             put_u64(self.block_mut(sb)?, KS_TWIN_MADE, i)?;
             return Ok(false);
         }
@@ -768,7 +760,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
             return Ok(false);
         }
         if made != 0 {
-            self.free_ordinal(k.checked_add(made).ok_or(rt(k, Corruption::Range))?)?;
+            self.free_ordinal(k.checked_add(made).ok_or(rt(Corruption::Range, k))?)?;
             put_u64(self.block_mut(sb)?, KS_MADE, made.wrapping_sub(1))?;
             return Ok(false);
         }
@@ -789,43 +781,49 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     /// Rewrites a record's payload in place (a count entry's count).
     pub fn set_record_payload(&mut self, locator: u64, payload: u64) -> Result<(), Fault> {
         if payload & FREE != 0 {
-            return Err(rt(payload, Corruption::Range));
+            return Err(rt(Corruption::Range, payload));
         }
         self.set_word(locator, 0, payload)
     }
 }
 
-impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
-    type Entry<'k> = IndexPending<'k>;
+impl<H: PageHost> NodeRead for AreaNodes<'_, H> {
     type Bytes<'a>
         = &'a [u8]
     where
         Self: 'a;
 
+    #[inline(always)]
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 0)
     }
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
-        put_u16(self.block_mut(n)?, 0, c)
-    }
+    #[inline(always)]
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 2)
     }
+    #[inline(always)]
     fn word(&self, n: u64, off: u64) -> Result<u64, Fault> {
         rd_u64(self.block(n)?, off)
     }
-    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
-        put_u64(self.block_mut(n)?, off, w)
-    }
+    #[inline(always)]
     fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
         sub(self.block(n)?, off, len)
+    }
+}
+
+impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
+    type Entry<'k> = IndexPending<'k>;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
+        put_u16(self.block_mut(n)?, 0, c)
+    }
+    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
+        put_u64(self.block_mut(n)?, off, w)
     }
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault> {
         if s == d {
             shift(self.block_mut(s)?, so, doff, len)
         } else {
-            let a = self.area;
-            copy(&mut *self.host, Region::Block(s), so, Region::Block(d), doff, len, Owner(a))
+            copy(&mut *self.host, Region::Block(s), so, Region::Block(d), doff, len)
         }
     }
     fn put_entry(&mut self, n: u64, koff: u64, voff: u64, p: &IndexPending<'_>) -> Result<(), Fault> {
@@ -884,7 +882,7 @@ impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
     fn release(&mut self, root: u64) -> Result<(), Fault> {
         // A whole tree goes to the table's drain, which frees it in bounded units; the drain is not part
         // of this layer, so a tree is released through its owner, never here.
-        Err(rt(root, Corruption::Link))
+        Err(rt(Corruption::Link, root))
     }
 }
 
@@ -949,68 +947,16 @@ fn log_bytes<H: PageHost + ?Sized>(
     let (k, off) = byte_place(loc, w, at);
     let b = radix.get(host, k)?;
     if b == 0 {
-        return Err(rt(k, Corruption::Link));
+        return Err(rt(Corruption::Link, k));
     }
     let n = BLOCK.saturating_sub(off).min(len.wrapping_sub(at));
     sub(host.get(Region::Block(b))?, off, n)
 }
 
-/// A key log read in place by a count's comparisons: the log block looked up last kept, a record's head read
-/// where it lies, a key's bytes lent where the log holds them.
-pub struct LogBytes<'h, H: PageHost + ?Sized> {
-    host: &'h H,
-    radix: Radix,
-    /// The ordinal of the block held (`u64::MAX`: none) and its bytes.
-    k: u64,
-    b: &'h [u8],
-}
-
-impl<'h, H: PageHost + ?Sized> LogBytes<'h, H> {
-    pub fn new(host: &'h H, radix: Radix) -> Self {
-        LogBytes { host, radix, k: u64::MAX, b: &[] }
-    }
-
-    /// Log block k.
-    #[inline]
-    fn block(&mut self, k: u64) -> Result<&'h [u8], Fault> {
-        if k != self.k {
-            let r = self.radix.get(self.host, k)?;
-            if r == 0 {
-                return Err(rt(k, Corruption::Link));
-            }
-            let host: &'h H = self.host;
-            self.b = host.get(Region::Block(r))?;
-            self.k = k;
-        }
-        Ok(self.b)
-    }
-
-    /// The head {payload, full key length} of the record at locator `loc`.
-    #[inline]
-    pub fn head(&mut self, loc: u64) -> Result<(u64, u64), Fault> {
-        let b = self.block(loc >> 12)?;
-        let off = loc & 0xFFF;
-        Ok((rd_u64(b, off)?, key_len(rd_u64(b, off.wrapping_add(8))?)))
-    }
-
-    /// Bytes [at, …) of the key of `len` bytes at locator `loc`, W = `w` ≤ at < len, where the log holds them:
-    /// to the end of their log block or of the key.
-    #[inline]
-    pub fn bytes(&mut self, loc: u64, w: u64, at: u64, len: u64) -> Result<&'h [u8], Fault> {
-        if at < w || at >= len {
-            return Err(bounds(at));
-        }
-        let (k, off) = byte_place(loc, w, at);
-        let n = BLOCK.saturating_sub(off).min(len.wrapping_sub(at));
-        sub(self.block(k)?, off, n)
-    }
-}
-
-/// The log block of ordinal k of key log `log`.
 fn log_block<H: PageHost + ?Sized>(h: &H, log: KeyLog, k: u64) -> Result<u64, Fault> {
     let b = log.radix.get(h, k)?;
     if b == 0 {
-        return Err(rt(k, Corruption::Link));
+        return Err(rt(Corruption::Link, k));
     }
     Ok(b)
 }
@@ -1048,8 +994,8 @@ fn key_piece<H: PageHost + ?Sized>(
     Ok(src.len())
 }
 
-/// A read-only view of one index tree in table memory, for lookups and cursors that hold the host shared.
-/// Its mutating node methods return `Err(BadRef)`: nothing writes through a view.
+/// A read-only view of one index tree in table memory, for lookups and cursors that hold the host shared:
+/// it implements `NodeRead` alone.
 pub struct AreaView<'h, H: PageHost + ?Sized> {
     pub host: &'h H,
     pub shape: IndexShape,
@@ -1067,48 +1013,27 @@ impl<'h, H: PageHost + ?Sized> AreaView<'h, H> {
     }
 }
 
-impl<H: PageHost + ?Sized> NodeMem for AreaView<'_, H> {
-    type Entry<'k> = IndexPending<'k>;
+impl<H: PageHost + ?Sized> NodeRead for AreaView<'_, H> {
     type Bytes<'a>
         = &'a [u8]
     where
         Self: 'a;
 
+    #[inline(always)]
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 0)
     }
-    fn set_count(&mut self, _n: u64, _c: u16) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
+    #[inline(always)]
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 2)
     }
+    #[inline(always)]
     fn word(&self, n: u64, off: u64) -> Result<u64, Fault> {
         rd_u64(self.block(n)?, off)
     }
-    fn set_word(&mut self, _n: u64, _off: u64, _w: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
+    #[inline(always)]
     fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
         sub(self.block(n)?, off, len)
-    }
-    fn copy(&mut self, _s: u64, _so: u64, _d: u64, _doff: u64, _len: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn put_entry(&mut self, _n: u64, _koff: u64, _voff: u64, _p: &IndexPending<'_>) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn take_entry(&mut self, _n: u64, _koff: u64, _voff: u64, _p: &mut IndexPending<'_>) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn alloc(&mut self, _leaf: bool) -> Result<u64, Fault> {
-        Err(Fault::BadRef)
-    }
-    fn hand_back(&mut self, _n: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn release(&mut self, _root: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
     }
 }
 

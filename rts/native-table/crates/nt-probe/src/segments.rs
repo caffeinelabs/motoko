@@ -8,11 +8,12 @@ use native_table::consts::{BLOCK, BYTE_UNIT, PAGE};
 use native_table::image::{Image, ImageReader};
 use native_table::index::runlist::{image_radix, RunDesc, RunList, D_BELIEVED, D_RELATIVE};
 use native_table::index::secondary::Secondary;
-use native_table::index::{build_run, plan_run, Item, Run, RunInput, RunParams};
+use native_table::index::Run;
 use native_table::key::probe::{KeyProbe, Kind};
-use native_table::mem::{fill, put_u64, Owner, PageHost, Region};
-use native_table::tree::MemRunSink;
+use native_table::mem::{fill, put_u64, PageHost, Region};
 use native_table::Fault;
+use nt_builder::MemRunSink;
+use nt_builder::{build_run, plan_run, Item, RunInput, RunParams};
 
 use crate::{code, Gen};
 
@@ -60,11 +61,11 @@ impl PageHost for SliceHost<'_> {
         let (s, e) = self.span(r)?;
         self.mem.get(s..e).ok_or(Fault::BadRef)
     }
-    fn get_mut(&mut self, r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault> {
         let (s, e) = self.span(r)?;
         self.mem.get_mut(s..e).ok_or(Fault::BadRef)
     }
-    fn pair_mut(&mut self, a: Region, b: Region, _w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         let (sa, ea) = self.span(a)?;
         let (sb, eb) = self.span(b)?;
         if sa < eb && sb < ea {
@@ -79,11 +80,11 @@ impl PageHost for SliceHost<'_> {
             Ok((hi.get_mut(..ea.wrapping_sub(sa)).ok_or(Fault::BadRef)?, y))
         }
     }
-    fn read_write(&mut self, r: Region, wr: Region, w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
-        let (a, b) = self.pair_mut(r, wr, w)?;
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
+        let (a, b) = self.pair_mut(r, wr)?;
         Ok((&*a, b))
     }
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         if self.nfree > 0 {
             self.nfree = self.nfree.wrapping_sub(1);
             return self.free.get(self.nfree).copied().ok_or(Fault::OutOfMemory);
@@ -93,7 +94,7 @@ impl PageHost for SliceHost<'_> {
         self.next = self.next.wrapping_add(1);
         Ok(p)
     }
-    fn page_free(&mut self, p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, p: u64) -> Result<(), Fault> {
         self.span(Region::Page(p))?;
         let slot = self.free.get_mut(self.nfree).ok_or(Fault::OutOfMemory)?;
         *slot = p;
@@ -107,7 +108,7 @@ impl PageHost for SliceHost<'_> {
 fn table<H: PageHost>(h: &mut H) -> Result<(u64, Secondary), Fault> {
     let tbl = new_root(h)?;
     {
-        let s = h.get_mut(Region::Block(tbl), Owner(0))?;
+        let s = h.get_mut(Region::Block(tbl))?;
         fill(s, 0, 160, 0)?;
         fill(s, 928, 4_096 - 928, 0)?;
         put_u64(s, 96, 1)?;
@@ -701,20 +702,19 @@ pub extern "C" fn nt_copy_unit(rounds: u64) -> u64 {
 }
 
 fn copy_unit(h: &mut crate::ArrayHost, rounds: u64) -> Result<u64, Fault> {
-    let w = Owner(0);
-    let a = h.page_alloc(w)?;
-    let b = h.page_alloc(w)?;
+    let a = h.page_alloc()?;
+    let b = h.page_alloc()?;
     let mut g = Gen(rounds | 1);
     let mut k = 0u64;
     while k < PAGE {
-        put_u64(h.get_mut(Region::Page(a), w)?, k, g.next())?;
+        put_u64(h.get_mut(Region::Page(a))?, k, g.next())?;
         k = k.wrapping_add(8);
     }
     let mut r = 0u64;
     let mut last = a;
     while r < rounds {
         let (from, to) = if r % 2 == 0 { (a, b) } else { (b, a) };
-        native_table::mem::copy(h, Region::Page(from), 0, Region::Page(to), 0, BYTE_UNIT, w)?;
+        native_table::mem::copy(h, Region::Page(from), 0, Region::Page(to), 0, BYTE_UNIT)?;
         last = to;
         r = r.wrapping_add(1);
     }

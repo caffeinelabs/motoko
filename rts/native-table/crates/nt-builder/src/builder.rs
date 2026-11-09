@@ -18,18 +18,18 @@
 //! Contributions: a row entry 1 and a tombstone −1 at V = 0; a posting chunk of rows m + 1, of tombstones
 //! −(m + 1); a key run n; a count entry 0.
 
-use crate::consts::{BLOCK, FORMAT_KEY, PAGE, RID_PAYLOAD, SENT_MIN, W_MIN};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::index::chunk::{encode_key_run, encode_posting, key_run_step, Chunker, KEY_RUN, KEY_RUN_MAX};
-use crate::index::plan::{has_count_tree, Measure};
-use crate::index::run::{
+use crate::bulk::{plan_shape, BulkState, RunGeometry, RunSink};
+use crate::plan::{has_count_tree, Measure};
+use native_table::consts::{BLOCK, FORMAT_KEY, PAGE, RID_PAYLOAD, SENT_MIN, W_MIN};
+use native_table::fault::{rt, Corruption, Fault};
+use native_table::index::chunk::{encode_key_run, encode_posting, key_run_step, Chunker, KEY_RUN, KEY_RUN_MAX};
+use native_table::index::run::{
     at, filter_set, record_offset, shared_prefix, RunHeader, RunLayout, F_COUNT_TREE, F_FILTER, F_KEYS_RISE,
     F_KEY_RUNS, F_PRIMARY, F_RELATIVE, PREFIX_HEAD, RECORDS_PER_BLOCK, RECORD_BYTES,
 };
-use crate::key::probe::{count_field, ovf_field, payload, row_field, tomb_field, PART};
-use crate::mem::{copy_bytes, put};
-use crate::tree::bulk::{plan_shape, BulkState, RunGeometry, RunSink};
-use crate::tree::IndexShape;
+use native_table::key::probe::{count_field, ovf_field, payload, row_field, tomb_field, PART};
+use native_table::mem::{copy_bytes, put};
+use native_table::tree::IndexShape;
 
 /// One input item: a key's full encoding, a rid as the run stores it, and its sign.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,10 +79,6 @@ impl RunPlan {
     pub fn filter_scratch(&self) -> u64 {
         self.layout.filter_blocks.saturating_mul(BLOCK)
     }
-}
-
-fn rt(kind: Corruption, off: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, off)
 }
 
 fn add(a: u64, b: u64) -> Result<u64, Fault> {

@@ -9,17 +9,17 @@
 
 use std::collections::BTreeSet;
 
-use native_table::area::{alloc_block, alloc_zeroed, free_block, image_page_alloc, new_root, AreaRecord, IMAGE_AREA};
+use native_table::area::{
+    alloc_block, alloc_zeroed, free_block, image_page_alloc, image_page_free, new_root, AreaRecord, IMAGE_AREA,
+};
 use native_table::consts::{AREAS, BLOCK, PAGE, RADIX_STEP, UNIT_BLOCKS_MAX};
 use native_table::fault::corrupt;
 use native_table::host::Progress;
 use native_table::image::{Blocks, Image, ImageReader, BELIEVED, DIRECT};
 use native_table::mem::{put_u64, rd_u64, rd_u8};
 use native_table::radix::{Radix, Units, DRAIN_BLOCKS, DRAIN_PAGES, HEIGHT_MAX};
-use native_table::{CorruptAt, Corruption, Fault, ImageId, Owner, PageHost, Region};
+use native_table::{CorruptAt, Corruption, Fault, ImageId, PageHost, Region};
 use nt_testhost::{Call, VecHost, XorShift, FILLS};
-
-const W0: Owner = Owner(0);
 
 /// Blocks a drain unit changes outside the test host's count: the drain block, two stack blocks of the
 /// packed free-page stack for 256 frees and the host state block.
@@ -56,7 +56,7 @@ fn entries(h: &VecHost, r: Radix) -> Vec<(u64, u64)> {
     let mut out = Vec::new();
     let mut from = 0;
     loop {
-        let w = r.walk(h, from, |i, v| {
+        let w = r.walk_max(h, from, RADIX_STEP, |i, v| {
             out.push((i, v));
             Ok(())
         });
@@ -133,6 +133,28 @@ fn read_back(h: &VecHost, id: ImageId, img: Image) -> Vec<u8> {
     out
 }
 
+/// One drain unit of an image's release: its pages freed in order from `cursor`, within `units`.
+fn release_step(img: &Image, h: &mut VecHost, t: u64, cursor: &mut u64, units: &mut Units) -> Progress {
+    match img.blocks {
+        Blocks::Direct { count, entries } => {
+            while *cursor < u64::from(count) {
+                if units.pages == 0 || units.entries == 0 {
+                    return Progress::More;
+                }
+                let p = entries[*cursor as usize];
+                units.entries -= 1;
+                if p != 0 {
+                    image_page_free(h, t, p).unwrap();
+                    units.pages -= 1;
+                }
+                *cursor += 1;
+            }
+            Progress::Done
+        }
+        Blocks::Radix(r) => r.release_step(h, t, cursor, units, |h, p| image_page_free(h, t, p)).unwrap(),
+    }
+}
+
 /// Frees an image in drain units; returns the per-unit changed-block counts.
 fn release_image(h: &mut VecHost, t: u64, img: &Image) -> Vec<u64> {
     let mut cursor = 0;
@@ -140,7 +162,7 @@ fn release_image(h: &mut VecHost, t: u64, img: &Image) -> Vec<u64> {
     h.end_message();
     loop {
         let mut u = Units::DRAIN;
-        let p = img.release_step(h, t, &mut cursor, &mut u).unwrap();
+        let p = release_step(img, h, t, &mut cursor, &mut u);
         let changed = h.end_message();
         assert!(Units::DRAIN.pages - u.pages <= DRAIN_PAGES);
         assert!(changed + HOST_UNIT_BLOCKS <= UNIT_BLOCKS_MAX, "a drain unit changed {changed} blocks");
@@ -390,7 +412,7 @@ fn radix_walks_are_bounded_by_radix_step() {
         let nb = blocks(h, r).len() as u64;
         assert_eq!(nb, 6);
         let mut seen = Vec::new();
-        let w = r.walk(h, 0, |i, v| {
+        let w = r.walk_max(h, 0, RADIX_STEP, |i, v| {
             seen.push((i, v));
             Ok(())
         });
@@ -400,7 +422,7 @@ fn radix_walks_are_bounded_by_radix_step() {
         assert_eq!(w.next, None);
         // From a cursor: only later entries.
         let mut later = Vec::new();
-        r.walk(h, 8, |i, v| {
+        r.walk_max(h, 8, RADIX_STEP, |i, v| {
             later.push((i, v));
             Ok(())
         })
@@ -416,7 +438,7 @@ fn radix_walks_are_bounded_by_radix_step() {
         let mut calls = Vec::new();
         let mut got = Vec::new();
         loop {
-            let w = d.walk(h, from, |i, v| {
+            let w = d.walk_max(h, from, RADIX_STEP, |i, v| {
                 got.push((i, v));
                 Ok(())
             });
@@ -448,7 +470,7 @@ fn radix_walks_are_bounded_by_radix_step() {
         let mut n_calls = 0;
         let mut got = Vec::new();
         loop {
-            let w = s.walk(h, from, |i, v| {
+            let w = s.walk_max(h, from, RADIX_STEP, |i, v| {
                 got.push((i, v));
                 Ok(())
             });
@@ -464,12 +486,12 @@ fn radix_walks_are_bounded_by_radix_step() {
         assert_eq!(got, far.to_vec());
         assert!(total >= 512 * nb && total <= 512 * nb + (n_calls - 1) * u64::from(HEIGHT_MAX - 1));
         // An error from the visitor stops the walk and is returned.
-        let e = s.walk(h, 0, |_, _| Err(Fault::Busy));
+        let e = s.walk_max(h, 0, RADIX_STEP, |_, _| Err(Fault::Busy));
         assert_eq!(e, Err(Fault::Busy));
         // An empty array, and a cursor past the end, examine nothing.
-        let none = Radix::EMPTY.walk(h, 0, |_, _| Ok(())).unwrap();
+        let none = Radix::EMPTY.walk_max(h, 0, RADIX_STEP, |_, _| Ok(())).unwrap();
         assert_eq!((none.examined, none.next), (0, None));
-        let past = d.walk(h, 512 * 512, |_, _| Ok(())).unwrap();
+        let past = d.walk_max(h, 512 * 512, RADIX_STEP, |_, _| Ok(())).unwrap();
         assert_eq!((past.examined, past.next), (0, None));
         (calls, total, n_calls)
     });
@@ -514,7 +536,7 @@ fn image_round_trips_from_8_bytes_to_3_blocks() {
 
             // The record round trips through a block; reads go through the reader.
             let holder = alloc_zeroed(h, t, 0).unwrap();
-            img.put_record(h.get_mut(Region::Block(holder), W0).unwrap(), 16).unwrap();
+            img.put_record(h.get_mut(Region::Block(holder)).unwrap(), 16).unwrap();
             let stored = h.get(Region::Block(holder)).unwrap();
             assert_eq!(rd_u8(stored, 16 + 8).unwrap(), DIRECT);
             assert_eq!(rd_u8(stored, 16 + 9).unwrap() as u64, n);
@@ -546,7 +568,7 @@ fn image_round_trips_from_8_bytes_to_3_blocks() {
                 assert_eq!(changed, 2);
                 assert!(img.put_ref(&mut [0u8; 24], 0).is_err(), "a direct table of {n} entries has no reference form");
             }
-            rf.put_ref(h.get_mut(Region::Block(holder), W0).unwrap(), 200).unwrap();
+            rf.put_ref(h.get_mut(Region::Block(holder)).unwrap(), 200).unwrap();
             let stored = h.get(Region::Block(holder)).unwrap();
             assert_eq!(rd_u8(stored, 200 + 16).unwrap() as u64, if n == 1 { 0 } else { 1 });
             assert_eq!(rd_u8(stored, 200 + 17).unwrap(), 0);
@@ -556,11 +578,11 @@ fn image_round_trips_from_8_bytes_to_3_blocks() {
 
             // The believed flag (record byte 10, reference byte 17) is kept wherever the image moves.
             let believed = Image { believed: true, ..img };
-            believed.put_record(h.get_mut(Region::Block(holder), W0).unwrap(), 300).unwrap();
+            believed.put_record(h.get_mut(Region::Block(holder)).unwrap(), 300).unwrap();
             let moved = Image::read_record(h.get(Region::Block(holder)).unwrap(), 300).unwrap();
             assert!(moved.believed);
             let moved_ref = Image { believed: true, ..rf };
-            moved_ref.put_ref(h.get_mut(Region::Block(holder), W0).unwrap(), 400).unwrap();
+            moved_ref.put_ref(h.get_mut(Region::Block(holder)).unwrap(), 400).unwrap();
             let stored = h.get(Region::Block(holder)).unwrap();
             assert_eq!(rd_u8(stored, 400 + 17).unwrap(), BELIEVED);
             assert!(Image::read_ref(stored, 400).unwrap().believed);
@@ -588,7 +610,7 @@ fn image_records_with_radix_block_lists() {
             let want = if blocks_n == 9 { 1 } else { 2 };
             assert!(matches!(img.blocks, Blocks::Radix(Radix { height, .. }) if height == want));
             let holder = alloc_zeroed(h, t, 0).unwrap();
-            img.put_record(h.get_mut(Region::Block(holder), W0).unwrap(), 0).unwrap();
+            img.put_record(h.get_mut(Region::Block(holder)).unwrap(), 0).unwrap();
             let stored = h.get(Region::Block(holder)).unwrap();
             assert_eq!(rd_u8(stored, 8).unwrap(), want);
             assert_eq!(rd_u8(stored, 9).unwrap(), 0, "a radix record keeps no direct entries");
@@ -596,7 +618,7 @@ fn image_records_with_radix_block_lists() {
             assert_eq!(back, img);
             // A radix image is already in reference form.
             assert_eq!(img.ref_form(h, t).unwrap(), img);
-            img.put_ref(h.get_mut(Region::Block(holder), W0).unwrap(), 100).unwrap();
+            img.put_ref(h.get_mut(Region::Block(holder)).unwrap(), 100).unwrap();
             assert_eq!(Image::read_ref(h.get(Region::Block(holder)).unwrap(), 100).unwrap(), img);
             assert_eq!(read_back(h, ImageId::Run { index: 1, start_seq: 2 }, back), bytes);
             // Freed in drain units of at most 256 pages, each radix block after its pages.
@@ -716,7 +738,7 @@ fn poisoned_scenario(h: &mut VecHost) -> Trace {
     // Area-1 blocks written whole, as every index node is.
     for k in 0..40u64 {
         let b = alloc_block(h, t, 1).unwrap();
-        h.get_mut(Region::Block(b), Owner(1)).unwrap().fill(k as u8);
+        h.get_mut(Region::Block(b)).unwrap().fill(k as u8);
     }
     // Images of 8 bytes, 65,544 bytes and 3 blocks; the second and third in reference form.
     let mut images = Vec::new();
@@ -746,7 +768,7 @@ fn poisoned_scenario(h: &mut VecHost) -> Trace {
     let mut reused = Vec::new();
     for _ in 0..(3 * 16) {
         let b = alloc_block(h, t, 1).unwrap();
-        h.get_mut(Region::Block(b), Owner(1)).unwrap().fill(0x11);
+        h.get_mut(Region::Block(b)).unwrap().fill(0x11);
         if b % PAGE == 0 && freed.contains(&b) {
             reused.push(b);
         }
@@ -765,7 +787,7 @@ fn poisoned_scenario(h: &mut VecHost) -> Trace {
     dir.clear(h, t, 70_000).unwrap();
     // Blocks freed and taken again: zero-filled ones read zero, whatever they held.
     for &b in zeroed.iter().take(5) {
-        put_u64(h.get_mut(Region::Block(b), W0).unwrap(), 4_000, 0xDEAD).unwrap();
+        put_u64(h.get_mut(Region::Block(b)).unwrap(), 4_000, 0xDEAD).unwrap();
         free_block(h, t, 0, b).unwrap();
     }
     for _ in 0..5 {
@@ -774,7 +796,7 @@ fn poisoned_scenario(h: &mut VecHost) -> Trace {
     // Area 1 takes more blocks.
     for _ in 0..20 {
         let b = alloc_block(h, t, 1).unwrap();
-        h.get_mut(Region::Block(b), Owner(1)).unwrap().fill(0x22);
+        h.get_mut(Region::Block(b)).unwrap().fill(0x22);
     }
     let live_zeroed: Vec<u64> = zeroed.iter().copied().skip(5).collect();
     Trace {
@@ -882,7 +904,7 @@ fn changed_blocks_per_operation() {
         let mut cursor = 0;
         measure(h, "image release unit", 2, &mut |h| {
             let mut u = Units::DRAIN;
-            assert_eq!(rf.release_step(h, t, &mut cursor, &mut u).unwrap(), Progress::Done);
+            assert_eq!(release_step(&rf, h, t, &mut cursor, &mut u), Progress::Done);
         });
         assert!(2 + HOST_UNIT_BLOCKS <= UNIT_BLOCKS_MAX);
         assert_eq!(DRAIN_BLOCKS + 1 + HOST_UNIT_BLOCKS, UNIT_BLOCKS_MAX);

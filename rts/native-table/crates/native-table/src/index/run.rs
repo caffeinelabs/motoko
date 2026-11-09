@@ -37,17 +37,14 @@ use core::cmp::Ordering;
 use core::ops::Bound::{self, Excluded, Included, Unbounded};
 
 use crate::consts::{
-    magic, BLOCK, FILTER_K, FORMAT_IMAGE, FORMAT_KEY, IMAGE_V1, PAGE, PATH_STACK, V_CHOICES, WALK_MAX,
+    magic, BLOCK, FILTER_BITS, FILTER_K, FILTER_LINES_PER_BLOCK, FORMAT_IMAGE, FORMAT_KEY, IMAGE_V1, PAGE, PATH_STACK,
+    V_CHOICES, WALK_MAX,
 };
 use crate::fault::{corrupt, Corruption, Fault, ImageId, Refusal, RefusalCode};
-use crate::hash::{mix, nt_hash64, Hasher64};
+use crate::hash::{mix, nt_hash64};
 use crate::index::chunk::{self, header as chunk_header, key_field, Chunk, KEY_RUN};
 use crate::index::nodes::{EntryRef, Run, RunImage, RunNodes};
-use crate::index::plan::filter_lines;
-use crate::key::probe::{
-    cmp_entry, cmp_fed, is_count, is_ovf, is_tomb, payload, FeedProbe, KeyFeed, KeyProbe, Kind, Skip,
-};
-use crate::key::Sink;
+use crate::key::probe::{cmp_entry, is_count, is_ovf, is_tomb, payload, KeyProbe, Kind};
 use crate::mem::{copy_bytes, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8};
 use crate::tree::node::child;
 use crate::tree::{Cursor, Dir, Direction, Fwd, IndexShape, Path, Probe, Rev, Search};
@@ -167,6 +164,13 @@ pub struct RunHeader {
 
 fn rt(off: u64) -> Fault {
     corrupt(ImageId::Runtime, Corruption::Count, off)
+}
+
+/// Filter lines for d distinct keys: max(64, ⌈10·d / 512⌉), rounded up to a multiple of 64.
+pub fn filter_lines(d: u64) -> Result<u64, Fault> {
+    let bitsum = d.checked_mul(FILTER_BITS).ok_or(rt(d))?;
+    let lines = bitsum.div_ceil(512).max(FILTER_LINES_PER_BLOCK);
+    lines.div_ceil(FILTER_LINES_PER_BLOCK).checked_mul(FILTER_LINES_PER_BLOCK).ok_or(rt(d))
 }
 
 /// OA for an image of `slots` node slots: round_up(4,096·(slots + 1), 65,536).
@@ -386,12 +390,10 @@ impl RunHeader {
         IndexShape::new(self.w, self.v)
     }
 
-    /// Whether a count tree is present.
     pub fn has_count_tree(&self) -> bool {
         self.flags & F_COUNT_TREE != 0
     }
 
-    /// Whether a filter is present.
     pub fn has_filter(&self) -> bool {
         self.flags & F_FILTER != 0
     }
@@ -762,109 +764,6 @@ fn item_of<I: RunImage>(
     Ok(Some(nm1.wrapping_sub(u32::try_from(back).unwrap_or(0))))
 }
 
-/// `key_run_index` for the key `key` hands over past its first `skip` bytes, its stored form of `klen` bytes.
-fn key_run_index_fed<I: RunImage, F: KeyFeed + ?Sized>(
-    t: &RunNodes<'_, I>,
-    e: &EntryRef<'_>,
-    key: &F,
-    skip: u64,
-    klen: u64,
-) -> Result<Option<u32>, Fault> {
-    let Some((l, nm1)) = key_run_of(t, e)? else { return Ok(None) };
-    if klen < u64::from(l) || is_ovf(e.field) != (klen > t.shape().w) {
-        return Ok(None);
-    }
-    if run_keys_len(t, e, l, klen)? != klen {
-        return Ok(None);
-    }
-    let mut it = ItemCmp { t, e, head: klen.wrapping_sub(u64::from(l)), at: 0, same: true, tail: [0; 8] };
-    key.feed(&mut Skip { skip, inner: &mut it })?;
-    if !it.same {
-        return Ok(None);
-    }
-    // Past a key that fits W, the area is zero padding.
-    let k0 = usize::try_from(klen).unwrap_or(usize::MAX);
-    if !is_ovf(e.field) && e.area.get(k0..).is_some_and(|z| z.iter().any(|&x| x != 0)) {
-        return Ok(None);
-    }
-    let tail = it.tail.get(..usize::from(l)).unwrap_or(&[]);
-    let fk = key_field(tail, l).ok_or(corrupt(t.run().id(), Corruption::Encoding, e.node))?;
-    item_of(t, e, l, nm1, klen, fk)
-}
-
-/// A key handed over against a key-run entry's stored key: its first `head` bytes compared, its last L bytes
-/// (the key field) kept.
-struct ItemCmp<'a, 'r, I: RunImage> {
-    t: &'a RunNodes<'r, I>,
-    e: &'a EntryRef<'a>,
-    head: u64,
-    at: u64,
-    same: bool,
-    tail: [u8; 8],
-}
-
-impl<I: RunImage> Sink for ItemCmp<'_, '_, I> {
-    fn put(&mut self, bytes: &[u8]) -> Result<(), Fault> {
-        let mut rest = bytes;
-        let mut buf = [0u8; PIECE];
-        while let Some((&first, more)) = rest.split_first() {
-            if self.at >= self.head {
-                if let Some(slot) = self.tail.get_mut(usize::try_from(self.at.wrapping_sub(self.head)).unwrap_or(8)) {
-                    *slot = first;
-                }
-                (rest, self.at) = (more, self.at.wrapping_add(1));
-                continue;
-            }
-            let want = usize::try_from(self.head.wrapping_sub(self.at)).unwrap_or(PIECE).min(PIECE).min(rest.len());
-            let got = if self.same {
-                entry_key_bytes(self.t, self.e, self.at, buf.get_mut(..want).unwrap_or(&mut []))?
-            } else {
-                0
-            };
-            if got < want {
-                self.same = false;
-            }
-            if self.same && buf.get(..got) != rest.get(..got) {
-                self.same = false;
-            }
-            (rest, self.at) = (rest.get(want..).unwrap_or(&[]), self.at.wrapping_add(want as u64));
-        }
-        Ok(())
-    }
-}
-
-/// A key's first p bytes, as they are handed over, against a run's shared prefix of p bytes.
-struct PrefixCmp<'a, I: RunImage> {
-    run: &'a Run<I>,
-    at: u64,
-    same: bool,
-}
-
-impl<I: RunImage> Sink for PrefixCmp<'_, I> {
-    fn put(&mut self, bytes: &[u8]) -> Result<(), Fault> {
-        let mut rest = bytes;
-        while self.same && self.at < self.run.hdr.prefix && !rest.is_empty() {
-            let b = self.run.prefix_bytes(self.at)?;
-            let n = b.len().min(rest.len());
-            if n == 0 || b.get(..n) != rest.get(..n) {
-                self.same = false;
-            }
-            (rest, self.at) = (rest.get(n..).unwrap_or(&[]), self.at.wrapping_add(n as u64));
-        }
-        Ok(())
-    }
-}
-
-/// `nt_hash64` of the bytes handed over.
-struct HashSink(Hasher64);
-
-impl Sink for HashSink {
-    fn put(&mut self, bytes: &[u8]) -> Result<(), Fault> {
-        self.0.update(bytes);
-        Ok(())
-    }
-}
-
 /// Writes the stored key of the key-run item whose field is f into `out`: the entry's stored key with bytes
 /// [len − L, len) set to f.
 fn key_run_member<I: RunImage>(
@@ -1211,51 +1110,6 @@ impl<I: RunImage> Run<I> {
         }
         let klen = u64::try_from(key.len()).unwrap_or(u64::MAX);
         self.main_total(&t, key, klen, true)
-    }
-
-    /// `count_key` for the key `key` hands over, of `len` bytes, never held whole: the same steps, each made as
-    /// the key's bytes come (its first p bytes against the shared prefix, its rest against the fences and
-    /// the stored keys, all of it hashed for the filter).
-    pub fn count_fed<F: KeyFeed + ?Sized>(&self, key: &F, len: u64) -> Result<i64, Fault> {
-        let p = self.hdr.prefix;
-        if p > 0 {
-            // A key the prefix starts with, or one without it, is in no entry.
-            let mut c = PrefixCmp { run: self, at: 0, same: true };
-            key.feed(&mut c)?;
-            if len <= p || !c.same || c.at < p {
-                return Ok(0);
-            }
-        }
-        let t = self.main()?;
-        let (area, field, value) = self.fence(false)?;
-        // A key run's first items lie below its stored key, so such a fence bounds nothing below.
-        let run_first = self.hdr.v >= 8 && !is_count(field) && value.first() == Some(&KEY_RUN);
-        if !run_first && cmp_fed(&t, area, field, key, p, Kind::Count)? == Ordering::Greater {
-            return Ok(0);
-        }
-        let (area, field, _) = self.fence(true)?;
-        if cmp_fed(&t, area, field, key, p, Kind::Low)? == Ordering::Less {
-            return Ok(0);
-        }
-        if self.hdr.has_filter() {
-            let mut hs = HashSink(Hasher64::new(len));
-            key.feed(&mut hs)?;
-            if !self.filter_admits_hash(hs.0.finish())? {
-                return Ok(0);
-            }
-        }
-        let hi = FeedProbe { key, skip: p, kind: Kind::Count };
-        if let Some(ct) = self.count_tree()? {
-            return match ct.find(&hi)? {
-                Some((n, i)) => ct.total(&ct.entry(n, i)?),
-                None => Ok(0),
-            };
-        }
-        let lo = FeedProbe { key, skip: p, kind: Kind::Low };
-        let klen = len.wrapping_sub(p);
-        let vs_lo = |e: &EntryRef<'_>| cmp_fed(&t, e.area, e.field, key, p, Kind::Low);
-        let item = |e: &EntryRef<'_>| Ok(key_run_index_fed(&t, e, key, p, klen)?.is_some());
-        self.main_total_by(&t, &lo, &hi, vs_lo, item, true)
     }
 
     /// The next distinct key after `after` (a key as this reader hands them out; from the first when `None`)

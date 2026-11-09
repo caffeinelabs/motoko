@@ -11,3 +11,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 native-table = { path = "../native-table" }
+nt-builder = { path = "../nt-builder" }

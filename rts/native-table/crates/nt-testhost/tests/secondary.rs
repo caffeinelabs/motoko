@@ -23,7 +23,7 @@ use native_table::key::probe::{is_count, is_ovf, payload, payload_to_count, KeyP
 use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec};
 use native_table::tree::node::{child, count, is_leaf, ko};
 use native_table::tree::{Cursor, Fwd, Path, Shape};
-use native_table::{ImageId, NodeMem, PageHost};
+use native_table::{ImageId, NodeRead, PageHost};
 use nt_testhost::runs::VecItems;
 use nt_testhost::uploads::TTable;
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};

@@ -11,9 +11,9 @@
 //! image references from @32}.
 
 use crate::consts::{magic, BLOCK, FORMAT_TABLE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{corrupt, rt, Corruption, Fault, ImageId};
 use crate::image::{Image, REF_BYTES};
-use crate::mem::{put_u16, put_u32, put_u64, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{put_u16, put_u32, put_u64, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
 pub const P_FLAGS: u64 = 6;
 pub const P_GROUP: u64 = 8;
@@ -47,11 +47,6 @@ pub const LV_PER_BLOCK: u64 = 168;
 
 const _: () = assert!(LV_REFS + LV_PER_BLOCK * REF_BYTES <= BLOCK);
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
-/// Whether position p is live on group page `page`.
 #[inline]
 pub fn live<H: PageHost + ?Sized>(h: &H, page: u64, p: u64) -> Result<bool, Fault> {
     live_bit(h.get(Region::Block(page))?, p)
@@ -63,9 +58,8 @@ pub fn live_bit(b: &[u8], p: u64) -> Result<bool, Fault> {
     Ok(rd_u8(b, P_BITMAP.wrapping_add(p / 8))? >> (p % 8) & 1 != 0)
 }
 
-/// Clears position p's live bit.
 pub fn clear_live<H: PageHost>(h: &mut H, page: u64, p: u64) -> Result<(), Fault> {
-    let b = h.get_mut(Region::Block(page), Owner(0))?;
+    let b = h.get_mut(Region::Block(page))?;
     let at = P_BITMAP.wrapping_add(p / 8);
     let v = rd_u8(b, at)?;
     crate::mem::put_u8(b, at, v & !(1u8 << (p % 8)))
@@ -133,20 +127,20 @@ impl LvBuilder {
         if i % LV_PER_BLOCK == 0 {
             let b = crate::area::alloc_zeroed(h, tbl, 0)?;
             {
-                let s = h.get_mut(Region::Block(b), Owner(0))?;
+                let s = h.get_mut(Region::Block(b))?;
                 crate::mem::put_u32(s, 0, magic::NTLL)?;
                 put_u16(s, 4, FORMAT_TABLE)?;
                 put_u32(s, LV_FIRST, u32::try_from(i).map_err(|_| rt(Corruption::Range, i))?)?;
             }
             if self.tail != 0 {
-                put_u64(h.get_mut(Region::Block(self.tail), Owner(0))?, LV_NEXT, b)?;
+                put_u64(h.get_mut(Region::Block(self.tail))?, LV_NEXT, b)?;
             } else {
                 self.head = b;
             }
             self.tail = b;
         }
         let k = i % LV_PER_BLOCK;
-        let s = h.get_mut(Region::Block(self.tail), Owner(0))?;
+        let s = h.get_mut(Region::Block(self.tail))?;
         img.put_ref(s, LV_REFS.wrapping_add(k.wrapping_mul(REF_BYTES)))?;
         put_u32(s, LV_ENTRIES, u32::try_from(k.wrapping_add(1)).map_err(|_| rt(Corruption::Range, k))?)?;
         self.count = i.wrapping_add(1);

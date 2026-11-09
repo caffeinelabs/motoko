@@ -15,9 +15,9 @@
 //! u32}; bytes 3,904–4,095 zero until the drain's walk of the descriptor uses them}.
 
 use crate::consts::{magic, BLOCK, BUFFER_BLOCKS_MAX, FORMAT_TABLE, GROUP_SLOTS};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::image::Image;
-use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
 use super::layout::Shape;
 use super::root;
@@ -51,7 +51,6 @@ pub const H_FLAGS: u64 = 64;
 pub const H_TOTALS: u64 = 72;
 pub const H_TOTALS_HEIGHT: u64 = 80;
 pub const H_INDEX_RISE: u64 = 88;
-pub const H_RELEASE: u64 = 96;
 pub const H_RUN_VERSION: u64 = 176;
 pub const H_OPEN_LARGE: u64 = 180;
 pub const H_RUN_R: u64 = 182;
@@ -92,11 +91,6 @@ pub const LONG_ROWS: u16 = 8;
 /// Directory entries naming a buffer descriptor carry bit 63.
 pub const DESC_BIT: u64 = 1 << 63;
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
-/// The offset of slot s.
 #[inline]
 pub fn slot_at(s: u64) -> u64 {
     // s < 4,096 / 8.
@@ -258,7 +252,7 @@ pub fn open_group<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<(u64, u64, u6
 /// written, the block records past the first are not.
 pub fn new_descriptor<H: PageHost>(h: &mut H, tbl: u64, g: u64, first: u64) -> Result<u64, Fault> {
     let d = crate::area::alloc_block(h, tbl, 0)?;
-    let b = h.get_mut(Region::Block(d), Owner(0))?;
+    let b = h.get_mut(Region::Block(d))?;
     fill(b, 0, D_RECORDS.wrapping_add(16), 0)?;
     put_u32(b, 0, magic::NTBD)?;
     put_u16(b, 4, FORMAT_TABLE)?;
@@ -299,9 +293,9 @@ pub fn new_block_at<H: PageHost>(
 ) -> Result<u64, Fault> {
     let nb = crate::area::alloc_block(h, tbl, 0)?;
     if let Some(old) = hot_from {
-        crate::mem::copy(h, Region::Block(old), 32, Region::Block(nb), 32, hh.wrapping_sub(32), Owner(0))?;
+        crate::mem::copy(h, Region::Block(old), 32, Region::Block(nb), 32, hh.wrapping_sub(32))?;
     }
-    let b = h.get_mut(Region::Block(nb), Owner(0))?;
+    let b = h.get_mut(Region::Block(nb))?;
     put_u32(b, 0, magic::NTBF)?;
     put_u16(b, 4, FORMAT_TABLE)?;
     put_u16(b, B_SLOTS, 0)?;
@@ -328,7 +322,6 @@ pub fn zero_hot(b: &mut [u8], shape: &Shape, hh: u64) -> Result<(), Fault> {
     put_u16(b, H_RUN_R, r)
 }
 
-/// A u16 field of a block.
 pub fn u16_of<H: PageHost + ?Sized>(h: &H, b: u64, off: u64) -> Result<u64, Fault> {
     Ok(u64::from(rd_u16(h.get(Region::Block(b))?, off)?))
 }

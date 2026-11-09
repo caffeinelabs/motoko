@@ -19,7 +19,7 @@ use native_table::table::totals::Total;
 use native_table::table::{buffer, root, CellIn, CellOut, RowSink, RowSource, Table, Upsert};
 use native_table::tree::Path;
 use native_table::value::ty;
-use native_table::{Fault, Owner, PageHost, Region};
+use native_table::{Fault, PageHost, Region};
 
 use crate::segments::SliceHost;
 use crate::Gen;
@@ -41,7 +41,7 @@ fn primary_insert<H: PageHost>(h: &mut H, tbl: u64, p: &mut Primary, key: &[u8],
 fn tree_digest<H: PageHost>(h: &H, p: &Primary) -> Result<u64, Fault> {
     use native_table::hash::Hasher64;
     use native_table::tree::{node, Cursor, Fwd, Shape};
-    use native_table::NodeMem;
+    use native_table::NodeRead;
     let s = p.shape;
     let m = AreaView::new(h, s, KeyLog::default());
     let mut hs = Hasher64::new(0);
@@ -414,7 +414,7 @@ pub fn table_ops(mem: &mut [u8], w: [u64; 6], counter: fn() -> u64, mark: &mut d
     for i in 0..pre {
         table_op(&mut t, &mut sc, 0, i, seed, r)?;
     }
-    t.maintain(&mut sc, &crate::ProbeBudget)?;
+    t.maintain(&crate::ProbeBudget)?;
     let row = |j: u64| match op {
         0 => pre.wrapping_add(j),
         2 => pre.saturating_sub(n).wrapping_add(j),
@@ -478,7 +478,7 @@ fn index_build(
     for i in 0..pre {
         t.upsert(&mut sc, &mut OpsRow::of(i, seed))?;
     }
-    t.maintain(&mut sc, &crate::ProbeBudget)?;
+    t.maintain(&crate::ProbeBudget)?;
     t.change_schema(img2.get(..len2).unwrap_or(&[]))?;
     let meter = Counted(counter);
     let (mut units, mut most) = (0u64, 0u64);
@@ -493,7 +493,7 @@ fn index_build(
         1 => Ok(most),
         2 => {
             let id = u8::try_from(k.wrapping_add(1)).map_err(|_| Fault::BadRef)?;
-            Ok(if t.count(id, &mut OpsRow::of(0, seed))? >= 1 { t.len()? } else { u64::MAX })
+            Ok(if t.count(&mut sc, id, &mut OpsRow::of(0, seed))? >= 1 { t.len()? } else { u64::MAX })
         }
         _ => Ok(units),
     }
@@ -556,7 +556,7 @@ pub fn filter_scans(mem: &mut [u8], w: [u64; 6], mark: &mut dyn FnMut()) -> Resu
     for i in 0..n {
         t.upsert(&mut sc, &mut ScanRow(i, native_table::hash::mix(i ^ seed)))?;
     }
-    t.maintain(&mut sc, &crate::ProbeBudget)?;
+    t.maintain(&crate::ProbeBudget)?;
     let at = |x: u64| CellIn::U64(x);
     let ts = |lo, hi| Filter { leaf: 3 << 16, cond: Cond::Range(lo, hi) };
     let cat = Filter { leaf: 2 << 16, cond: Cond::Eq(at(7)) };
@@ -681,7 +681,7 @@ pub fn group_counts(mem: &mut [u8], w: [u64; 6], mark: &mut dyn FnMut()) -> Resu
     for i in 0..n {
         t.upsert(&mut sc, &mut OpsRow::of(i, seed))?;
     }
-    t.maintain(&mut sc, &crate::ProbeBudget)?;
+    t.maintain(&crate::ProbeBudget)?;
     let ix = u8::try_from(index).map_err(|_| Fault::BadRef)?;
     let (mut groups, mut rows) = (0u64, 0i128);
     mark();
@@ -707,7 +707,7 @@ pub fn group_counts(mem: &mut [u8], w: [u64; 6], mark: &mut dyn FnMut()) -> Resu
         }
     } else {
         for v in 0..per {
-            let c = t.count(ix, &mut NatKey(v))?;
+            let c = t.count(&mut sc, ix, &mut NatKey(v))?;
             groups = groups.wrapping_add(u64::from(c > 0));
             rows = rows.wrapping_add(c);
         }
@@ -729,19 +729,19 @@ impl PageHost for InPlace<'_, '_> {
     fn get(&self, r: Region) -> Result<&[u8], Fault> {
         self.0.get(r)
     }
-    fn get_mut(&mut self, _r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, _r: Region) -> Result<&mut [u8], Fault> {
         Err(Fault::BadRef)
     }
-    fn pair_mut(&mut self, _a: Region, _b: Region, _w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, _a: Region, _b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         Err(Fault::BadRef)
     }
-    fn read_write(&mut self, _r: Region, _wr: Region, _w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
+    fn read_write(&mut self, _r: Region, _wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
         Err(Fault::BadRef)
     }
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         Err(Fault::BadRef)
     }
-    fn page_free(&mut self, _p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, _p: u64) -> Result<(), Fault> {
         Err(Fault::BadRef)
     }
 }
@@ -761,7 +761,7 @@ pub fn extremes_open(mem: &mut [u8], w: [u64; 6], mark: &mut dyn FnMut()) -> Res
     for i in 0..n {
         t.upsert(&mut sc, &mut ScanRow(i, native_table::hash::mix(i ^ seed)))?;
     }
-    t.maintain(&mut sc, &crate::ProbeBudget)?;
+    t.maintain(&crate::ProbeBudget)?;
     if what == 4 {
         let page = h.get(Region::Page(root::u64_at(&h, tbl, root::SCHEMA_PAGE)?))?;
         let mut shared = InPlace(&h);

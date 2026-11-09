@@ -267,8 +267,7 @@ fn write(tb: &mut Table<'_, VecHost>, m: &mut Model, r: &mut XorShift, texts: &[
 }
 
 fn maintain_all(tb: &mut Table<'_, VecHost>) {
-    let mut sc = VecScratch::new(FILLS[0]);
-    assert_eq!(tb.maintain(&mut sc, &TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
+    assert_eq!(tb.maintain(&TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 

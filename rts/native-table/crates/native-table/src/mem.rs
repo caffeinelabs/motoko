@@ -10,11 +10,6 @@
 use crate::consts::PAGE;
 use crate::fault::{bounds, Fault};
 
-/// Who writes: the area index 0..16. Motoko checks it against the page's owner word together with its own
-/// table slot and generation; Rust EOP (a Rust library for upgrades that keep the heap in place) ignores it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Owner(pub u32);
-
 /// A block (4,096 bytes) or a page (65,536 bytes), named by its host reference.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Region {
@@ -22,7 +17,8 @@ pub enum Region {
     Page(u64),
 }
 
-/// Main memory, lent. Motoko: store pages in store partitions; Rust EOP: pages of arenas.
+/// Main memory, lent. Motoko: store pages in store partitions; Rust EOP (a Rust library for upgrades that
+/// keep the heap in place): pages of arenas.
 ///
 /// A reference is a u64 the host defines; 0 means none, and bits 62 and 63 are never set, so formats may
 /// use bit 63 of a stored word for their own flags. A page reference is the reference of its block 0.
@@ -32,20 +28,19 @@ pub trait PageHost {
     /// The 4,096 bytes of a block or the 65,536 bytes of a page. The slice lives as long as the shared
     /// borrow of the host.
     fn get(&self, r: Region) -> Result<&[u8], Fault>;
-    fn get_mut(&mut self, r: Region, w: Owner) -> Result<&mut [u8], Fault>;
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault>;
     /// Two distinct regions, writable; `Err(BadRef)` when they overlap.
-    fn pair_mut(&mut self, a: Region, b: Region, w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault>;
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault>;
     /// One region read and a different one written.
-    fn read_write(&mut self, r: Region, wr: Region, w: Owner) -> Result<(&[u8], &mut [u8]), Fault>;
-    /// A fresh page for owner w; its contents are unspecified (the crate writes before it reads).
-    fn page_alloc(&mut self, w: Owner) -> Result<u64, Fault>;
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault>;
+    /// A fresh page; its contents are unspecified (the crate writes before it reads).
+    fn page_alloc(&mut self) -> Result<u64, Fault>;
     /// Returns page p; nothing references it any more. O(1). n consecutive frees change at most
     /// 1 + ⌈n/511⌉ 4 KiB blocks of the host's free-page stack plus one block of host state.
-    fn page_free(&mut self, p: u64, w: Owner) -> Result<(), Fault>;
+    fn page_free(&mut self, p: u64) -> Result<(), Fault>;
     /// The 4 KiB pages the next `page_alloc` may change besides the page it returns, in any memory: the
-    /// host-state block for a pop or a bump; Motoko's owner-word block and a new store partition's records;
-    /// Rust EOP's pages of a new arena. A maintenance unit ends before a `page_alloc` unless 1 plus this
-    /// still fits its pages.
+    /// host-state block for a pop or a bump; Motoko's records of a new store partition; Rust EOP's pages of a
+    /// new arena. A maintenance unit ends before a `page_alloc` unless 1 plus this still fits its pages.
     fn alloc_changes(&self) -> u64;
     /// Test mode: the fill pattern P a test host poisons fresh pages with, or
     /// `None`. With `Some(p)`, `area::alloc_block` overwrites the stale free-stack link of every block it takes
@@ -67,14 +62,12 @@ fn range(len_of: usize, off: u64, len: u64) -> Result<core::ops::Range<usize>, F
     Ok(s..e)
 }
 
-/// The `len` bytes at `off`.
 #[inline]
 pub fn sub(b: &[u8], off: u64, len: u64) -> Result<&[u8], Fault> {
     let r = range(b.len(), off, len)?;
     b.get(r).ok_or(bounds(off))
 }
 
-/// The `len` bytes at `off`, writable.
 #[inline]
 pub fn sub_mut(b: &mut [u8], off: u64, len: u64) -> Result<&mut [u8], Fault> {
     let r = range(b.len(), off, len)?;
@@ -115,7 +108,6 @@ pub fn rd_u64(b: &[u8], off: u64) -> Result<u64, Fault> {
     rd_array::<8>(b, off).map(u64::from_le_bytes)
 }
 
-/// Writes `src` at `off`.
 #[inline]
 pub fn put(b: &mut [u8], off: u64, src: &[u8]) -> Result<(), Fault> {
     let len = u64::try_from(src.len()).map_err(|_| bounds(off))?;
@@ -152,7 +144,6 @@ pub fn put_u64(b: &mut [u8], off: u64, v: u64) -> Result<(), Fault> {
     put(b, off, &v.to_le_bytes())
 }
 
-/// Sets the `len` bytes at `off` to `v`.
 #[inline]
 pub fn fill(b: &mut [u8], off: u64, len: u64, v: u8) -> Result<(), Fault> {
     sub_mut(b, off, len)?.fill(v);
@@ -207,12 +198,11 @@ pub fn copy<H: PageHost>(
     to: Region,
     to_off: u64,
     len: u64,
-    w: Owner,
 ) -> Result<(), Fault> {
     if len > PAGE {
         return Err(bounds(from_off));
     }
-    let (r, wr) = h.read_write(from, to, w)?;
+    let (r, wr) = h.read_write(from, to)?;
     let s = sub(r, from_off, len)?;
     put(wr, to_off, s)
 }

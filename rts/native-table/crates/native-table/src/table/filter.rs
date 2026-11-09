@@ -19,7 +19,7 @@ use core::cmp::Ordering;
 use core::ops::Bound;
 
 use crate::consts::GROUP_SLOTS;
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{rd_array, PageHost, Region};
 use crate::stats::I192;
 
@@ -33,10 +33,6 @@ use super::overlay::{self, Buffered, Sealed};
 use super::read::{self, Live};
 use super::totals::{self, Total};
 use super::{page, root, CellIn, RowSink};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// What a filtered scan asks of its leaf's value.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -93,33 +89,6 @@ fn pt<'a>(l: &LeafInfo, v: Val<'a>) -> Result<Pt<'a>, Fault> {
     })
 }
 
-/// The order of two canonical LEB128 values beyond i128 of `la` and `lb` bytes, negative or not, byte j of
-/// each read by `a` and `b`: by sign, then by length (a longer one is further from zero), then by their 7-bit
-/// groups from the most significant.
-fn big_order(
-    (la, na): (u64, bool),
-    (lb, nb): (u64, bool),
-    mut a: impl FnMut(u64) -> Result<u8, Fault>,
-    mut b: impl FnMut(u64) -> Result<u8, Fault>,
-) -> Result<Ordering, Fault> {
-    if na != nb {
-        return Ok(if na { Ordering::Less } else { Ordering::Greater });
-    }
-    if la != lb {
-        let o = la.cmp(&lb);
-        return Ok(if na { o.reverse() } else { o });
-    }
-    let mut j = la;
-    while j > 0 {
-        j = j.wrapping_sub(1);
-        let (x, y) = (a(j)? & 0x7F, b(j)? & 0x7F);
-        if x != y {
-            return Ok(x.cmp(&y));
-        }
-    }
-    Ok(Ordering::Equal)
-}
-
 /// The order of two values of one leaf; `None` when they do not compare (a NaN).
 fn order(a: &Pt<'_>, b: &Pt<'_>) -> Result<Option<Ordering>, Fault> {
     let byte = |s: &[u8], j: u64| -> Result<u8, Fault> {
@@ -130,7 +99,7 @@ fn order(a: &Pt<'_>, b: &Pt<'_>) -> Result<Option<Ordering>, Fault> {
         (Pt::Int(_), Pt::Big(_, neg)) => Some(if neg { Ordering::Greater } else { Ordering::Less }),
         (Pt::Big(_, neg), Pt::Int(_)) => Some(if neg { Ordering::Less } else { Ordering::Greater }),
         (Pt::Big(x, nx), Pt::Big(y, ny)) => {
-            Some(big_order((x.len() as u64, nx), (y.len() as u64, ny), |j| byte(x, j), |j| byte(y, j))?)
+            Some(cur::big_order((x.len() as u64, nx), (y.len() as u64, ny), |j| byte(x, j), |j| byte(y, j))?)
         }
         (Pt::Bool(x), Pt::Bool(y)) => Some(x.cmp(&y)),
         (Pt::Float(x), Pt::Float(y)) => x.partial_cmp(&y),
@@ -162,16 +131,11 @@ fn order_of<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, v: &SVal, p: &Pt<'_>) -> 
 fn split_order<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, v: &SVal, p: &Pt<'_>) -> Result<Option<Ordering>, Fault> {
     let n = v.len();
     match *p {
-        Pt::Int(_) => {
-            let last = cur::byte(h, v, n.checked_sub(1).ok_or(rt(Corruption::Encoding, 0))?)?;
-            let neg = l.ty == Ty::Int && last & 0x40 != 0;
-            Ok(Some(if neg { Ordering::Less } else { Ordering::Greater }))
-        }
+        Pt::Int(_) => Ok(Some(if cur::big_negative(h, l, v)? { Ordering::Less } else { Ordering::Greater })),
         Pt::Big(b, nb) => {
-            let last = cur::byte(h, v, n.checked_sub(1).ok_or(rt(Corruption::Encoding, 0))?)?;
-            let neg = l.ty == Ty::Int && last & 0x40 != 0;
+            let neg = cur::big_negative(h, l, v)?;
             let at = |j: u64| b.get(usize::try_from(j).unwrap_or(usize::MAX)).copied().ok_or(rt(Corruption::Range, j));
-            Ok(Some(big_order((n, neg), (b.len() as u64, nb), |j| cur::byte(h, v, j), at)?))
+            Ok(Some(cur::big_order((n, neg), (b.len() as u64, nb), |j| cur::byte(h, v, j), at)?))
         }
         Pt::Bytes(b) => {
             let m = n.min(b.len() as u64);
@@ -519,7 +483,6 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
         Ok(Cells { ids, cols, tested, out, left })
     }
 
-    /// Leaf i of `ids`.
     fn leaf<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, i: usize) -> Result<LeafInfo, Fault> {
         let id = *self.ids.get(i).ok_or(rt(Corruption::Range, i as u64))?;
         shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)
@@ -866,7 +829,6 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     run(h, tbl, shape, t.as_ref(), next, &mut c)
 }
 
-/// How many live rows meet `f`.
 pub fn count<H: PageHost + ?Sized>(h: &H, tbl: u64, shape: &Shape, f: &Filter<'_>) -> Result<u64, Fault> {
     let t = Test::new(h, shape, f)?;
     let mut c = Count(0);

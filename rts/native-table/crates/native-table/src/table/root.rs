@@ -1,8 +1,8 @@
 //! The table root block: the first block area 0 allocates, never moved.
 
 use crate::consts::{magic, BLOCK, FORMAT_IMAGE, FORMAT_KEY, FORMAT_TABLE, FORMAT_VALUE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::fault::{rt, Corruption, Fault};
+use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
 pub const MAGIC: u64 = 0;
 pub const FORMAT: u64 = 4;
@@ -57,10 +57,6 @@ pub const FLAG_RELEASE: u8 = 1;
 /// patched unit).
 pub const FLAG_COMPACT_URGENT: u8 = 8;
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
 /// Writes every byte of a new root the crate owns, except the area records (160–927, written by
 /// `area::new_root`): zeros, then the header fields; the host words are left as they are.
 pub fn init<H: PageHost>(
@@ -72,7 +68,7 @@ pub fn init<H: PageHost>(
     version: u32,
     schema_page: u64,
 ) -> Result<(), Fault> {
-    let b = h.get_mut(Region::Block(tbl), Owner(0))?;
+    let b = h.get_mut(Region::Block(tbl))?;
     fill(b, 0, 160, 0)?;
     fill(b, INDEX_DIRS, HOST_WORDS.wrapping_sub(INDEX_DIRS), 0)?;
     fill(b, HOST_WORDS_END, BLOCK.wrapping_sub(HOST_WORDS_END), 0)?;
@@ -103,7 +99,7 @@ pub fn u64_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u64, Fa
 }
 
 pub fn set_u64<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u64) -> Result<(), Fault> {
-    put_u64(h.get_mut(Region::Block(tbl), Owner(0))?, off, v)
+    put_u64(h.get_mut(Region::Block(tbl))?, off, v)
 }
 
 pub fn u8_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u8, Fault> {
@@ -111,7 +107,7 @@ pub fn u8_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u8, Faul
 }
 
 pub fn set_u8<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u8) -> Result<(), Fault> {
-    put_u8(h.get_mut(Region::Block(tbl), Owner(0))?, off, v)
+    put_u8(h.get_mut(Region::Block(tbl))?, off, v)
 }
 
 pub fn u32_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u32, Fault> {
@@ -119,7 +115,7 @@ pub fn u32_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u32, Fa
 }
 
 pub fn set_u32<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u32) -> Result<(), Fault> {
-    put_u32(h.get_mut(Region::Block(tbl), Owner(0))?, off, v)
+    put_u32(h.get_mut(Region::Block(tbl))?, off, v)
 }
 
 /// The group directory: a radix array whose entry g names group g's page, or, with bit 63 set, its buffer
@@ -130,7 +126,7 @@ pub fn directory<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<crate::radix::
 }
 
 pub fn set_directory<H: PageHost>(h: &mut H, tbl: u64, r: crate::radix::Radix) -> Result<(), Fault> {
-    let b = h.get_mut(Region::Block(tbl), Owner(0))?;
+    let b = h.get_mut(Region::Block(tbl))?;
     put_u64(b, DIR_ROOT, r.root)?;
     put_u8(b, DIR_HEIGHT, r.height)
 }

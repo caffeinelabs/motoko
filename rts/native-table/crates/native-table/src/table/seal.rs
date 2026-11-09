@@ -30,11 +30,9 @@
 //! bitmap lies in its bytes 128–639, which the group page layout gives the live bitmap.
 
 use crate::consts::{magic, BLOCK, BYTE_UNIT, COMPACT_DEAD, FIXED_MAX, FORMAT_TABLE, HUGE_VALUE, LONG_VALUE, PAGE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::image::Image;
-use crate::mem::{
-    fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region,
-};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::stats::space::Space;
 
 use super::buffer::{self, RowLoc, SLOT_DEAD};
@@ -51,10 +49,6 @@ use super::row::{self, RowRef};
 use super::versions;
 
 mod walk;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 // ---------------------------------------------------------------- the state block
 
@@ -137,14 +131,11 @@ fn st_u64<H: PageHost + ?Sized>(h: &H, st: u64, off: u64) -> Result<u64, Fault> 
 fn st_u32<H: PageHost + ?Sized>(h: &H, st: u64, off: u64) -> Result<u64, Fault> {
     Ok(u64::from(rd_u32(h.get(Region::Block(st))?, off)?))
 }
-fn st_u8<H: PageHost + ?Sized>(h: &H, st: u64, off: u64) -> Result<u8, Fault> {
-    rd_u8(h.get(Region::Block(st))?, off)
-}
 fn set_u64<H: PageHost>(h: &mut H, st: u64, off: u64, v: u64) -> Result<(), Fault> {
-    put_u64(h.get_mut(Region::Block(st), Owner(0))?, off, v)
+    put_u64(h.get_mut(Region::Block(st))?, off, v)
 }
 fn set_u32<H: PageHost>(h: &mut H, st: u64, off: u64, v: u64) -> Result<(), Fault> {
-    put_u32(h.get_mut(Region::Block(st), Owner(0))?, off, u32::try_from(v).map_err(|_| rt(Corruption::Range, v))?)
+    put_u32(h.get_mut(Region::Block(st))?, off, u32::try_from(v).map_err(|_| rt(Corruption::Range, v))?)
 }
 
 /// A rewrite's fixed facts, read once per unit.
@@ -451,7 +442,6 @@ impl<'c> Meter<'c> {
         self.lay_at = Some((o, at));
         Ok(Some(at))
     }
-    /// A piece of work done.
     fn spend(&mut self, work: u64) {
         self.work = self.work.saturating_add(work);
         self.progress = true;
@@ -759,7 +749,7 @@ impl Acc {
     }
 
     fn store<H: PageHost>(&self, h: &mut H, st: u64) -> Result<(), Fault> {
-        let raw = crate::mem::sub_mut(h.get_mut(Region::Block(st), Owner(0))?, RW_ACCS, ACC_BYTES as u64)?;
+        let raw = crate::mem::sub_mut(h.get_mut(Region::Block(st))?, RW_ACCS, ACC_BYTES as u64)?;
         let b: &mut [u8; ACC_BYTES] = raw.try_into().map_err(|_| rt(Corruption::Bounds, RW_ACCS))?;
         // The low and high halves of the 128-bit values: the casts keep each half.
         #[allow(clippy::cast_possible_truncation)]
@@ -1000,7 +990,7 @@ pub fn running<H: PageHost + ?Sized>(h: &H, tbl: u64, kind: u8) -> Result<u64, F
 
 fn set_running<H: PageHost>(h: &mut H, tbl: u64, kind: u8, st: u64) -> Result<(), Fault> {
     let at = slot_of(kind);
-    let b = h.get_mut(Region::Block(tbl), Owner(0))?;
+    let b = h.get_mut(Region::Block(tbl))?;
     fill(b, at, 32, 0)?;
     if st != 0 {
         put_u8(b, at, slot_code(kind))?;
@@ -1036,7 +1026,7 @@ fn begin<H: PageHost>(
     let n = if compacted { live } else { p };
     let gen = latest_drop(&*h, shape)?;
     {
-        let b = h.get_mut(Region::Block(st), Owner(0))?;
+        let b = h.get_mut(Region::Block(st))?;
         put_u32(b, 0, magic::NTRW)?;
         put_u16(b, 4, FORMAT_TABLE)?;
         put_u8(b, RW_KIND, kind)?;
@@ -1061,7 +1051,7 @@ fn begin<H: PageHost>(
         put_u64(b, RW_BYTES_LAST, 512)?;
     }
     {
-        let b = h.get_mut(Region::Block(pg), Owner(0))?;
+        let b = h.get_mut(Region::Block(pg))?;
         fill(b, 0, page::P_FIELDS, 0)?;
         put_u32(b, 0, magic::NTGP)?;
         put_u16(b, 4, FORMAT_TABLE)?;
@@ -1072,7 +1062,7 @@ fn begin<H: PageHost>(
         put_u64(b, page::P_REWRITE, st)?;
     }
     Space::begin(h, tbl, work, g, shape.leaves)?;
-    put(h.get_mut(Region::Block(work), Owner(0))?, RW_SNAP, bitmap)?;
+    put(h.get_mut(Region::Block(work))?, RW_SNAP, bitmap)?;
     set_running(h, tbl, kind, st)?;
     Ok(st)
 }
@@ -1096,7 +1086,7 @@ pub fn begin_seal<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, desc: u64) ->
     // The liveness is read in the snapshot step's units; the snapshot is taken when it is complete.
     let st = begin(h, tbl, shape, SEAL, g, desc, &[0u8; 512], p, 0, false, 0)?;
     let pg = st_u64(&*h, st, RW_PENDING)?;
-    let b = h.get_mut(Region::Block(desc), Owner(0))?;
+    let b = h.get_mut(Region::Block(desc))?;
     let flags = rd_u16(b, buffer::D_FLAGS)?;
     put_u16(b, buffer::D_FLAGS, flags | buffer::LIVENESS)?;
     put_u64(b, buffer::D_PENDING, pg)?;
@@ -1114,7 +1104,7 @@ fn liveness<H: PageHost>(h: &mut H, rw: &Rw, m: &mut Meter) -> Result<bool, Faul
     let mut slots = st_u32(&*h, rw.st, RW_Q)?;
     while k < blocks {
         if m.full() {
-            let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+            let b = h.get_mut(Region::Block(rw.st))?;
             put_u32(b, RW_POS, u32::try_from(k).map_err(|_| rt(Corruption::Range, k))?)?;
             put_u32(b, RW_Q, u32::try_from(slots).map_err(|_| rt(Corruption::Range, slots))?)?;
             return Ok(false);
@@ -1158,11 +1148,11 @@ fn liveness<H: PageHost>(h: &mut H, rw: &Rw, m: &mut Meter) -> Result<bool, Faul
         // A block holds fewer than 4,096 / 8 slots, so its bits span at most 65 words.
         let last_word = slots.wrapping_add(n).div_ceil(64);
         if apart {
-            let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+            let b = h.get_mut(Region::Block(rw.st))?;
             let f = rd_u16(b, RW_FLAGS)?;
             put_u16(b, RW_FLAGS, f | RWF_RECORDS_APART)?;
         }
-        let pb = h.get_mut(Region::Block(rw.pending), Owner(0))?;
+        let pb = h.get_mut(Region::Block(rw.pending))?;
         for (i, w) in words.iter().enumerate().take(usize::try_from(last_word.saturating_sub(first_word)).unwrap_or(0))
         {
             let at = page::P_BITMAP.wrapping_add(first_word.wrapping_add(i as u64).wrapping_mul(8));
@@ -1182,9 +1172,9 @@ fn liveness<H: PageHost>(h: &mut H, rw: &Rw, m: &mut Meter) -> Result<bool, Faul
     let live = bitmap.iter().map(|b| u64::from(b.count_ones())).sum::<u64>();
     let compacted = compacted_form(rw.p, live);
     let n = if compacted { live } else { rw.p };
-    put(h.get_mut(Region::Block(rw.work), Owner(0))?, RW_SNAP, &bitmap)?;
+    put(h.get_mut(Region::Block(rw.work))?, RW_SNAP, &bitmap)?;
     {
-        let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.st))?;
         put_u16(b, RW_LIVE, u16::try_from(live).map_err(|_| rt(Corruption::Range, live))?)?;
         put_u16(b, RW_N, u16::try_from(n).map_err(|_| rt(Corruption::Range, n))?)?;
         let in_order = if rd_u16(b, RW_FLAGS)? & RWF_RECORDS_APART == 0 { RWF_RECORDS_IN_ORDER } else { 0 };
@@ -1193,11 +1183,11 @@ fn liveness<H: PageHost>(h: &mut H, rw: &Rw, m: &mut Meter) -> Result<bool, Faul
         put_u32(b, RW_Q, 0)?;
     }
     put_u16(
-        h.get_mut(Region::Block(rw.pending), Owner(0))?,
+        h.get_mut(Region::Block(rw.pending))?,
         page::P_LIVE,
         u16::try_from(live).map_err(|_| rt(Corruption::Range, live))?,
     )?;
-    let b = h.get_mut(Region::Block(desc), Owner(0))?;
+    let b = h.get_mut(Region::Block(desc))?;
     let flags = rd_u16(b, buffer::D_FLAGS)?;
     put_u16(b, buffer::D_FLAGS, (flags & !buffer::LIVENESS) | buffer::SNAPSHOT)?;
     m.spend(COST_LEAF);
@@ -1214,7 +1204,7 @@ pub fn liveness_delete<H: PageHost>(h: &mut H, desc: u64, pos: u64) -> Result<()
     if flags & buffer::LIVENESS == 0 {
         return Ok(());
     }
-    let b = h.get_mut(Region::Block(pg), Owner(0))?;
+    let b = h.get_mut(Region::Block(pg))?;
     let at = page::P_BITMAP.wrapping_add(pos / 8);
     let x = rd_u8(b, at)?;
     put_u8(b, at, x & !(1 << (pos % 8)))
@@ -1233,7 +1223,7 @@ pub fn begin_rewrite<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, page: u64,
         (rd_u64(b, page::P_GROUP)?, u64::from(rd_u16(b, page::P_POSITIONS)?))
     };
     let st = begin(h, tbl, shape, kind, g, page, &[0u8; 512], p, 0, false, 0)?;
-    put_u64(h.get_mut(Region::Block(page), Owner(0))?, page::P_REWRITE, st)?;
+    put_u64(h.get_mut(Region::Block(page))?, page::P_REWRITE, st)?;
     Ok(st)
 }
 
@@ -1249,16 +1239,16 @@ fn take_snapshot<H: PageHost>(h: &mut H, rw: &Rw) -> Result<(), Fault> {
     let compacted = compacted_form(rw.p, live);
     let n = if compacted { live } else { rw.p };
     let w16 = |x: u64| u16::try_from(x).map_err(|_| rt(Corruption::Range, x));
-    put(h.get_mut(Region::Block(rw.work), Owner(0))?, RW_SNAP, &bitmap)?;
+    put(h.get_mut(Region::Block(rw.work))?, RW_SNAP, &bitmap)?;
     {
-        let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.st))?;
         put_u16(b, RW_LIVE, w16(live)?)?;
         put_u16(b, RW_N, w16(n)?)?;
         let f = rd_u16(b, RW_FLAGS)?;
         put_u16(b, RW_FLAGS, if compacted { f | RWF_COMPACTED } else { f & !RWF_COMPACTED })?;
         put_u64(b, RW_DIR, dir)?;
     }
-    let b = h.get_mut(Region::Block(rw.pending), Owner(0))?;
+    let b = h.get_mut(Region::Block(rw.pending))?;
     put(b, page::P_BITMAP, &bitmap)?;
     put_u16(b, page::P_LIVE, w16(live)?)
 }
@@ -1305,7 +1295,7 @@ pub fn step<H: PageHost>(
     if m.pending != 0 {
         versions::need(h, st, m.pending)?;
     }
-    let b = h.get_mut(Region::Block(st), Owner(0))?;
+    let b = h.get_mut(Region::Block(st))?;
     // The share's own estimate, unscaled: the unit's count reads the meter, or scales the estimates.
     put_u64(b, RW_WORK_LAST, m.work.saturating_sub(spent.work))?;
     put_u64(b, RW_BYTES_LAST, m.bytes.saturating_sub(spent.bytes))?;
@@ -1339,7 +1329,7 @@ fn layouts<H: PageHost>(h: &mut H, shape: &Shape, rw: &Rw, m: &mut Meter, stamp:
 }
 
 fn next_step<H: PageHost>(h: &mut H, st: u64, step: u8) -> Result<(), Fault> {
-    let b = h.get_mut(Region::Block(st), Owner(0))?;
+    let b = h.get_mut(Region::Block(st))?;
     put_u8(b, RW_STEP, step)?;
     put_u32(b, RW_LEAF, 0)?;
     put_u32(b, RW_POS, 0)?;
@@ -1359,7 +1349,7 @@ fn snapshot_rest<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &m
     // walk).
     if rw.kind != SEAL && shape.version != rw.version {
         abandon(h, tbl, rw.st)?;
-        crate::mem::put_u64(h.get_mut(Region::Block(rw.source), Owner(0))?, page::P_REWRITE, 0)?;
+        crate::mem::put_u64(h.get_mut(Region::Block(rw.source))?, page::P_REWRITE, 0)?;
         if rw.kind == COMPACTION {
             super::jobs::queue(h, tbl, rw.g, rw.source, false)?;
         }
@@ -1376,7 +1366,7 @@ fn snapshot_rest<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &m
         // Its work space holds nothing yet but its header, so it is begun again for that version's leaves.
         if shape.version != rw.version {
             let gen = latest_drop(&*h, shape)?;
-            let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+            let b = h.get_mut(Region::Block(rw.st))?;
             put_u32(b, RW_VERSION, shape.version)?;
             put_u32(b, RW_GEN, gen)?;
             Space::begin(h, tbl, rw.work, rw.g, shape.leaves)?;
@@ -1488,7 +1478,7 @@ fn pass1<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter
                 m.spend(COST_LEAF);
                 let acc = Acc { flags: A_SEQ_OK, imin: i64::MAX, imax: i64::MIN, ..Acc::default() };
                 acc.store(h, rw.st)?;
-                let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+                let b = h.get_mut(Region::Block(rw.st))?;
                 put_u64(b, RW_SUB, P_SCAN)?;
                 put_u32(b, RW_POS, 0)?;
                 put_u32(b, RW_Q, 0)?;
@@ -1497,7 +1487,7 @@ fn pass1<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter
             P_SCAN => scan(h, shape, rw, &src, &l, m)?,
             P_FINISH => {
                 finish_leaf(h, tbl, rw, &l, m)?;
-                let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+                let b = h.get_mut(Region::Block(rw.st))?;
                 put_u32(b, RW_LEAF, u32::try_from(o.wrapping_add(1)).map_err(|_| rt(Corruption::Range, o))?)?;
                 put_u64(b, RW_SUB, P_BEGIN)?;
                 let n = u64::from(rd_u32(b, RW_LEAVES)?);
@@ -1868,7 +1858,7 @@ fn layout<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Mete
         // The leaves written are known now (`RW_LEAVES`), and so is the front metadata's end.
         m.spend(COST_LEAF);
         let (_, hh) = front(&*h, rw)?;
-        let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.st))?;
         put_u32(b, RW_H, u32::try_from(hh).map_err(|_| rt(Corruption::Range, hh))?)?;
         put_u64(b, RW_C, hh)?;
         put_u64(b, RW_SUB, 1)?;
@@ -1917,7 +1907,7 @@ fn layout<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Mete
             count = count.wrapping_add(k);
             m.spend(COST_LEAF.wrapping_add(k.wrapping_mul(COST_CELL)));
             if !done {
-                let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+                let b = h.get_mut(Region::Block(rw.st))?;
                 put_u32(b, RW_POS, u32::try_from(count).map_err(|_| rt(Corruption::Range, count))?)?;
                 put_u64(b, RW_VAT, p.c)?;
                 put_u64(b, RW_ACC, p.first)?;
@@ -1932,7 +1922,7 @@ fn layout<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Mete
         pl.segs = count;
         m.spend(COST_LEAF);
         store_plan(h, &mut ws, o, &pl)?;
-        let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.st))?;
         put_u32(b, RW_POS, 0)?;
         put_u64(b, RW_VAT, 0)?;
         put_u64(b, RW_ACC, 0)?;
@@ -1952,7 +1942,7 @@ fn layout<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Mete
     let segs_at = ool_end.wrapping_add(31) & !31;
     let s = u64::from(rd_u32(b, RW_S)?);
     let total = segs_at.checked_add(s.wrapping_mul(group::SEG_BYTES)).ok_or(rt(Corruption::Range, segs_at))?;
-    let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+    let b = h.get_mut(Region::Block(rw.st))?;
     put_u64(b, RW_INLINE, inline_at)?;
     put_u64(b, RW_OOL, ool_start)?;
     put_u64(b, RW_SEGS, segs_at)?;
@@ -2093,7 +2083,7 @@ impl WCur {
     }
 
     fn store<H: PageHost>(&self, h: &mut H, st: u64) -> Result<(), Fault> {
-        let b = h.get_mut(Region::Block(st), Owner(0))?;
+        let b = h.get_mut(Region::Block(st))?;
         let w32 = |x: u64| u32::try_from(x).map_err(|_| rt(Corruption::Range, x));
         put_u64(b, RW_SUB, self.phase | (self.part << 8))?;
         put_u32(b, RW_LEAF, w32(self.leaf)?)?;
@@ -2143,7 +2133,7 @@ fn write<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter
     let src = source(&*h, rw)?;
     let r = write_phases(h, tbl, shape, rw, &src, &mut out, &mut c, m);
     out.flush(h)?;
-    out.img.put_record(h.get_mut(Region::Block(rw.st), Owner(0))?, RW_IMAGE)?;
+    out.img.put_record(h.get_mut(Region::Block(rw.st))?, RW_IMAGE)?;
     r?;
     c.store(h, rw.st)?;
     if c.phase >= W_DONE {
@@ -2880,7 +2870,7 @@ fn lv_push<H: PageHost>(h: &mut H, tbl: u64, rw: &Rw, img: &Image) -> Result<u64
     };
     let mut lv = page::LvBuilder::resume(head, tail, count);
     let i = lv.push(h, tbl, img)?;
-    let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+    let b = h.get_mut(Region::Block(rw.st))?;
     put_u64(b, RW_LV, lv.head)?;
     put_u32(b, RW_LV_COUNT, u32::try_from(lv.count).map_err(|_| rt(Corruption::Range, lv.count))?)?;
     put_u64(b, RW_LV_TAIL, lv.tail())?;
@@ -2902,7 +2892,7 @@ fn flip<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
     let stored = rw.n;
     let dead = stored.saturating_sub(live);
     {
-        let b = h.get_mut(Region::Block(rw.pending), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.pending))?;
         let post = rd_u64(b, page::P_POST_PATCH)?;
         let mut flags = 0u16;
         if rw.compacted {
@@ -2930,7 +2920,7 @@ fn flip<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
     if ours {
         root::set_group(h, tbl, rw.g, rw.pending)?;
         if super::extremes::hand_over(h, rw.source, rw.kind == SEAL, rw.pending)? {
-            let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+            let b = h.get_mut(Region::Block(rw.st))?;
             let f = rd_u16(b, RW_FLAGS)?;
             put_u16(b, RW_FLAGS, f | RWF_EXT)?;
         }
@@ -2950,7 +2940,7 @@ fn flip<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
         root::set_u32(h, tbl, root::FROZEN_WAITING, waiting.saturating_sub(1))?;
         // The buffered live rows lose the group's (the integer leaves' totals count its rows still).
         let tail = root::u64_at(&*h, tbl, root::TAIL)?;
-        let t = h.get_mut(Region::Block(tail), Owner(0))?;
+        let t = h.get_mut(Region::Block(tail))?;
         let buffered = rd_u64(t, buffer::H_BUFFERED)?;
         put_u64(t, buffer::H_BUFFERED, buffered.wrapping_sub(live))?;
     }
@@ -2973,7 +2963,7 @@ fn last<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
             let l = match next_leaf(&*h, shape, rw, o, m)? {
                 Next::End => break,
                 Next::From(k) => {
-                    let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+                    let b = h.get_mut(Region::Block(rw.st))?;
                     put_u32(b, RW_LEAF, u32::try_from(k).map_err(|_| rt(Corruption::Range, k))?)?;
                     put_u32(b, RW_Q, 0)?;
                     continue;
@@ -3042,7 +3032,7 @@ fn last<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
                     m.touch();
                 }
             }
-            let b = h.get_mut(Region::Block(rw.st), Owner(0))?;
+            let b = h.get_mut(Region::Block(rw.st))?;
             if done {
                 put_u32(b, RW_LEAF, u32::try_from(o.wrapping_add(1)).map_err(|_| rt(Corruption::Range, o))?)?;
                 put_u32(b, RW_Q, 0)?;
@@ -3087,7 +3077,7 @@ fn last<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw, m: &mut Meter)
     drain::push(h, tbl, &drain::Rec::new(drain::K_BLOCK, rw.st, 0))?;
     // The installed page is written only while the directory still names it.
     if root::group(&*h, tbl, rw.g)? == rw.pending {
-        put_u64(h.get_mut(Region::Block(rw.pending), Owner(0))?, page::P_REWRITE, 0)?;
+        put_u64(h.get_mut(Region::Block(rw.pending))?, page::P_REWRITE, 0)?;
     }
     set_running(h, tbl, rw.kind, 0)?;
     super::jobs::after_rewrite(h, tbl, rw.g, rw.pending)?;
@@ -3150,14 +3140,12 @@ fn source_at_last<H: PageHost + ?Sized>(h: &H, rw: &Rw) -> Result<Source, Fault>
 fn forget<H: PageHost>(h: &mut H, owner: cur::Owner) -> Result<(), Fault> {
     match owner {
         cur::Owner::Item { loc, at } => match loc {
-            RowLoc::Inline { block, off, .. } => {
-                fill(h.get_mut(Region::Block(block), Owner(0))?, off.wrapping_add(at), 24, 0)
-            }
+            RowLoc::Inline { block, off, .. } => fill(h.get_mut(Region::Block(block))?, off.wrapping_add(at), 24, 0),
             RowLoc::Long(img) => super::long::write_at(h, img, at, &[0u8; 24]),
         },
         cur::Owner::List { page, index } => {
             let (b, off) = page::lv_entry(&*h, page, index)?;
-            fill(h.get_mut(Region::Block(b), Owner(0))?, off, crate::image::REF_BYTES, 0)
+            fill(h.get_mut(Region::Block(b))?, off, crate::image::REF_BYTES, 0)
         }
         cur::Owner::Patch { block, data } => patch::forget_long(h, block, data),
     }
@@ -3175,7 +3163,7 @@ pub fn abandon<H: PageHost>(h: &mut H, tbl: u64, st: u64) -> Result<(), Fault> {
         (Image::read_record(b, RW_IMAGE)?, rd_u64(b, RW_LV)?)
     };
     {
-        let b = h.get_mut(Region::Block(rw.pending), Owner(0))?;
+        let b = h.get_mut(Region::Block(rw.pending))?;
         img.put_record(b, page::P_IMAGE)?;
         let post = rd_u64(b, page::P_POST_PATCH)?;
         put_u64(b, page::P_PATCH_DIR, post)?;
@@ -3205,21 +3193,6 @@ pub fn snapshot_work() -> u64 {
 /// The estimated instructions of a rewrite's last unit.
 pub fn work_of<H: PageHost + ?Sized>(h: &H, st: u64) -> Result<u64, Fault> {
     st_u64(h, st, RW_WORK_LAST)
-}
-
-/// The step of a rewrite.
-pub fn step_of<H: PageHost + ?Sized>(h: &H, st: u64) -> Result<u8, Fault> {
-    st_u8(h, st, RW_STEP)
-}
-
-/// The kind of a rewrite.
-pub fn kind_of<H: PageHost + ?Sized>(h: &H, st: u64) -> Result<u8, Fault> {
-    st_u8(h, st, RW_KIND)
-}
-
-/// Units a rewrite has run (status replies).
-pub fn units_of<H: PageHost + ?Sized>(h: &H, st: u64) -> Result<u64, Fault> {
-    st_u64(h, st, RW_UNITS)
 }
 
 /// The latest drop a rewrite's snapshot saw.

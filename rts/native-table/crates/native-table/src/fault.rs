@@ -14,7 +14,6 @@ pub enum Corruption {
     Order,
     Encoding,
     Leaf,
-    Utf8,
     Range,
     Link,
     Depth,
@@ -52,8 +51,6 @@ pub enum SchemaError {
 pub enum Fault {
     /// The host does not know this reference, or a pair request names one twice.
     BadRef,
-    /// The page's owner word or tag names another table or area.
-    NotOwner,
     /// The host could not provide a page.
     OutOfMemory,
     /// Bytes break an invariant: runtime-written (`ImageId::Runtime`) or believed.
@@ -81,7 +78,6 @@ impl Fault {
             Fault::Corrupt(CorruptAt { image: ImageId::Runtime, .. }) => "native table: corrupt structure",
             Fault::Corrupt(_) => "table image corrupt",
             Fault::BadRef => "native table: bad reference",
-            Fault::NotOwner => "native table: block of another owner",
             Fault::OutOfMemory => "native table: out of memory",
             Fault::PathOverflow => "native table: tree deeper than its path stack",
             Fault::BadValue { .. } => "native table: value refused by its column",
@@ -96,6 +92,11 @@ impl Fault {
 /// A `Corrupt` fault at `offset` of `image`.
 pub const fn corrupt(image: ImageId, kind: Corruption, offset: u64) -> Fault {
     Fault::Corrupt(CorruptAt { image, kind, offset })
+}
+
+/// A `Corrupt(Runtime, kind)` fault at `offset`: a structure the runtime wrote breaks an invariant.
+pub const fn rt(kind: Corruption, offset: u64) -> Fault {
+    corrupt(ImageId::Runtime, kind, offset)
 }
 
 /// A `Corrupt(Runtime, Bounds)` fault at `offset`: a range outside a lent slice.

@@ -6,19 +6,15 @@
 //! number of leaves: every pass over a row walks the leaves in ordinal order.
 
 use crate::consts::{FORMAT_TABLE, HOT_MAX, W_MAX, W_MIN};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::hash::{nt_hash64, Hasher64};
-use crate::mem::{put, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, sub, Owner, PageHost, Region};
+use crate::mem::{put, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, sub, PageHost, Region};
 use crate::schema::{node, Leaf, SchemaView, LEAF_BYTES, LEAF_KEY, LEAF_NULLABLE};
 use crate::stats::running::{RKind, LIST_AT};
 
 use super::group::align8;
 use super::root;
 use crate::value::ty;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// The scalar type of a flat leaf.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,7 +122,6 @@ impl LeafInfo {
         self.added <= v && (self.dropped == 0 || self.dropped > v)
     }
 
-    /// Whether the leaf is live in the table's schema.
     pub fn live(&self) -> bool {
         self.dropped == 0
     }
@@ -370,7 +365,7 @@ impl Shape {
         }
         let check = nt_hash64(sub(&b, 0, at)?);
         put_u64(&mut b, at, check)?;
-        put(h.get_mut(Region::Block(tbl), Owner(0))?, root::SHAPE, &b)
+        put(h.get_mut(Region::Block(tbl))?, root::SHAPE, &b)
     }
 
     /// The shape table root `tbl` holds, when it is the shape of the schema image the root names: written by

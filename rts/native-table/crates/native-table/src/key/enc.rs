@@ -61,12 +61,6 @@ pub fn enc_i128<S: Sink>(s: &mut S, v: i128) -> Result<(), Fault> {
     s.put(&((v as u128) ^ (1u128 << 127)).to_be_bytes())
 }
 
-/// Char: the scalar value as a big-endian u32.
-#[inline]
-pub fn enc_char<S: Sink>(s: &mut S, c: char) -> Result<(), Fault> {
-    s.put(&u32::from(c).to_be_bytes())
-}
-
 /// Float (f64), from its bits: a NaN with sign 0 is `FF`×8, a NaN with sign 1 `00`×8, −0.0 is +0.0;
 /// otherwise the bits with the sign bit set when the sign is 0, else their complement.
 #[inline]

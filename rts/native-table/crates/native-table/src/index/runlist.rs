@@ -18,10 +18,10 @@
 
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, PAGE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::image::{Blocks, Image};
 use crate::index::runprobe;
-use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region};
+use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::radix::{Radix, HEIGHT_MAX};
 
 /// Bytes of a run descriptor.
@@ -41,10 +41,6 @@ pub const D_KEY_RUNS: u8 = 4;
 pub const D_BELIEVED: u8 = 8;
 /// Descriptor flag bit 6: the run carries a count tree.
 pub const D_COUNT_TREE: u8 = 64;
-
-fn rt(kind: Corruption, off: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, off)
-}
 
 /// One run descriptor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -211,7 +207,7 @@ impl RunList {
 
     /// Writes the whole block: the header, zero up to the loaded-run record, and the record.
     pub fn store<H: PageHost>(&self, h: &mut H) -> Result<(), Fault> {
-        let b = h.get_mut(Region::Block(self.block), Owner(0))?;
+        let b = h.get_mut(Region::Block(self.block))?;
         fill(b, 0, BLOCK, 0)?;
         put_u32(b, 0, magic::NTRL)?;
         put_u16(b, 4, FORMAT_TABLE)?;
@@ -250,7 +246,7 @@ impl RunList {
         self.loaded.runs = i.checked_add(1).ok_or(rt(Corruption::Count, i))?;
         self.loaded.items = self.loaded.items.checked_add(d.items).ok_or(rt(Corruption::Count, i))?;
         let (b, off) = self.loaded.slot(h, i)?;
-        d.write(h.get_mut(Region::Block(b), Owner(0))?, off)?;
+        d.write(h.get_mut(Region::Block(b))?, off)?;
         runprobe::set_loaded(h, tbl, &mut self.loaded.probes, i, d)?;
         Ok(i)
     }

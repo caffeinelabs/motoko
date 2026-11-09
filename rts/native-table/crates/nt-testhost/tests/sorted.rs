@@ -16,10 +16,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use native_table::area::new_root;
 use native_table::index::secondary::{Secondary, Start};
-use native_table::index::{MemImage, Run, RunParams};
+use native_table::index::{MemImage, Run};
 use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec};
 use native_table::tree::{Dir, Path};
 use native_table::{CorruptAt, Corruption, Fault};
+use nt_builder::RunParams;
 use nt_testhost::runs::{build, VecItems};
 use nt_testhost::uploads::TTable;
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};

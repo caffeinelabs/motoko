@@ -9,7 +9,7 @@ use std::cell::Cell;
 use std::collections::BTreeSet;
 
 use native_table::consts::{BLOCK, PAGE};
-use native_table::{Budget, Fault, Owner, PageHost, Region, Scratch};
+use native_table::{Budget, Fault, PageHost, Region, Scratch};
 
 /// The two fill patterns.
 pub const FILLS: [u8; 2] = [0xA5, 0x5A];
@@ -178,14 +178,14 @@ impl PageHost for VecHost {
         Ok(&self.mem[s])
     }
 
-    fn get_mut(&mut self, r: Region, _w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault> {
         let s = self.span(r)?;
         self.record(Call::GetMut(r));
         self.mark_changed(r);
         Ok(&mut self.mem[s])
     }
 
-    fn pair_mut(&mut self, a: Region, b: Region, _w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         let (sa, sb) = (self.span(a)?, self.span(b)?);
         if sa.start < sb.end && sb.start < sa.end {
             return Err(Fault::BadRef);
@@ -203,7 +203,7 @@ impl PageHost for VecHost {
         }
     }
 
-    fn read_write(&mut self, r: Region, wr: Region, _w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
         let (sa, sb) = (self.span(r)?, self.span(wr)?);
         if sa.start < sb.end && sb.start < sa.end {
             return Err(Fault::BadRef);
@@ -220,7 +220,7 @@ impl PageHost for VecHost {
         }
     }
 
-    fn page_alloc(&mut self, _w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         if self.count_allocator {
             self.changed.insert(ALLOCATOR);
         }
@@ -239,7 +239,7 @@ impl PageHost for VecHost {
         Ok(p)
     }
 
-    fn page_free(&mut self, p: u64, _w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, p: u64) -> Result<(), Fault> {
         self.span(Region::Page(p))?;
         if !self.live.remove(&p) {
             return Err(Fault::BadRef);
@@ -342,6 +342,11 @@ impl native_table::key::Sink for VecSink {
         self.0.extend_from_slice(bytes);
         Ok(())
     }
+}
+
+/// The step of the rewrite whose state block is `st`.
+pub fn rewrite_step<H: PageHost + ?Sized>(h: &H, st: u64) -> u8 {
+    native_table::mem::rd_u8(h.get(Region::Block(st)).unwrap(), native_table::table::seal::RW_STEP).unwrap()
 }
 
 /// Hex of bytes, uppercase, space separated.

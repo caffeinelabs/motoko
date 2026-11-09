@@ -5,8 +5,10 @@
 //! Nat and Int values are normalized: one that fits i128 is a number (`Val::U`, `Val::I` or `Val::Wide`),
 //! whatever its stored form; only a value beyond i128 stays bytes (its canonical LEB128).
 
+use core::cmp::Ordering;
+
 use crate::consts::PAGE;
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::image::{Image, ImageReader};
 use crate::mem::{copy_bytes, rd_u8, PageHost, Region};
 
@@ -17,10 +19,6 @@ use super::layout::{LeafInfo, Ty};
 use super::long;
 use super::patch::{self, Entry};
 use super::row::{Item, RowRef, Stored};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Where a value's bytes lie.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,6 +88,7 @@ impl SVal {
 }
 
 /// A fixed value that borrows nothing.
+#[inline(always)]
 pub fn own(v: Val<'_>) -> Val<'static> {
     match v {
         Val::Null => Val::Null,
@@ -162,11 +161,47 @@ pub fn read<H: PageHost + ?Sized>(h: &H, s: &SVal, at: u64, out: &mut [u8]) -> R
     }
 }
 
-/// Byte j of a byte-string value.
 pub fn byte<H: PageHost + ?Sized>(h: &H, s: &SVal, j: u64) -> Result<u8, Fault> {
     let mut b = [0u8; 1];
     read(h, s, j, &mut b)?;
     Ok(b[0])
+}
+
+/// Whether leaf `l`'s Nat or Int value beyond i128, `s`, is negative: an Int whose LEB128 form's last byte
+/// has the sign bit.
+pub fn big_negative<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, s: &SVal) -> Result<bool, Fault> {
+    if l.ty != Ty::Int {
+        return Ok(false);
+    }
+    let last = s.len().checked_sub(1).ok_or(rt(Corruption::Encoding, u64::from(l.ordinal)))?;
+    Ok(byte(h, s, last)? & 0x40 != 0)
+}
+
+/// The order of two canonical LEB128 values beyond i128 of `la` and `lb` bytes, negative or not, byte j of
+/// each read by `a` and `b`: by sign, then by length (a longer one is further from zero), then by their 7-bit
+/// groups from the most significant.
+pub fn big_order(
+    (la, na): (u64, bool),
+    (lb, nb): (u64, bool),
+    mut a: impl FnMut(u64) -> Result<u8, Fault>,
+    mut b: impl FnMut(u64) -> Result<u8, Fault>,
+) -> Result<Ordering, Fault> {
+    if na != nb {
+        return Ok(if na { Ordering::Less } else { Ordering::Greater });
+    }
+    if la != lb {
+        let o = la.cmp(&lb);
+        return Ok(if na { o.reverse() } else { o });
+    }
+    let mut j = la;
+    while j > 0 {
+        j = j.wrapping_sub(1);
+        let (x, y) = (a(j)? & 0x7F, b(j)? & 0x7F);
+        if x != y {
+            return Ok(x.cmp(&y));
+        }
+    }
+    Ok(Ordering::Equal)
 }
 
 /// `piece` as one out-of-line copy, for the filter's per-row test, so that the row reads keep `piece`
@@ -509,7 +544,9 @@ pub fn same<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, s: &SVal, v: &Val<'_>) ->
             }
             _ => a == b,
         },
-        (SVal::B { .. } | SVal::Huge { .. }, Val::Bytes(b) | Val::Big(b)) => same_bytes(h, s, b)?,
+        (SVal::B { .. } | SVal::Huge { .. }, Val::Bytes(b) | Val::Big(b)) => {
+            same_bytes(s.len(), b, |at, dst| read(h, s, at, dst))?
+        }
         _ => false,
     })
 }
@@ -523,15 +560,19 @@ fn as_i128(v: &Val<'_>) -> Option<i128> {
     }
 }
 
-fn same_bytes<H: PageHost + ?Sized>(h: &H, s: &SVal, b: &[u8]) -> Result<bool, Fault> {
-    if s.len() != b.len() as u64 {
+/// Whether a stored byte string of `len` bytes, whose bytes `read(at, out)` copies, equals `b`.
+pub fn same_bytes<F>(len: u64, b: &[u8], mut read: F) -> Result<bool, Fault>
+where
+    F: FnMut(u64, &mut [u8]) -> Result<(), Fault>,
+{
+    if len != b.len() as u64 {
         return Ok(false);
     }
     let mut piece = [0u8; 256];
     let mut at = 0u64;
     for chunk in b.chunks(piece.len()) {
         let dst = piece.get_mut(..chunk.len()).ok_or(rt(Corruption::Range, at))?;
-        read(h, s, at, dst)?;
+        read(at, dst)?;
         if dst != chunk {
             return Ok(false);
         }

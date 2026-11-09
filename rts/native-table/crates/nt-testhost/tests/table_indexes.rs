@@ -37,7 +37,7 @@ use native_table::table::primary::Primary;
 use native_table::table::{buffer, indexes, overlay, read, root, Table, Upsert, KEY_STACK};
 use native_table::tree::Dir;
 use native_table::value::ty;
-use native_table::{Owner, PageHost, Progress, Region, Wake};
+use native_table::{PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{schema_indexed, schema_versioned, t, Src, VCol, V};
 use nt_testhost::{Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
@@ -209,8 +209,8 @@ fn everything() -> TestBudget {
 }
 
 /// Runs maintenance until nothing is pending.
-fn maintain_all(tb: &mut Table<'_, VecHost>, sc: &mut VecScratch) {
-    assert_eq!(tb.maintain(sc, &everything()).unwrap(), Progress::Done);
+fn maintain_all(tb: &mut Table<'_, VecHost>) {
+    assert_eq!(tb.maintain(&everything()).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 
@@ -389,7 +389,11 @@ fn check_built(tb: &Table<'_, VecHost>, m: &Model, live: &[u8], busy: &[u8]) -> 
         let ix = ALL[i].0;
         if busy.contains(&ix) {
             let cells = m.values().next().map(|(_, row)| key_cells(i, row)).unwrap_or_default();
-            assert_eq!(tb.count(ix, &mut Src::new(&cells)), Err(Fault::Busy), "index {ix} is being built");
+            assert_eq!(
+                tb.count(&mut key_scratch(), ix, &mut Src::new(&cells)),
+                Err(Fault::Busy),
+                "index {ix} is being built"
+            );
             let mut buf = vec![0u8; 1 << 14];
             let r = tb.walk(ix, Dir::Fwd, Start::End, 10, &mut buf, |_, _| Ok(()));
             assert_eq!(r, Err(Fault::Busy), "index {ix}: a walk while it is being built");
@@ -397,15 +401,23 @@ fn check_built(tb: &Table<'_, VecHost>, m: &Model, live: &[u8], busy: &[u8]) -> 
             continue;
         }
         if !live.contains(&ix) {
-            assert_eq!(tb.count(ix, &mut Src::new(&[])), Err(Fault::BadRef), "index {ix} is removed");
+            assert_eq!(
+                tb.count(&mut key_scratch(), ix, &mut Src::new(&[])),
+                Err(Fault::BadRef),
+                "index {ix} is removed"
+            );
             continue;
         }
         let counts = model_counts(i, m);
         for (k, (cells, c)) in &counts {
-            assert_eq!(tb.count(ix, &mut Src::new(cells)).unwrap(), *c, "index {ix}, key {k}");
+            assert_eq!(tb.count(&mut key_scratch(), ix, &mut Src::new(cells)).unwrap(), *c, "index {ix}, key {k}");
         }
         if let Some(cells) = absent(i) {
-            assert_eq!(tb.count(ix, &mut Src::new(&cells)).unwrap(), 0, "index {ix}: a key no row holds");
+            assert_eq!(
+                tb.count(&mut key_scratch(), ix, &mut Src::new(&cells)).unwrap(),
+                0,
+                "index {ix}: a key no row holds"
+            );
         }
         let mut want: Vec<i128> = counts.values().map(|x| x.1).collect();
         let mut got = walk(tb, i);
@@ -480,7 +492,6 @@ fn indexes_model() {
     let (img, _) = schema_indexed(&cols, &decls());
     let digest = per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 9, &img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x5eed_1dc5);
         let texts = text_pool(&mut r);
         let mut m = Model::new();
@@ -514,9 +525,9 @@ fn indexes_model() {
             } else if op < 90 {
                 let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
                 if r.below(2) == 0 {
-                    tb.write_step(&mut sc, &everything()).unwrap();
+                    tb.write_step(&everything()).unwrap();
                 } else {
-                    maintain_all(&mut tb, &mut sc);
+                    maintain_all(&mut tb);
                 }
                 let after = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
                 seals += u64::from(before - after);
@@ -526,7 +537,11 @@ fn indexes_model() {
                 let k = some_key(&mut r, &m);
                 let cells = key_cells(i, &m[&k].1);
                 let want = m.values().filter(|(_, row)| key_cells(i, row) == cells).count() as i128;
-                assert_eq!(tb.count(INDEXES[i].0, &mut Src::new(&cells)).unwrap(), want, "step {step}");
+                assert_eq!(
+                    tb.count(&mut key_scratch(), INDEXES[i].0, &mut Src::new(&cells)).unwrap(),
+                    want,
+                    "step {step}"
+                );
             }
             assert_eq!(tb.len().unwrap(), m.len() as u64, "step {step}");
             if step % 1_000 == 999 {
@@ -534,7 +549,7 @@ fn indexes_model() {
                 lh.take(tb.host_mut());
             }
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         keys += check(&tb, &m);
         assert!(seals >= 1, "rows were sealed: {seals}");
         assert!(sealed_updates >= 1, "sealed rows were updated: {sealed_updates}");
@@ -588,14 +603,14 @@ fn declarations() {
     let (img, _) = schema_indexed(&cols, &[primary]);
     let mut h = VecHost::new(FILLS[0]);
     let (tb, _) = Table::create(&mut h, 1, &img).unwrap();
-    assert!(matches!(tb.count(7, &mut Src::new(&[(id(2), V::I(0))])), Err(Fault::BadRef)));
+    assert!(matches!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(2), V::I(0))])), Err(Fault::BadRef)));
     // A count names an index the table declares, and takes its parts' cells.
     let (img, _) = schema_indexed(&cols, &[ok]);
     let mut h = VecHost::new(FILLS[0]);
     let (tb, _) = Table::create(&mut h, 1, &img).unwrap();
-    assert_eq!(tb.count(7, &mut Src::new(&[(id(2), V::I(0))])).unwrap(), 0);
-    assert!(matches!(tb.count(8, &mut Src::new(&[(id(2), V::I(0))])), Err(Fault::BadRef)));
-    assert!(tb.count(7, &mut Src::new(&[(id(1), V::text("a"))])).is_err());
+    assert_eq!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(2), V::I(0))])).unwrap(), 0);
+    assert!(matches!(tb.count(&mut key_scratch(), 8, &mut Src::new(&[(id(2), V::I(0))])), Err(Fault::BadRef)));
+    assert!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(1), V::text("a"))])).is_err());
     // A walk and an end name an index the table declares.
     let buf = &mut [0u8; 192];
     assert!(matches!(tb.walk(8, Dir::Fwd, Start::End, 1, buf, |_, _| Ok(())), Err(Fault::BadRef)));
@@ -661,7 +676,7 @@ fn an_indexed_key_past_the_key_buffer_is_taken() {
     let (mut tb, _) = Table::create(&mut h, 3, &img).unwrap();
     let row = |k: u64, len: usize| vec![(id(0), V::U(k)), (id(1), V::Bytes(vec![b'x'; len]))];
     let count = |tb: &Table<'_, VecHost>, len: usize| {
-        tb.count(1, &mut Src::new(&[(id(1), V::Bytes(vec![b'x'; len]))])).unwrap()
+        tb.count(&mut key_scratch(), 1, &mut Src::new(&[(id(1), V::Bytes(vec![b'x'; len]))])).unwrap()
     };
     // A text of n bytes with no zero byte encodes to n + 2.
     let fits = KEY_STACK - 2;
@@ -703,7 +718,6 @@ fn long_keys_model() {
     let mut h = VecHost::new(FILLS[0]);
     h.set_logging(false);
     let (mut tb, _) = Table::create(&mut h, 3, &img).unwrap();
-    let mut sc = VecScratch::new(FILLS[0]);
     let mut r = XorShift(0x10_6c3e);
     let base: Vec<u8> = (0..100_000u32).map(|i| (i % 90) as u8 + 32).collect();
     let mut pool: Vec<Vec<u8>> = vec![base[..4_999].to_vec(), b"short".to_vec(), vec![]];
@@ -725,7 +739,7 @@ fn long_keys_model() {
             );
             for k in keys {
                 let want = m.values().filter(|(_, row)| cells(i, row) == k).count() as i128;
-                assert_eq!(tb.count(*ix, &mut Src::new(&k)).unwrap(), want, "index {ix}");
+                assert_eq!(tb.count(&mut key_scratch(), *ix, &mut Src::new(&k)).unwrap(), want, "index {ix}");
             }
             // The sorted walks, whole and in pieces, and the ends, over keys of any length.
             let mut buf = vec![0u8; 200_000];
@@ -790,7 +804,7 @@ fn long_keys_model() {
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone, m.remove(&k).map(|x| x.0));
         } else if op < 9 {
-            maintain_all(&mut tb, &mut sc);
+            maintain_all(&mut tb);
             let on = |rid| matches!(read::find(tb.host(), tb.root(), rid).unwrap(), Some(read::Row::Sealed { .. }));
             sealed = sealed.max(m.values().filter(|(rid, _)| on(*rid)).count() as u64);
         }
@@ -805,7 +819,7 @@ fn long_keys_model() {
                 let row = vec![(id(0), V::U(1_000 + j)), (id(1), t.clone()), (id(2), t), (id(3), V::I(-1))];
                 assert_ne!(upsert(&mut tb, &mut fill, 1_000 + j, row), Wrote::Refused, "a new row");
             }
-            maintain_all(&mut tb, &mut sc);
+            maintain_all(&mut tb);
         }
     }
     check(&tb, &m, &fill);
@@ -847,7 +861,6 @@ fn huge_numbers_as_index_keys() {
     let mut h = VecHost::new(FILLS[1]);
     h.set_logging(false);
     let (mut tb, _) = Table::create(&mut h, 3, &img).unwrap();
-    let mut sc = VecScratch::new(FILLS[1]);
     let mut r = XorShift(0x4E_6A7);
     let lens = [1usize, 3, 12, 4_600, 4_700, 5_000, 6_000, 20_000];
     let mut nats: Vec<Vec<u8>> = lens.iter().map(|&n| leb_of(&mut r, n, false, false)).collect();
@@ -872,7 +885,7 @@ fn huge_numbers_as_index_keys() {
                 }));
                 for k in keys {
                     let want = m.values().filter(|(_, row)| cells(i, row) == k).count() as i128;
-                    assert_eq!(tb.count(ix, &mut Src::new(&k)).unwrap(), want, "index {ix}");
+                    assert_eq!(tb.count(&mut key_scratch(), ix, &mut Src::new(&k)).unwrap(), want, "index {ix}");
                 }
                 let mut buf = vec![0u8; 64_000];
                 let mut rows: Vec<Row> = m
@@ -908,7 +921,7 @@ fn huge_numbers_as_index_keys() {
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone, m.remove(&k).map(|x| x.0));
         } else {
-            maintain_all(&mut tb, &mut sc);
+            maintain_all(&mut tb);
             let on = |rid| matches!(read::find(tb.host(), tb.root(), rid).unwrap(), Some(read::Row::Sealed { .. }));
             sealed = sealed.max(m.values().filter(|(rid, _)| on(*rid)).count() as u64);
         }
@@ -923,7 +936,7 @@ fn huge_numbers_as_index_keys() {
                 let row = vec![(id(0), V::U(1_000 + j)), (id(1), n), (id(2), x), (id(3), V::I(0))];
                 assert_ne!(upsert(&mut tb, &mut fill, 1_000 + j, row), Wrote::Refused, "a new row");
             }
-            maintain_all(&mut tb, &mut sc);
+            maintain_all(&mut tb);
         }
     }
     check(&tb, &m, &fill);
@@ -1001,7 +1014,6 @@ fn updates_of_buffered_and_frozen_rows() {
     let (img, _) = schema_indexed(&cols, &decls());
     let digest = per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 9, &img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x5eed_b0f5);
         let mut texts = text_pool(&mut r);
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
@@ -1075,7 +1087,7 @@ fn updates_of_buffered_and_frozen_rows() {
                 assert!(c >= 1, "updates by way {way} of rows at place {at}: {by:?}");
             }
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         check(&tb, &m);
         check_running(&tb, &m);
         let mut left: Vec<u64> = m.keys().copied().collect();
@@ -1158,7 +1170,6 @@ fn updates_in_every_state() {
     let digest = per_fill(|h, lh| {
         let img = [version(1), version(2), version(3)];
         let (mut tb, _) = Table::create(h, 9, &img[0]).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x5eed_57a7);
         let mut texts = text_pool(&mut r);
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
@@ -1264,7 +1275,7 @@ fn updates_in_every_state() {
         for kind in ["Seal", "Compaction", "Release"] {
             assert!(ran.get(kind).copied().unwrap_or(0) >= 1, "{kind} units ran: {ran:?}");
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         check(&tb, &m);
         check_running(&tb, &m);
         let mut left: Vec<u64> = m.keys().copied().collect();
@@ -1360,7 +1371,6 @@ fn row_removing(v: u32, r: &mut XorShift, texts: &[Vec<u8>], k: u64) -> Vec<(u32
 fn removed_indexes_in_every_state() {
     let digest = per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 9, &removing(1)).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x7e30_0e5d);
         let mut texts = text_pool(&mut r);
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
@@ -1450,7 +1460,7 @@ fn removed_indexes_in_every_state() {
             assert!(c >= 1, "rows at place {at} when the schema changed: {at_change:?}");
         }
         assert!(ran.get("Drain").copied().unwrap_or(0) >= 1, "drain units ran: {ran:?}");
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         check_live(&tb, &m, kept(v));
         assert_eq!(area1_in_use(&tb), area1_held(&tb, kept(v)), "area 1 holds the remaining indexes alone");
         let mut left: Vec<u64> = m.keys().copied().collect();
@@ -1461,7 +1471,7 @@ fn removed_indexes_in_every_state() {
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone, m.remove(&k).map(|x| x.0));
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         assert_eq!((area1_in_use(&tb), area1_held(&tb, kept(v))), (0, 0), "every row removed");
         (at_change, ran)
     });
@@ -1533,7 +1543,6 @@ fn check_adding(tb: &Table<'_, VecHost>, m: &Model, v: u32) -> u64 {
 fn added_indexes_in_every_state() {
     let digest = per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 9, &adding(1)).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0xadd1_de8e);
         let mut texts = text_pool(&mut r);
         texts.extend((0..3u8).map(|i| vec![b'x' + i; KEY_STACK + 100 + 700 * usize::from(i)]));
@@ -1625,7 +1634,7 @@ fn added_indexes_in_every_state() {
         }
         assert!(busy >= 4, "indexes were checked while being built: {busy}");
         assert!(ran.get("Build").copied().unwrap_or(0) >= 100, "build units ran: {ran:?}");
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         assert_eq!(check_adding(&tb, &m, v), 0);
         assert_eq!(area1_in_use(&tb), area1_held(&tb, declared(v)), "area 1 holds the indexes alone");
         let mut left: Vec<u64> = m.keys().copied().collect();
@@ -1636,7 +1645,7 @@ fn added_indexes_in_every_state() {
             let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
             assert_eq!(gone, m.remove(&k).map(|x| x.0));
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         assert_eq!((area1_in_use(&tb), area1_held(&tb, declared(v))), (0, 0), "every row removed");
         (at_change, ran, busy)
     });
@@ -1685,7 +1694,7 @@ fn schema_changes_remove_indexes() {
                 row.retain(|(l, _)| *l != id(c));
             }
             check_live(&tb, &m, &live);
-            maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+            maintain_all(&mut tb);
             check_live(&tb, &m, &live);
             assert_eq!(area1_in_use(&tb), area1_held(&tb, &live), "column {c} dropped, declared {declared}");
         }
@@ -1700,7 +1709,7 @@ fn schema_changes_remove_indexes() {
     tb.change_schema(&schema_versioned(2, &base, &fewer).0).unwrap();
     assert_eq!(tb.shape().version, 2);
     check_live(&tb, &m, &[1, 2, 4]);
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     check_live(&tb, &m, &[1, 2, 4]);
     assert_eq!(area1_in_use(&tb), area1_held(&tb, &[1, 2, 4]), "indexes 3 and 5 freed");
 }
@@ -1713,7 +1722,7 @@ fn check_counts(tb: &Table<'_, VecHost>, m: &Model, ix: u8, col: u32) {
         want.entry(format!("{cells:?}")).or_insert((cells, 0)).1 += 1;
     }
     for (k, (cells, c)) in &want {
-        assert_eq!(tb.count(ix, &mut Src::new(cells)).unwrap(), *c, "index {ix}, key {k}");
+        assert_eq!(tb.count(&mut key_scratch(), ix, &mut Src::new(cells)).unwrap(), *c, "index {ix}, key {k}");
     }
 }
 
@@ -1763,7 +1772,7 @@ fn schema_changes_add_indexes() {
     tb.change_schema(&schema_versioned(2, &base, &d).0).unwrap();
     assert_eq!(being_built(&tb), vec![1, 7]);
     check_built(&tb, &m, &[2, 3, 4, 5], &[1]);
-    assert_eq!(tb.count(7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::Busy));
+    assert_eq!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::Busy));
     let mut builds = 0u64;
     while !being_built(&tb).is_empty() {
         builds += u64::from(bounded_unit(&mut tb) == Ran::Build);
@@ -1772,7 +1781,7 @@ fn schema_changes_add_indexes() {
     check_counts(&tb, &m, 1, 4);
     check_counts(&tb, &m, 7, 7);
     assert_eq!(Secondary::read(tb.host(), tb.root(), 1).unwrap().shape.w, 16);
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     assert_eq!(area1_in_use(&tb), area1_held(&tb, &[1, 2, 3, 4, 5, 7]), "the old index 1 is freed");
     // A change removing an index being built.
     let mut h = VecHost::new(FILLS[0]);
@@ -1783,8 +1792,8 @@ fn schema_changes_add_indexes() {
     }
     tb.change_schema(&schema_versioned(3, &base, &d[..5]).0).unwrap();
     assert_eq!(being_built(&tb), vec![1]);
-    assert_eq!(tb.count(7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::BadRef));
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    assert_eq!(tb.count(&mut key_scratch(), 7, &mut Src::new(&[(id(7), V::I(0))])), Err(Fault::BadRef));
+    maintain_all(&mut tb);
     check_counts(&tb, &m, 1, 4);
     assert_eq!(area1_in_use(&tb), area1_held(&tb, &[1, 2, 3, 4, 5]), "index 7's blocks are freed");
 }
@@ -1820,9 +1829,8 @@ fn the_stored_shape() {
     let derived = |h: &VecHost, root: u64| Shape::open(h, root::u64_at(h, root, root::SCHEMA_PAGE).unwrap()).unwrap();
     let at = root::SHAPE as usize..(root::SHAPE + STORED_BYTES) as usize;
     let bytes = |h: &VecHost, root: u64| h.get(Region::Block(root)).unwrap()[at.clone()].to_vec();
-    let set_bytes = |h: &mut VecHost, root: u64, b: &[u8]| {
-        h.get_mut(Region::Block(root), Owner(0)).unwrap()[at.clone()].copy_from_slice(b)
-    };
+    let set_bytes =
+        |h: &mut VecHost, root: u64, b: &[u8]| h.get_mut(Region::Block(root)).unwrap()[at.clone()].copy_from_slice(b);
     // The stored shape's words 0 (`FORMAT_TABLE`), 1 (schema page), 2 (schema hash), 3 (schema version), 15
     // (the hot state's first row byte) and 24 (the hash) changed.
     let with_word = |b: &[u8], k: usize, f: &dyn Fn(u64) -> u64| {
@@ -1861,7 +1869,7 @@ fn the_stored_shape() {
         {
             let mut tb = Table::open(&mut h, root, &img).unwrap();
             tb.change_schema(next).unwrap();
-            maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+            maintain_all(&mut tb);
         }
         let s = derived(&h, root);
         assert_ne!(s, old, "{what}: the shape changes");
@@ -1954,7 +1962,7 @@ fn built_on_text(h: &mut VecHost, n: u64, long: u64) -> (Table<'_, VecHost>, Mod
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     assert_eq!(being_built(&tb), vec![1]);
     let mut units = 0u64;
@@ -1999,7 +2007,7 @@ fn builds_split_runs_first_in_their_unit() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 16, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut runs) = (0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2061,7 +2069,7 @@ fn builds_keys_over_units() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut writing, mut taken, mut units) = (0u64, 0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2107,7 +2115,7 @@ fn builds_zero_keys_over_units() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let mut units = 0u64;
     while !being_built(&tb).is_empty() {
@@ -2155,7 +2163,7 @@ fn builds_long_shared_prefixes_over_units() {
     for _ in 0..24 {
         add(&mut tb, &mut m, &mut r, &mut k);
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut under_way, mut inside, mut finished, mut restarts) = (0u64, 0u64, 0u64, 0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2245,7 +2253,7 @@ fn builds_moved_records_over_units() {
     for _ in 0..400 {
         add(&mut tb, &mut m, &mut r, &mut k, None);
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut moved) = (0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2335,7 +2343,7 @@ fn builds_long_count_descents_over_units() {
         let t = if i % 2 == 1 { pool[(i / 2 % 4) as usize].clone() } else { letters(&mut r, n) };
         add(&mut tb, &mut m, &mut k, t);
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     // Rows after the build's end under two of the long keys: the build's rows of those keys pass them.
     for t in pool.iter().take(2) {
@@ -2462,7 +2470,7 @@ fn builds_long_count_entries_over_units() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let mut seen: Vec<Vec<u8>> = Vec::new();
     let (mut units, mut twins, mut fresh, mut repeats, mut gone) = (0u64, 0u64, 0u64, 0u64, 0u64);
@@ -2585,7 +2593,7 @@ fn builds_tall_trees_over_units() {
     for _ in 0..2_500 {
         add(&mut tb, &mut m, &mut r, &mut k);
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut pending, mut gone) = (0u64, 0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2642,7 +2650,7 @@ fn builds_restart_written_rows() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut row, mut at, mut kept, mut restarts) = (0u64, u64::MAX, 0u64, 0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2711,7 +2719,7 @@ fn builds_finish_under_writes() {
     for _ in 0..1_200 {
         add(&mut tb, &mut m, &mut r, &mut k);
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(1), false)])]).0).unwrap();
     let (mut units, mut finished) = (0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2776,7 +2784,7 @@ fn builds_huge_numbers_over_units() {
         let (Upsert::Inserted(rid), _) = tb.upsert(&mut key_scratch(), &mut Src::new(&x)).unwrap() else { panic!() };
         m.insert(k, (rid, x));
     }
-    maintain_all(&mut tb, &mut VecScratch::new(FILLS[0]));
+    maintain_all(&mut tb);
     tb.change_schema(&schema_versioned(2, &base, &[decl(1, 1_016, &[(id(2), false), (id(1), false)])]).0).unwrap();
     let (mut units, mut inside, mut scanning) = (0u64, 0u64, 0u64);
     while !being_built(&tb).is_empty() {
@@ -2810,6 +2818,11 @@ fn builds_huge_numbers_over_units() {
     }
     assert_eq!(want.len(), 8);
     for (cells, c) in want.values() {
-        assert_eq!(tb.count(1, &mut Src::new(cells)).unwrap(), *c, "key of {} bytes", format!("{cells:?}").len());
+        assert_eq!(
+            tb.count(&mut key_scratch(), 1, &mut Src::new(cells)).unwrap(),
+            *c,
+            "key of {} bytes",
+            format!("{cells:?}").len()
+        );
     }
 }

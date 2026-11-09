@@ -10,7 +10,7 @@
 
 use crate::bytes::uleb_len;
 use crate::consts::{HUGE_VALUE, LONG_VALUE, PAGE, ROW_INLINE_MAX};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::image::{Image, ImageReader};
 use crate::mem::{copy_bytes, rd_u16, rd_u32, rd_u8, sub, PageHost, Region};
 
@@ -32,10 +32,6 @@ pub const LONG_ITEM: u64 = 32;
 pub const STAGE: usize = 3_072;
 const _: () = assert!(STAGE as u64 == ROW_INLINE_MAX);
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
 /// Whether a variable value of `n` bytes is a long value: past `HUGE_VALUE`, or past `LONG_VALUE` in a row
 /// of a frozen group.
 #[inline]
@@ -54,7 +50,6 @@ pub fn item_bytes(n: u64, long: bool) -> u64 {
     }
 }
 
-/// Whether leaf `l` with value `v` has an item.
 pub fn has_item(l: &LeafInfo, v: &Val<'_>) -> bool {
     l.ty.variable() && !v.is_null() && (matches!(l.ty, Ty::Text | Ty::Blob) || cell::is_big(v))
 }
@@ -74,14 +69,6 @@ pub struct Plan {
     pub large: u64,
 }
 
-impl Plan {
-    /// Whether the image is itself stored as a long value.
-    pub fn long_row(&self) -> bool {
-        self.len > ROW_INLINE_MAX
-    }
-}
-
-/// Checks one cell of leaf `l` from the source.
 pub fn cell_of<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> Result<Val<'a>, Fault> {
     cell::check(l, src.cell(l.id)?)
 }
@@ -531,12 +518,10 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
         Ok(self.byte(8u64.wrapping_add(head.bitmap).wrapping_add(bit / 8))? >> (bit % 8) & 1 != 0)
     }
 
-    /// The row's schema version.
     pub fn version(&self) -> Result<u32, Fault> {
         Ok(self.version)
     }
 
-    /// The layout of this row's schema version.
     pub fn head(&self, shape: &Shape) -> Result<RowHead, Fault> {
         shape.head_for(self.h, self.version()?)
     }
@@ -635,11 +620,6 @@ pub struct Walk {
 }
 
 impl Walk {
-    /// A walk over rows of the table's schema version.
-    pub fn new(shape: &Shape) -> Self {
-        Walk { fixed: shape.head.fixed_at, var: 0, bit: 0, head: shape.head }
-    }
-
     /// A walk over one row, in its own schema version's layout.
     pub fn of<H: PageHost + ?Sized>(shape: &Shape, row: &RowRef<'_, H>) -> Result<Self, Fault> {
         let head = row.head(shape)?;
@@ -674,19 +654,6 @@ impl Walk {
     }
 }
 
-/// Leaf `l`'s stored value in a row of the table's schema version: its fixed cell at row offset `fixed`
-/// and, for a variable leaf, its item table entry `vi`; `bit` is its bitmap bit.
-pub fn stored<'h, H: PageHost + ?Sized>(
-    shape: &Shape,
-    row: &RowRef<'h, H>,
-    l: &LeafInfo,
-    fixed: u64,
-    vi: u64,
-    bit: u64,
-) -> Result<Stored<'h>, Fault> {
-    stored_at(&shape.head, row, l, fixed, vi, bit)
-}
-
 /// Leaf `l`'s stored value in a row of layout `head`.
 pub fn stored_at<'h, H: PageHost + ?Sized>(
     head: &RowHead,
@@ -713,95 +680,7 @@ pub fn stored_at<'h, H: PageHost + ?Sized>(
             let mut c = [0u8; 16];
             let cw = usize::try_from(w).unwrap_or(0).min(16);
             row.read(fixed, c.get_mut(..cw).unwrap_or(&mut []))?;
-            Ok(Stored::Val(own(cell::from_fixed(t, c.get(..cw).unwrap_or(&[])))))
+            Ok(Stored::Val(super::cur::own(cell::from_fixed(t, c.get(..cw).unwrap_or(&[])))))
         }
     }
-}
-
-/// A fixed-cell value that borrows nothing.
-fn own(v: Val<'_>) -> Val<'static> {
-    match v {
-        Val::Null => Val::Null,
-        Val::Bool(b) => Val::Bool(b),
-        Val::U(x) => Val::U(x),
-        Val::I(x) => Val::I(x),
-        Val::Wide(x) => Val::Wide(x),
-        Val::U128(x) => Val::U128(x),
-        Val::I128(x) => Val::I128(x),
-        Val::F32(x) => Val::F32(x),
-        Val::F64(x) => Val::F64(x),
-        Val::Unit => Val::Unit,
-        Val::Arg(n) => Val::Arg(n),
-        Val::Bytes(_) | Val::Big(_) => Val::Unit,
-    }
-}
-
-/// The bytes of a stored value: (item location kind, length) helpers for readers that copy values.
-pub fn value_len(s: &Stored<'_>) -> u64 {
-    match *s {
-        Stored::Bytes { len, .. } => len,
-        Stored::Item(Item::Inline { len, .. }) | Stored::Item(Item::Long { len, .. }) => len,
-        _ => 0,
-    }
-}
-
-/// Copies bytes [at, at + out.len()) of a stored variable or byte-string value.
-pub fn value_read<H: PageHost + ?Sized>(
-    row: &RowRef<'_, H>,
-    s: &Stored<'_>,
-    at: u64,
-    out: &mut [u8],
-) -> Result<(), Fault> {
-    match *s {
-        Stored::Bytes { at: base, .. } | Stored::Item(Item::Inline { at: base, .. }) => {
-            row.read(base.wrapping_add(at), out)
-        }
-        Stored::Item(Item::Long { img, .. }) => long::read(row.h, img, at, out),
-        _ => Err(rt(Corruption::Encoding, at)),
-    }
-}
-
-/// Whether the stored value equals `v` (a checked host value of the same leaf). An argument value is never
-/// equal: its bytes are not read before they are written.
-pub fn same<H: PageHost + ?Sized>(
-    row: &RowRef<'_, H>,
-    l: &LeafInfo,
-    s: &Stored<'_>,
-    v: &Val<'_>,
-) -> Result<bool, Fault> {
-    Ok(match (s, v) {
-        (Stored::Null, Val::Null) => true,
-        (Stored::Null, _) | (_, Val::Null) => false,
-        (_, Val::Arg(_)) => false,
-        (Stored::Unit, Val::Unit) => true,
-        (Stored::Val(a), b) => match (a, b) {
-            // Floats compare by bits: a stored cell keeps the bits written.
-            (Val::F32(x), Val::F32(y)) => x == y,
-            (Val::F64(x), Val::F64(y)) => x == y,
-            _ => a == b,
-        },
-        (Stored::Bytes { .. } | Stored::Item(_), Val::Bytes(b) | Val::Big(b)) => same_bytes(row, s, b)?,
-        (Stored::Item(_), Val::U(_) | Val::I(_) | Val::Wide(_)) => {
-            let _ = l;
-            false
-        }
-        _ => false,
-    })
-}
-
-fn same_bytes<H: PageHost + ?Sized>(row: &RowRef<'_, H>, s: &Stored<'_>, b: &[u8]) -> Result<bool, Fault> {
-    if value_len(s) != b.len() as u64 {
-        return Ok(false);
-    }
-    let mut piece = [0u8; 256];
-    let mut at = 0u64;
-    for chunk in b.chunks(piece.len()) {
-        let dst = piece.get_mut(..chunk.len()).ok_or(rt(Corruption::Range, at))?;
-        value_read(row, s, at, dst)?;
-        if dst != chunk {
-            return Ok(false);
-        }
-        at = at.wrapping_add(chunk.len() as u64);
-    }
-    Ok(true)
 }

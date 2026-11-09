@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
 use native_table::area::{AreaRecord, IMAGE_AREA};
-use native_table::consts::{BLOCK, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PAGE};
+use native_table::consts::{BLOCK, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PAGE, RADIX_STEP};
 use native_table::fault::Fault;
 use native_table::mem::rd_u32;
 use native_table::table::group::{self, GroupView, LeafDir, Seg};
@@ -85,8 +85,8 @@ fn everything() -> TestBudget {
 }
 
 /// Runs maintenance until nothing is pending.
-fn maintain_all(tb: &mut Table<'_, VecHost>, sc: &mut VecScratch) {
-    assert_eq!(tb.maintain(sc, &everything()).unwrap(), Progress::Done);
+fn maintain_all(tb: &mut Table<'_, VecHost>) {
+    assert_eq!(tb.maintain(&everything()).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 
@@ -358,7 +358,6 @@ fn rows_model() {
     let m = model_schema();
     let digest = per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 11, &m.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x1234_5678);
         // key → (rid, row as written)
         let mut model: BTreeMap<u64, (u64, Vec<(u32, V)>)> = BTreeMap::new();
@@ -430,9 +429,9 @@ fn rows_model() {
                 // Maintenance at a random point: a write's one unit, or all of it.
                 let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
                 if r.below(2) == 0 {
-                    tb.write_step(&mut sc, &everything()).unwrap();
+                    tb.write_step(&everything()).unwrap();
                 } else {
-                    maintain_all(&mut tb, &mut sc);
+                    maintain_all(&mut tb);
                     groups_checked += check_groups(&tb);
                 }
                 let after = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
@@ -445,7 +444,7 @@ fn rows_model() {
                 trace.push((step, model.len()));
             }
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         groups_checked += check_groups(&tb);
         check_running(&tb, &model);
         for (k, (rid, row)) in &model {
@@ -603,7 +602,6 @@ fn seal_canonical() {
     let img = small_schema();
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 5, &img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let n = GROUP_SLOTS;
         // Phase 1: the rows inserted as they are; the next insert freezes the group.
         for k in 0..n {
@@ -613,7 +611,7 @@ fn seal_canonical() {
             tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
         }
         tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(n, b"next".to_vec()))).unwrap();
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let a = image_bytes(tb.host(), group_page(&tb, 0));
         // Phase 2, in a later group of the same table: every row of phase 1 deleted and its group dropped, the
         // open group filled up behind the row that froze group 0, so that the same rows start a group of their
@@ -622,7 +620,7 @@ fn seal_canonical() {
         for k in (0..n).filter(|k| k % 11 != 5) {
             tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let g1 = root::u64_at(tb.host(), tb.root(), root::OPEN_GROUP).unwrap();
         for f in 1..n {
             tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(2 * n + f, b"f".to_vec()))).unwrap();
@@ -646,7 +644,7 @@ fn seal_canonical() {
             tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
         }
         tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(3 * n, b"next".to_vec()))).unwrap();
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let mut b = image_bytes(tb.host(), group_page(&tb, g2));
         assert_eq!(u64::from_le_bytes(b[32..40].try_into().unwrap()), g2);
         b[32..40].copy_from_slice(&0u64.to_le_bytes());
@@ -676,7 +674,6 @@ fn no_crossing() {
     let m = model_schema();
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 9, &m.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(77);
         let mut out = Vec::new();
         // Several groups: plain, with medium and huge values, and one with 1,100 dead positions (compacted).
@@ -692,7 +689,7 @@ fn no_crossing() {
                     tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(x))])).unwrap();
                 }
             }
-            maintain_all(&mut tb, &mut sc);
+            maintain_all(&mut tb);
         }
         let mut compacted = 0;
         for (g, pg) in sealed_groups(&tb) {
@@ -805,7 +802,6 @@ fn long_values() {
     let e2 = (2 * PAGE - 64) as usize;
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 3, &img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut log = Vec::new();
         let lens = [2_049usize, 65_536, 65_537, 150_000, 1 << 20];
         let blob = |n: usize, seed: u64| -> Vec<u8> {
@@ -882,7 +878,7 @@ fn long_values() {
             rows.insert(k, vec![(id(0), V::U(k)), (id(1), V::text("f")), (id(2), V::Bytes(vec![]))]);
             k += 1;
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let (_, pg) = sealed_groups(&tb)[0];
         let gimg = GroupView::open(tb.host(), pg).unwrap().img;
         let huge_total: u64 =
@@ -906,8 +902,15 @@ fn long_values() {
             &mut Src::new(&[(id(0), V::U(k1)), (id(1), V::text("u2")), (id(2), V::Bytes(v2.clone()))]),
         )
         .unwrap();
-        rows.insert(k1, vec![(id(0), V::U(k1)), (id(1), V::text("u2")), (id(2), V::Bytes(v2))]);
-        maintain_all(&mut tb, &mut sc);
+        // The same huge value written again: the new image takes the old image's long value over, and the
+        // drain leaves it alone.
+        tb.upsert(
+            &mut key_scratch(),
+            &mut Src::new(&[(id(0), V::U(k1)), (id(1), V::text("u3")), (id(2), V::Bytes(v2.clone()))]),
+        )
+        .unwrap();
+        rows.insert(k1, vec![(id(0), V::U(k1)), (id(1), V::text("u3")), (id(2), V::Bytes(v2))]);
+        maintain_all(&mut tb);
         check_all(&tb, &rows);
         // Deletes, sealed and buffered: every long value goes to the drain and its pages back to the host.
         let keys: Vec<u64> = rows.keys().copied().collect();
@@ -917,7 +920,7 @@ fn long_values() {
                 rows.remove(&k);
             }
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         let longs_end = check_all(&tb, &rows);
         assert_eq!(longs_end, 0);
         // An argument value that is not UTF-8 faults while it is copied (the host traps on it).
@@ -973,7 +976,6 @@ fn changed_blocks() {
     let img = small_schema();
     per_fill(|h, _| {
         let (mut tb, _) = Table::create(h, 6, &img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut seen: BTreeMap<&'static str, Vec<u64>> = BTreeMap::new();
         let mut k = 0u64;
         let row = |k: u64| small_row(k, format!("v{k}").into_bytes());
@@ -1020,7 +1022,7 @@ fn changed_blocks() {
         // A split of M's leaf: the tail block, the leaf, its new sibling, the parent, the root (area 1's
         // record) and the index directory block (M's node count).
         only(&seen["insert splitting M's leaf"], 6, "insert that splits M's leaf");
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         // Deletes: a sealed row (3: M's leaf, the group page, the tail block); a buffered row outside the tail
         // block (3: M's leaf, its block, the tail block) and in it (2). A removal that rebalances M (keys
         // inserted in order leave M's leaves half full) changes more of M; those are counted apart.
@@ -1029,7 +1031,7 @@ fn changed_blocks() {
             let mut s = std::collections::BTreeSet::new();
             let mut from = 0;
             loop {
-                let w = list.walk(tb.host(), from, |_, p| {
+                let w = list.walk_max(tb.host(), from, RADIX_STEP, |_, p| {
                     s.insert(p);
                     Ok(())
                 });
@@ -1210,8 +1212,7 @@ fn one_group(
         tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), rows[&key][0].1.clone())])).unwrap();
         rows.remove(&key);
     }
-    let mut sc = VecScratch::new(FILLS[0]);
-    maintain_all(tb, &mut sc);
+    maintain_all(tb);
     (group_page(tb, g), rows)
 }
 
@@ -1460,7 +1461,7 @@ fn keys_of_any_length() {
         let mut row = key(&keys[2]);
         row.push((id(1), V::I(7)));
         assert!(matches!(tb.upsert(&mut sc, &mut Src::new(&row)).unwrap().0, Upsert::Inserted(_)));
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         for (i, k) in keys.iter().enumerate() {
             let want = if i == 2 { 7 } else { 200 + i as i64 };
             assert_eq!(value(&tb, &mut sc, k), Some(want), "key of {} bytes after maintenance", k.len());

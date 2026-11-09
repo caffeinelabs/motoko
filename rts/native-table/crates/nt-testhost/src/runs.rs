@@ -2,9 +2,9 @@
 //! a sink that counts how often each byte is written, and an independent model of the entries a run holds.
 
 use native_table::consts::{CHUNK_RIDS_MAX, SENT_MIN};
-use native_table::index::{build_run, plan_run, Item, MemImage, Run, RunInput, RunParams, RunPlan};
-use native_table::tree::{MemRunSink, RunSink};
+use native_table::index::{MemImage, Run};
 use native_table::{Fault, ImageId};
+use nt_builder::{build_run, plan_run, Item, MemRunSink, RunInput, RunParams, RunPlan, RunSink};
 
 /// Items (key, rid, tombstone) in (key, rid) order.
 #[derive(Clone, Debug, Default)]

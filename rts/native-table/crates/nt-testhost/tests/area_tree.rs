@@ -13,7 +13,7 @@ use native_table::key::probe::{
 use native_table::tree::{
     self, descend, insert_at, insert_first, remove_found, Cursor, Fwd, IndexShape, Path, Search, Shape,
 };
-use native_table::NodeMem;
+use native_table::NodeRead;
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};
 
 fn key(r: &mut XorShift, long: bool) -> Vec<u8> {

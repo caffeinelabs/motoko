@@ -10,9 +10,9 @@ use native_table::index::runlist::{
     image_radix, RunDesc, RunList, D_BELIEVED, D_COUNT_TREE, D_FILTER, D_KEY_RUNS, D_RELATIVE,
 };
 use native_table::index::secondary::Secondary;
-use native_table::index::RunParams;
-use native_table::mem::{Owner, PageHost, Region};
+use native_table::mem::{PageHost, Region};
 use native_table::ImageId;
+use nt_builder::RunParams;
 
 use crate::runs::{build, VecItems};
 use crate::VecHost;
@@ -36,7 +36,7 @@ impl TTable {
         let tbl = new_root(&mut h).unwrap();
         // The root's fields outside the area records, as a table's creation writes them.
         {
-            let s = h.get_mut(Region::Block(tbl), Owner(0)).unwrap();
+            let s = h.get_mut(Region::Block(tbl)).unwrap();
             s[..160].fill(0);
             s[928..].fill(0);
             s[8..16].copy_from_slice(&0x1111u64.to_le_bytes());

@@ -30,7 +30,6 @@ impl I192 {
         out
     }
 
-    /// Adds or subtracts a u128.
     pub fn apply_u128(&mut self, v: u128, subtract: bool) {
         // The low and high halves.
         #[allow(clippy::cast_possible_truncation)]
@@ -38,21 +37,11 @@ impl I192 {
         self.add_limbs(if subtract { Self::neg_limbs(limbs) } else { limbs });
     }
 
-    /// Adds or subtracts an i128.
     pub fn apply_i128(&mut self, v: i128, subtract: bool) {
         let ext = if v < 0 { u64::MAX } else { 0 };
         let u = v as u128;
         #[allow(clippy::cast_possible_truncation)]
         let limbs = [u as u64, (u >> 64) as u64, ext];
         self.add_limbs(if subtract { Self::neg_limbs(limbs) } else { limbs });
-    }
-
-    pub fn is_negative(&self) -> bool {
-        self.0[2] >> 63 != 0
-    }
-
-    /// Adds another sum.
-    pub fn add(&mut self, o: &I192) {
-        self.add_limbs(o.0);
     }
 }

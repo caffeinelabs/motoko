@@ -5,7 +5,7 @@ use super::shape::Shape;
 use super::{Path, Probe};
 use crate::consts::{NODE_SIZE, PATH_STACK};
 use crate::fault::Fault;
-use crate::host::NodeMem;
+use crate::host::NodeRead;
 use core::cmp::Ordering;
 
 /// Where a search for a key ended.
@@ -28,7 +28,7 @@ pub struct Shared {
 /// The position of the probe among the keys of node n: `Ok(i)` when key i equals it, else `Err(j)`, j the
 /// number of keys below it. The lower midpoint, the stored key on the left.
 #[inline(always)]
-pub fn search<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+pub fn search<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
     m: &M,
     n: u64,
@@ -82,7 +82,7 @@ pub fn search<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
 /// line, the stores of its returned `Result` are merged across its exits before inlining, and the value
 /// stays in memory instead of registers. Index forms keep an outlined body.
 #[inline(always)]
-pub fn find<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+pub fn find<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
     m: &M,
     root: u64,
@@ -96,7 +96,7 @@ pub fn find<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
 }
 
 #[inline]
-fn find_outlined<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+fn find_outlined<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
     m: &M,
     root: u64,
@@ -106,7 +106,7 @@ fn find_outlined<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
 }
 
 #[inline(always)]
-fn find_body<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+fn find_body<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
     m: &M,
     root: u64,
@@ -140,7 +140,7 @@ fn find_body<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
 /// Searches the non-empty tree from the root, recording each internal node passed and the child index
 /// taken; the final node is not pushed.
 #[inline]
-pub fn descend<S: Shape, M: NodeMem + ?Sized, P: Probe<M>>(
+pub fn descend<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
     m: &M,
     root: u64,

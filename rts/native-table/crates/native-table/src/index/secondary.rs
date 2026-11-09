@@ -16,8 +16,7 @@
 //! A key longer than W keeps its bytes beyond W in the tree's key log: each of its entries has a record there,
 //! a row entry's carrying its rid, a count entry's its count, which a change of the count rewrites in place.
 //! Removing an entry hands its record back (`area_nodes`), so the log follows the rows the tree holds. A key
-//! too long for a stack buffer is changed through a `LongKey`, a record of the key log written first, and
-//! counted through a `KeyFeed`, which hands it over again for each comparison (`count_fed`).
+//! too long for a stack buffer is changed through a `LongKey`, a record of the key log written first.
 //!
 //! **Uploaded segments.** The index data an upload brings stays apart: one run per upload in the loaded-run
 //! list of the index's run list, never merged into the tree or with another run. A count adds each run's count
@@ -38,8 +37,8 @@ use core::cmp::Ordering;
 use core::ops::Bound;
 
 use crate::consts::{magic, FORMAT_TABLE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::host::NodeMem;
+use crate::fault::{rt, Corruption, Fault, ImageId};
+use crate::host::NodeRead;
 use crate::image::ImageReader;
 use crate::index::area_insert;
 use crate::index::area_nodes::{AreaNodes, AreaView, KeyLog};
@@ -48,13 +47,12 @@ use crate::index::nodes::Run;
 use crate::index::runlist::LoadedRecord;
 use crate::index::runprobe;
 use crate::key::probe::{
-    count_field, is_count, is_ovf, ovf_field, payload, payload_to_count, row_field, FeedProbe, IndexPending, KeyFeed,
-    KeyProbe, Kind, RecProbe, ResolveKey,
+    count_field, is_count, is_ovf, ovf_field, payload, payload_to_count, row_field, IndexPending, KeyProbe, Kind,
+    RecProbe, ResolveKey,
 };
-use crate::key::{KeySpec, LenSink};
+use crate::key::KeySpec;
 use crate::mem::{
-    copy_bytes, put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost,
-    Region,
+    copy_bytes, put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region,
 };
 use crate::radix::Radix;
 use crate::tree::node::{count, is_leaf, ko};
@@ -82,10 +80,6 @@ const D_BUILD_END: u64 = 56;
 const D_BUILD_KEY: u64 = 64;
 const D_BUILD_BACK: u64 = 72;
 const D_RUN_LIST: u64 = 80;
-
-fn rt(kind: Corruption, off: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, off)
-}
 
 /// One secondary index: its tree's state, kept by the index's owner, and where its uploaded segments are
 /// listed.
@@ -131,7 +125,7 @@ impl Secondary {
         }
         let (b, o) = directory::ensure(h, tbl, index)?;
         let w16 = u16::try_from(w).map_err(|_| rt(Corruption::Layout, w))?;
-        let blk = h.get_mut(Region::Block(b), Owner(0))?;
+        let blk = h.get_mut(Region::Block(b))?;
         // o ≤ 64 + 30 · 128: every field below lies inside the block.
         put_u8(blk, o.wrapping_add(D_KIND), KIND_SECONDARY)?;
         put_u16(blk, o.wrapping_add(D_W), w16)?;
@@ -166,7 +160,7 @@ impl Secondary {
     /// table has no such index any more.
     pub fn clear<H: PageHost>(h: &mut H, tbl: u64, index: u8) -> Result<(), Fault> {
         let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        crate::mem::fill(h.get_mut(Region::Block(b), Owner(0))?, o, directory::INDEX_DESC, 0)
+        crate::mem::fill(h.get_mut(Region::Block(b))?, o, directory::INDEX_DESC, 0)
     }
 
     /// Table `tbl`'s build of index `index`: the rid it takes next and the rid it ends before (both 0 when the
@@ -180,7 +174,7 @@ impl Secondary {
     /// Writes table `tbl`'s build of index `index` into its descriptor (`build_state`).
     pub fn set_build_state<H: PageHost>(h: &mut H, tbl: u64, index: u8, next: u64, end: u64) -> Result<(), Fault> {
         let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        let blk = h.get_mut(Region::Block(b), Owner(0))?;
+        let blk = h.get_mut(Region::Block(b))?;
         put_u64(blk, o.wrapping_add(D_BUILD_NEXT), next)?;
         put_u64(blk, o.wrapping_add(D_BUILD_END), end)
     }
@@ -192,10 +186,9 @@ impl Secondary {
         rd_u64(h.get(Region::Block(b))?, o.wrapping_add(D_BUILD_KEY))
     }
 
-    /// Writes `build_key` into table `tbl`'s descriptor of index `index`.
     pub fn set_build_key<H: PageHost>(h: &mut H, tbl: u64, index: u8, k: u64) -> Result<(), Fault> {
         let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        put_u64(h.get_mut(Region::Block(b), Owner(0))?, o.wrapping_add(D_BUILD_KEY), k)
+        put_u64(h.get_mut(Region::Block(b))?, o.wrapping_add(D_BUILD_KEY), k)
     }
 
     /// The key-log ordinal of the state block of table `tbl`'s build of index `index`'s key whose blocks are
@@ -205,10 +198,9 @@ impl Secondary {
         rd_u64(h.get(Region::Block(b))?, o.wrapping_add(D_BUILD_BACK))
     }
 
-    /// Writes `build_back` into table `tbl`'s descriptor of index `index`.
     pub fn set_build_back<H: PageHost>(h: &mut H, tbl: u64, index: u8, k: u64) -> Result<(), Fault> {
         let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        put_u64(h.get_mut(Region::Block(b), Owner(0))?, o.wrapping_add(D_BUILD_BACK), k)
+        put_u64(h.get_mut(Region::Block(b))?, o.wrapping_add(D_BUILD_BACK), k)
     }
 
     /// Runs `f` on the tree's nodes, keeping the key log it leaves (a key written over units).
@@ -229,7 +221,7 @@ impl Secondary {
         let (b, o) = directory::locate(&*h, tbl, self.index)?.ok_or(rt(Corruption::Link, u64::from(self.index)))?;
         let nodes = u32::try_from(self.nodes).map_err(|_| rt(Corruption::Count, self.nodes))?;
         let blocks = u32::try_from(self.log.blocks).map_err(|_| rt(Corruption::Count, self.log.blocks))?;
-        let blk = h.get_mut(Region::Block(b), Owner(0))?;
+        let blk = h.get_mut(Region::Block(b))?;
         let at = |k: u64| o.wrapping_add(k);
         put_u64(blk, at(D_ROOT), self.root)?;
         put_u32(blk, at(D_NODES), nodes)?;
@@ -465,7 +457,6 @@ impl Secondary {
         Ok(sum)
     }
 
-    /// The count of `key` in the tree alone.
     pub fn tree_count<H: PageHost + ?Sized>(&self, h: &H, key: &[u8]) -> Result<i64, Fault> {
         self.tree_count_by(h, &KeyProbe { key, kind: Kind::Count })
     }
@@ -575,14 +566,12 @@ impl Secondary {
         }
     }
 
-    /// The tree's nodes, writable.
     fn tree<'h, H: PageHost>(&self, h: &'h mut H, tbl: u64) -> AreaNodes<'h, H> {
         let mut m = AreaNodes::new(h, tbl, AREA, self.shape, self.log);
         m.nodes = self.nodes;
         m
     }
 
-    /// The tree's nodes, read through a shared borrow.
     fn view<'h, H: PageHost + ?Sized>(&self, h: &'h H) -> AreaView<'h, H> {
         AreaView::new(h, self.shape, self.log)
     }
@@ -591,7 +580,7 @@ impl Secondary {
 /// A key a change of the tree is made under: its full encoding as bytes, or a `LongKey`.
 pub trait EntryKey<'k>: Copy {
     /// A descent to the entry of this key of kind `kind`.
-    fn descend<M: NodeMem + ResolveKey + ?Sized>(
+    fn descend<M: NodeRead + ResolveKey + ?Sized>(
         self,
         s: IndexShape,
         m: &M,
@@ -600,7 +589,8 @@ pub trait EntryKey<'k>: Copy {
         path: &mut Path,
     ) -> Result<Search, Fault>;
     /// The comparator of the entry at `koff` of node n against this key of kind `kind`.
-    fn cmp_at<M: NodeMem + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind) -> Result<Ordering, Fault>;
+    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind)
+        -> Result<Ordering, Fault>;
     /// The bytes an entry's key area takes: the whole key, or its first W bytes.
     fn area(self) -> &'k [u8];
     /// The field an entry of this key stores for `field`: `field` itself when the key fits W, else an overflowed
@@ -614,7 +604,7 @@ pub trait EntryKey<'k>: Copy {
 
 impl<'k> EntryKey<'k> for &'k [u8] {
     #[inline(always)]
-    fn descend<M: NodeMem + ResolveKey + ?Sized>(
+    fn descend<M: NodeRead + ResolveKey + ?Sized>(
         self,
         s: IndexShape,
         m: &M,
@@ -625,7 +615,13 @@ impl<'k> EntryKey<'k> for &'k [u8] {
         tree::descend(s, m, root, &KeyProbe { key: self, kind }, path)
     }
     #[inline(always)]
-    fn cmp_at<M: NodeMem + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind) -> Result<Ordering, Fault> {
+    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
+        self,
+        m: &M,
+        n: u64,
+        koff: u64,
+        kind: Kind,
+    ) -> Result<Ordering, Fault> {
         KeyProbe { key: self, kind }.cmp_at(m, n, koff)
     }
     #[inline(always)]
@@ -656,7 +652,7 @@ impl LongKey<'_> {
 }
 
 impl<'k> EntryKey<'k> for LongKey<'k> {
-    fn descend<M: NodeMem + ResolveKey + ?Sized>(
+    fn descend<M: NodeRead + ResolveKey + ?Sized>(
         self,
         s: IndexShape,
         m: &M,
@@ -666,7 +662,13 @@ impl<'k> EntryKey<'k> for LongKey<'k> {
     ) -> Result<Search, Fault> {
         tree::descend(s, m, root, &self.probe(kind), path)
     }
-    fn cmp_at<M: NodeMem + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind) -> Result<Ordering, Fault> {
+    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
+        self,
+        m: &M,
+        n: u64,
+        koff: u64,
+        kind: Kind,
+    ) -> Result<Ordering, Fault> {
         self.probe(kind).cmp_at(m, n, koff)
     }
     fn area(self) -> &'k [u8] {
@@ -690,7 +692,7 @@ struct Owned<'k> {
 }
 
 impl<'k> EntryKey<'k> for Owned<'k> {
-    fn descend<M: NodeMem + ResolveKey + ?Sized>(
+    fn descend<M: NodeRead + ResolveKey + ?Sized>(
         self,
         s: IndexShape,
         m: &M,
@@ -700,7 +702,13 @@ impl<'k> EntryKey<'k> for Owned<'k> {
     ) -> Result<Search, Fault> {
         self.key.descend(s, m, root, kind, path)
     }
-    fn cmp_at<M: NodeMem + ResolveKey + ?Sized>(self, m: &M, n: u64, koff: u64, kind: Kind) -> Result<Ordering, Fault> {
+    fn cmp_at<M: NodeRead + ResolveKey + ?Sized>(
+        self,
+        m: &M,
+        n: u64,
+        koff: u64,
+        kind: Kind,
+    ) -> Result<Ordering, Fault> {
         self.key.cmp_at(m, n, koff, kind)
     }
     fn area(self) -> &'k [u8] {
@@ -748,22 +756,6 @@ impl Secondary {
         m.free_record(loc)?;
         self.log = m.log;
         Ok(())
-    }
-
-    /// The rows that hold the key `key` hands over, never held whole: its count entry in the tree, found by one
-    /// descent comparing each stored key with the key's bytes as they come, plus its count in every uploaded
-    /// segment, counted the same way (`Run::count_fed`).
-    pub fn count_fed<H: PageHost + ?Sized, F: KeyFeed + ?Sized>(&self, h: &H, key: &F) -> Result<i128, Fault> {
-        let mut sum = i128::from(self.tree_count_by(h, &FeedProbe { key, skip: 0, kind: Kind::Count })?);
-        if self.run_list != 0 {
-            let mut len = LenSink(0);
-            key.feed(&mut len)?;
-            self.segments(h, |run| {
-                sum = sum.wrapping_add(i128::from(run.count_fed(key, len.0)?));
-                Ok(())
-            })?;
-        }
-        Ok(sum)
     }
 
     /// The count of the key of the count probe `p` in the tree alone: one descent.
@@ -817,7 +809,7 @@ fn insert_row<'k, H: PageHost, K: EntryKey<'k>>(
 /// The run of full nodes an insert into leaf `leaf` splits, `path` holding the frames above the leaf
 /// (`Secondary::splits`): none when the leaf has room for two more entries, else the leaf and every full node
 /// right above it. With the run's highest node and the frames above that node.
-fn full_above<M: NodeMem + ?Sized>(s: IndexShape, m: &M, leaf: u64, path: &Path) -> Result<(u64, u64, usize), Fault> {
+fn full_above<M: NodeRead + ?Sized>(s: IndexShape, m: &M, leaf: u64, path: &Path) -> Result<(u64, u64, usize), Fault> {
     if count(s, m, leaf)?.saturating_add(2) <= s.leaf.cap {
         return Ok((0, 0, path.len()));
     }
@@ -873,7 +865,7 @@ pub const SEEN: u64 = 1 << 62;
 
 /// Whether node n splits ahead of a build's insert passing it: an internal node when full, a leaf when it has
 /// no room for two more entries and holds three or more (its halves then have room for two).
-fn full_ahead<M: NodeMem + ?Sized>(s: IndexShape, m: &M, n: u64) -> Result<bool, Fault> {
+fn full_ahead<M: NodeRead + ?Sized>(s: IndexShape, m: &M, n: u64) -> Result<bool, Fault> {
     let c = count(s, m, n)?;
     Ok(if is_leaf(m, n)? { c.saturating_add(2) > s.leaf.cap && c >= 3 } else { c >= s.internal.cap })
 }
@@ -1367,7 +1359,7 @@ fn add_count<'k, H: PageHost, K: EntryKey<'k>>(
 }
 
 /// The offset in node n of entry i's field, and the field.
-fn field_at<M: NodeMem + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result<(u64, u64), Fault> {
+fn field_at<M: NodeRead + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result<(u64, u64), Fault> {
     let at = ko(s, &s.shape(is_leaf(m, n)?), i).wrapping_add(s.w);
     let field = u64::from_be_bytes(rd_array::<8>(&m.bytes(n, at, 8)?, 0)?);
     Ok((at, field))
@@ -1375,7 +1367,7 @@ fn field_at<M: NodeMem + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result
 
 /// The count entry i of node n holds: from its field, or from its key-log record when its key is longer than
 /// W. `Corrupt` when the entry is not a count entry.
-fn count_at<M: NodeMem + ResolveKey + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result<i64, Fault> {
+fn count_at<M: NodeRead + ResolveKey + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result<i64, Fault> {
     let (_, field) = field_at(s, m, n, i)?;
     if !is_count(field) {
         return Err(rt(Corruption::Order, n));
@@ -1390,7 +1382,7 @@ fn set_count<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, i: u64, c: i64) -> R
     if is_ovf(field) {
         return m.set_record_payload(payload(field), payload(new));
     }
-    put(m.host.get_mut(Region::Block(n), Owner(m.area))?, at, &new.to_be_bytes())
+    put(m.host.get_mut(Region::Block(n))?, at, &new.to_be_bytes())
 }
 
 /// The field an entry of `key` stores for `field`: `field` itself when the key fits W, else an overflowed

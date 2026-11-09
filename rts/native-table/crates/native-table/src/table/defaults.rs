@@ -6,7 +6,7 @@
 //! else null for an option, else the zero of a zero-valid type; so is a field's added to a record a column
 //! reaches, its declared default the field entry's (its default offset and length in the default pool).
 
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{rd_u16, rd_u32, rd_u8, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::value::{skip_ty, ty, FRAME};
@@ -15,11 +15,6 @@ use super::cell::Val;
 use super::cur::{self, At, SVal};
 use super::layout::{LeafInfo, Shape, Ty};
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
-/// The default of leaf `l`.
 pub fn of<H: PageHost + ?Sized>(h: &H, shape: &Shape, l: &LeafInfo) -> Result<SVal, Fault> {
     if let Some(v) = declared(h, shape, l)? {
         return Ok(v);

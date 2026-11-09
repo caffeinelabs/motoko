@@ -14,8 +14,7 @@
 //!   `area_key_cmp`'s `from`) and tells how many bytes the two sides share, so the next comparison resumes
 //!   there.
 //! - **Byte strings of any length** are compared where they lie: over their common length with the bytes
-//!   they share (`bytes_cmp`), or in memcmp order with a proper prefix first (`cmp_bytes`; two 8-byte keys
-//!   are one word each).
+//!   they share (`bytes_cmp`).
 
 use core::cmp::Ordering;
 
@@ -245,28 +244,6 @@ pub fn bytes_cmp_any(a: &[u8], b: &[u8]) -> (Ordering, usize) {
     }
     let (o, n) = bytes_cmp_long(a.get(16..).unwrap_or(&[]), b.get(16..).unwrap_or(&[]));
     (o, n.wrapping_add(16))
-}
-
-/// The memcmp order of byte strings, a proper prefix first: the order of `<[u8]>::cmp`. Two keys of 8
-/// bytes compare as one word each.
-#[inline(always)]
-pub fn cmp_bytes(a: &[u8], b: &[u8]) -> Ordering {
-    if let (Some(x), Some(y)) = (a.first_chunk::<8>(), b.first_chunk::<8>()) {
-        let (p, q) = (u64::from_le_bytes(*x), u64::from_le_bytes(*y));
-        if p != q {
-            return if word_below(p, q) { Ordering::Less } else { Ordering::Greater };
-        }
-        if a.len() == 8 && b.len() == 8 {
-            return Ordering::Equal;
-        }
-    }
-    cmp_bytes_rest(a, b)
-}
-
-/// `cmp_bytes` past its first word.
-#[inline(never)]
-fn cmp_bytes_rest(a: &[u8], b: &[u8]) -> Ordering {
-    bytes_cmp(a, b).0.then(a.len().cmp(&b.len()))
 }
 
 /// The position of a key that fits the key area W = 8·N among the c entries of a node `node` whose key parts

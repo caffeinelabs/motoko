@@ -22,10 +22,10 @@ use core::ops::Bound;
 
 use crate::consts::{BLOCK, FLAG_INDEX, FLAG_LEAF, NODE_SIZE, PAGE};
 use crate::fault::{corrupt, Corruption, Fault, ImageId, Refusal, RefusalCode};
-use crate::host::{NodeMem, Progress};
+use crate::host::{NodeRead, Progress};
 use crate::index::chunk::{header as chunk_header, Chunk};
 use crate::index::run::{at, record_offset, RunHeader, KIND_RUN, RECORD_BYTES};
-use crate::key::probe::{is_count, is_ovf, is_tomb, payload, payload_to_count, IndexPending, KeyProbe, ResolveKey};
+use crate::key::probe::{is_count, is_ovf, is_tomb, payload, payload_to_count, KeyProbe, ResolveKey};
 use crate::mem::{rd_u16, rd_u32, rd_u64, rd_u8};
 use crate::tree::node::{ko, vo};
 use crate::tree::{descend, find, Cursor, Direction, IndexShape, Path, Probe, Search, Shape};
@@ -127,7 +127,6 @@ impl<I: RunImage> Run<I> {
         self.img.id()
     }
 
-    /// The main tree.
     pub fn main(&self) -> Result<RunNodes<'_, I>, Fault> {
         let shape = self.hdr.shape().ok_or(corrupt(self.id(), Corruption::Header, at::W))?;
         Ok(RunNodes::new(self, Tree::Main, shape, 1, self.hdr.nodes, self.hdr.root))
@@ -279,8 +278,8 @@ impl<I: RunImage> Run<I> {
     }
 }
 
-/// One of a run's trees as read-only node memory: it implements `NodeMem` (every write is `BadRef`) and
-/// `ResolveKey` through the run's overflow records, so every read path of the one B-tree runs on it.
+/// One of a run's trees as read-only node memory: it implements `NodeRead`, and `ResolveKey` through the
+/// run's overflow records, so every read path of the one B-tree runs on it.
 pub struct RunNodes<'r, I: RunImage> {
     run: &'r Run<I>,
     tree: Tree,
@@ -377,7 +376,7 @@ impl<'r, I: RunImage> RunNodes<'r, I> {
         let bad = self.bad(Corruption::Bounds, n);
         let cum = i64::from_le_bytes(crate::mem::rd_array::<8>(s, NODE_SIZE).map_err(|_| bad)?);
         let flags = rd_u64(s, NODE_SIZE.wrapping_add(8)).map_err(|_| bad)?;
-        Ok((cum, flags & crate::tree::bulk::TRAILER_UNIT != 0))
+        Ok((cum, flags & crate::consts::TRAILER_UNIT != 0))
     }
 
     /// Whether node n is a leaf, and its count clamped to its capacity.
@@ -443,7 +442,6 @@ impl<'r, I: RunImage> RunNodes<'r, I> {
         self.depth(find(self.shape, self, self.root, p))
     }
 
-    /// `descend` from the root.
     pub fn descend<P: Probe<Self>>(&self, p: &P, path: &mut Path) -> Result<Search, Fault> {
         self.depth(descend(self.shape, self, self.root, p, path))
     }
@@ -471,12 +469,10 @@ impl<'r, I: RunImage> RunNodes<'r, I> {
         }
     }
 
-    /// A cursor positioned at `start`.
     pub fn seek<D: Direction>(&self, start: Bound<&KeyProbe<'_>>) -> Result<Cursor<D>, Fault> {
         self.depth(Cursor::seek(self.shape, self, self.root, start))
     }
 
-    /// The cursor's next entry before `end`.
     pub fn next<D: Direction>(
         &self,
         c: &mut Cursor<D>,
@@ -486,8 +482,7 @@ impl<'r, I: RunImage> RunNodes<'r, I> {
     }
 }
 
-impl<I: RunImage> NodeMem for RunNodes<'_, I> {
-    type Entry<'k> = IndexPending<'k>;
+impl<I: RunImage> NodeRead for RunNodes<'_, I> {
     type Bytes<'a>
         = &'a [u8]
     where
@@ -495,9 +490,6 @@ impl<I: RunImage> NodeMem for RunNodes<'_, I> {
 
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.slot(n)?, 0).map_err(|_| self.bad(Corruption::Bounds, n))
-    }
-    fn set_count(&mut self, _n: u64, _c: u16) -> Result<(), Fault> {
-        Err(Fault::BadRef)
     }
     fn flags(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.slot(n)?, 2).map_err(|_| self.bad(Corruption::Bounds, n))
@@ -507,9 +499,6 @@ impl<I: RunImage> NodeMem for RunNodes<'_, I> {
             return Err(self.bad(Corruption::Bounds, n.wrapping_add(off)));
         }
         rd_u64(self.slot(n)?, off).map_err(|_| self.bad(Corruption::Bounds, n))
-    }
-    fn set_word(&mut self, _n: u64, _off: u64, _w: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
     }
     fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault> {
         let bad = self.bad(Corruption::Bounds, n.wrapping_add(off));
@@ -521,24 +510,6 @@ impl<I: RunImage> NodeMem for RunNodes<'_, I> {
         let a = usize::try_from(off).map_err(|_| bad)?;
         let b = usize::try_from(end).map_err(|_| bad)?;
         s.get(a..b).ok_or(bad)
-    }
-    fn copy(&mut self, _s: u64, _so: u64, _d: u64, _doff: u64, _len: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn put_entry(&mut self, _n: u64, _k: u64, _v: u64, _p: &IndexPending<'_>) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn take_entry(&mut self, _n: u64, _k: u64, _v: u64, _p: &mut IndexPending<'_>) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn alloc(&mut self, _leaf: bool) -> Result<u64, Fault> {
-        Err(Fault::BadRef)
-    }
-    fn hand_back(&mut self, _n: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
-    }
-    fn release(&mut self, _root: u64) -> Result<(), Fault> {
-        Err(Fault::BadRef)
     }
 }
 

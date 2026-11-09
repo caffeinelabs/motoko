@@ -393,7 +393,7 @@ fn fixed_kinds_sort_by_memcmp() {
     // Chars and Bool.
     let mut cs: Vec<char> = (0..2_000).filter_map(|_| char::from_u32(r.below(0x11_0000) as u32)).collect();
     cs.extend(['\0', '\u{D7FF}', '\u{E000}', '\u{10FFFF}']);
-    let mut ks: Vec<(Vec<u8>, char)> = cs.iter().map(|&c| (key(|s| enc_char(s, c)), c)).collect();
+    let mut ks: Vec<(Vec<u8>, char)> = cs.iter().map(|&c| (key(|s| enc_u64(s, u64::from(c), 4)), c)).collect();
     ks.sort();
     assert!(ks.windows(2).all(|p| p[0].1 <= p[1].1));
     for (k, c) in &ks {

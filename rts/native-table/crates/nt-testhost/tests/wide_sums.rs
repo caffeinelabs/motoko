@@ -23,9 +23,8 @@ fn i192_sums() {
     s.apply_u128(u128::MAX, false);
     s.apply_u128(u128::MAX, false);
     assert_eq!(s.0, [u64::MAX - 1, u64::MAX, 1]);
-    assert!(!s.is_negative());
     s.apply_u128(u128::MAX, true);
     s.apply_u128(u128::MAX, true);
     s.apply_i128(-5, false);
-    assert!(s.is_negative());
+    assert_eq!(s.0[2] >> 63, 1);
 }

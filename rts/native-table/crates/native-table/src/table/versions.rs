@@ -14,15 +14,11 @@
 //! **Table**, in the rewrite's work space: 8 bytes per ordinal {the leaf's cell offset from the fixed region's
 //! start u32; its item table index u16; its bitmap bit u16}, written for the ordinals the version holds.
 
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::mem::{put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, Owner, PageHost, Region};
+use crate::fault::{rt, Corruption, Fault};
+use crate::mem::{put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, PageHost, Region};
 use crate::stats::space::Space;
 
 use super::layout::{RowHead, Shape};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Entries in use, the version waiting for its table, and the index's offset in the work space (0: not yet
 /// made), in the state block's control region.
@@ -85,12 +81,10 @@ impl Entry {
         Ok(b)
     }
 
-    /// Whether the table is complete.
     pub fn done(&self) -> bool {
         self.built >= self.leaves
     }
 
-    /// The layout of a row of this version.
     pub fn head(&self) -> RowHead {
         RowHead::of(self.version, self.r, self.fixed, self.vars)
     }
@@ -136,7 +130,7 @@ pub fn offsets<H: PageHost + ?Sized>(h: &H, ws: &Space, e: &Entry, ordinal: u64)
 
 /// Records that version v needs its table; the next unit builds it first.
 pub fn need<H: PageHost>(h: &mut H, st: u64, v: u32) -> Result<(), Fault> {
-    put_u32(h.get_mut(Region::Block(st), Owner(0))?, PENDING, v)
+    put_u32(h.get_mut(Region::Block(st))?, PENDING, v)
 }
 
 /// The version waiting for its table (0: none).
@@ -165,7 +159,7 @@ pub fn build_piece<H: PageHost>(
         let bytes = CAP.wrapping_mul(ENTRY);
         at = ws.append(h, bytes)?;
         ws.zero(h, at, bytes)?;
-        put_u64(h.get_mut(Region::Block(st), Owner(0))?, AT, at)?;
+        put_u64(h.get_mut(Region::Block(st))?, AT, at)?;
         touched = touched.wrapping_add(2);
         return Ok((touched, false));
     }
@@ -216,7 +210,7 @@ pub fn build_piece<H: PageHost>(
     e.fixed = fixed;
     let began = if from == 0 { stamp } else { u64::from(rd_u32(&entry_bytes(&*h, ws, at, i)?, E_USED)?) };
     ws.write_bytes(h, at.wrapping_add(i.wrapping_mul(ENTRY)), &e.bytes(began)?)?;
-    let b = h.get_mut(Region::Block(st), Owner(0))?;
+    let b = h.get_mut(Region::Block(st))?;
     if new {
         put_u32(b, COUNT, u32::try_from(i.wrapping_add(1)).map_err(|_| rt(Corruption::Range, i))?)?;
     }

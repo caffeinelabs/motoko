@@ -27,11 +27,11 @@
 //! Overflow records are written by the run builder, not here: a pushed entry whose key is longer than W
 //! carries `F_OVF` with its record number, and only its first W key bytes reach the node.
 
-use crate::consts::{BLOCK, FLAG_INDEX, FLAG_LEAF, NODE_SIZE, PATH_STACK};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::key::probe::{is_ovf, payload, PART};
-use crate::mem::{copy_bytes, put, put_u16, put_u32};
-use crate::tree::shape::{IndexShape, NodeShape, Shape};
+use native_table::consts::{BLOCK, FLAG_INDEX, FLAG_LEAF, NODE_SIZE, PATH_STACK, TRAILER_UNIT};
+use native_table::fault::{rt, Corruption, Fault};
+use native_table::key::probe::{is_ovf, payload, PART};
+use native_table::mem::{copy_bytes, put, put_u16, put_u32};
+use native_table::tree::shape::{IndexShape, NodeShape, Shape};
 
 // PATH_STACK = 64.
 #[allow(clippy::cast_possible_truncation)]
@@ -39,8 +39,6 @@ const FRAMES: usize = PATH_STACK as usize;
 
 /// Offset of a node's trailer in its slot: the cumulative count (i64), then the flags word (u64).
 pub const TRAILER: u64 = NODE_SIZE;
-/// Trailer flags bit 0: every entry of the node contributes exactly 1.
-pub const TRAILER_UNIT: u64 = 1;
 
 /// Where a bulk build's bytes go: an output image through a page host, or the builder's memory. The context
 /// is passed per call, so a sink never holds a borrow of the host while the caller reads its sources.
@@ -105,7 +103,7 @@ impl RunSink for MemRunSink {
         put(cx, offset, bytes)
     }
     fn zeros(&mut self, cx: &mut [u8], offset: u64, len: u64) -> Result<(), Fault> {
-        crate::mem::fill(cx, offset, len, 0)
+        native_table::mem::fill(cx, offset, len, 0)
     }
 }
 
@@ -150,10 +148,6 @@ pub struct Plan {
     pub n: u64,
     pub height: u64,
     pub levels: [PlanLevel; FRAMES],
-}
-
-fn rt(kind: Corruption, off: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, off)
 }
 
 fn add(a: u64, b: u64) -> Result<u64, Fault> {

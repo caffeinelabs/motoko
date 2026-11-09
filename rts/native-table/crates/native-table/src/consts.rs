@@ -60,6 +60,8 @@ pub const FILTER_BITS: u64 = 10;
 pub const FILTER_K: u64 = 7;
 /// Format. 64-byte filter lines per 4 KiB filter block.
 pub const FILTER_LINES_PER_BLOCK: u64 = 64;
+/// Format. Run node trailers: flags bit 0, every entry of the node contributes exactly 1.
+pub const TRAILER_UNIT: u64 = 1;
 /// Format. Index-form node rules, in the layout word.
 pub const FORMAT_NODE: u16 = 1;
 

@@ -417,7 +417,6 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Ok(Some(rank.wrapping_add(u64::from(below))))
     }
 
-    /// Leaf directory entry o.
     pub fn leaf(&self, o: u64) -> Result<LeafDir, Fault> {
         if o >= self.l {
             return Err(self.bad(Corruption::Leaf, o));
@@ -425,7 +424,6 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         LeafDir::read(self.reader().bytes(HEADER.wrapping_add(o.wrapping_mul(LD_BYTES)), LD_BYTES)?)
     }
 
-    /// Segment table entry i.
     pub fn seg(&self, i: u64) -> Result<Seg, Fault> {
         if i >= self.s {
             return Err(self.bad(Corruption::Range, i));

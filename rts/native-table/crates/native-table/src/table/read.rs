@@ -30,6 +30,7 @@ pub enum Row {
 
 /// Leaf `l`'s current value `v` as a cell: a fixed value as it is, a byte string or a big Nat or Int copied
 /// into `piece`.
+#[inline(always)]
 pub fn sval_val<'a, H: PageHost + ?Sized>(
     h: &H,
     l: &LeafInfo,
@@ -99,7 +100,6 @@ pub enum Live {
 }
 
 impl Live {
-    /// Where the row lies.
     pub fn row(&self) -> Row {
         match *self {
             Live::Buffered(at) => Row::Buffered(at),
@@ -107,7 +107,6 @@ impl Live {
         }
     }
 
-    /// The row at `r`, opened.
     pub fn open<H: PageHost + ?Sized>(h: &H, r: Row) -> Result<Live, Fault> {
         Ok(match r {
             Row::Buffered(at) => Live::Buffered(at),

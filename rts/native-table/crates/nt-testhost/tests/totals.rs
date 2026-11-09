@@ -1,8 +1,8 @@
 //! The integer leaves' totals against a model: random inserts, updates and deletes of buffered and sealed
 //! rows, seals, nulls and integers of every size (Nat and Int past 64 bits, past i128 and out of
 //! line), in a narrow schema whose totals lie in the hot state and in a wide one whose later totals lie in the
-//! totals space; then huge Nat and Int values written, updated, deleted and sealed. `Table::sum` and
-//! `Table::average` must equal the model's exact sums at every check.
+//! totals space; then huge Nat and Int values written, updated, deleted and sealed. `Table::sum` must equal
+//! the model's exact sums and counts at every check.
 //!
 //! Every test runs once per fill pattern (`FILLS`): the results and the host-call logs must be equal, so no
 //! byte is read that was not written.
@@ -74,8 +74,8 @@ fn key_scratch() -> VecScratch {
     VecScratch::new(FILLS[0])
 }
 
-fn maintain_all(tb: &mut Table<'_, VecHost>, sc: &mut VecScratch) {
-    assert_eq!(tb.maintain(sc, &TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
+fn maintain_all(tb: &mut Table<'_, VecHost>) {
+    assert_eq!(tb.maintain(&TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
     assert_eq!(tb.wake().unwrap(), Wake::Idle);
 }
 
@@ -238,7 +238,7 @@ fn model_total(model: &BTreeMap<u64, Vec<(u32, V)>>, c: usize) -> (Big, u64) {
     (sum, n)
 }
 
-/// Every integer column's sum and average against the model; the Float and Text columns have none. Returns
+/// Every integer column's sum and count against the model; the Float and Text columns have none. Returns
 /// the number of totals that lay in the hot state and in the totals space, and the longest sum in bytes.
 fn check(tb: &Table<'_, VecHost>, s: &Schema, model: &BTreeMap<u64, Vec<(u32, V)>>) -> (u64, u64, usize) {
     let (mut hot, mut space, mut longest) = (0u64, 0u64, 0usize);
@@ -269,9 +269,6 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, model: &BTreeMap<u64, Vec<(u32, V)
             let short = got.0.len() - 1;
             assert!(matches!(tb.sum(id(c as u32), &mut buf[..short]), Err(Fault::Scratch { .. })));
         }
-        let avg = tb.average(id(c as u32), &mut buf).unwrap();
-        let want_avg = (n > 0).then(|| want.to_f64() / n as f64);
-        assert_eq!(avg.map(f64::to_bits), want_avg.map(f64::to_bits), "column {c}: average");
     }
     (hot, space, longest)
 }
@@ -279,7 +276,6 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, model: &BTreeMap<u64, Vec<(u32, V)
 /// Random writes against the model, checked every few hundred steps.
 fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> Vec<(u64, u64, u64, usize)> {
     let (mut tb, _) = Table::create(h, 31, &s.img).unwrap();
-    let mut sc = VecScratch::new(FILLS[0]);
     let mut r = XorShift(seed);
     let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
     let mut trace = Vec::new();
@@ -329,9 +325,9 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
         } else {
             let before = root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap();
             if r.below(2) == 0 {
-                tb.write_step(&mut sc, &TestBudget::new(u64::MAX)).unwrap();
+                tb.write_step(&TestBudget::new(u64::MAX)).unwrap();
             } else {
-                maintain_all(&mut tb, &mut sc);
+                maintain_all(&mut tb);
             }
             seals += u64::from(before - root::u32_at(tb.host(), tb.root(), root::FROZEN_WAITING).unwrap());
         }
@@ -341,7 +337,7 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
             trace.push((step, hot, space, longest));
         }
     }
-    maintain_all(&mut tb, &mut sc);
+    maintain_all(&mut tb);
     let (hot, space, longest) = check(&tb, s, &model);
     // Every row removed: every total back at zero, its big-form sum included.
     for k in model.keys().copied().collect::<Vec<_>>() {
@@ -381,7 +377,6 @@ fn huge_values() {
     let s = narrow();
     per_fill(|h, lh| {
         let (mut tb, _) = Table::create(h, 33, &s.img).unwrap();
-        let mut sc = VecScratch::new(FILLS[0]);
         let mut r = XorShift(0x5EED_0003);
         let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
         let mut longest = Vec::new();
@@ -426,7 +421,7 @@ fn huge_values() {
             write(&mut tb, &mut model, w);
             k += 1;
         }
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         longest.push(check(&tb, &s, &model).2);
         // Deletes of sealed rows without huge values.
         for k in (40..k).step_by(97) {
@@ -441,7 +436,7 @@ fn huge_values() {
             model.remove(&k);
         }
         longest.push(check(&tb, &s, &model).2);
-        maintain_all(&mut tb, &mut sc);
+        maintain_all(&mut tb);
         lh.take(tb.host_mut());
         assert!(longest[0] > 57_000, "{longest:?}");
         assert_eq!(*longest.last().unwrap(), 0);
@@ -501,46 +496,7 @@ fn big_part_cancels() {
                 assert_eq!(len, 0, "leaf {o}: the big-form sum is back at nothing");
             }
         }
-        assert_eq!(tb.average(id(1), &mut buf).unwrap(), Some(u64::MAX as f64));
     });
-}
-
-/// `totals::to_f64` against the decimal digits Rust parses exactly: random lengths and signs, and ties.
-#[test]
-fn to_f64_is_the_nearest() {
-    let mut r = XorShift(0x5EED_0004);
-    let mut cases: Vec<Big> = Vec::new();
-    for _ in 0..3_000 {
-        let n = 1 + r.below(140) as usize;
-        let mut b: Vec<u8> = (0..n).map(|_| r.next_u64() as u8).collect();
-        // Runs of zero or one bits below the top, where ties and carries happen.
-        if r.below(2) == 0 {
-            let fill = if r.below(2) == 0 { 0 } else { 0xFF };
-            let keep = r.below(n as u64) as usize;
-            for x in b.iter_mut().take(n.saturating_sub(keep + 1)) {
-                *x = fill;
-            }
-        }
-        cases.push(Big::from_i128(0).add(&Big(b)));
-    }
-    for k in [0u32, 1, 9, 70, 200, 900, 1_000] {
-        for odd in [1u128, 3] {
-            let tie = Big::from_u128((1 << 53) + odd);
-            let mut v = tie.clone();
-            for _ in 0..k {
-                v = v.add(&v);
-            }
-            cases.push(v.clone());
-            cases.push(v.neg());
-            cases.push(v.add(&Big::from_i128(1)));
-            cases.push(v.sub(&Big::from_i128(1)).neg());
-        }
-    }
-    for c in &cases {
-        let want = c.to_f64();
-        let got = native_table::table::totals::to_f64(&c.0);
-        assert_eq!(got.to_bits(), want.to_bits(), "{:?}", c.0);
-    }
 }
 
 /// A sum reads the same few blocks at any table size: the root, the hot state and the schema page, with the
@@ -551,12 +507,11 @@ fn a_sum_reads_the_same_at_any_size() {
         let calls = |rows: u64| {
             per_fill(|h, _| {
                 let (mut tb, _) = Table::create(h, 34, &s.img).unwrap();
-                let mut sc = VecScratch::new(FILLS[0]);
                 let mut r = XorShift(rows);
                 for k in 0..rows {
                     tb.upsert(&mut key_scratch(), &mut Src::new(&row(&s, &mut r, k))).unwrap();
                 }
-                maintain_all(&mut tb, &mut sc);
+                maintain_all(&mut tb);
                 let mut buf = vec![0u8; 1 << 16];
                 (1..s.cols.len() as u32 - 2)
                     .map(|c| {
@@ -605,7 +560,6 @@ fn big_values_move_their_totals_in_pieces() {
     };
     let mut h = VecHost::new(FILLS[0]);
     let (mut tb, _) = Table::create(&mut h, 35, &s.img).unwrap();
-    let mut sc = VecScratch::new(FILLS[0]);
     let mut r = XorShift(0x5EED_0005);
     let mut model: BTreeMap<u64, Vec<(u32, V)>> = BTreeMap::new();
     // The host calls of one write: its lent writes and its reads of the pages that were there before it.
@@ -645,7 +599,7 @@ fn big_values_move_their_totals_in_pieces() {
         model.insert(k, w);
         k += 1;
     }
-    maintain_all(&mut tb, &mut sc);
+    maintain_all(&mut tb);
     check(&tb, &s, &model);
     // The update of a sealed row's big values to others, then the delete of a sealed row holding such values.
     let mut w = model[&9].clone();

@@ -6,7 +6,7 @@ use super::node::{
 use super::shape::Shape;
 use super::Path;
 use crate::fault::Fault;
-use crate::host::{NodeMem, Pending};
+use crate::host::{NodeMem, NodeRead, Pending};
 use core::cmp::Ordering;
 
 /// The entry of an empty tree: a new leaf holding `p`; returns the new root, the entry being (root, 0).
@@ -163,6 +163,6 @@ pub fn split_ahead<S: Shape, M: NodeMem>(
 
 /// Whether node n is a leaf (re-exported for front ends).
 #[inline(always)]
-pub fn leaf<M: NodeMem + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {
+pub fn leaf<M: NodeRead + ?Sized>(m: &M, n: u64) -> Result<bool, Fault> {
     is_leaf(m, n)
 }

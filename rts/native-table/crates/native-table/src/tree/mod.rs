@@ -5,7 +5,6 @@
 //! Typed shapes are unchecked (today's arithmetic); index shapes clamp every count and in-node index to the
 //! node's capacity, so a corrupt node gives `Corrupt` or a wrong answer, never an out-of-bounds access.
 
-pub mod bulk;
 pub mod cursor;
 pub mod insert;
 pub mod node;
@@ -13,7 +12,6 @@ pub mod remove;
 pub mod search;
 pub mod shape;
 
-pub use bulk::{BulkState, Level, MemRunSink, Plan, RunGeometry, RunSink};
 pub use cursor::{Cursor, Dir, Direction, Fwd, Rev};
 pub use insert::{insert_at, insert_first, split_ahead};
 pub use remove::remove_found;
@@ -88,20 +86,17 @@ impl Path {
         Ok(())
     }
 
-    /// Removes and returns the last pair.
     #[inline(always)]
     pub fn pop(&mut self) -> Option<(u64, u64)> {
         self.len = self.len.checked_sub(1)?;
         self.frames.get(self.len).copied()
     }
 
-    /// The last pair.
     #[inline(always)]
     pub fn last(&self) -> Option<(u64, u64)> {
         self.frames.get(self.len.checked_sub(1)?).copied()
     }
 
-    /// Sets the last pair's index.
     #[inline(always)]
     pub fn set_last_index(&mut self, i: u64) {
         if let Some(f) = self.len.checked_sub(1).and_then(|l| self.frames.get_mut(l)) {

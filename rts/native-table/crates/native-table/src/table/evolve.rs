@@ -30,10 +30,8 @@
 //! the walk goes back to that group.
 
 use crate::consts::{BUFFER_BLOCKS_MAX, HOT_MAX, PAGE};
-use crate::fault::{corrupt, Corruption, Fault, ImageId, SchemaError};
-use crate::mem::{
-    fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, Owner, PageHost, Region,
-};
+use crate::fault::{corrupt, rt, Corruption, Fault, ImageId, SchemaError};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::stats::running::LIST_AT;
 
@@ -48,10 +46,6 @@ use super::page;
 use super::root;
 use super::seal;
 use super::totals::{self, At, Totals};
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 const SLOT: u64 = root::JOB_SLOTS;
 const S_KIND: u64 = SLOT;
@@ -149,7 +143,7 @@ pub fn release_unit<H: PageHost>(
     // the walk over the directory, or a piece of a group's check.
     let latest = seal::latest_drop(&*h, shape)?;
     if root::u8_at(&*h, tbl, S_KIND)? == 0 {
-        let b = h.get_mut(Region::Block(tbl), Owner(0))?;
+        let b = h.get_mut(Region::Block(tbl))?;
         fill(b, SLOT, 32, 0)?;
         put_u8(b, S_KIND, 1)?;
         put_u8(b, S_STATE, 1)?;
@@ -172,7 +166,7 @@ pub fn release_unit<H: PageHost>(
                     root::set_u32(h, tbl, root::CLEANED, shape.dropped_columns)?;
                     let f = root::u8_at(&*h, tbl, root::FLAGS)?;
                     root::set_u8(h, tbl, root::FLAGS, f & !root::FLAG_RELEASE)?;
-                    fill(h.get_mut(Region::Block(tbl), Owner(0))?, SLOT, 32, 0)?;
+                    fill(h.get_mut(Region::Block(tbl))?, SLOT, 32, 0)?;
                 } else {
                     root::set_u32(h, tbl, S_GEN, latest)?;
                     root::set_u64(h, tbl, S_CURSOR, 0)?;
@@ -412,7 +406,7 @@ pub fn change_schema<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, image: &[u
     // The new image goes to a page of its own, which a refusal of its layout frees at once: it is the
     // table's only once the root names it.
     let page = crate::area::image_page_alloc(h, tbl)?;
-    put(h.get_mut(Region::Page(page), Owner(crate::area::IMAGE_AREA))?, 0, image)?;
+    put(h.get_mut(Region::Page(page))?, 0, image)?;
     let new_shape = match Shape::open(&*h, page) {
         Ok(s) => s,
         Err(e) => {
@@ -584,7 +578,6 @@ fn place_old<H: PageHost + ?Sized>(h: &H, old: &Shape, oc: &mut RunCursor, tail:
     oc.place(h.get(Region::Block(tail))?, &old.leaf(h, o)?)
 }
 
-/// Bytes [at, at + n) of `b`.
 fn sub_mut(b: &mut [u8], at: u64, n: u64) -> Result<&mut [u8], Fault> {
     let s = usize::try_from(at).map_err(|_| rt(Corruption::Range, at))?;
     let e = usize::try_from(at.wrapping_add(n)).map_err(|_| rt(Corruption::Range, at))?;
@@ -609,7 +602,7 @@ fn rewrite_hot<H: PageHost>(
     let hh = buffer::u16_of(&*h, tail, buffer::H_H)?;
     let s0 = usize::try_from(LIST_AT).unwrap_or(0);
     let s1 = usize::try_from(end).unwrap_or(0);
-    let b = h.get_mut(Region::Block(tail), Owner(0))?;
+    let b = h.get_mut(Region::Block(tail))?;
     put(b, LIST_AT, buf.get(s0..s1).ok_or(rt(Corruption::Bounds, end))?)?;
     fill(b, end, hh.saturating_sub(end), 0)?;
     put_u16(b, buffer::H_RUN_R, u16::try_from(r).map_err(|_| rt(Corruption::Range, r))?)?;
@@ -629,11 +622,11 @@ fn new_tail_at<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, hh: u64) -> Resu
     let tail_slots = buffer::u16_of(&*h, tail, buffer::B_SLOTS)?;
     let nb = buffer::new_block_at(h, tbl, g, pos, desc, None, hh)?;
     // The hot state's fixed part [32, 192).
-    crate::mem::copy(h, Region::Block(tail), 32, Region::Block(nb), 32, LIST_AT.wrapping_sub(32), Owner(0))?;
+    crate::mem::copy(h, Region::Block(tail), 32, Region::Block(nb), 32, LIST_AT.wrapping_sub(32))?;
     let h16 = u16::try_from(hh).map_err(|_| rt(Corruption::Range, hh))?;
-    put_u16(h.get_mut(Region::Block(nb), Owner(0))?, buffer::H_H, h16)?;
+    put_u16(h.get_mut(Region::Block(nb))?, buffer::H_H, h16)?;
     {
-        let d = h.get_mut(Region::Block(desc), Owner(0))?;
+        let d = h.get_mut(Region::Block(desc))?;
         let last = buffer::D_RECORDS.wrapping_add(blocks.saturating_sub(1).wrapping_mul(16));
         put_u16(d, last.wrapping_add(10), u16::try_from(tail_slots).map_err(|_| rt(Corruption::Range, tail_slots))?)?;
         let rec = buffer::D_RECORDS.wrapping_add(blocks.wrapping_mul(16));

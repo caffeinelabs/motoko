@@ -12,27 +12,31 @@ pub trait Pending: Sized {
     fn set_child(&mut self, c: u64);
 }
 
-/// How the one B-tree reaches node bytes: one field at a time, so a reference a typed front end handed out
-/// stays valid across later cursor calls. 0 is never a node.
-pub trait NodeMem {
-    /// The pending entry of this tree's entry form: the typed front end's two part buffers, or an index
-    /// entry that borrows its key and value part for 'k.
-    type Entry<'k>: Pending;
+/// How the one B-tree reads nodes: one field at a time, so a reference a typed front end handed out stays
+/// valid across later cursor calls. 0 is never a node.
+pub trait NodeRead {
     /// The view `bytes` returns: a lent slice of main memory, or a typed host's own view.
     type Bytes<'a>: core::ops::Deref<Target = [u8]>
     where
         Self: 'a;
     /// The u16 at node offset 0 (count), as stored; the algorithm clamps it when the shape is checked.
     fn count(&self, n: u64) -> Result<u16, Fault>;
-    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault>;
     /// The u16 at node offset 2 (flags).
     fn flags(&self, n: u64) -> Result<u16, Fault>;
     /// The little-endian u64 at node offset `off` (a child word).
     fn word(&self, n: u64, off: u64) -> Result<u64, Fault>;
-    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault>;
     /// The `len` bytes at node offset `off`: one index-form key part or value part. Index forms only; a
     /// typed host returns `Err(BadRef)`.
     fn bytes(&self, n: u64, off: u64, len: u64) -> Result<Self::Bytes<'_>, Fault>;
+}
+
+/// How the one B-tree writes nodes. A read-only view of a tree implements `NodeRead` alone.
+pub trait NodeMem: NodeRead {
+    /// The pending entry of this tree's entry form: the typed front end's two part buffers, or an index
+    /// entry that borrows its key and value part for 'k.
+    type Entry<'k>: Pending;
+    fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault>;
+    fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault>;
     /// Moves `len` bytes from offset `so` of node `s` to offset `doff` of node `d`; s = d is allowed,
     /// overlapping ranges included (memmove).
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault>;

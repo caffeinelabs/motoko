@@ -36,8 +36,8 @@ pub mod tree;
 pub mod value;
 
 pub use fault::{CorruptAt, Corruption, Fault, ImageId, Refusal, RefusalCode, SchemaError};
-pub use host::{Budget, NodeMem, Pending, Progress, Scratch, Wake};
-pub use mem::{Owner, PageHost, Region};
+pub use host::{Budget, NodeMem, NodeRead, Pending, Progress, Scratch, Wake};
+pub use mem::{PageHost, Region};
 
 /// The version of each stored or exchanged format this crate writes. A runtime records the highest
 /// version any of its tables has written, one u16 per format, and refuses a binary that reads a lower one.

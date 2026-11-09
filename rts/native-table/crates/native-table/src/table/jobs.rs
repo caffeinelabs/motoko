@@ -25,9 +25,9 @@ use crate::consts::{
     magic, BYTE_UNIT, COMPACT_DEAD, FORMAT_TABLE, PATCH_BLOCKS_MAX, PATCH_FOLD_BLOCKS, PATCH_UNITS_PER_DIR,
     UNIT_BLOCKS_MAX,
 };
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::host::{wake_from_state, Budget, Progress, Wake, STATE_PENDING, STATE_URGENT};
-use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, Owner, PageHost, Region};
+use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, PageHost, Region};
 use crate::radix::{Units, HEIGHT_MAX};
 
 use super::buffer::{self, DESC_BIT};
@@ -38,10 +38,6 @@ use super::page;
 use super::patch;
 use super::root;
 use super::seal;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 const Q_KIND: u64 = 6;
 const Q_HEAD: u64 = 8;
@@ -59,13 +55,13 @@ fn push<H: PageHost>(h: &mut H, tbl: u64, g: u64) -> Result<(), Fault> {
     let tail = if n >= Q_PER_BLOCK {
         let b = crate::area::alloc_zeroed(h, tbl, 0)?;
         {
-            let s = h.get_mut(Region::Block(b), Owner(0))?;
+            let s = h.get_mut(Region::Block(b))?;
             put_u32(s, 0, magic::NTQB)?;
             put_u16(s, 4, FORMAT_TABLE)?;
             put_u8(s, Q_KIND, 1)?;
         }
         if tail != 0 {
-            put_u64(h.get_mut(Region::Block(tail), Owner(0))?, Q_NEXT, b)?;
+            put_u64(h.get_mut(Region::Block(tail))?, Q_NEXT, b)?;
         } else {
             root::set_u64(h, tbl, root::COMPACT_HEAD, b)?;
         }
@@ -74,7 +70,7 @@ fn push<H: PageHost>(h: &mut H, tbl: u64, g: u64) -> Result<(), Fault> {
     } else {
         tail
     };
-    let s = h.get_mut(Region::Block(tail), Owner(0))?;
+    let s = h.get_mut(Region::Block(tail))?;
     let n = u64::from(rd_u16(s, Q_ENTRIES)?);
     put_u64(s, Q_FIRST.wrapping_add(n.wrapping_mul(8)), g)?;
     put_u16(s, Q_ENTRIES, u16::try_from(n.wrapping_add(1)).map_err(|_| rt(Corruption::Count, n))?)
@@ -97,7 +93,7 @@ fn pop<H: PageHost>(h: &mut H, tbl: u64) -> Result<Option<u64>, Fault> {
             if i2 >= n {
                 free_head(h, tbl, head, next)?;
             } else {
-                put_u16(h.get_mut(Region::Block(head), Owner(0))?, Q_HEAD, u16::try_from(i2).unwrap_or(0))?;
+                put_u16(h.get_mut(Region::Block(head))?, Q_HEAD, u16::try_from(i2).unwrap_or(0))?;
             }
             return Ok(Some(g));
         }
@@ -132,11 +128,7 @@ fn push_recorded<H: PageHost>(h: &mut H, tbl: u64) -> Result<(), Fault> {
 pub fn queue<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64, urgent: bool) -> Result<(), Fault> {
     let flags = buffer::u16_of(&*h, pg, page::P_FLAGS)?;
     if flags & u64::from(page::PF_QUEUED) == 0 {
-        put_u16(
-            h.get_mut(Region::Block(pg), Owner(0))?,
-            page::P_FLAGS,
-            u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED,
-        )?;
+        put_u16(h.get_mut(Region::Block(pg))?, page::P_FLAGS, u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED)?;
         push(h, tbl, g)?;
     }
     if urgent {
@@ -184,11 +176,7 @@ pub fn after_patch<H: PageHost>(h: &mut H, tbl: u64, g: u64, pg: u64, u: &patch:
         // Queued already, or another group recorded with no unit run since: the queue takes this one now.
         return queue(h, tbl, g, pg, true);
     }
-    put_u16(
-        h.get_mut(Region::Block(pg), Owner(0))?,
-        page::P_FLAGS,
-        u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED,
-    )?;
+    put_u16(h.get_mut(Region::Block(pg))?, page::P_FLAGS, u16::try_from(flags).unwrap_or(0) | page::PF_QUEUED)?;
     root::set_u64(h, tbl, root::GROUP_TO_QUEUE, g.checked_add(1).ok_or(rt(Corruption::Range, g))?)?;
     let f = root::u8_at(&*h, tbl, root::FLAGS)?;
     if f & root::FLAG_COMPACT_URGENT == 0 {
@@ -313,7 +301,6 @@ impl Pages {
         }
     }
 
-    /// The pages changed so far.
     pub fn count(&self) -> u64 {
         let f = self.frees.get();
         let free_pages = if f == 0 { 0 } else { f.div_ceil(511).saturating_add(2) };
@@ -325,13 +312,11 @@ impl Pages {
         self.alloc_changes
     }
 
-    /// Whether block b was changed.
     pub fn has(&self, b: u64) -> bool {
         let n = usize::try_from(self.n.get()).unwrap_or(SEEN).min(SEEN);
         self.seen.iter().take(n).any(|c| c.get() == b)
     }
 
-    /// Whether this unit freed a page yet.
     pub fn freed(&self) -> bool {
         self.frees.get() > 0
     }
@@ -390,34 +375,34 @@ impl<H: PageHost> PageHost for Tracked<'_, H> {
         self.h.get(r)
     }
     #[inline(always)]
-    fn get_mut(&mut self, r: Region, w: Owner) -> Result<&mut [u8], Fault> {
+    fn get_mut(&mut self, r: Region) -> Result<&mut [u8], Fault> {
         self.note(r);
-        self.h.get_mut(r, w)
+        self.h.get_mut(r)
     }
     #[inline(always)]
-    fn pair_mut(&mut self, a: Region, b: Region, w: Owner) -> Result<(&mut [u8], &mut [u8]), Fault> {
+    fn pair_mut(&mut self, a: Region, b: Region) -> Result<(&mut [u8], &mut [u8]), Fault> {
         self.note(a);
         self.note(b);
-        self.h.pair_mut(a, b, w)
+        self.h.pair_mut(a, b)
     }
     #[inline(always)]
-    fn read_write(&mut self, r: Region, wr: Region, w: Owner) -> Result<(&[u8], &mut [u8]), Fault> {
+    fn read_write(&mut self, r: Region, wr: Region) -> Result<(&[u8], &mut [u8]), Fault> {
         self.note(wr);
-        self.h.read_write(r, wr, w)
+        self.h.read_write(r, wr)
     }
     #[inline(always)]
-    fn page_alloc(&mut self, w: Owner) -> Result<u64, Fault> {
+    fn page_alloc(&mut self) -> Result<u64, Fault> {
         if let Some(pages) = self.pages {
             pages.allocs.set(pages.allocs.get().saturating_add(self.h.alloc_changes()));
         }
-        self.h.page_alloc(w)
+        self.h.page_alloc()
     }
     #[inline(always)]
-    fn page_free(&mut self, p: u64, w: Owner) -> Result<(), Fault> {
+    fn page_free(&mut self, p: u64) -> Result<(), Fault> {
         if let Some(pages) = self.pages {
             pages.frees.set(pages.frees.get().saturating_add(1));
         }
-        self.h.page_free(p, w)
+        self.h.page_free(p)
     }
     #[inline(always)]
     fn alloc_changes(&self) -> u64 {
@@ -529,7 +514,6 @@ impl<'b> Clock<'b> {
         }
     }
 
-    /// The pages the unit changed so far.
     pub fn pages(&self) -> u64 {
         self.pages.count()
     }
@@ -543,12 +527,10 @@ impl<'b> Clock<'b> {
         PIECE_PAGES.saturating_add(3).saturating_add(self.pages.alloc_changes()).saturating_add(root)
     }
 
-    /// Whether the unit changed block b.
     pub fn changed(&self, b: u64) -> bool {
         self.pages.has(b)
     }
 
-    /// Whether the unit freed a page.
     pub fn freed(&self) -> bool {
         self.pages.freed()
     }
@@ -571,13 +553,13 @@ impl<'b> Clock<'b> {
     }
 
     /// Whether work estimated at `est` fits the unit beside its count so far (`count(work)`), the unit's end
-    /// left room, and with it `pages` more changed pages (`None`: not checked). Tells a metered host the
-    /// decision's look-ahead and pages (`note`).
+    /// left room, and with it `pages` more changed pages (`None`: not checked).
     #[cfg_attr(feature = "meter-notes", track_caller)]
     #[inline(always)]
     pub fn room(&self, work: u64, est: u64, pages: Option<u64>) -> bool {
         let ok = self.count(work).saturating_add(self.ahead(est)) <= UNIT_WORK
             && pages.is_none_or(|p| self.pages().saturating_add(p) <= UNIT_BLOCKS_MAX);
+        // The decision's look-ahead and pages, told to a metered host.
         #[cfg(feature = "meter-notes")]
         self.note(if ok { self.ahead(est) } else { 0 }, pages.map_or(NO_PAGES, |p| if ok { p } else { 0 }));
         ok
@@ -811,7 +793,7 @@ fn first_job<H: PageHost>(h: &mut H, tbl: u64) -> Result<Option<Job>, Fault> {
         let c = (cursor.wrapping_add(k) % URGENT_CODES).wrapping_add(1);
         if let Some(j) = waiting.get(usize::try_from(c).unwrap_or(0)).copied().flatten() {
             let flags = buffer::u64_of(&*h, tail, buffer::H_FLAGS)?;
-            put_u64(h.get_mut(Region::Block(tail), Owner(0))?, buffer::H_FLAGS, (flags & !0xFF00) | (c << 8))?;
+            put_u64(h.get_mut(Region::Block(tail))?, buffer::H_FLAGS, (flags & !0xFF00) | (c << 8))?;
             return Ok(Some(j));
         }
     }
@@ -962,11 +944,7 @@ fn compaction_unit<H: PageHost>(
         return Ok(Ran::Compaction);
     }
     let flags = buffer::u16_of(&*h, pg, page::P_FLAGS)?;
-    put_u16(
-        h.get_mut(Region::Block(pg), Owner(0))?,
-        page::P_FLAGS,
-        u16::try_from(flags).unwrap_or(0) & !page::PF_QUEUED,
-    )?;
+    put_u16(h.get_mut(Region::Block(pg))?, page::P_FLAGS, u16::try_from(flags).unwrap_or(0) & !page::PF_QUEUED)?;
     if buffer::u64_of(&*h, pg, page::P_REWRITE)? != 0 {
         // Another rewrite holds the group; its end checks the group again.
         return Ok(Ran::Compaction);

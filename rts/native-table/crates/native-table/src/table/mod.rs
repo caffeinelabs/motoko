@@ -27,7 +27,6 @@ pub mod indexes;
 pub mod jobs;
 pub mod layout;
 pub mod long;
-mod long_key;
 pub mod overlay;
 pub mod page;
 pub mod patch;
@@ -43,11 +42,11 @@ mod walks;
 pub mod write;
 
 use crate::consts::PAGE;
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::host::{wake_from_state, Budget, Progress, Scratch, Wake};
 use crate::index::secondary::Start;
 use crate::key::{LenSink, Sink, SliceSink};
-use crate::mem::{put, put_u16, Owner, PageHost, Region};
+use crate::mem::{put, put_u16, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::tree::{Dir, Path};
 
@@ -114,10 +113,6 @@ const KEY_PIECE: usize = 4_096;
 /// Bytes of the stack buffer a stored key value is copied into when it does not lie in one piece: room for
 /// the longest value of a key of `KEY_STACK` bytes.
 const PIECE: usize = 4_800;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// Checks that a schema image's leaves are live scalars or `()`, and its index declarations, before anything
 /// is allocated.
@@ -232,7 +227,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let mut host = Tracked::new(host);
         let tbl = crate::area::new_root(&mut host)?;
         let sp = crate::area::image_page_alloc(&mut host, tbl)?;
-        put(host.get_mut(Region::Page(sp), Owner(crate::area::IMAGE_AREA))?, 0, schema_image)?;
+        put(host.get_mut(Region::Page(sp))?, 0, schema_image)?;
         let shape = Shape::open(&host, sp)?;
         let kind = if shape.set { root::KIND_SET } else { root::KIND_TABLE };
         root::init(&mut host, tbl, kind, uid, shape.hash, shape.version, sp)?;
@@ -253,9 +248,9 @@ impl<'h, H: PageHost> Table<'h, H> {
         let nb = buffer::new_block_at(h, tbl, g, 0, 0, None, hh)?;
         let d = buffer::new_descriptor(h, tbl, g, nb)?;
         let ext = extremes::create(h, tbl, shape, g)?;
-        crate::mem::put_u64(h.get_mut(Region::Block(d), Owner(0))?, buffer::D_EXT, ext)?;
+        crate::mem::put_u64(h.get_mut(Region::Block(d))?, buffer::D_EXT, ext)?;
         {
-            let b = h.get_mut(Region::Block(nb), Owner(0))?;
+            let b = h.get_mut(Region::Block(nb))?;
             crate::mem::put_u64(b, buffer::B_DESC, d)?;
             buffer::zero_hot(b, shape, hh)?;
         }
@@ -269,7 +264,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             let bytes = k.bytes();
             let list = group::align8(r.wrapping_add(1).wrapping_mul(2));
             if base.wrapping_add(list).wrapping_add(recs).wrapping_add(bytes) <= crate::consts::HOT_MAX {
-                let b = h.get_mut(Region::Block(nb), Owner(0))?;
+                let b = h.get_mut(Region::Block(nb))?;
                 put_u16(b, crate::stats::running::LIST_AT.wrapping_add(r.wrapping_mul(2)), l.ordinal)?;
                 r = r.wrapping_add(1);
                 recs = recs.wrapping_add(bytes);
@@ -528,11 +523,15 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// The rows whose cells of secondary index `index`'s parts encode to the key the cells of `key` give (by
     /// leaf id, as a row's): one descent of the index's tree, plus the key's count in each of its uploaded
-    /// segments. A key of any length: one longer than `KEY_STACK` is compared with the stored keys of the tree
-    /// and of each segment piece by piece as its cells are encoded again. `BadRef` when the table has no
-    /// secondary index `index`, `Busy` while a schema change's build of it runs.
-    pub fn count<K: RowSource + ?Sized>(&self, index: u8, key: &mut K) -> Result<i128, Fault> {
-        indexes::count(&self.host, self.root, &self.shape, index, key)
+    /// segments. A key of any length: one longer than `KEY_STACK` is encoded into `scratch`. `BadRef` when the
+    /// table has no secondary index `index`, `Busy` while a schema change's build of it runs.
+    pub fn count<S: Scratch, K: RowSource + ?Sized>(
+        &self,
+        scratch: &mut S,
+        index: u8,
+        key: &mut K,
+    ) -> Result<i128, Fault> {
+        indexes::count(&self.host, self.root, &self.shape, index, key, scratch)
     }
 
     /// The key the cells of `cells` give secondary index `index` (by leaf id, as a row's), its full encoding, at
@@ -741,7 +740,7 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// The write-first step: exactly one unit when work is pending, however much budget is left; O(1)
     /// otherwise. Units take no scratch: every rewrite keeps its working state in its own blocks.
-    pub fn write_step<S: Scratch, B: Budget>(&mut self, _scratch: &mut S, b: &B) -> Result<Wake, Fault> {
+    pub fn write_step<B: Budget>(&mut self, b: &B) -> Result<Wake, Fault> {
         if self.wake()? == Wake::Idle {
             return Ok(Wake::Idle);
         }
@@ -751,7 +750,7 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// Runs units until the budget is spent, checking `used() < limit()` before each; O(1) once no work is
     /// pending.
-    pub fn maintain<S: Scratch, B: Budget>(&mut self, _scratch: &mut S, b: &B) -> Result<Progress, Fault> {
+    pub fn maintain<B: Budget>(&mut self, b: &B) -> Result<Progress, Fault> {
         loop {
             if b.used() >= b.limit() {
                 self.settle()?;
@@ -832,20 +831,6 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// type; the filter's faults are `scan_where`'s.
     pub fn sum_where(&self, f: &filter::Filter<'_>, leaf: u32, buf: &mut [u8]) -> Result<(totals::Total, u64), Fault> {
         filter::sum(&self.host, self.root, &self.shape, f, leaf, buf)
-    }
-
-    /// The average of the non-null values of integer leaf `leaf`, `None` when it has none: its sum, rounded
-    /// to the nearest f64, over their count. `buf` and the faults are `sum`'s.
-    pub fn average(&self, leaf: u32, buf: &mut [u8]) -> Result<Option<f64>, Fault> {
-        let (t, n) = self.sum(leaf, buf)?;
-        if n == 0 {
-            return Ok(None);
-        }
-        let s = match t {
-            totals::Total::Small(x) => x as f64,
-            totals::Total::Big(k) => totals::to_f64(buf.get(..k).unwrap_or(&[])),
-        };
-        Ok(Some(s / n as f64))
     }
 
     /// Adopts a new schema image (`evolve`): columns and record fields added, columns and fields dropped,

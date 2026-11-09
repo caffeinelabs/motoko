@@ -14,12 +14,11 @@
 //! entries u8 @9; flags u8 @10, bit 0 believed; 5 zero bytes; entries [u64; 8] @16}. A direct table keeps
 //! the block entries in the record; a longer image keeps its radix root in entry 0 and its height at @8.
 
-use crate::area::{alloc_block, image_page_alloc, image_page_free, IMAGE_AREA};
+use crate::area::{alloc_block, image_page_alloc};
 use crate::consts::{BLOCK, IMAGE_MAX, INLINE_ENTRIES, PAGE};
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::host::Progress;
-use crate::mem::{fill, put, put_u64, put_u8, rd_u64, rd_u8, sub, sub_mut, Owner, PageHost, Region};
-use crate::radix::{Radix, Units, HEIGHT_MAX};
+use crate::mem::{fill, put, put_u64, put_u8, rd_u64, rd_u8, sub, sub_mut, PageHost, Region};
+use crate::radix::{Radix, HEIGHT_MAX};
 
 /// The height byte of a group image record whose block entries are inline.
 pub const DIRECT: u8 = 0xFF;
@@ -62,7 +61,7 @@ const fn bad(kind: Corruption, off: u64) -> Fault {
 /// A zero-filled area-0 block holding `entries` from entry 0: a radix block of height 1 written whole.
 fn radix_block<H: PageHost>(h: &mut H, tbl: u64, entries: &[u64]) -> Result<u64, Fault> {
     let b = alloc_block(h, tbl, 0)?;
-    let s = h.get_mut(Region::Block(b), Owner(0))?;
+    let s = h.get_mut(Region::Block(b))?;
     fill(s, 0, BLOCK, 0)?;
     let mut at = 0u64;
     for &e in entries {
@@ -285,7 +284,7 @@ impl Image {
             // o < 65,536, so the block index is below 16.
             let j = u32::try_from(o / BLOCK).map_err(|_| bad(Corruption::Range, o))?;
             let b = h.block_of(p, j);
-            put(h.get_mut(Region::Block(b), Owner(IMAGE_AREA))?, o % BLOCK, now)?;
+            put(h.get_mut(Region::Block(b))?, o % BLOCK, now)?;
             self.length = end;
             rest = later;
         }
@@ -324,7 +323,7 @@ impl Image {
                 let room = BLOCK.wrapping_sub(o % BLOCK);
                 (Region::Block(h.block_of(p, j)), o % BLOCK, room.min(left))
             };
-            let dst = sub_mut(h.get_mut(region, Owner(IMAGE_AREA))?, at, n)?;
+            let dst = sub_mut(h.get_mut(region)?, at, n)?;
             f(done, dst)?;
             // n ≤ left = end − length, so neither sum passes `end`.
             done = done.wrapping_add(n);
@@ -365,39 +364,6 @@ impl Image {
             }
         }
         Ok(())
-    }
-
-    /// One drain unit of freeing this image: its pages, each returned to the host at
-    /// once and taken off area 15's count, then its radix blocks, a block once every entry below it is done;
-    /// at most `units` (256 pages per drain unit). Resumes from `*cursor` (0 at the start); `Done` when all is
-    /// freed, after which the caller zeroes the reference or record.
-    pub fn release_step<H: PageHost>(
-        &self,
-        h: &mut H,
-        tbl: u64,
-        cursor: &mut u64,
-        units: &mut Units,
-    ) -> Result<Progress, Fault> {
-        match self.blocks {
-            Blocks::Direct { count, entries } => {
-                while *cursor < u64::from(count) {
-                    if units.pages == 0 || units.entries == 0 {
-                        return Ok(Progress::More);
-                    }
-                    let i = usize::try_from(*cursor).map_err(|_| bad(Corruption::Count, *cursor))?;
-                    let p = entries.get(i).copied().ok_or(bad(Corruption::Count, *cursor))?;
-                    units.entries = units.entries.saturating_sub(1);
-                    if p != 0 {
-                        image_page_free(h, tbl, p)?;
-                        units.pages = units.pages.saturating_sub(1);
-                    }
-                    // cursor < count ≤ 8.
-                    *cursor = cursor.wrapping_add(1);
-                }
-                Ok(Progress::Done)
-            }
-            Blocks::Radix(r) => r.release_step(h, tbl, cursor, units, |h, p| image_page_free(h, tbl, p)),
-        }
     }
 }
 

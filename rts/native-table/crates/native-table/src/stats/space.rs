@@ -9,10 +9,9 @@
 
 use crate::area::alloc_block;
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, WORK_AREA};
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{
-    copy_bytes, fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, sub, Owner, PageHost,
-    Region,
+    copy_bytes, fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, sub, PageHost, Region,
 };
 use crate::radix::Radix;
 
@@ -27,10 +26,6 @@ pub const HEADER: u64 = 16;
 
 const _: () = assert!(AREA_AT + WORK_AREA == 4_088);
 
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
-
 /// One rewrite's work space: the table it belongs to, its work page, the header fields, and the block list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Space {
@@ -43,34 +38,8 @@ pub struct Space {
 }
 
 impl Space {
-    /// The space of work page `page` of table `tbl`, from the area's header.
-    pub fn read<H: PageHost + ?Sized>(h: &H, tbl: u64, page: u64, group: u64) -> Result<Space, Fault> {
-        let b = h.get(Region::Block(page))?;
-        let d = u64::from(rd_u16(b, AREA_AT)?);
-        let height = rd_u8(b, AREA_AT.wrapping_add(2))?;
-        let used = u64::from(rd_u32(b, AREA_AT.wrapping_add(4))?);
-        let root = rd_u64(b, AREA_AT.wrapping_add(8))?;
-        let s = Space { tbl, page, group, d, used, blocks: Radix { root, height } };
-        s.blocks.check()?;
-        if used < HEADER.wrapping_add(d.wrapping_mul(4)) {
-            return Err(rt(Corruption::Header, page));
-        }
-        Ok(s)
-    }
-
-    /// A new, empty space of capacity d on work page `page`: its header and zero locators.
-    pub fn create<H: PageHost>(h: &mut H, tbl: u64, page: u64, group: u64, d: u64) -> Result<Space, Fault> {
-        let locs = d.checked_mul(4).ok_or(rt(Corruption::Range, d))?;
-        let used = HEADER.checked_add(locs).ok_or(rt(Corruption::Range, d))?;
-        let mut s = Space { tbl, page, group, d, used: HEADER, blocks: Radix::EMPTY };
-        s.grow_to(h, used)?;
-        s.zero(h, HEADER, locs)?;
-        s.write_header(h)?;
-        Ok(s)
-    }
-
     /// A new space of capacity d whose locators are zeroed later, in steps, by `zero_step`: its header with
-    /// the used bytes at the header's end. `read` refuses it until the locators are done.
+    /// the used bytes at the header's end. Its locators are not valid until then.
     pub fn begin<H: PageHost>(h: &mut H, tbl: u64, page: u64, group: u64, d: u64) -> Result<Space, Fault> {
         let s = Space { tbl, page, group, d, used: HEADER, blocks: Radix::EMPTY };
         s.write_header(h)?;
@@ -109,7 +78,7 @@ impl Space {
     pub fn write_header<H: PageHost>(&self, h: &mut H) -> Result<(), Fault> {
         let d = u16::try_from(self.d).map_err(|_| rt(Corruption::Range, self.d))?;
         let used = u32::try_from(self.used).map_err(|_| rt(Corruption::Range, self.used))?;
-        let b = h.get_mut(Region::Block(self.page), Owner(0))?;
+        let b = h.get_mut(Region::Block(self.page))?;
         put_u16(b, AREA_AT, d)?;
         put_u8(b, AREA_AT.wrapping_add(2), self.blocks.height)?;
         put_u8(b, AREA_AT.wrapping_add(3), 0)?;
@@ -130,13 +99,6 @@ impl Space {
         }
         let o = rest % BLOCK_ROOM;
         Ok((Region::Block(b), BLOCK_HEAD.wrapping_add(o), BLOCK_ROOM.wrapping_sub(o)))
-    }
-
-    /// The block that holds space byte `off` (for changed-block accounting and tests).
-    pub fn block_of<H: PageHost + ?Sized>(&self, h: &H, off: u64) -> Result<u64, Fault> {
-        match self.locate(h, off)?.0 {
-            Region::Block(b) | Region::Page(b) => Ok(b),
-        }
     }
 
     /// Copies space bytes [off, off + out.len()) into `out`.
@@ -166,7 +128,7 @@ impl Space {
             let (r, o, room) = self.locate(h, at)?;
             let n = usize::try_from(room).map_err(|_| rt(Corruption::Range, at))?.min(rest.len());
             let (now, later) = rest.split_at_checked(n).ok_or(rt(Corruption::Range, at))?;
-            put(h.get_mut(r, Owner(0))?, o, now)?;
+            put(h.get_mut(r)?, o, now)?;
             at = at.wrapping_add(n as u64);
             rest = later;
         }
@@ -180,7 +142,7 @@ impl Space {
         while at < end {
             let (r, o, room) = self.locate(h, at)?;
             let n = room.min(end.wrapping_sub(at));
-            fill(h.get_mut(r, Owner(0))?, o, n, 0)?;
+            fill(h.get_mut(r)?, o, n, 0)?;
             at = at.wrapping_add(n);
         }
         Ok(())
@@ -228,7 +190,7 @@ impl Space {
             }
             let b = alloc_block(h, self.tbl, 0)?;
             {
-                let s = h.get_mut(Region::Block(b), Owner(0))?;
+                let s = h.get_mut(Region::Block(b))?;
                 put_u32(s, 0, magic::NTSX)?;
                 put_u16(s, 4, FORMAT_TABLE)?;
                 put_u16(s, 6, 0)?;
@@ -242,19 +204,6 @@ impl Space {
         }
         self.used = end;
         Ok(())
-    }
-
-    /// Appends `bytes` of room at the end of the space without allocating its blocks, which `write_alloc`
-    /// allocates as its writes reach them; returns its offset. A block not yet written reads as a broken link.
-    pub fn reserve<H: PageHost>(&mut self, h: &mut H, bytes: u64) -> Result<u64, Fault> {
-        let at = self.used;
-        let end = at.checked_add(bytes).ok_or(rt(Corruption::Range, at))?;
-        if end > u64::from(u32::MAX) {
-            return Err(rt(Corruption::Range, at));
-        }
-        self.used = end;
-        self.write_header(h)?;
-        Ok(at)
     }
 
     /// Appends `bytes` of room at the end of the space and returns its offset; the header is written. The

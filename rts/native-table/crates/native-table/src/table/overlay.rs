@@ -4,7 +4,7 @@
 //! a seal holds a snapshot of its group), then its row image, then its default when the row's schema version
 //! lacks the leaf. Liveness comes from the pending group page while a rewrite holds a snapshot.
 
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{rd_u16, rd_u8, PageHost, Region};
 
 use super::buffer::{self, Located, RowLoc};
@@ -15,10 +15,6 @@ use super::page;
 use super::patch;
 use super::row::{RowRef, Walk};
 use super::seal::Rw;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// A sealed group as its rows' readers and writers see it.
 #[derive(Clone, Copy, Debug)]
@@ -53,7 +49,6 @@ pub fn sealed<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<Sealed, Fault> {
     Ok(s)
 }
 
-/// Whether position `pos` of the group is live.
 pub fn sealed_live<H: PageHost + ?Sized>(h: &H, s: &Sealed, pos: u64) -> Result<bool, Fault> {
     if pos >= s.meta.p {
         return Ok(false);

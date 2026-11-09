@@ -7,9 +7,9 @@
 //! group's long-value list. Every move of its 24-byte image reference zeroes the source.
 
 use crate::consts::BLOCK;
-use crate::fault::{corrupt, Corruption, Fault, ImageId};
+use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::image::{Image, ImageReader};
-use crate::mem::{copy_bytes, fill, put_u16, put_u32, put_u64, put_u8, PageHost};
+use crate::mem::{copy_bytes, put_u16, put_u32, put_u64, put_u8, PageHost};
 use crate::schema::put_common_header;
 use crate::value::Utf8Stream;
 
@@ -22,10 +22,6 @@ pub const KIND_LONG: u8 = 5;
 /// Content kinds.
 pub const CONTENT_ROW: u8 = 1;
 pub const CONTENT_VALUE: u8 = 2;
-
-fn rt(kind: Corruption, at: u64) -> Fault {
-    corrupt(ImageId::Runtime, kind, at)
-}
 
 /// The image bytes of a long value of `len` content bytes.
 pub fn image_bytes(len: u64) -> Result<u64, Fault> {
@@ -100,7 +96,6 @@ impl LongOut {
         Ok(())
     }
 
-    /// Appends content bytes.
     pub fn put<H: PageHost>(&mut self, h: &mut H, b: &[u8]) -> Result<(), Fault> {
         let n = b.len() as u64;
         self.left = self.left.checked_sub(n).ok_or(rt(Corruption::Range, n))?;
@@ -175,7 +170,6 @@ pub fn from_arg<H: PageHost, R: RowSource + ?Sized>(
     Ok((o.finish(h)?, n))
 }
 
-/// The content bytes of a long value.
 pub fn content_len<H: PageHost + ?Sized>(h: &H, img: Image) -> Result<u64, Fault> {
     ImageReader::new(h, ImageId::Runtime, img).u64_at(32)
 }
@@ -218,11 +212,7 @@ pub fn write_at<H: PageHost>(h: &mut H, img: Image, at: u64, src: &[u8]) -> Resu
         // o < 65,536, so the block index is below 16.
         let j = u32::try_from(o / BLOCK).map_err(|_| rt(Corruption::Range, o))?;
         let b = h.block_of(p, j);
-        crate::mem::put(
-            h.get_mut(crate::mem::Region::Block(b), crate::mem::Owner(crate::area::IMAGE_AREA))?,
-            o % BLOCK,
-            now,
-        )?;
+        crate::mem::put(h.get_mut(crate::mem::Region::Block(b))?, o % BLOCK, now)?;
         off = off.wrapping_add(n as u64);
         rest = later;
     }
@@ -231,9 +221,3 @@ pub fn write_at<H: PageHost>(h: &mut H, img: Image, at: u64, src: &[u8]) -> Resu
 
 /// Zero bytes for padding writes.
 pub const ZEROS: [u8; 4_096] = [0; 4_096];
-
-/// Writes `n` zero bytes at the end of a slice-filling closure's destination (helper for padding).
-pub fn zero(dst: &mut [u8]) -> Result<(), Fault> {
-    let len = dst.len() as u64;
-    fill(dst, 0, len, 0)
-}
