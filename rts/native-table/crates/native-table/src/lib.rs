@@ -1,6 +1,5 @@
 //! The shared table crate: the one B-tree, the key and value encodings, columnar row groups with
-//! running totals, indexes and believed uploads, used by Motoko's runtime, the runtime of Rust EOP (a Rust
-//! library for upgrades that keep the heap in place) and the off-chain builder.
+//! running totals, and indexes, used by Motoko's runtime.
 //!
 //! The crate never allocates, never traps and never panics: every fallible function returns
 //! `Result<_, Fault>`, and every byte it reads or writes is reached through a host it is given.
@@ -35,7 +34,7 @@ pub mod table;
 pub mod tree;
 pub mod value;
 
-pub use fault::{CorruptAt, Corruption, Fault, ImageId, Refusal, RefusalCode, SchemaError};
+pub use fault::{CorruptAt, Corruption, Fault, ImageId, SchemaError};
 pub use host::{Budget, NodeMem, NodeRead, Pending, Progress, Scratch, Wake};
 pub use mem::{PageHost, Region};
 

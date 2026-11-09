@@ -8,7 +8,3 @@ publish.workspace = true
 
 [dependencies]
 native-table = { path = "../native-table" }
-nt-builder = { path = "../nt-builder" }
-
-[dev-dependencies]
-nt-probe = { path = "../nt-probe" }

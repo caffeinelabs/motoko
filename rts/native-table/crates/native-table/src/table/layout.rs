@@ -111,20 +111,6 @@ pub struct LeafInfo {
     pub key: bool,
     /// The leaf's type expression in the type pool.
     pub path: u32,
-    /// The schema versions that added and dropped it (0: live).
-    pub added: u32,
-    pub dropped: u32,
-}
-
-impl LeafInfo {
-    /// Whether rows of schema version v hold the leaf.
-    pub fn at(&self, v: u32) -> bool {
-        self.added <= v && (self.dropped == 0 || self.dropped > v)
-    }
-
-    pub fn live(&self) -> bool {
-        self.dropped == 0
-    }
 }
 
 /// The layout of a row image of one schema version: its leaves R, the bytes of each of its two bitmaps,
@@ -159,21 +145,12 @@ impl RowHead {
     }
 }
 
-/// What a walk over the leaf list needs of one leaf, read in place from its record: the schema versions that
-/// added and dropped it, its cell's bytes in a row image's fixed region and whether it has an item.
+/// What a walk over the leaf list needs of one leaf, read in place from its record: its cell's bytes in a row
+/// image's fixed region and whether it has an item.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span {
-    pub added: u32,
-    pub dropped: u32,
     pub width: u64,
     pub variable: bool,
-}
-
-impl Span {
-    /// Whether rows of schema version v hold the leaf.
-    pub fn at(&self, v: u32) -> bool {
-        self.added <= v && (self.dropped == 0 || self.dropped > v)
-    }
 }
 
 /// The table's view of its schema image, kept by `Table`: derived from the image when it is written, and stored
@@ -184,7 +161,7 @@ pub struct Shape {
     pub page: u64,
     pub hash: u64,
     pub version: u32,
-    /// Leaf ordinals L (all row-level in a flat table), dropped leaves included.
+    /// Leaf ordinals L (all row-level in a flat table).
     pub leaves: u64,
     /// The layout of a row image of the schema version.
     pub head: RowHead,
@@ -216,10 +193,6 @@ pub struct Shape {
     /// ones included (`indexes`).
     pub index_at: u64,
     pub index_decls: u64,
-    /// The latest schema version that dropped a leaf (0: none): the column release's generation.
-    pub dropped: u32,
-    /// The columns the schema marks dropped: what `cleaned` counts once the release has run.
-    pub dropped_columns: u32,
 }
 
 /// The index kind byte of the primary index in its key spec hash.
@@ -257,14 +230,7 @@ impl Shape {
             set: true,
             index_at: u64::from(v.layout.indexes),
             index_decls: u64::from(v.indexes),
-            dropped: 0,
-            dropped_columns: 0,
         };
-        for i in 0..v.columns {
-            if v.column(i)?.flags & 1 != 0 {
-                s.dropped_columns = s.dropped_columns.wrapping_add(1);
-            }
-        }
         if s.leaves == 0 {
             return Err(rt(Corruption::Leaf, 0));
         }
@@ -272,10 +238,6 @@ impl Shape {
         let mut key_width = 0u64;
         for o in 0..s.leaves {
             let l = s.leaf(h, o)?;
-            s.dropped = s.dropped.max(l.dropped);
-            if !l.live() {
-                continue;
-            }
             r = r.wrapping_add(1);
             // Widths are at most 65,535 per leaf and leaves at most 65,535: the sums stay far below 2^63.
             s.fixed = s.fixed.wrapping_add(l.ty.fixed_width());
@@ -304,7 +266,7 @@ impl Shape {
         let mut recs = 0u64;
         for o in 0..s.leaves {
             let l = s.leaf(h, o)?;
-            let Some(k) = l.ty.running().filter(|_| l.live()) else { continue };
+            let Some(k) = l.ty.running() else { continue };
             let b = k.bytes();
             let list = align8(r.wrapping_add(1).wrapping_mul(2));
             if LIST_AT.wrapping_add(list).wrapping_add(recs).wrapping_add(b) <= HOT_MAX {
@@ -324,7 +286,7 @@ impl Shape {
     }
 
     /// The shape's words as the table root holds them: `FORMAT_TABLE`, the schema page, schema hash and
-    /// schema version the shape was derived from, then its other fields.
+    /// schema version the shape was derived from, then its other fields and two words of 0.
     fn words(&self) -> [u64; 24] {
         [
             u64::from(FORMAT_TABLE),
@@ -349,13 +311,13 @@ impl Shape {
             u64::from(self.set),
             self.index_at,
             self.index_decls,
-            u64::from(self.dropped),
-            u64::from(self.dropped_columns),
+            0,
+            0,
         ]
     }
 
     /// Writes the shape into table root `tbl` at `root::SHAPE`: its words, then their `nt_hash64`. Whatever
-    /// writes a table's schema image stores the image's shape with it: `Table::create` and every schema change.
+    /// writes a table's schema image stores the image's shape with it: `Table::create`.
     pub fn store<H: PageHost>(&self, h: &mut H, tbl: u64) -> Result<(), Fault> {
         let mut b = [0u8; STORED];
         let mut at = 0u64;
@@ -370,9 +332,8 @@ impl Shape {
 
     /// The shape table root `tbl` holds, when it is the shape of the schema image the root names: written by
     /// this table format, and derived from the root's schema page, schema hash and schema version. `None` for
-    /// any other: none stored, one of another format, or one of an earlier schema (every schema change writes
-    /// its image to a new page, also one that keeps the version). Its hash is not checked: a shape whose other
-    /// words changed is taken as it is.
+    /// any other: none stored, or one of another format. Its hash is not checked: a shape whose other words
+    /// changed is taken as it is.
     pub fn stored<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<Option<Shape>, Fault> {
         let r = h.get(Region::Block(tbl))?;
         let b = sub(r, root::SHAPE, STORED_BYTES)?;
@@ -387,12 +348,8 @@ impl Shape {
         let [format, page, hash, version, leaves, rows_r] = w0;
         let [leaves_at, bitmap, fixed_at, fixed, vars, run_r] = w1;
         let [run_list, run_bytes, tot_bytes, hot_h, key_leaves, key_w] = w2;
-        let [key_hash, set, index_at, index_decls, dropped, dropped_columns] = w3;
-        let (Ok(version), Ok(dropped), Ok(dropped_columns)) =
-            (u32::try_from(version), u32::try_from(dropped), u32::try_from(dropped_columns))
-        else {
-            return Ok(None);
-        };
+        let [key_hash, set, index_at, index_decls, _, _] = w3;
+        let Ok(version) = u32::try_from(version) else { return Ok(None) };
         if format != u64::from(FORMAT_TABLE)
             || page != rd_u64(r, root::SCHEMA_PAGE)?
             || hash != rd_u64(r, root::SCHEMA_HASH)?
@@ -422,8 +379,6 @@ impl Shape {
             set: set != 0,
             index_at,
             index_decls,
-            dropped,
-            dropped_columns,
         }))
     }
 
@@ -445,28 +400,15 @@ impl Shape {
             nullable: l.flags & LEAF_NULLABLE != 0,
             key: l.flags & LEAF_KEY != 0,
             path: l.path,
-            added: l.added,
-            dropped: l.dropped,
         })
     }
 
-    /// Leaf o's span, read in place.
-    pub fn span_of<H: PageHost + ?Sized>(&self, h: &H, o: u64) -> Result<Span, Fault> {
-        let mut out = None;
-        self.spans(h, o, o.saturating_add(1), |_, s| {
-            out = Some(s);
-            Ok(false)
-        })?;
-        out.ok_or(rt(Corruption::Leaf, o))
-    }
-
     /// Hands the spans of leaves [from, to) (clamped to the leaves) to `f` in ordinal order, each read in place
-    /// from its leaf record, until `f` returns `false`: a walk over many leaves pays a few loads per leaf, not
-    /// `leaf`'s whole record.
+    /// from its leaf record: a walk over many leaves pays a few loads per leaf, not `leaf`'s whole record.
     pub fn spans<H, F>(&self, h: &H, from: u64, to: u64, mut f: F) -> Result<(), Fault>
     where
         H: PageHost + ?Sized,
-        F: FnMut(u64, Span) -> Result<bool, Fault>,
+        F: FnMut(u64, Span) -> Result<(), Fault>,
     {
         let b = h.get(Region::Page(self.page))?;
         let mut o = from;
@@ -480,77 +422,30 @@ impl Shape {
                 ..Leaf::default()
             };
             let t = Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?;
-            let s = Span {
-                added: rd_u32(b, at.wrapping_add(16))?,
-                dropped: rd_u32(b, at.wrapping_add(20))?,
-                width: t.fixed_width(),
-                variable: t.variable(),
-            };
-            if !f(o, s)? {
-                break;
-            }
+            f(o, Span { width: t.fixed_width(), variable: t.variable() })?;
             // o < end ≤ 65,535.
             o = o.wrapping_add(1);
         }
         Ok(())
     }
 
-    /// The layout of a row image of schema version v: the table's own when v is its version, else computed
-    /// over the leaves version v holds, O(L).
-    pub fn head_for<H: PageHost + ?Sized>(&self, h: &H, v: u32) -> Result<RowHead, Fault> {
+    /// The layout of a row image of schema version v: the table's own; a row of another version is
+    /// `Corrupt`, as every row a table holds is written at its version.
+    #[inline(always)]
+    pub fn head_for<H: PageHost + ?Sized>(&self, _h: &H, v: u32) -> Result<RowHead, Fault> {
         if v == self.version {
-            return Ok(self.head);
+            Ok(self.head)
+        } else {
+            Err(rt(Corruption::Header, u64::from(v)))
         }
-        let mut hd = RowHead { version: v, ..RowHead::default() };
-        for o in 0..self.leaves {
-            let l = self.leaf(h, o)?;
-            if !l.at(v) {
-                continue;
-            }
-            hd.r = hd.r.wrapping_add(1);
-            hd.fixed = hd.fixed.wrapping_add(l.ty.fixed_width());
-            if l.ty.variable() {
-                hd.vars = hd.vars.wrapping_add(1);
-            }
-        }
-        hd.bitmap = hd.r.div_ceil(8);
-        hd.fixed_at = align8(8u64.wrapping_add(hd.bitmap.wrapping_mul(2)));
-        Ok(hd)
     }
 
-    /// Leaf l's offsets in a row image of version v: (fixed offset, variable index, bitmap bit), or `None`
-    /// when rows of version v lack the leaf. O(ordinal).
-    pub fn offsets_at<H: PageHost + ?Sized>(
-        &self,
-        h: &H,
-        v: u32,
-        l: &LeafInfo,
-    ) -> Result<Option<(u64, u64, u64)>, Fault> {
-        if !l.at(v) {
-            return Ok(None);
-        }
-        let hd = self.head_for(h, v)?;
-        let (mut fixed, mut var, mut bit) = (hd.fixed_at, 0u64, 0u64);
-        for o in 0..u64::from(l.ordinal) {
-            let k = self.leaf(h, o)?;
-            if !k.at(v) {
-                continue;
-            }
-            fixed = fixed.wrapping_add(k.ty.fixed_width());
-            if k.ty.variable() {
-                var = var.wrapping_add(1);
-            }
-            bit = bit.wrapping_add(1);
-        }
-        Ok(Some((fixed, var, bit)))
-    }
-
-    /// The ordinal of the live leaf with id `id`.
+    /// The ordinal of the leaf with id `id`.
     pub fn ordinal_of<H: PageHost + ?Sized>(&self, h: &H, id: u32) -> Result<Option<u64>, Fault> {
         let b = h.get(Region::Page(self.page))?;
         for o in 0..self.leaves {
             let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
-            if rd_u32(b, at)? == id && rd_u32(b, at.wrapping_add(20))? == 0 {
+            if rd_u32(b, at)? == id {
                 return Ok(Some(o));
             }
         }
@@ -567,7 +462,7 @@ impl Shape {
         hs.update(&u16::try_from(n).unwrap_or(u16::MAX).to_le_bytes());
         for o in 0..self.leaves {
             let l = self.leaf(h, o)?;
-            if l.key && l.live() {
+            if l.key {
                 hs.update(&l.id.to_le_bytes());
                 hs.update(&[u8::from(l.nullable)]);
             }

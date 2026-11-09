@@ -2,11 +2,10 @@
 //!
 //! Every entry of every index structure is a key part of W + 8 bytes, the key area (E zero-padded to W, or
 //! its first W bytes: *overflow*) then the big-endian entry field, then, when V > 0, the value part. The
-//! order is: E by memcmp (a proper prefix first); the rank (row entries and tombstones 1, count entries 2,
-//! `Low` 0, which occurs only in probes); at rank 1 the absolute rid; at equal rids a row entry before a
-//! tombstone.
+//! order is: E by memcmp (a proper prefix first); the rank (row entries 1, count entries 2, `Low` 0, which
+//! occurs only in probes); at rank 1 the rid.
 
-use crate::consts::{F_COUNT, F_OVF, F_TOMB, KEY_PIECE, PART_MAX, PAYLOAD, RID_PAYLOAD};
+use crate::consts::{F_COUNT, F_OVF, PART_MAX, PAYLOAD, RID_PAYLOAD};
 use crate::fault::{bounds, Fault};
 use crate::host::{NodeRead, Pending};
 use crate::key::words::{self, KeyWords};
@@ -16,16 +15,10 @@ use core::cmp::Ordering;
 
 // ---------------------------------------------------------------- the entry field
 
-/// A row entry's field for an absolute or relative rid (bits 0–60).
+/// A row entry's field for a rid (bits 0–60).
 #[inline(always)]
 pub const fn row_field(rid: u64) -> u64 {
     rid & RID_PAYLOAD
-}
-
-/// A tombstone's field.
-#[inline(always)]
-pub const fn tomb_field(rid: u64) -> u64 {
-    F_TOMB | (rid & RID_PAYLOAD)
 }
 
 /// A count entry's field: the count as a 62-bit two's-complement payload.
@@ -50,11 +43,6 @@ pub const fn is_count(field: u64) -> bool {
     field & F_COUNT != 0
 }
 
-#[inline(always)]
-pub const fn is_tomb(field: u64) -> bool {
-    field & F_COUNT == 0 && field & F_TOMB != 0
-}
-
 /// The payload bits of a field that does not overflow: 0–61 for a count entry, 0–60 otherwise.
 #[inline(always)]
 pub const fn payload(field: u64) -> u64 {
@@ -69,13 +57,9 @@ pub const fn payload(field: u64) -> u64 {
 #[inline(always)]
 pub const fn ovf_field(field: u64, locator: u64) -> u64 {
     // A count entry's bit 61 belongs to its payload (a negative count sets it), so only bit 62 is its kind.
-    let (kind, mask) = if field & F_COUNT != 0 { (F_COUNT, PAYLOAD) } else { (field & F_TOMB, RID_PAYLOAD) };
-    F_OVF | kind | (locator & mask)
+    let mask = if field & F_COUNT != 0 { PAYLOAD } else { RID_PAYLOAD };
+    F_OVF | (field & F_COUNT) | (locator & mask)
 }
-
-// KEY_PIECE = 64.
-#[allow(clippy::cast_possible_truncation)]
-const PIECE: usize = KEY_PIECE as usize;
 
 /// `PART_MAX` = 1,024 as a usize.
 #[allow(clippy::cast_possible_truncation)]
@@ -83,7 +67,7 @@ pub const PART: usize = PART_MAX as usize;
 
 // ---------------------------------------------------------------- probes
 
-/// The kind of a probe. `Row` carries an absolute rid.
+/// The kind of a probe. `Row` carries a rid.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Low,
@@ -98,7 +82,7 @@ pub struct KeyProbe<'k> {
     pub kind: Kind,
 }
 
-/// Index trees: resolution of overflowed keys in pieces, the width W, and the rid base of the structure.
+/// Index trees: resolution of overflowed keys in pieces, and the width W.
 pub trait ResolveKey {
     /// The key-area width W of this structure's entries.
     fn width(&self) -> u64;
@@ -107,14 +91,8 @@ pub trait ResolveKey {
     /// Copies bytes [at, at + out.len()) of that key, at ≥ W; fewer at its end; returns how many.
     fn key_piece(&self, field: u64, at: u64, out: &mut [u8]) -> Result<usize, Fault>;
     /// Bytes [at, …) of that key, W ≤ at < `len` (its length, from its record), where the structure holds
-    /// them: as many as lie together, at least one. `None` when the structure lends none, and its bytes are
-    /// copied through `key_piece`.
-    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<Option<&[u8]>, Fault> {
-        let _ = (field, at, len);
-        Ok(None)
-    }
-    /// Added to every stored rid of a run whose rids are relative; 0 elsewhere.
-    fn rid_base(&self) -> u64;
+    /// them: as many as lie together, at least one.
+    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<&[u8], Fault>;
 }
 
 /// The index comparator over one stored entry (its W-byte key area and its field), against probe p,
@@ -157,10 +135,8 @@ pub fn cmp_entry<R: ResolveKey + ?Sized>(
                         _ => return Ok((Ordering::Greater, at)),
                     }
                 }
-                // The stored key's bytes where the structure holds them, else copied piece by piece.
-                let Some(xs) = r.key_bytes(field, at, xlen)? else {
-                    return tail_pieces(r, field, (rec_payload, xlen), p, at);
-                };
+                // The stored key's bytes where the structure holds them.
+                let xs = r.key_bytes(field, at, xlen)?;
                 if xs.is_empty() {
                     return Err(bounds(at));
                 }
@@ -176,52 +152,13 @@ pub fn cmp_entry<R: ResolveKey + ?Sized>(
             rec_payload
         }
     };
-    Ok((rank(field, x_payload, p.kind, r.rid_base()), shared))
+    Ok((rank(field, x_payload, p.kind), shared))
 }
 
-/// `cmp_entry` past position `at` (at least W) of a stored key, its record's payload and length `rec`, that
-/// a structure lends no bytes of, both keys longer than W: its bytes copied in pieces of `KEY_PIECE`.
-#[inline(never)]
-fn tail_pieces<R: ResolveKey + ?Sized>(
-    r: &R,
-    field: u64,
-    rec: (u64, u64),
-    p: &KeyProbe<'_>,
-    mut at: u64,
-) -> Result<(Ordering, u64), Fault> {
-    let (rec_payload, xlen) = rec;
-    let f = p.key;
-    let mut piece = [0u8; PIECE];
-    loop {
-        let x_end = at >= xlen;
-        let y_end = at >= f.len() as u64;
-        if x_end || y_end {
-            match (x_end, y_end) {
-                (true, true) => break,
-                (true, false) => return Ok((Ordering::Less, at)),
-                _ => return Ok((Ordering::Greater, at)),
-            }
-        }
-        let got = r.key_piece(field, at, &mut piece)?;
-        if got == 0 {
-            return Err(bounds(at));
-        }
-        let xs = piece.get(..got).unwrap_or(&[]);
-        let ys = f.get(usize::try_from(at).unwrap_or(usize::MAX)..).unwrap_or(&[]);
-        let n = got.min(ys.len());
-        let (o, j) = words::bytes_cmp(xs.get(..n).unwrap_or(&[]), ys.get(..n).unwrap_or(&[]));
-        if o != Ordering::Equal {
-            return Ok((o, at.wrapping_add(j as u64)));
-        }
-        at = at.wrapping_add(n as u64);
-    }
-    Ok((rank(field, rec_payload, p.kind, r.rid_base()), at))
-}
-
-/// Steps 3 and 4 of the comparator, for a stored entry whose key equals the probe's: the ranks, then the
-/// absolute rids (`payload` the entry's rid or record payload, `base` the structure's rid base).
+/// Steps 3 and 4 of the comparator, for a stored entry whose key equals the probe's: the ranks, then the rids
+/// (`payload` the entry's rid or record payload).
 #[inline(always)]
-fn rank(field: u64, payload: u64, kind: Kind, base: u64) -> Ordering {
+fn rank(field: u64, payload: u64, kind: Kind) -> Ordering {
     // 3. Ranks.
     let xr: u8 = if is_count(field) { 2 } else { 1 };
     let yr: u8 = match kind {
@@ -232,16 +169,9 @@ fn rank(field: u64, payload: u64, kind: Kind, base: u64) -> Ordering {
     if xr != yr {
         return xr.cmp(&yr);
     }
-    // 4. Rids, absolute, in 128 bits.
+    // 4. Rids.
     match kind {
-        Kind::Row(rid) => {
-            // Two values below 2^64 sum below 2^65.
-            let xa = u128::from(payload & RID_PAYLOAD).wrapping_add(u128::from(base));
-            match xa.cmp(&u128::from(rid)) {
-                Ordering::Equal if is_tomb(field) => Ordering::Greater,
-                o => o,
-            }
-        }
+        Kind::Row(rid) => (payload & RID_PAYLOAD).cmp(&rid),
         _ => Ordering::Equal,
     }
 }
@@ -250,12 +180,12 @@ fn rank(field: u64, payload: u64, kind: Kind, base: u64) -> Ordering {
 /// overflowed stored key is the longer, else its rank and rid decide. `f` is the field's 8 bytes as a
 /// little-endian word.
 #[inline(always)]
-pub(crate) fn rank_fits(f: u64, kind: Kind, base: u64) -> Ordering {
+pub(crate) fn rank_fits(f: u64, kind: Kind) -> Ordering {
     let field = f.swap_bytes();
     if is_ovf(field) {
         return Ordering::Greater;
     }
-    rank(field, payload(field), kind, base)
+    rank(field, payload(field), kind)
 }
 
 /// Index nodes: a tree of W-byte key areas, through a host that lends key parts.
@@ -273,7 +203,7 @@ impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for KeyProbe<'_> {
         let part = mem.bytes(n, koff, w.wrapping_add(8))?;
         let wu = usize::try_from(w).map_err(|_| bounds(koff))?;
         let area = part.get(..wu).ok_or(bounds(koff))?;
-        let field = u64::from_be_bytes(rd_array::<8>(&part, w)?);
+        let field = u64::from_be_bytes(rd_array::<8>(part, w)?);
         cmp_entry(mem, wu, area, field, self, skip)
     }
 
@@ -294,7 +224,7 @@ impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for KeyProbe<'_> {
         if w > WORDS_W_MAX || self.key.len() as u64 > w || ks != w.wrapping_add(8) {
             return None;
         }
-        search_fitting(self.key, self.kind, mem.rid_base(), w, node, c)
+        search_fitting(self.key, self.kind, w, node, c)
     }
 }
 
@@ -304,9 +234,9 @@ const WORDS_W_MAX: u64 = 32;
 /// `search_node` for a key that fits W ≤ 32, out of line: a descent for any other key or W carries only the
 /// test above.
 #[inline(never)]
-fn search_fitting(key: &[u8], kind: Kind, base: u64, w: u64, node: &[u8], c: u64) -> Option<Result<u64, u64>> {
+fn search_fitting(key: &[u8], kind: Kind, w: u64, node: &[u8], c: u64) -> Option<Result<u64, u64>> {
     let c = usize::try_from(c).ok()?;
-    let rank = move |f: u64| rank_fits(f, kind, base);
+    let rank = move |f: u64| rank_fits(f, kind);
     let r = match w {
         8 => words::search_fits::<1, 16, _>(node, c, &KeyWords::first(key, 1), rank),
         16 => words::search_fits::<2, 24, _>(node, c, &KeyWords::first(key, 2), rank),
@@ -327,22 +257,6 @@ fn entry_part(node: &[u8], koff: u64, w: u64) -> Option<(&[u8], u64)> {
 }
 
 // ---------------------------------------------------------------- keys too long for a stack buffer
-
-/// Bytes [at, …) of the key of `len` bytes behind the overflowed field `field`, W ≤ at < len: lent where the
-/// structure holds them, else copied into `piece`.
-fn lent<'a, R: ResolveKey + ?Sized>(
-    r: &'a R,
-    field: u64,
-    at: u64,
-    len: u64,
-    piece: &'a mut [u8; PIECE],
-) -> Result<&'a [u8], Fault> {
-    if let Some(b) = r.key_bytes(field, at, len)? {
-        return Ok(b);
-    }
-    let n = r.key_piece(field, at, piece)?;
-    Ok(piece.get(..n).unwrap_or(&[]))
-}
 
 /// The comparator of a stored entry, its W-byte key area and its field, against a key of any length that is
 /// handed over in order through `put` (a `Sink`), the stored key on the left; `finish` gives the order once
@@ -375,9 +289,8 @@ impl<'a, R: ResolveKey + ?Sized> StoredCmp<'a, R> {
         !self.decided() && self.rec.is_some_and(|(_, len)| len == self.at)
     }
 
-    /// The comparator's order, against a probe of kind `kind` (`base`: the structure's rid base), once the whole
-    /// key is handed over, of any length.
-    pub fn finish(&self, kind: Kind, base: u64) -> Result<Ordering, Fault> {
+    /// The comparator's order, against a probe of kind `kind`, once the whole key is handed over, of any length.
+    pub fn finish(&self, kind: Kind) -> Result<Ordering, Fault> {
         if self.decided() {
             return Ok(self.ord);
         }
@@ -391,12 +304,12 @@ impl<'a, R: ResolveKey + ?Sized> StoredCmp<'a, R> {
             return Ok(match self.rec {
                 // The stored key overflows: it is the longer.
                 Some(_) => Ordering::Greater,
-                None => rank(self.field, payload(self.field), kind, base),
+                None => rank(self.field, payload(self.field), kind),
             });
         }
         match self.rec {
             Some((p, len)) => Ok(match len.cmp(&self.at) {
-                Ordering::Equal => rank(self.field, p, kind, base),
+                Ordering::Equal => rank(self.field, p, kind),
                 o => o,
             }),
             // A key that fits W ends before the bytes beyond it.
@@ -409,13 +322,12 @@ impl<R: ResolveKey + ?Sized> crate::key::Sink for StoredCmp<'_, R> {
     fn put(&mut self, bytes: &[u8]) -> Result<(), Fault> {
         let mut rest = bytes;
         let w = self.area.len() as u64;
-        let mut piece = [0u8; PIECE];
         while !self.decided() && !rest.is_empty() {
             let xs = if self.at < w {
                 self.area.get(usize::try_from(self.at).unwrap_or(usize::MAX)..).unwrap_or(&[])
             } else {
                 match self.rec {
-                    Some((_, len)) if self.at < len => lent(self.r, self.field, self.at, len, &mut piece)?,
+                    Some((_, len)) if self.at < len => self.r.key_bytes(self.field, self.at, len)?,
                     // The stored key ends first: a key that fits W, or a shorter one.
                     _ => &[],
                 }
@@ -448,10 +360,10 @@ pub fn cmp_stored<M: NodeRead + ResolveKey + ?Sized>(
     let part = mem.bytes(n, koff, w.wrapping_add(8))?;
     let wu = usize::try_from(w).map_err(|_| bounds(koff))?;
     let area = part.get(..wu).ok_or(bounds(koff))?;
-    let field = u64::from_be_bytes(rd_array::<8>(&part, w)?);
+    let field = u64::from_be_bytes(rd_array::<8>(part, w)?);
     let mut c = StoredCmp::new(mem, area, field)?;
     feed(&mut c)?;
-    c.finish(kind, mem.rid_base())
+    c.finish(kind)
 }
 
 /// A probe whose key, longer than W, lies in the structure's key log: its first W bytes `head`, and the record
@@ -470,9 +382,8 @@ impl<M: NodeRead + ResolveKey + ?Sized> Probe<M> for RecProbe<'_> {
         use crate::key::Sink;
         cmp_stored(mem, n, koff, self.kind, |c| {
             c.put(self.head)?;
-            let mut piece = [0u8; PIECE];
             while !c.decided() && c.at < self.len {
-                let ys = lent(mem, self.field, c.at, self.len, &mut piece)?;
+                let ys = mem.key_bytes(self.field, c.at, self.len)?;
                 if ys.is_empty() {
                     return Err(bounds(c.at));
                 }

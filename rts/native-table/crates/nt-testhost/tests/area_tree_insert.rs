@@ -3,14 +3,14 @@
 //! sequence of inserts the whole main memory is the same, byte for byte, every insert has the same outcome and
 //! changes the same blocks, and the trees have the same root, node count and key log. 252 cases: seven shapes
 //! with W ≤ 32 and V ≤ 8, twelve seeds, three workloads (many equal key areas from 2- and 3-letter alphabets,
-//! and 256 letters). The sequences hold row entries, tombstones, count entries, keys shorter than W, keys
+//! and 256 letters). The sequences hold row entries, count entries, keys shorter than W, keys
 //! longer than W through the key log, entries already there, leaf splits, full parents (checked: trees of
 //! height 3 or more) and root splits.
 
 use native_table::area::new_root;
 use native_table::index::area_insert;
 use native_table::index::area_nodes::{AreaNodes, AreaView, KeyLog};
-use native_table::key::probe::{count_field, ovf_field, payload, row_field, tomb_field, IndexPending, KeyProbe, Kind};
+use native_table::key::probe::{count_field, ovf_field, payload, row_field, IndexPending, KeyProbe, Kind};
 use native_table::tree::node::{child, is_leaf};
 use native_table::tree::{descend, insert_at, insert_first, IndexShape, Path, Search};
 use native_table::Fault;
@@ -43,7 +43,7 @@ enum Outcome {
     Failed(Fault),
 }
 
-/// The entry: its key, its kind (count entries, row entries, tombstones), its rid and its value part.
+/// The entry: its key, its kind (count entries, row entries), its rid and its value part.
 struct Entry {
     key: Vec<u8>,
     kind: Kind,
@@ -146,7 +146,6 @@ fn run(seed: u64, w: u64, v: u64, n: u64, alphabet: u64, rids: u64) -> ([u64; 3]
         let value = if v == 8 { g.next_u64().to_le_bytes().to_vec() } else { Vec::new() };
         let (kind, base) = match what {
             0 => (Kind::Count, count_field((g.below(200) as i64) - 100)),
-            1..=7 => (Kind::Row(rid), tomb_field(rid)),
             _ => (Kind::Row(rid), row_field(rid)),
         };
         let e = Entry { key, kind, base, rid, value };

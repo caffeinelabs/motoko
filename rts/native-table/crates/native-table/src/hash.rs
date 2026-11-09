@@ -1,5 +1,5 @@
-//! `nt_hash64`: the crate's one hash, used for run filters, key spec hashes, plan hashes and
-//! load finish hashes. h = 0x9E37_79B9_7F4A_7C15 ^ len; for each 8-byte little-endian word w of the input
+//! `nt_hash64`: the crate's one hash, used for key spec hashes, schema hashes and stored shapes.
+//! h = 0x9E37_79B9_7F4A_7C15 ^ len; for each 8-byte little-endian word w of the input
 //! (the last zero-padded) h = mix(h ^ w), mix being splitmix64's finalizer.
 
 /// splitmix64's finalizer.

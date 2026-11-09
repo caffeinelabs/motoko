@@ -75,17 +75,15 @@ fn totals_row<H: PageHost>(
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
         let run_at = rc.place(h.get(Region::Block(tail))?, &l)?;
-        if run_at == At::None || !l.live() {
+        if run_at == At::None {
             walk.skip(&l);
             continue;
         }
         let vi = walk.var;
         let s = {
             let row = RowRef::new(&*h, loc)?;
-            match walk.next(shape, &row, &l)? {
-                Stored::Absent => super::defaults::of(&*h, shape, &l)?,
-                st => cur::from_stored(&row, shape, &l, &st, vi)?,
-            }
+            let st = walk.next(shape, &row, &l)?;
+            cur::from_stored(&row, shape, &l, &st, vi)?
         };
         total_leaf(h, tbl, tail, run_at, &l, TSrc::Cur(&s), sign, ext)?;
     }
@@ -306,13 +304,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let l = shape.leaf(&*h, o)?;
             let vi = walk.var;
             let st = walk.next(shape, &row, &l)?;
-            if !l.live() {
-                continue;
-            }
-            let cur = match st {
-                Stored::Absent => super::defaults::of(&*h, shape, &l)?,
-                st => cur::from_stored(&row, shape, &l, &st, vi)?,
-            };
+            let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
             let v = row::cell_of(src, &l)?;
             if !cur::same(&*h, &l, &cur, &v)? {
                 if l.key {
@@ -336,7 +328,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
         for o in 0..shape.leaves {
             let l = shape.leaf(&*h, o)?;
             let run_at = rc.place(h.get(Region::Block(tail))?, &l)?;
-            if run_at == At::None || !l.live() {
+            if run_at == At::None {
                 walk.skip(&l);
                 continue;
             }
@@ -344,10 +336,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let (olds, v) = {
                 let row = RowRef::new(&*h, old)?;
                 let st = walk.next(shape, &row, &l)?;
-                let cur = match st {
-                    Stored::Absent => super::defaults::of(&*h, shape, &l)?,
-                    st => cur::from_stored(&row, shape, &l, &st, vi)?,
-                };
+                let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
                 (cur, row::cell_of(src, &l)?)
             };
             if cur::same(&*h, &l, &olds, &v)? {
@@ -452,13 +441,12 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
             }
         };
         let Some((img, len)) = st else { continue };
-        let keep = l.live()
-            && match row::cell_of(src, &l)? {
-                Val::Bytes(b) | Val::Big(b) => {
-                    cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len)
-                }
-                _ => false,
-            };
+        let keep = match row::cell_of(src, &l)? {
+            Val::Bytes(b) | Val::Big(b) => {
+                cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len)
+            }
+            _ => false,
+        };
         if !keep {
             drain::free_image(h, tbl, &img)?;
         }

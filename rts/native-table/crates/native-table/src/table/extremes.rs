@@ -14,8 +14,8 @@
 //! A value joining the group (an insert, the new side of an update) widens the record, and a minimum or
 //! maximum it reaches is exact again. A value leaving the group (a delete, the old side of an update) that
 //! equals the minimum or the maximum makes it loose: it still bounds the group's values, but no row may hold
-//! it any more. A loose extreme, a group a value beyond i128 joined, and a leaf the block does not cover (one
-//! a schema change added after the group opened, or an ordinal from `CAP` on) are read from the group's rows.
+//! it any more. A loose extreme, a group a value beyond i128 joined, and a leaf the block does not cover (an
+//! ordinal from `CAP` on) are read from the group's rows.
 
 use core::cmp::Ordering;
 
@@ -102,13 +102,13 @@ impl Rec {
 }
 
 /// A new extremes block for group g, covering the ordinals of `shape` below `CAP`; 0 when none of them is a
-/// live integer leaf, as nothing would be kept.
+/// integer leaf, as nothing would be kept.
 pub fn create<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, g: u64) -> Result<u64, Fault> {
     let n = shape.leaves.min(CAP);
     let mut any = false;
     for o in 0..n {
         let l = shape.leaf(&*h, o)?;
-        if l.live() && l.ty.running().is_some() {
+        if l.ty.running().is_some() {
             any = true;
             break;
         }
@@ -250,7 +250,7 @@ fn from_rows<H: PageHost + ?Sized>(
         let s = overlay::sealed(h, entry)?;
         for pos in 0..s.meta.p {
             if overlay::sealed_live(h, &s, pos)? {
-                let v = overlay::sealed_value(h, shape, &s, l, pos)?;
+                let v = overlay::sealed_value(h, &s, l, pos)?;
                 best.offer_value(h, l, &v, largest)?;
             }
         }
@@ -340,7 +340,7 @@ fn extreme_of<H: PageHost + ?Sized, const LARGEST: bool>(
     buf: &mut [u8],
 ) -> Result<Option<Total>, Fault> {
     let largest = LARGEST;
-    if l.ty.running().is_none() || !l.live() {
+    if l.ty.running().is_none() {
         return Err(Fault::BadRef);
     }
     let loose = if largest { MAX_LOOSE } else { MIN_LOOSE };

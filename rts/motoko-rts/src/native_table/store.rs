@@ -51,8 +51,6 @@ struct State {
     /// The top of the free-page stack: the address of the top block's last filled slot, or
     /// of the block itself when it holds no reference; 0 when the stack is empty.
     top: u64,
-    /// The last table uid handed out.
-    last_uid: u64,
     /// Bit i is set when partition i is a store partition.
     partitions: [u64; MAX_PARTITIONS / 64],
     /// The root-block map page of each run of `MAP_PARTITIONS` partitions, 0 for none.
@@ -132,23 +130,12 @@ impl<'a, M: Memory> StoreHost<'a, M> {
             next: 0,
             end: 0,
             top: 0,
-            last_uid: 0,
             partitions: [0; MAX_PARTITIONS / 64],
             roots: [0; MAX_PARTITIONS / MAP_PARTITIONS],
         };
         (*state).add_store_partition(start);
         (*state).next += PAGE;
         *self.store = start;
-    }
-
-    /// A table uid never handed out before.
-    pub fn new_uid(&mut self) -> u64 {
-        unsafe {
-            self.init();
-            let state = self.state();
-            (*state).last_uid += 1;
-            (*state).last_uid
-        }
     }
 
     /// The slot in `roots` of the map page that covers the block at `address`, and the block's

@@ -18,7 +18,7 @@ pub enum Search {
 }
 
 /// The two shared lengths of one descent: s_lo and s_hi, 0 at the root. Read and written only when
-/// `P::PREFIX` is set, so a typed search never touches them.
+/// `P::PREFIX` is set.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Shared {
     pub lo: u64,
@@ -35,25 +35,22 @@ pub fn search<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     p: &P,
     sh: &mut Shared,
 ) -> Result<Result<u64, u64>, Fault> {
-    let node = if S::CHECKED || P::PREFIX { Some(s.shape(super::node::is_leaf(m, n)?)) } else { None };
+    let ns = s.shape(super::node::is_leaf(m, n)?);
     let (mut lo, mut hi) = (0u64, count(s, m, n)?);
     // The node's bytes, lent once for every comparison below; when the memory does not lend them whole,
     // each comparison asks for its own part, as without them.
     let whole = if P::PREFIX && hi > 0 { m.bytes(n, 0, NODE_SIZE).ok() } else { None };
-    if P::PREFIX && !S::TYPED && S::CHECKED {
-        if let Some(r) = whole.as_deref().and_then(|b| p.search_node(m, b, s.ks(), hi)) {
+    if P::PREFIX {
+        if let Some(r) = whole.and_then(|b| p.search_node(m, b, s.ks(), hi)) {
             return Ok(r);
         }
     }
     while lo < hi {
         let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-        let koff = match node {
-            Some(ns) => ko(s, &ns, mid),
-            None => 8u64.wrapping_add(mid.wrapping_mul(s.ks())),
-        };
+        let koff = ko(s, &ns, mid);
         let ord = if P::PREFIX {
             let skip = sh.lo.min(sh.hi);
-            let (o, shared) = match whole.as_deref() {
+            let (o, shared) = match whole {
                 Some(node) => p.cmp_in(m, node, n, koff, skip)?,
                 None => p.cmp_from(m, n, koff, skip)?,
             };
@@ -75,12 +72,9 @@ pub fn search<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     Ok(Err(lo))
 }
 
-/// The node and index of the probe's entry, if present. Records no path and allocates nothing. An index
-/// form counts levels and fails with `PathOverflow` past `PATH_STACK`; a typed find keeps no counter.
-///
-/// A typed find is always inlined into its caller, as today's typed maps inline theirs: called out of
-/// line, the stores of its returned `Result` are merged across its exits before inlining, and the value
-/// stays in memory instead of registers. Index forms keep an outlined body.
+/// The node and index of the probe's entry, if present, in the tree whose root is `root` (an empty tree, root
+/// 0, is not searched). Records no path and allocates nothing. It counts levels and fails with `PathOverflow`
+/// past `PATH_STACK`.
 #[inline(always)]
 pub fn find<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     s: S,
@@ -88,11 +82,7 @@ pub fn find<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     root: u64,
     p: &P,
 ) -> Result<Option<(u64, u64)>, Fault> {
-    if S::TYPED {
-        find_body(s, m, root, p)
-    } else {
-        find_outlined(s, m, root, p)
-    }
+    find_outlined(s, m, root, p)
 }
 
 #[inline]
@@ -113,9 +103,6 @@ fn find_body<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
     p: &P,
 ) -> Result<Option<(u64, u64)>, Fault> {
     let mut n = root;
-    if n == 0 {
-        return Ok(None);
-    }
     let mut sh = Shared::default();
     let mut levels = 0u64;
     loop {
@@ -125,11 +112,9 @@ fn find_body<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
                 if is_leaf(m, n)? {
                     return Ok(None);
                 }
-                if !S::TYPED {
-                    levels = levels.wrapping_add(1);
-                    if levels >= PATH_STACK {
-                        return Err(Fault::PathOverflow);
-                    }
+                levels = levels.wrapping_add(1);
+                if levels >= PATH_STACK {
+                    return Err(Fault::PathOverflow);
                 }
                 n = child(s, m, n, j)?;
             }
@@ -156,7 +141,7 @@ pub fn descend<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
                 if is_leaf(m, n)? {
                     return Ok(Search::Vacant(n, j));
                 }
-                path.push(n, j)?;
+                path.push(n, j);
                 n = child(s, m, n, j)?;
             }
         }

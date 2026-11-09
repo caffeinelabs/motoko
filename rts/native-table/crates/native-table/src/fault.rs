@@ -1,7 +1,7 @@
 //! Errors, and the texts hosts trap with.
 //!
 //! The crate never traps. Every fallible function returns `Err(Fault)`; the host decides: a canister host
-//! traps, so the message rolls back, and the builder discards its output.
+//! traps, so the message rolls back.
 
 /// What invariant stored bytes break.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +20,11 @@ pub enum Corruption {
 }
 
 /// Which image a corruption was met in. `Runtime`: a structure the runtime wrote (a crate bug).
+///
+/// Nothing constructs `Run` (an uploaded index segment) or `Loading` (an image being uploaded). They stay
+/// because a variant with a byte before its `u64` keeps this enum's tag at one byte. Without them the tag
+/// widens to eight bytes, which changes the layout of `Fault` and of every `Result<_, Fault>`, and the
+/// compiled query loops (minimum and maximum reads, counts) run slower.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ImageId {
     Runtime,
@@ -36,14 +41,9 @@ pub struct CorruptAt {
     pub offset: u64,
 }
 
-/// A refused schema change. Dropping an indexed column drops every index that covers it, so it is never
-/// refused.
+/// A refused schema image.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SchemaError {
-    ColumnChanged,
-    KeyChanged,
-    RestoredDropped,
-    NewDropped,
     TooManyIndexes,
 }
 
@@ -51,20 +51,16 @@ pub enum SchemaError {
 pub enum Fault {
     /// The host does not know this reference, or a pair request names one twice.
     BadRef,
-    /// The host could not provide a page.
-    OutOfMemory,
-    /// Bytes break an invariant: runtime-written (`ImageId::Runtime`) or believed.
+    /// Bytes break an invariant: runtime-written (`ImageId::Runtime`) or of a group image.
     Corrupt(CorruptAt),
-    /// A 65th path frame.
+    /// A search past the path stack's 64 levels (`PATH_STACK`).
     PathOverflow,
     /// A cell its leaf's type refuses (never refused for its size).
     BadValue { leaf: u32 },
-    /// A refused schema change.
+    /// A refused schema image.
     Schema(SchemaError),
     /// Caller scratch below the stated minimum.
     Scratch { need: u64 },
-    /// Refused while a load holds the table.
-    Busy,
     /// A token that is malformed, names another table, or names an index whose key spec changed.
     BadToken,
 }
@@ -78,12 +74,10 @@ impl Fault {
             Fault::Corrupt(CorruptAt { image: ImageId::Runtime, .. }) => "native table: corrupt structure",
             Fault::Corrupt(_) => "table image corrupt",
             Fault::BadRef => "native table: bad reference",
-            Fault::OutOfMemory => "native table: out of memory",
             Fault::PathOverflow => "native table: tree deeper than its path stack",
             Fault::BadValue { .. } => "native table: value refused by its column",
             Fault::Schema(_) => "native table: schema change refused",
             Fault::Scratch { .. } => "native table: scratch too small",
-            Fault::Busy => "native table: busy",
             Fault::BadToken => "native table: bad or stale token",
         }
     }
@@ -102,32 +96,4 @@ pub const fn rt(kind: Corruption, offset: u64) -> Fault {
 /// A `Corrupt(Runtime, Bounds)` fault at `offset`: a range outside a lent slice.
 pub const fn bounds(offset: u64) -> Fault {
     corrupt(ImageId::Runtime, Corruption::Bounds, offset)
-}
-
-/// Upload refusals are values, not faults.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u16)]
-pub enum RefusalCode {
-    BadMagic = 1,
-    BadVersion = 2,
-    BadKind = 3,
-    WrongTable = 4,
-    SchemaChanged = 5,
-    WrongImage = 6,
-    WrongIndex = 7,
-    BadSizes = 8,
-    BlockMismatch = 9,
-    CountMismatch = 10,
-    PlanMismatch = 11,
-    GroupSpace = 12,
-    /// The structure check.
-    BadStructure = 13,
-}
-
-/// A refused upload: the code, the image and the field it names.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Refusal {
-    pub code: RefusalCode,
-    pub image: u64,
-    pub field: u64,
 }

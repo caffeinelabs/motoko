@@ -2,10 +2,11 @@
 //! helpers, faults, constants and the wake state, each run once per fill pattern.
 
 use native_table::bytes::{put_uleb, rd_uleb, uleb_len};
-use native_table::consts::{self, form_code, seal_scratch, v_choice, BLOCK, PAGE};
+use native_table::consts::{self, seal_scratch, v_choice, BLOCK, PAGE};
 use native_table::fault::{bounds, corrupt};
 use native_table::host::{wake_from_state, STATE_PENDING, STATE_URGENT};
 use native_table::mem::{copy, fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, shift, sub};
+use native_table::tree::IndexShape;
 use native_table::{CorruptAt, Corruption, Fault, ImageId, PageHost, Region, SchemaError, Scratch, Wake};
 use nt_testhost::{Call, VecHost, VecScratch, XorShift, FILLS};
 
@@ -160,14 +161,12 @@ fn uleb() {
 fn fault_texts() {
     let all = [
         Fault::BadRef,
-        Fault::OutOfMemory,
         bounds(3),
         corrupt(ImageId::Group(1), Corruption::Encoding, 9),
         Fault::PathOverflow,
         Fault::BadValue { leaf: 3 },
-        Fault::Schema(SchemaError::KeyChanged),
+        Fault::Schema(SchemaError::TooManyIndexes),
         Fault::Scratch { need: 10 },
-        Fault::Busy,
         Fault::BadToken,
     ];
     for f in all {
@@ -180,6 +179,7 @@ fn fault_texts() {
 
 #[test]
 fn constants_and_form_codes() {
+    let form_code = |w, v| IndexShape::new(w, v).map(|s| s.layout());
     assert_eq!(form_code(8, 0), Some(0x8100_0010));
     assert_eq!(form_code(16, 8), Some(0x8100_8018));
     assert_eq!(form_code(1_016, 0), Some(0x8100_0400));
@@ -194,12 +194,7 @@ fn constants_and_form_codes() {
     assert!(!v_choice(4) && !v_choice(512));
     assert_eq!(seal_scratch(6, 0, 12), Some(25_344));
     assert_eq!(seal_scratch(u64::MAX, 0, 0), None);
-    let magics = [
-        (consts::magic::NTIM, *b"NTIM"),
-        (consts::magic::NTTR, *b"NTTR"),
-        (consts::magic::NTGP, *b"NTGP"),
-        (consts::magic::NTRL, *b"NTRL"),
-    ];
+    let magics = [(consts::magic::NTIM, *b"NTIM"), (consts::magic::NTTR, *b"NTTR"), (consts::magic::NTGP, *b"NTGP")];
     for (m, s) in magics {
         assert_eq!(m.to_le_bytes(), s);
     }

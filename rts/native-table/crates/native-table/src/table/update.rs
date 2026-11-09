@@ -198,7 +198,7 @@ fn cell_seg<H: PageHost + ?Sized>(gv: &GroupView<'_, H>, ld: &LeafDir, s: u64) -
 fn in_place<H: PageHost>(h: &mut H, s: &Sealed, l: &LeafInfo, pos: u64, v: &Val<'_>) -> Result<bool, Fault> {
     let (plan, img) = {
         let gv = GroupView::from_meta(&*h, &s.meta);
-        let Some(ld) = gv.leaf_by_ordinal(u64::from(l.ordinal))? else { return Ok(false) };
+        let ld = gv.leaf(u64::from(l.ordinal))?;
         if ld.form == form::SEQ {
             return Ok(false);
         }
@@ -423,10 +423,7 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized>(
     let mut any = false;
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
-        if !l.live() {
-            continue;
-        }
-        let cur = overlay::sealed_value(&*h, shape, &s, &l, pos)?;
+        let cur = overlay::sealed_value(&*h, &s, &l, pos)?;
         let v = row::cell_of(src, &l)?;
         if cur::same(&*h, &l, &cur, &v)? {
             continue;
@@ -442,11 +439,8 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized>(
     let mut filled = 0u64;
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
-        if !l.live() {
-            continue;
-        }
         let s = overlay::sealed(&*h, pg)?;
-        let old = overlay::sealed_value(&*h, shape, &s, &l, pos)?;
+        let old = overlay::sealed_value(&*h, &s, &l, pos)?;
         {
             let v = row::cell_of(src, &l)?;
             if cur::same(&*h, &l, &old, &v)? {
@@ -496,7 +490,7 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     };
     if wrote {
         if let Some((tail, at, ext)) = tot {
-            let new = overlay::image_value(&*h, shape, &s.meta, l, pos)?;
+            let new = overlay::image_value(&*h, &s.meta, l, pos)?;
             hot::apply_at(h, tbl, tail, at, l, &new, Sign::Add, ext)?;
         }
         return Ok(filled);
@@ -546,15 +540,15 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
         let run = rc.place(h.get(Region::Block(tail))?, &l)?;
-        if !l.live() || (run == At::None && !huge) {
+        if run == At::None && !huge {
             continue;
         }
         let gv = GroupView::from_meta(&*h, &s.meta);
-        let ld = gv.leaf_by_ordinal(u64::from(l.ordinal))?;
+        let ld = gv.leaf(u64::from(l.ordinal))?;
         // In a group with no patches, the image cell itself: a total takes it as it is, unless it is a huge
         // value or a Nat's or Int's bytes.
-        if let (Some(ld), Some(slot), 0) = (&ld, slot, s.dir) {
-            let c = gv.cell(ld, slot, pos)?;
+        if let (Some(slot), 0) = (slot, s.dir) {
+            let c = gv.cell(&ld, slot, pos)?;
             if !matches!(c, GCell::Huge { .. }) {
                 match (run, cur::whole(c, ld.form, l.ty)) {
                     (At::None, _) => continue,
@@ -566,9 +560,9 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
                 }
             }
         }
-        let v = match (&ld, slot, s.dir) {
-            (Some(ld), Some(slot), 0) => cur::from_cell(&gv, ld, &l, slot, pos)?,
-            _ => overlay::leaf_value(&gv, shape, s, &l, ld.as_ref(), slot, pos)?,
+        let v = match (slot, s.dir) {
+            (Some(slot), 0) => cur::from_cell(&gv, &ld, &l, slot, pos)?,
+            _ => overlay::leaf_value(&gv, s, &l, Some(&ld), slot, pos)?,
         };
         hot::apply_at(h, tbl, tail, run, &l, &v, Sign::Remove, ext)?;
         release_image_value(h, tbl, &v)?;

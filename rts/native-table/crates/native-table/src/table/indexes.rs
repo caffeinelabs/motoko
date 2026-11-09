@@ -6,8 +6,8 @@
 //! nullable: what `cell::enc_key` writes for the leaf, as for the primary key. Every write keeps every index
 //! current within itself: an insert takes the new row's entry in each index, a remove drops the row's, and an
 //! update moves the row's entry in each index whose key it changes. A key's count is one descent of its
-//! index's tree, plus the index's uploaded segments. An index's rows are walked in key order, from an end or a
-//! key (`index::secondary::sorted`); its ends give the smallest and the largest value.
+//! index's tree. An index's rows are walked in key order, from an end or a key (`index::secondary::sorted`); its
+//! ends give the smallest and the largest value.
 //!
 //! A key is built in a stack buffer of `KEY_STACK` bytes. A longer one (a long Text, Blob or `[u8; N]`, a huge
 //! Nat or Int) takes no buffer: a write first finds its length, then writes it into a new record of the index's
@@ -16,21 +16,8 @@
 //! back. An update compares the new cells with it, piece by piece, to see whether the key changes. A count
 //! encodes it into the caller's scratch. The walks (`walks`) take the caller's buffer for the keys they hold
 //! and answer `Scratch` with the bytes it needs when a key is longer.
-//!
-//! A schema change may remove indexes: those its image no longer declares, and those holding a leaf it drops.
-//! A removed index's tree and key log go to the drain (`remove`), which frees them in bounded steps, and its
-//! descriptor is cleared; writes keep only the indexes the new image declares.
-//!
-//! A schema change may add indexes (`add`). A new index of a table holding rows is built over them by
-//! maintenance steps (`build_step`), in rid order, each taking the next group's rows whole through the insert a
-//! write makes: rids are never reused, so the rows the build takes are those below the next rid at the change,
-//! and every row inserted later is taken by its insert. A write of a stored row compares its rid with the
-//! build's position: until the build reaches the row, the write leaves the index alone (the build takes the
-//! row's current cells when it reaches it, or nothing when it is gone); a row the build passed is kept by every
-//! write. The build's position and end lie in the index's descriptor, and root job slot 1 holds the indexes
-//! being built ({ids u64 @0}, bit i for id i). A count or a walk of an index being built is `Busy`.
 
-use crate::consts::{GROUP_SLOTS, INDEXES_MAX, W_MAX};
+use crate::consts::{INDEXES_MAX, W_MAX};
 use crate::fault::{rt, Corruption, Fault, ImageId, SchemaError};
 use crate::index::area_nodes::AreaView;
 use crate::index::secondary::{LongKey, Secondary, KIND_SECONDARY};
@@ -44,7 +31,7 @@ use super::cur::{self, SVal};
 use super::group::GroupView;
 use super::layout::{key_kind, LeafInfo, Shape, Ty};
 use super::primary::Primary;
-use super::{buffer, cell, drain, overlay, read, root, row, RowSource, Table, KEY_STACK, PIECE};
+use super::{cell, overlay, read, row, RowSource, Table, KEY_STACK, PIECE};
 
 /// Declarations a schema image may hold.
 const DECLS_MAX: u64 = 64;
@@ -115,7 +102,7 @@ pub fn decl<H: PageHost + ?Sized>(shape: &Shape, h: &H, i: u64) -> Result<Option
     Ok(Some(Decl { id: rd_u8(b, o)?, w: u64::from(rd_u16(b, o.wrapping_add(2))?), parts, ords }))
 }
 
-/// Checks a schema image's index declarations before a table is made with it or changes to it: at most 64;
+/// Checks a schema image's index declarations before a table is made with it: at most 64;
 /// each secondary one with an id in 1..=63 no other has, a W its tree can take, and 1 to 7 parts, each naming a
 /// leaf of the row, with the leaf's nullability.
 pub fn check(v: &SchemaView<'_>) -> Result<(), Fault> {
@@ -171,82 +158,13 @@ pub fn declare<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fa
     for i in 0..shape.index_decls {
         let Some(d) = decl(shape, &*h, i)? else { continue };
         if !primary {
-            Primary::ensure(h, tbl, shape.key_w, shape.key_hash)?;
+            Primary::create(h, tbl, shape.key_w, shape.key_hash)?;
             primary = true;
         }
         let parts = d.parts(shape, &*h)?;
         Secondary::declare(h, tbl, d.id, d.w, d.spec(&parts).hash(KIND_SECONDARY))?;
     }
     Ok(())
-}
-
-/// Root job slot 1: the secondary indexes being built.
-const BUILDING: u64 = root::JOB_SLOTS + 32;
-
-/// The secondary indexes of table `tbl` being built, bit i for id i.
-pub fn building<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<u64, Fault> {
-    root::u64_at(h, tbl, BUILDING)
-}
-
-fn bit(id: u8) -> u64 {
-    1u64.wrapping_shl(u32::from(id))
-}
-
-/// Whether index `id` holds the entry of the stored row `rid`, `building` the indexes being built: always,
-/// unless its build has not reached the row yet.
-fn holds<H: PageHost + ?Sized>(h: &H, tbl: u64, building: u64, id: u8, rid: u64) -> Result<bool, Fault> {
-    if building & bit(id) == 0 {
-        return Ok(true);
-    }
-    let (next, end) = Secondary::build_state(h, tbl, id)?;
-    Ok(rid < next || rid >= end)
-}
-
-/// Index `index`'s declaration for a count or a walk: `BadRef` when the table has no secondary index of that
-/// id, `Busy` while it is being built.
-pub(super) fn find_built<H: PageHost + ?Sized>(shape: &Shape, h: &H, tbl: u64, index: u8) -> Result<Decl, Fault> {
-    let d = find(shape, h, index)?;
-    if building(h, tbl)? & bit(index) != 0 {
-        return Err(Fault::Busy);
-    }
-    Ok(d)
-}
-
-/// Adds secondary index `d` of the table's new schema (`shape`) to table `tbl`: its descriptor made (the
-/// primary index's first, which their directory block holds), and, when the table holds rows, its build
-/// started over the rids below the next one.
-pub fn add<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, d: &Decl) -> Result<(), Fault> {
-    Primary::ensure(h, tbl, shape.key_w, shape.key_hash)?;
-    let parts = d.parts(shape, &*h)?;
-    Secondary::declare(h, tbl, d.id, d.w, d.spec(&parts).hash(KIND_SECONDARY))?;
-    let (g, _, tail) = buffer::open_group(&*h, tbl)?;
-    if buffer::u64_of(&*h, tail, buffer::H_LIVE)? == 0 {
-        return Ok(());
-    }
-    let pos = buffer::u16_of(&*h, tail, buffer::H_OPEN_POS)?;
-    let end = g.checked_mul(GROUP_SLOTS).and_then(|x| x.checked_add(pos)).ok_or(rt(Corruption::Range, g))?;
-    Secondary::set_build_state(h, tbl, d.id, 0, end)?;
-    let b = building(&*h, tbl)?;
-    root::set_u64(h, tbl, BUILDING, b | bit(d.id))
-}
-
-/// Removes secondary index `id` from table `tbl`: its tree and key log go to the drain, which frees them in
-/// maintenance steps, and its descriptor is cleared (a build under way ends with it).
-pub fn remove<H: PageHost>(h: &mut H, tbl: u64, id: u8) -> Result<(), Fault> {
-    let b = building(&*h, tbl)?;
-    if b & bit(id) != 0 {
-        root::set_u64(h, tbl, BUILDING, b & !bit(id))?;
-    }
-    let s = Secondary::read(&*h, tbl, id)?;
-    if s.root != 0 {
-        let mut r = drain::Rec::new(drain::K_INDEX_TREE, s.root, 0);
-        r.digits[0] = u16::try_from(s.shape.w).map_err(|_| rt(Corruption::Layout, s.shape.w))?;
-        drain::push(h, tbl, &r)?;
-    }
-    if s.log.radix.root != 0 {
-        drain::push(h, tbl, &drain::Rec::new(drain::K_KEY_LOG, s.log.radix.root, s.log.radix.height))?;
-    }
-    Secondary::clear(h, tbl, id)
 }
 
 /// Index `index`'s declaration; `BadRef` when the table has no secondary index of that id.
@@ -337,7 +255,7 @@ fn enc_live<H: PageHost + ?Sized, S: Sink>(
                     next = next.wrapping_add(1);
                 }
                 let l = shape.leaf(h, o)?;
-                let v = overlay::buffered_value(h, shape, &rr, &mut walk, &l)?;
+                let v = overlay::buffered_value(shape, &rr, &mut walk, &l)?;
                 next = o.wrapping_add(1);
                 cell::enc_key(s, &l, &read::sval_val(h, &l, &v, piece)?)?;
             }
@@ -347,7 +265,7 @@ fn enc_live<H: PageHost + ?Sized, S: Sink>(
             let slot = gv.slot(pos)?;
             for &o in d.ords() {
                 let l = shape.leaf(h, u64::from(o))?;
-                cell::enc_key(s, &l, &read::sealed_cell(&gv, shape, sg, &l, slot, pos, piece)?)?;
+                cell::enc_key(s, &l, &read::sealed_cell(&gv, sg, &l, slot, pos, piece)?)?;
             }
         }
     }
@@ -358,7 +276,7 @@ fn enc_live<H: PageHost + ?Sized, S: Sink>(
 fn current<H: PageHost + ?Sized>(shape: &Shape, h: &H, r: read::Row, l: &LeafInfo) -> Result<SVal, Fault> {
     match r {
         read::Row::Buffered(at) => overlay::buffered_leaf(h, shape, &overlay::buffered(h, &at)?, l),
-        read::Row::Sealed { page, pos } => overlay::sealed_value(h, shape, &overlay::sealed(h, page)?, l, pos),
+        read::Row::Sealed { page, pos } => overlay::sealed_value(h, &overlay::sealed(h, page)?, l, pos),
     }
 }
 
@@ -612,12 +530,8 @@ impl<H: PageHost> Table<'_, H> {
     ) -> Result<(), Fault> {
         let (h, tbl, shape) = (&mut *self.host, self.root, &self.shape);
         let mut piece = [0u8; PIECE];
-        let building = building(&*h, tbl)?;
         for i in 0..shape.index_decls {
             let Some(d) = decl(shape, &*h, i)? else { continue };
-            if !holds(&*h, tbl, building, d.id, rid)? {
-                continue;
-            }
             let Some(n) = key_of_stored(shape, &*h, &d, r, &mut piece, buf)? else {
                 let cells = &mut Cells::<dyn RowSource>::Stored(r.row());
                 change_long(h, tbl, shape, &d, cells, rid, false, None::<&mut dyn RowSource>, path)?;
@@ -640,14 +554,10 @@ impl<H: PageHost> Table<'_, H> {
     ) -> Result<(), Fault> {
         let (h, tbl, shape) = (&mut *self.host, self.root, &self.shape);
         let mut piece = [0u8; PIECE];
-        let building = building(&*h, tbl)?;
         // The row opened at its first key read, for all the indexes: their entries' moves leave its group as is.
         let mut live = None;
         for i in 0..shape.index_decls {
             let Some(d) = decl(shape, &*h, i)? else { continue };
-            if !holds(&*h, tbl, building, d.id, rid)? {
-                continue;
-            }
             let lv = match live {
                 Some(ref x) => x,
                 None => live.insert(read::Live::open(&*h, r)?),
@@ -676,8 +586,8 @@ impl<H: PageHost> Table<'_, H> {
     }
 }
 
-/// The rows whose key under index `index` the cells of `key` give: one descent of the index's tree, plus the
-/// key's count in each of its uploaded segments. A key longer than `KEY_STACK` is encoded into `scratch`.
+/// The rows whose key under index `index` the cells of `key` give: one descent of the index's tree. A key longer
+/// than `KEY_STACK` is encoded into `scratch`.
 pub fn count<H: PageHost + ?Sized, K: RowSource + ?Sized, S: crate::host::Scratch>(
     h: &H,
     tbl: u64,
@@ -686,7 +596,7 @@ pub fn count<H: PageHost + ?Sized, K: RowSource + ?Sized, S: crate::host::Scratc
     key: &mut K,
     scratch: &mut S,
 ) -> Result<i128, Fault> {
-    let d = find_built(shape, h, tbl, index)?;
+    let d = find(shape, h, index)?;
     let mut buf = [0u8; KEY_STACK];
     let n = match key_of_source(shape, h, &d, key, &mut buf) {
         Ok(n) => n,
@@ -873,38 +783,4 @@ fn leb_step<H: PageHost, F: FnMut(&mut H, &[u8]) -> Result<(), Fault>>(
     f.key_bytes(w, a, lo, kb)?;
     put(h, kb)?;
     Ok(if lo == 0 { None } else { Some(f.mag_len.wrapping_sub(lo)) })
-}
-
-/// Rids one step of a build takes: one group's positions.
-const BUILD_ROWS: u64 = GROUP_SLOTS;
-
-/// One step of the build of the lowest index being built: the next `BUILD_ROWS` rids from its position, in rid
-/// order, each live row taken under the key its current cells give, as a write takes a row (`change`, or
-/// `change_long` for a key longer than `KEY_STACK`). Once the build passes its end, the index holds every row
-/// and counts and walks of it are answered from then on.
-pub fn build_step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault> {
-    let b = building(&*h, tbl)?;
-    let id = u8::try_from(b.trailing_zeros()).map_err(|_| rt(Corruption::Range, b))?;
-    let d = find(shape, &*h, id)?;
-    let (next, end) = Secondary::build_state(&*h, tbl, id)?;
-    let stop = next.saturating_add(BUILD_ROWS).min(end);
-    let (mut buf, mut piece, mut path) = ([0u8; KEY_STACK], [0u8; PIECE], Path::new());
-    let mut rid = next;
-    while rid < stop {
-        if let Some(r) = read::live(&*h, tbl, rid)? {
-            match key_of_stored(shape, &*h, &d, &r, &mut piece, &mut buf)? {
-                Some(n) => change(h, tbl, id, buf.get(..n).unwrap_or(&[]), rid, true, &mut path)?,
-                None => {
-                    let cells = &mut Cells::<dyn RowSource>::Stored(r.row());
-                    change_long(h, tbl, shape, &d, cells, rid, true, None::<&mut dyn RowSource>, &mut path)?;
-                }
-            }
-        }
-        rid = rid.wrapping_add(1);
-    }
-    if stop < end {
-        return Secondary::set_build_state(h, tbl, id, stop, end);
-    }
-    Secondary::set_build_state(h, tbl, id, 0, 0)?;
-    root::set_u64(h, tbl, BUILDING, b & !bit(id))
 }

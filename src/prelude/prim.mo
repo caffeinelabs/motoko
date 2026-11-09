@@ -115,8 +115,10 @@ func ntCodecLayout<T>(codec : NtCodec<T>) : Blob {
   (prim "nt_codec_layout" : NtCodec<T> -> Blob)(codec)
 };
 
-func ntCreate<K, R>(codec : NtCodec<(K, R)>) : Nat64 {
-  (prim "nt_create" : NtCodec<(K, R)> -> Nat64)(codec)
+// Creates a table with an index on each list of fields of R, in key order, and returns its id
+// and the id of each list's index; equal lists share one index
+func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) : (Nat64, [Nat]) {
+  (prim "nt_create" : (NtCodec<(K, R)>, [[Text]]) -> (Nat64, [Nat]))(codec, indexes)
 };
 
 func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {
@@ -149,12 +151,6 @@ func ntScanValues<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit
   (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, next, limit)
 };
 
-// Declares an index on the named fields of R, in key order, and returns its id; a table with an
-// equal declaration gives that index's id
-func ntIndex<K, R>(id : Nat64, codec : NtCodec<(K, R)>, fields : [Text]) : Nat {
-  (prim "nt_index" : (Nat64, NtCodec<(K, R)>, [Text]) -> Nat)(id, codec, fields)
-};
-
 // The value of one field of an index key
 type NtCell = {
   #null_;
@@ -180,9 +176,9 @@ type NtFilter = { #eq : NtCell; #range : { low : ?NtBound; high : ?NtBound } };
 // names
 
 // The number of rows with the index key `key` in the index on `fields`, one cell per field of
-// the index, or null while the index is being built
-func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], key : [NtCell]) : ?Nat {
-  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], [NtCell]) -> ?Nat)(
+// the index
+func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], key : [NtCell]) : Nat {
+  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], [NtCell]) -> Nat)(
     id,
     codec,
     indexes,
@@ -192,12 +188,12 @@ func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)
 };
 
 // Up to `limit` rows (1 to 64) in the order of the index on `fields`, backward when `reverse`,
-// and the token to go on from, empty when no row is left; null while the index is being built. A
-// walk goes on after the row its token names; with an empty token, it starts at the index's first
-// key (`start` 0), at its first key whose first field is not null (1), or at the key `from` (2).
-// It stops before the first key past `to`
-func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ?([(K, R)], Blob) {
-  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ?([(K, R)], Blob))(
+// and the token to go on from, empty when no row is left. A walk goes on after the row its token
+// names; with an empty token, it starts at the index's first key (`start` 0), at its first key
+// whose first field is not null (1), or at the key `from` (2). It stops before the first key past
+// `to`
+func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ([(K, R)], Blob) {
+  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ([(K, R)], Blob))(
     id,
     codec,
     indexes,

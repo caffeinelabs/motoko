@@ -379,7 +379,7 @@ fn run<H: PageHost + ?Sized, V: Visit<H>>(
         // The test each row takes: none in a passed group.
         let rows = if plan == Plan::Rows { t } else { None };
         let ld = match rows {
-            Some(t) => gv.leaf_by_ordinal(u64::from(t.l.ordinal))?,
+            Some(t) => Some(gv.leaf(u64::from(t.l.ordinal))?),
             None => None,
         };
         while rid < to {
@@ -392,7 +392,7 @@ fn run<H: PageHost + ?Sized, V: Visit<H>>(
                 match rows {
                     None => v.sealed(&gv, shape, &s, pos, slot, rid, None)?,
                     Some(t) => {
-                        let x = overlay::leaf_value(&gv, shape, &s, &t.l, ld.as_ref(), slot, pos)?;
+                        let x = overlay::leaf_value(&gv, &s, &t.l, ld.as_ref(), slot, pos)?;
                         if t.matches(h, &x)? {
                             v.sealed(&gv, shape, &s, pos, slot, rid, Some(&x))?;
                         }
@@ -507,7 +507,7 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
 
     fn open(&mut self, gv: &GroupView<'_, H>) -> Result<(), Fault> {
         for c in self.cols.iter_mut().flatten() {
-            c.ld = gv.leaf_by_ordinal(u64::from(c.l.ordinal))?;
+            c.ld = Some(gv.leaf(u64::from(c.l.ordinal))?);
         }
         Ok(())
     }
@@ -528,13 +528,13 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
                 Some(Some(c)) => c,
                 _ => {
                     let l = self.leaf(gv.h, shape, i)?;
-                    found = Col { l, ld: gv.leaf_by_ordinal(u64::from(l.ordinal))? };
+                    found = Col { l, ld: Some(gv.leaf(u64::from(l.ordinal))?) };
                     &found
                 }
             };
             let x = match self.reuse(&c.l, v) {
                 Some(x) => x,
-                None => overlay::leaf_value(gv, shape, s, &c.l, c.ld.as_ref(), slot, pos)?,
+                None => overlay::leaf_value(gv, s, &c.l, c.ld.as_ref(), slot, pos)?,
             };
             read::emit_sval(gv.h, self.out, &c.l, &x)?;
         }
@@ -762,14 +762,14 @@ impl Sum<'_> {
 
 impl<H: PageHost + ?Sized> Visit<H> for Sum<'_> {
     fn open(&mut self, gv: &GroupView<'_, H>) -> Result<(), Fault> {
-        self.ld = gv.leaf_by_ordinal(u64::from(self.l.ordinal))?;
+        self.ld = Some(gv.leaf(u64::from(self.l.ordinal))?);
         Ok(())
     }
 
     fn sealed(
         &mut self,
         gv: &GroupView<'_, H>,
-        shape: &Shape,
+        _shape: &Shape,
         s: &Sealed,
         pos: u64,
         slot: Option<u64>,
@@ -779,7 +779,7 @@ impl<H: PageHost + ?Sized> Visit<H> for Sum<'_> {
         if let (true, Some(x)) = (self.same, v) {
             return self.add(gv.h, x);
         }
-        let x = overlay::leaf_value(gv, shape, s, &self.l, self.ld.as_ref(), slot, pos)?;
+        let x = overlay::leaf_value(gv, s, &self.l, self.ld.as_ref(), slot, pos)?;
         self.add(gv.h, &x)
     }
 

@@ -1,9 +1,8 @@
-//! The integer leaves' extremes against a model: random inserts, updates and deletes of buffered and sealed
-//! rows, seals and compactions, nulls and integers of every size (Nat and Int past 64 bits, past i128 and out
-//! of line), in a narrow schema and in one wider than an extremes block covers. `Table::extreme` must equal the
-//! model's minimum and maximum of every integer leaf at every check. Then each group's record is checked
-//! itself: exact after inserts alone, loose once a write takes its extreme away, exact again once a value
-//! reaches it.
+//! The integer leaves' extremes in the cases a random mix rarely reaches: a schema wider than an extremes block
+//! covers, and groups sealed after three rows each, so that the group directory is one entry, then one level,
+//! then two levels. `Table::extreme` must equal the model's minimum and maximum of every integer leaf at every
+//! check. Then each group's record is checked itself: exact after inserts alone, loose once a write takes its
+//! extreme away, exact again once a value reaches it.
 //!
 //! Every test runs once per fill pattern (`FILLS`): the results and the host-call logs must be equal, so no
 //! byte is read that was not written.
@@ -187,20 +186,6 @@ fn build(cols: &[(Ty, bool)]) -> Schema {
     Schema { img: schema(&types).0, cols: all }
 }
 
-fn narrow() -> Schema {
-    build(&[
-        (Ty::U(1), true),
-        (Ty::I(2), false),
-        (Ty::U(8), false),
-        (Ty::I(8), true),
-        (Ty::Nat, true),
-        (Ty::Int, false),
-        (Ty::U128, true),
-        (Ty::I128, false),
-        (Ty::Int, true),
-    ])
-}
-
 /// More integer leaves than an extremes block covers: the last ones' extremes are read from the rows.
 fn wide() -> Schema {
     let mut cols: Vec<(Ty, bool)> =
@@ -342,17 +327,6 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
                     sealed_updates += u64::from(sealed);
                     assert!(model.insert(k, new).is_some());
                 }
-                Err(Fault::Busy) => {
-                    // A refused update of a sealed row: removed and inserted again.
-                    assert!(sealed, "only a sealed row's update is refused");
-                    sealed_updates += 1;
-                    assert!(tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap().0.is_some());
-                    assert!(matches!(
-                        tb.upsert(&mut key_scratch(), &mut Src::new(&new)).unwrap().0,
-                        Upsert::Inserted(_)
-                    ));
-                    model.insert(k, new);
-                }
                 Err(e) => panic!("upsert: {e:?}"),
             }
         } else if op < 92 {
@@ -387,15 +361,6 @@ fn run(s: &Schema, steps: u64, seed: u64, h: &mut VecHost, lh: &mut LogHash) -> 
     assert!(sealed_updates > 0, "sealed rows updated");
     trace.push((seals, kept, read));
     trace
-}
-
-#[test]
-fn narrow_extremes() {
-    let s = narrow();
-    let trace = per_fill(|h, lh| run(&s, 12_000, 0x5EED_0011, h, lh));
-    // Records give most groups' extremes; loose ones and values past i128 are read from the rows.
-    assert!(trace.iter().any(|t| t.1 > 0) && trace.iter().any(|t| t.2 > 0), "{trace:?}");
-    eprintln!("narrow: {trace:?}");
 }
 
 #[test]
@@ -538,56 +503,6 @@ fn records_exact_and_loose() {
     });
 }
 
-/// Values past i128 in one group and small ones in others: the group with the big value is read from its rows,
-/// and the answer is the big value, as a sum's big form; u128 values past i128 likewise.
-#[test]
-fn values_past_i128() {
-    let s = build(&[(Ty::Nat, false), (Ty::Int, false), (Ty::U128, false)]);
-    per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 35, &s.img).unwrap();
-        let mut buf = vec![0u8; 512];
-        let put = |tb: &mut Table<'_, VecHost>, k: u64, a: V, b: V, c: u128| {
-            let r = vec![
-                (id(0), V::U(k)),
-                (id(1), a),
-                (id(2), b),
-                (id(3), V::U128(c)),
-                (id(4), V::F64(0)),
-                (id(5), V::Bytes(vec![])),
-            ];
-            tb.upsert(&mut key_scratch(), &mut Src::new(&r)).unwrap();
-        };
-        let mut r = XorShift(0x5EED_0013);
-        let big_nat = leb_of(&mut r, 40, false, false);
-        let big_neg = leb_of(&mut r, 40, true, true);
-        let bigger_neg = leb_of(&mut r, 41, true, true);
-        for k in 0..GROUP_SLOTS + 10 {
-            let (a, b) = match k {
-                5 => (V::Nat(big_nat.clone()), V::Int(bigger_neg.clone())),
-                4_100 => (V::Nat(uleb(u128::MAX)), V::Int(big_neg.clone())),
-                _ => (V::Nat(uleb(u128::from(k))), V::Int(sleb(-i128::from(k)))),
-            };
-            put(&mut tb, k, a, b, u128::MAX - u128::from(k));
-        }
-        maintain_all(&mut tb);
-        let get = |tb: &Table<'_, VecHost>, c: u32, largest: bool, buf: &mut [u8]| {
-            of_total(tb.extreme(id(c), largest, buf).unwrap(), buf)
-        };
-        assert_eq!(get(&tb, 1, true, &mut buf), Some(Big::from_leb(&big_nat, false)));
-        assert_eq!(get(&tb, 1, false, &mut buf), Some(Big::from_i128(0)));
-        assert_eq!(get(&tb, 2, false, &mut buf), Some(Big::from_leb(&bigger_neg, true)));
-        assert_eq!(get(&tb, 2, true, &mut buf), Some(Big::from_i128(0)));
-        assert_eq!(get(&tb, 3, true, &mut buf), Some(Big::from_u128(u128::MAX)));
-        assert_eq!(get(&tb, 3, false, &mut buf), Some(Big::from_u128(u128::MAX - u128::from(GROUP_SLOTS + 9))));
-        // The big values gone: the answers come from the remaining rows.
-        put(&mut tb, 5, V::Nat(uleb(5)), V::Int(sleb(-5)), 0);
-        assert_eq!(get(&tb, 1, true, &mut buf), Some(Big::from_u128(u128::MAX)));
-        assert_eq!(get(&tb, 2, false, &mut buf), Some(Big::from_leb(&big_neg, true)));
-        assert_eq!(get(&tb, 3, false, &mut buf), Some(Big::from_i128(0)));
-        assert!(matches!(tb.extreme(id(2), false, &mut buf[..16]), Err(Fault::Scratch { .. })));
-    });
-}
-
 /// Many groups, each sealed after three rows (`write::freeze`, as a group whose bytes run out is), so that the
 /// group directory is one entry (one group), then one level, then two levels (past 512 groups). Then random
 /// inserts, updates and removals against the model, a row holding a column's minimum or maximum removed now and
@@ -666,12 +581,6 @@ fn many_groups_and_directory_levels() {
                 sealed_updates += u64::from(sealed);
                 match tb.upsert(&mut key_scratch(), &mut Src::new(&new)) {
                     Ok(_) => {}
-                    Err(Fault::Busy) => {
-                        // A refused update of a sealed row: removed and inserted again.
-                        assert!(sealed, "only a sealed row's update is refused");
-                        remove(&mut tb, key);
-                        tb.upsert(&mut key_scratch(), &mut Src::new(&new)).unwrap();
-                    }
                     Err(e) => panic!("upsert: {e:?}"),
                 }
                 model.insert(key, new);

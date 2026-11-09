@@ -71,18 +71,16 @@ module {
     }
   };
 
-  /// Creates the table and declares its indexes on it while it is empty, so that each index
-  /// holds every row from the start. Indexes cannot be added to the table afterwards.
+  /// Creates the table with its indexes, so that each index holds every row from the start.
+  /// Indexes cannot be added to the table afterwards.
   public func build<K, R>(self : Builder<K, R>) : NativeTable<K, R> {
-    let id = Prim.ntCreate(self.codec);
-    let indexes = Prim.Array_init<([Text], Nat)>(self.indexes.size(), ([], 0));
+    let (id, ids) = Prim.ntCreate(self.codec, self.indexes);
+    // Index ids count up from 1 in the order of each field list's first declaration.
+    let indexes = Prim.Array_init<([Text], Nat)>(ids.size(), ([], 0));
     var n = 0;
-    for fields in self.indexes.values() {
-      let index = Prim.ntIndex(id, self.codec, fields);
-      var i = 0;
-      while i < n and indexes[i].1 != index { i += 1 };
-      if i == n {
-        indexes[n] := (fields, index);
+    for i in ids.keys() {
+      if ids[i] > n {
+        indexes[n] := (self.indexes[i], ids[i]);
         n += 1
       }
     };
@@ -240,18 +238,10 @@ module {
     Prim.Array_tabulate<(Text, FieldType)>(n, func i = fields[i])
   };
 
-  /// The answer of an index, which holds every row from the start.
-  func built<T>(answer : ?T) : T {
-    switch answer {
-      case ?a { a }
-      case null { Prim.trap("native table: the index is being built") }
-    }
-  };
-
   /// The number of rows whose fields under the index on `index` have the values of `key`, one
   /// cell per field of the index, in its order.
   public func count<K, R>(self : NativeTable<K, R>, index : [Text], key : [Cell]) : Nat {
-    built(Prim.ntCount(self.id, self.codec, self.indexes, index, key))
+    Prim.ntCount(self.id, self.codec, self.indexes, index, key)
   };
 
   /// The place a walk goes on from, null after its last batch.
@@ -266,12 +256,12 @@ module {
       case null { (0, []) }
       case ?key { (2, key) }
     };
-    let (first, token) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start, key, to, "" : Blob, batch));
+    let (first, token) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start, key, to, "" : Blob, batch);
     batches<(K, R), Blob>(
       first,
       rest(token),
       func token {
-        let (more, after) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 0 : Nat64, [], to, token, batch));
+        let (more, after) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 0 : Nat64, [], to, token, batch);
         (more, rest(after))
       },
     )
@@ -299,7 +289,7 @@ module {
   /// The first key and row in the order of the index on `index`, or backward, whose key's first
   /// field is not null; null when no row has one.
   func end<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool) : ?(K, R) {
-    let (rows, _) = built(Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 1 : Nat64, [], null, "" : Blob, 1 : Nat64));
+    let (rows, _) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, 1 : Nat64, [], null, "" : Blob, 1 : Nat64);
     if rows.size() == 0 { null } else { ?rows[0] }
   };
 

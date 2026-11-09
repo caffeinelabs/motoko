@@ -24,15 +24,15 @@ impl RunCursor {
     }
 
     /// The cursor of the hot state in tail block `tail`: its running-record leaf list's length from the hot
-    /// state itself, which a schema change may have rewritten.
+    /// state itself.
     pub fn open<H: crate::mem::PageHost + ?Sized>(h: &H, tail: u64) -> Result<Self, Fault> {
         let b = h.get(crate::mem::Region::Block(tail))?;
         Ok(RunCursor::of_list(u64::from(rd_u16(b, super::buffer::H_RUN_R)?)))
     }
 
     /// Where leaf `l`'s running record lies: in the hot state, in the totals space (an integer leaf's total
-    /// the hot state has no room for), or nowhere (a leaf that is not an integer, or a dropped one); leaves
-    /// come in ordinal order, each once.
+    /// the hot state has no room for), or nowhere (a leaf that is not an integer); leaves come in ordinal
+    /// order, each once.
     pub fn place(&mut self, hot: &[u8], l: &LeafInfo) -> Result<At, Fault> {
         let Some(k) = l.ty.running() else { return Ok(At::None) };
         if self.idx < self.r {
@@ -47,13 +47,9 @@ impl RunCursor {
                 return Err(corrupt(ImageId::Runtime, Corruption::Order, u64::from(o)));
             }
         }
-        // A dropped leaf keeps no total (`Shape::open`).
-        if l.live() {
-            let at = self.space;
-            self.space = self.space.wrapping_add(k.bytes());
-            return Ok(At::Space(at));
-        }
-        Ok(At::None)
+        let at = self.space;
+        self.space = self.space.wrapping_add(k.bytes());
+        Ok(At::Space(at))
     }
 }
 

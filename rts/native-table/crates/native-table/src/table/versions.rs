@@ -8,7 +8,7 @@
 //! entries in turn, and the room of the table it replaces: every table of one seal has the shape's leaves.
 //!
 //! **Table**, in the rewrite's work space: 8 bytes per ordinal {the leaf's cell offset from the fixed region's
-//! start u32; its item table index u16; its bitmap bit u16}, written for the ordinals the version holds.
+//! start u32; its item table index u16; its bitmap bit u16}.
 
 use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{put_u16, put_u32, rd_u16, rd_u32, PageHost};
@@ -83,21 +83,15 @@ impl Versions {
             let mut rows = [0u8; 512];
             shape.spans(&*h, from, to, |o, s| {
                 let k = o.wrapping_sub(from).wrapping_mul(ROW);
-                if s.at(v) {
-                    put_u32(&mut rows, k, u32::try_from(fixed).map_err(|_| rt(Corruption::Range, fixed))?)?;
-                    put_u16(
-                        &mut rows,
-                        k.wrapping_add(4),
-                        u16::try_from(vars).map_err(|_| rt(Corruption::Range, vars))?,
-                    )?;
-                    put_u16(&mut rows, k.wrapping_add(6), u16::try_from(r).map_err(|_| rt(Corruption::Range, r))?)?;
-                    r = r.wrapping_add(1);
-                    fixed = fixed.wrapping_add(s.width);
-                    if s.variable {
-                        vars = vars.wrapping_add(1);
-                    }
+                put_u32(&mut rows, k, u32::try_from(fixed).map_err(|_| rt(Corruption::Range, fixed))?)?;
+                put_u16(&mut rows, k.wrapping_add(4), u16::try_from(vars).map_err(|_| rt(Corruption::Range, vars))?)?;
+                put_u16(&mut rows, k.wrapping_add(6), u16::try_from(r).map_err(|_| rt(Corruption::Range, r))?)?;
+                r = r.wrapping_add(1);
+                fixed = fixed.wrapping_add(s.width);
+                if s.variable {
+                    vars = vars.wrapping_add(1);
                 }
-                Ok(true)
+                Ok(())
             })?;
             let n = to.wrapping_sub(from).wrapping_mul(ROW);
             let piece = rows

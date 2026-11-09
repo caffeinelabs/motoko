@@ -74,7 +74,8 @@ fn run(fill: u8, w: u64, v: u64) -> (Vec<nt_testhost::Call>, Vec<(Vec<u8>, u64)>
     let m = AreaNodes::new(&mut host, tbl, 1, shape, log);
     let mut c: Cursor<Fwd> = Cursor::seek(shape, &m, root, Unbounded::<&KeyProbe<'_>>).unwrap();
     let mut got = Vec::new();
-    while let Some((n, i)) = c.next(shape, &m, Unbounded::<&KeyProbe<'_>>).unwrap() {
+    while let Some((n, i)) = c.peek(shape, &m).unwrap() {
+        c.advance(shape, &m, n, i).unwrap();
         let leaf = tree::node::is_leaf(&m, n).unwrap();
         let sh = shape.shape(leaf);
         let part = m.bytes(n, tree::node::ko(shape, &sh, i), w + 8).unwrap().to_vec();

@@ -12,7 +12,7 @@
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, FORMAT_TABLE};
 use crate::fault::{rt, Corruption, Fault};
-use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
+use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u64, PageHost, Region};
 
 /// Table root offset of the directory block references.
 pub const DIRECTORY_REFS: u64 = 928;
@@ -20,8 +20,6 @@ pub const DIRECTORY_REFS: u64 = 928;
 pub const DIR_HEAD: u64 = 64;
 /// Bytes of an index descriptor.
 pub const INDEX_DESC: u64 = 128;
-/// Table root offset of `run_seq`.
-pub const RUN_SEQ: u64 = 96;
 
 /// The directory block number, its first index id and its descriptor count for index `id`.
 fn place(id: u8) -> Result<(u64, u8, u8), Fault> {
@@ -43,10 +41,6 @@ pub fn locate<H: PageHost + ?Sized>(h: &H, tbl: u64, id: u8) -> Result<Option<(u
     let b = rd_u64(h.get(Region::Block(tbl))?, DIRECTORY_REFS.wrapping_add(k.wrapping_mul(8)))?;
     if b == 0 {
         return Ok(None);
-    }
-    let blk = h.get(Region::Block(b))?;
-    if rd_u32(blk, 0)? != magic::NTIX || rd_u16(blk, 4)? != FORMAT_TABLE || rd_u8(blk, 6)? != first {
-        return Err(rt(Corruption::Header, b));
     }
     // id − first ≤ 30.
     let off = DIR_HEAD.wrapping_add(u64::from(id.wrapping_sub(first)).wrapping_mul(INDEX_DESC));
@@ -70,12 +64,4 @@ pub fn ensure<H: PageHost>(h: &mut H, tbl: u64, id: u8) -> Result<(u64, u64), Fa
     }
     put_u64(h.get_mut(Region::Block(tbl))?, DIRECTORY_REFS.wrapping_add(k.wrapping_mul(8)), b)?;
     locate(h, tbl, id)?.ok_or(rt(Corruption::Link, b))
-}
-
-/// Takes the table's next run sequence: returns `run_seq` and raises it by one.
-pub fn take_run_seq<H: PageHost>(h: &mut H, tbl: u64) -> Result<u64, Fault> {
-    let s = h.get_mut(Region::Block(tbl))?;
-    let seq = rd_u64(s, RUN_SEQ)?;
-    put_u64(s, RUN_SEQ, seq.checked_add(1).ok_or(rt(Corruption::Count, RUN_SEQ))?)?;
-    Ok(seq)
 }

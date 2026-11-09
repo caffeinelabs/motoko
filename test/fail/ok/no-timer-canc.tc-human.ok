@@ -243,12 +243,13 @@ error[M0119]: object field cancelTimer is not contained in expected type
     ntCount :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
              fields : [Text], key : [NtCell]) ->
-        ?Nat;
+        Nat;
     ntCountWhere :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text,
              filter : NtFilter) ->
         Nat;
-    ntCreate : <K, R>(codec : NtCodec<(K, R)>) -> Nat64;
+    ntCreate :
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) -> (Nat64, [Nat]);
     ntExtreme :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              largest : Bool) ->
@@ -258,8 +259,6 @@ error[M0119]: object field cancelTimer is not contained in expected type
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
              fields : [Text], after : Blob, limit : Nat64) ->
         ([([NtCell], Nat)], Blob);
-    ntIndex :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, fields : [Text]) -> Nat;
     ntMaintain :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) -> Bool;
     ntPut : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
@@ -297,7 +296,7 @@ error[M0119]: object field cancelTimer is not contained in expected type
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
              fields : [Text], reverse : Bool, start : Nat64, from : [NtCell],
              to : ?[NtCell], token : Blob, limit : Nat64) ->
-        ?([(K, R)], Blob);
+        ([(K, R)], Blob);
     performanceCounter : (counter : Nat32) -> Nat64;
     popcntInt16 : (w : Int16) -> Int16;
     popcntInt32 : (w : Int32) -> Int32;

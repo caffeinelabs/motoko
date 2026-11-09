@@ -7,10 +7,10 @@ use std::cmp::Ordering;
 use native_table::consts::NODE_SIZE;
 use native_table::host::{NodeMem, NodeRead};
 use native_table::key::probe::{
-    count_field, is_ovf, ovf_field, payload, row_field, tomb_field, IndexPending, KeyProbe, Kind, ResolveKey,
+    count_field, is_ovf, ovf_field, payload, row_field, IndexPending, KeyProbe, Kind, ResolveKey,
 };
 use native_table::tree::{
-    self, descend, insert_at, insert_first, remove_found, Cursor, Direction, IndexShape, Path, Search,
+    self, descend, insert_at, insert_first, remove_found, Cursor, Direction, IndexShape, Path, Probe, Search,
 };
 use native_table::Fault;
 
@@ -26,7 +26,6 @@ pub struct IndexNodes {
     /// Key log: (payload proper, full key).
     pub log: Vec<(u64, Vec<u8>)>,
     pub calls: Vec<(char, u64)>,
-    pub rid_base: u64,
 }
 
 impl IndexNodes {
@@ -39,7 +38,6 @@ impl IndexNodes {
             fill,
             log: Vec::new(),
             calls: Vec::new(),
-            rid_base: 0,
         }
     }
 
@@ -53,11 +51,6 @@ impl IndexNodes {
 }
 
 impl NodeRead for IndexNodes {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        Self: 'a;
-
     fn count(&self, n: u64) -> Result<u16, Fault> {
         let r = self.at(n, 0, 2)?;
         Ok(u16::from_le_bytes(self.mem[r].try_into().unwrap()))
@@ -139,10 +132,6 @@ impl NodeMem for IndexNodes {
         self.calls.push(('h', n));
         Ok(())
     }
-    fn release(&mut self, root: u64) -> Result<(), Fault> {
-        self.calls.push(('r', root));
-        Ok(())
-    }
 }
 
 impl ResolveKey for IndexNodes {
@@ -160,8 +149,9 @@ impl ResolveKey for IndexNodes {
         out[..n].copy_from_slice(&k[s..s + n]);
         Ok(n)
     }
-    fn rid_base(&self) -> u64 {
-        self.rid_base
+    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<&[u8], Fault> {
+        let (_, k) = self.log.get(payload(field) as usize).ok_or(Fault::BadRef)?;
+        k.get(at as usize..len as usize).filter(|b| !b.is_empty()).ok_or(Fault::BadRef)
     }
 }
 
@@ -169,10 +159,9 @@ impl ResolveKey for IndexNodes {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ent {
     pub key: Vec<u8>,
-    /// 1 row or tombstone, 2 count.
+    /// 1 row, 2 count.
     pub rank: u8,
     pub rid: u64,
-    pub tomb: bool,
     pub value: Vec<u8>,
 }
 
@@ -186,7 +175,7 @@ impl Ent {
         e
     }
     pub fn order(&self, o: &Ent) -> Ordering {
-        self.key.cmp(&o.key).then(self.rank.cmp(&o.rank)).then(self.rid.cmp(&o.rid)).then(self.tomb.cmp(&o.tomb))
+        self.key.cmp(&o.key).then(self.rank.cmp(&o.rank)).then(self.rid.cmp(&o.rid))
     }
     pub fn probe(&self) -> KeyProbe<'_> {
         KeyProbe { key: &self.key, kind: if self.rank == 2 { Kind::Count } else { Kind::Row(self.rid) } }
@@ -204,13 +193,7 @@ impl ITree {
     }
 
     fn field(&mut self, e: &Ent) -> u64 {
-        let base = if e.rank == 2 {
-            count_field(e.rid as i64)
-        } else if e.tomb {
-            tomb_field(e.rid)
-        } else {
-            row_field(e.rid)
-        };
+        let base = if e.rank == 2 { count_field(e.rid as i64) } else { row_field(e.rid) };
         if e.key.len() as u64 > self.nodes.shape.w {
             self.nodes.log.push((native_table::key::probe::payload(base), e.key.clone()));
             ovf_field(base, self.nodes.log.len() as u64 - 1)
@@ -242,14 +225,13 @@ impl ITree {
         }
     }
 
-    /// Removes an entry; a tombstone probe finds a tombstone via its own kind.
+    /// Removes an entry.
     pub fn remove(&mut self, e: &Ent) -> bool {
         let s = self.nodes.shape;
         if self.root == 0 {
             return false;
         }
         let mut path = Path::new();
-        // Tombstones are Greater than a Row probe at their rid; find them by scanning the next entry.
         let probe = e.probe();
         match descend(s, &self.nodes, self.root, &probe, &mut path).unwrap() {
             Search::Found(n, i) => {
@@ -278,7 +260,7 @@ impl ITree {
         let rank = if native_table::key::probe::is_count(field) { 2 } else { 1 };
         let rid = if rank == 2 { native_table::key::probe::payload_to_count(pl) as u64 } else { pl };
         let value = self.nodes.bytes(n, vo, s.v).unwrap().to_vec();
-        Ent { key, rank, rid, tomb: native_table::key::probe::is_tomb(field), value }
+        Ent { key, rank, rid, value }
     }
 
     /// All entries from `lo` in the cursor's direction, up to `hi`.
@@ -290,8 +272,25 @@ impl ITree {
         let s = self.nodes.shape;
         let mut c: Cursor<D> = Cursor::seek(s, &self.nodes, self.root, lo).unwrap();
         let mut out = Vec::new();
-        while let Some((n, i)) = c.next(s, &self.nodes, hi).unwrap() {
+        while let Some((n, i)) = c.peek(s, &self.nodes).unwrap() {
+            // The stored entry against the end bound, in the walk's direction.
+            let past = |p: &KeyProbe<'_>, incl: bool| {
+                let leaf = tree::node::is_leaf(&self.nodes, n).unwrap();
+                let koff = tree::node::ko(s, &native_table::tree::Shape::shape(s, leaf), i);
+                let o = p.cmp_at(&self.nodes, n, koff).unwrap();
+                let o = if D::REV { o.reverse() } else { o };
+                o == Ordering::Greater || (!incl && o == Ordering::Equal)
+            };
+            let beyond = match hi {
+                std::ops::Bound::Unbounded => false,
+                std::ops::Bound::Included(p) => past(p, true),
+                std::ops::Bound::Excluded(p) => past(p, false),
+            };
+            if beyond {
+                break;
+            }
             out.push(self.entry(n, i));
+            c.advance(s, &self.nodes, n, i).unwrap();
         }
         out
     }

@@ -1,65 +1,16 @@
-//! The comparator of key bytes eight at a time (`key::words`): byte strings in memcmp order, key areas
-//! against zero-padded keys, and node searches by words giving what comparisons entry by entry give, for
-//! every kind of probe, equal key areas, tombstones, count entries, overflowed keys and rid bases.
+//! The comparator of key bytes eight at a time (`key::words`): long byte strings in memcmp order, and node
+//! searches by words giving what comparisons entry by entry give, for every kind of probe, equal key areas,
+//! tombstones, count entries, overflowed keys and rid bases.
 
 use std::cmp::Ordering;
 use std::ops::Bound;
 
 use native_table::key::probe::{KeyProbe, Kind};
-use native_table::key::words::{
-    area_cmp, area_key_cmp, bytes_cmp, bytes_cmp_any, bytes_cmp_long, search_fits, KeyWords,
-};
+use native_table::key::words::{bytes_cmp_any, bytes_cmp_long};
 use native_table::tree::{descend, find, Cursor, Fwd, IndexShape, Path, Probe};
 use native_table::Fault;
 use nt_testhost::index::{Ent, ITree, IndexNodes};
 use nt_testhost::{XorShift, FILLS};
-
-/// Byte strings that differ at every position of a word, at word boundaries, by length alone, and by
-/// trailing zeros.
-fn strings(r: &mut XorShift) -> Vec<Vec<u8>> {
-    let mut v: Vec<Vec<u8>> = vec![
-        vec![],
-        vec![0],
-        b"a".to_vec(),
-        b"a\0".to_vec(),
-        b"ab".to_vec(),
-        b"abcdefg".to_vec(),
-        b"abcdefgh".to_vec(),
-        b"abcdefgi".to_vec(),
-        b"abcdefgh\0".to_vec(),
-        b"abcdefgh\x01".to_vec(),
-        vec![0xFF; 8],
-        vec![0xFF; 9],
-        (1..=17).collect(),
-        (1..=16).collect(),
-        (1..=16).chain([0x12]).collect(),
-    ];
-    for _ in 0..60 {
-        let n = r.below(40) as usize;
-        v.push((0..n).map(|_| [0u8, 1, 0x7F, 0x80, 0xFF][r.below(5) as usize]).collect());
-    }
-    v
-}
-
-fn padded(a: &[u8], b: &[u8]) -> Ordering {
-    let n = a.len().max(b.len());
-    (0..n)
-        .map(|i| a.get(i).copied().unwrap_or(0).cmp(&b.get(i).copied().unwrap_or(0)))
-        .find(|o| o.is_ne())
-        .unwrap_or(Ordering::Equal)
-}
-
-#[test]
-fn byte_strings_compare_as_memcmp() {
-    let s = strings(&mut XorShift(3));
-    for a in &s {
-        for b in &s {
-            let n = a.len().min(b.len());
-            let shared = a.iter().zip(b).take_while(|(x, y)| x == y).count();
-            assert_eq!(bytes_cmp(a, b), (a[..n].cmp(&b[..n]), shared), "{a:?} {b:?}");
-        }
-    }
-}
 
 /// Long byte strings compare as memcmp over their common length, with the bytes they share: equal for
 /// thousands of bytes then differing at every position of a 32-byte stretch and of a word, by one bit, with
@@ -90,142 +41,6 @@ fn long_byte_strings_compare_as_memcmp() {
     }
 }
 
-#[test]
-fn key_areas_compare_as_the_zero_padded_key() {
-    let s = strings(&mut XorShift(5));
-    for w in [8usize, 16, 24, 40, 64] {
-        for a in s.iter().filter(|a| a.len() <= w) {
-            let mut area = a.clone();
-            area.resize(w, 0);
-            for b in &s {
-                // The key zero-padded to W, or its first W bytes.
-                let bw = &b[..b.len().min(w)];
-                let want = padded(&area, bw);
-                let first = (0..w).find(|&i| area[i] != bw.get(i).copied().unwrap_or(0));
-                for from in (0..=first.unwrap_or(w)).step_by(8) {
-                    match area_key_cmp(&area, b, from, w) {
-                        None => assert!(want.is_eq() && first.is_none(), "{area:?} {b:?}"),
-                        Some((o, at)) => assert_eq!((o, Some(at)), (want, first), "{area:?} {b:?} from {from}"),
-                    }
-                }
-                if b.len() <= 64 {
-                    let mut node = vec![0u8; 8];
-                    node.extend(&area);
-                    let k = KeyWords::of(b);
-                    assert_eq!(area_cmp(&node, 8, 0, w / 8, &k), Some(want), "{area:?} {b:?}");
-                }
-            }
-        }
-    }
-}
-
-#[test]
-fn a_node_search_by_words_finds_what_a_linear_scan_finds() {
-    // Nine sorted 16-byte key areas, each followed by a field.
-    let words = [1u64, 3, 3, 7, 0x0100, 0x0101, 0xFF00, u64::MAX - 1, u64::MAX];
-    let mut node = vec![0u8; 8 + 9 * 24];
-    for (i, w) in words.iter().enumerate() {
-        node[8 + 24 * i..16 + 24 * i].copy_from_slice(&w.to_be_bytes());
-    }
-    for probe in [0u64, 1, 2, 3, 4, 0xFF, 0x0100, 0x0102, 0xFF00, u64::MAX] {
-        let k = KeyWords::of(&probe.to_be_bytes());
-        let below = words.iter().filter(|&&w| w < probe).count();
-        let not_above = words.iter().filter(|&&w| w <= probe).count();
-        for (rank, want) in [(Ordering::Greater, below), (Ordering::Less, not_above)] {
-            assert_eq!(search_fits::<2, 24, _>(&node, 9, &k, |_| rank), Some(Err(want)), "{probe:#x}");
-        }
-        match search_fits::<2, 24, _>(&node, 9, &k, |_| Ordering::Equal) {
-            Some(Ok(i)) => assert_eq!(words[i], probe),
-            r => assert!(!words.contains(&probe) && r == Some(Err(below)), "{probe:#x}"),
-        }
-    }
-    // An entry outside the node is no answer.
-    let k = KeyWords::of(&[1]);
-    assert_eq!(search_fits::<2, 24, _>(&node, 12, &k, |_| Ordering::Less), None);
-}
-
-#[test]
-fn key_words_are_the_zero_padded_key() {
-    for len in 0..=80usize {
-        let key: Vec<u8> = (0..len).map(|i| (i as u8).wrapping_mul(37).wrapping_add(1)).collect();
-        let want = |i: usize| {
-            let mut b = [0u8; 8];
-            for (j, x) in b.iter_mut().enumerate() {
-                *x = key.get(8 * i + j).copied().unwrap_or(0);
-            }
-            u64::from_le_bytes(b)
-        };
-        for n in 0..=8usize {
-            let k = KeyWords::first(&key, n);
-            for i in 0..8 {
-                assert_eq!(k.w[i], if i < n { want(i) } else { 0 }, "length {len}, {n} words, word {i}");
-            }
-        }
-        assert_eq!(KeyWords::of(&key).w, KeyWords::first(&key, 8).w, "length {len}");
-    }
-}
-
-/// Sorted key areas of N words sharing first words in runs, each followed by a field, searched for keys
-/// between and on them: what a linear scan finds.
-fn search_at<const N: usize, const KS: usize>(r: &mut XorShift) {
-    let mut areas: Vec<Vec<u8>> = (0..60)
-        .map(|_| {
-            let mut a: Vec<u8> = (0..8 * N).map(|_| [0u8, 1, 0x7F, 0x80, 0xFF][r.below(5) as usize]).collect();
-            // Most areas share their first bytes, so that later words decide.
-            if r.below(4) != 0 {
-                a[..8 * N - 1].fill(0x41);
-            }
-            a
-        })
-        .collect();
-    areas.sort();
-    areas.dedup();
-    let mut node = vec![0u8; 8];
-    for a in &areas {
-        node.extend(a);
-        node.extend([0u8; 8]);
-    }
-    let mut probes = areas.clone();
-    for a in &areas {
-        for d in [-1i16, 1] {
-            let mut p = a.clone();
-            let last = p.len() - 1;
-            p[last] = (p[last] as i16 + d).clamp(0, 255) as u8;
-            probes.push(p);
-        }
-    }
-    for p in &probes {
-        let below = areas.iter().filter(|a| a.as_slice() < p.as_slice()).count();
-        let not_above = areas.iter().filter(|a| a.as_slice() <= p.as_slice()).count();
-        // The key as W bytes, and less its trailing zeros (a shorter key standing for its zero-padded area).
-        let trimmed = &p[..p.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1)];
-        for key in [p.as_slice(), trimmed] {
-            let k = KeyWords::of(key);
-            for (rank, want) in [(Ordering::Greater, below), (Ordering::Less, not_above)] {
-                let got = search_fits::<N, KS, _>(&node, areas.len(), &k, |_| rank);
-                assert_eq!(got, Some(Err(want)), "{N} words, {key:?}");
-            }
-            match search_fits::<N, KS, _>(&node, areas.len(), &k, |_| Ordering::Equal) {
-                Some(Ok(i)) => assert_eq!(&areas[i], p, "{N} words"),
-                got => assert!(!areas.contains(p) && got == Some(Err(below)), "{N} words, {key:?}"),
-            }
-        }
-    }
-}
-
-#[test]
-fn node_searches_of_every_width_find_what_a_linear_scan_finds() {
-    let mut r = XorShift(0x5EA7);
-    search_at::<1, 16>(&mut r);
-    search_at::<2, 24>(&mut r);
-    search_at::<3, 32>(&mut r);
-    search_at::<4, 40>(&mut r);
-    search_at::<5, 48>(&mut r);
-    search_at::<6, 56>(&mut r);
-    search_at::<7, 64>(&mut r);
-    search_at::<8, 72>(&mut r);
-}
-
 /// A probe that hides the search by words: every comparison entry by entry, as before it existed.
 struct Plain<'a> {
     inner: KeyProbe<'a>,
@@ -243,19 +58,19 @@ impl Probe<IndexNodes> for Plain<'_> {
 
 fn first_entries(t: &ITree, c: &mut Cursor<Fwd>) -> Vec<(u64, u64)> {
     let mut out = Vec::new();
-    while let Some(x) = c.next(t.nodes.shape, &t.nodes, Bound::<&KeyProbe<'_>>::Unbounded).unwrap() {
-        out.push(x);
+    while let Some((n, i)) = c.peek(t.nodes.shape, &t.nodes).unwrap() {
+        out.push((n, i));
         if out.len() == 4 {
             break;
         }
+        c.advance(t.nodes.shape, &t.nodes, n, i).unwrap();
     }
     out
 }
 
 /// A tree of (W, V) holding keys with many equal key areas (a small alphabet, trailing zeros, keys longer
-/// than W and than 64 bytes), rows, tombstones and count entries, searched with every kind of probe through
-/// both ways, at rid base `base`.
-fn searches_agree(w: u64, v: u64, seed: u64, base: u64) {
+/// than W and than 64 bytes), rows and count entries, searched with every kind of probe through both ways.
+fn searches_agree(w: u64, v: u64, seed: u64) {
     let shape = IndexShape::new(w, v).unwrap();
     let mut t = ITree::new(shape, FILLS[(seed % FILLS.len() as u64) as usize]);
     let mut r = XorShift(seed);
@@ -286,10 +101,9 @@ fn searches_agree(w: u64, v: u64, seed: u64, base: u64) {
         let key = keys[r.below(keys.len() as u64) as usize].clone();
         let rank = if r.below(8) == 0 { 2 } else { 1 };
         let rid = if rank == 2 { r.below(1_000) } else { r.below(400) };
-        let e = Ent { key, rank, rid, tomb: rank == 1 && r.below(4) == 0, value: value.clone() };
+        let e = Ent { key, rank, rid, value: value.clone() };
         t.insert(&e);
     }
-    t.nodes.rid_base = base;
     let mut probes = keys.clone();
     // Each key's first W bytes, without and with trailing zeros: the key area of a longer key exactly.
     for k in &keys {
@@ -307,9 +121,8 @@ fn searches_agree(w: u64, v: u64, seed: u64, base: u64) {
     );
     let mut by_words = 0u64;
     for k in &probes {
-        // A rid the tree holds, as an absolute rid (the stored one plus the base), or one it may not.
-        let x = r.below(400);
-        let rid = if r.below(4) == 0 { x } else { base.checked_add(x).unwrap_or(x) };
+        // A rid the tree may hold.
+        let rid = r.below(400);
         for kind in [Kind::Low, Kind::Row(rid), Kind::Row(u64::MAX), Kind::Count] {
             let p = KeyProbe { key: k, kind };
             let q = Plain { inner: p };
@@ -336,8 +149,8 @@ fn searches_agree(w: u64, v: u64, seed: u64, base: u64) {
 #[test]
 fn node_searches_by_words_equal_comparisons_entry_by_entry() {
     for (w, v) in [(8, 0), (16, 0), (24, 0), (32, 0), (8, 8), (16, 8), (40, 0), (64, 0), (200, 0)] {
-        for (seed, base) in [(1, 0), (2, 1 << 60), (3, u64::MAX - 7)] {
-            searches_agree(w, v, seed + w, base);
+        for seed in [1, 2, 3] {
+            searches_agree(w, v, seed + w);
         }
     }
 }

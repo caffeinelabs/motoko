@@ -370,8 +370,7 @@ impl Image {
 /// Reads one image's bytes, to the extent image storage needs: a read of image offset o resolves block k = o >> 16
 /// through the record or reference and checks o + len ≤ length, and o + len inside the block, before it
 /// forms the range. Each failure is `Corrupt { image: id, kind: Bounds, offset: o }`, a missing
-/// block entry included. The full checked reader (`piece`, the typed
-/// reads) comes with uploads.
+/// block entry included.
 pub struct ImageReader<'h, H: PageHost + ?Sized> {
     host: &'h H,
     id: ImageId,
@@ -381,10 +380,6 @@ pub struct ImageReader<'h, H: PageHost + ?Sized> {
 impl<'h, H: PageHost + ?Sized> ImageReader<'h, H> {
     pub fn new(host: &'h H, id: ImageId, img: Image) -> Self {
         ImageReader { host, id, img }
-    }
-
-    pub fn id(&self) -> ImageId {
-        self.id
     }
 
     pub fn length(&self) -> u64 {

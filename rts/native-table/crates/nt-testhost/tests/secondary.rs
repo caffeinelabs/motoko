@@ -4,15 +4,11 @@
 //! must leave the same entries and give the same answers. Every few operations and at the end the tree is
 //! checked whole: each key's row entries in rid order, then its one count entry holding their number, no
 //! count entry for a key without rows, every reachable node of the tree's form and counted; every key's count
-//! and the group walk equal the model's, with and without uploaded segments; deleting every row empties the
-//! tree and its key log.
+//! and the group walk equal the model's; deleting every row empties the tree and its key log.
 //!
 //! The key log against the tree: its free chunks listed by size class and linked both ways, its blocks runs of
 //! chunks holding exactly the records the tree's entries name and the free ones, under churn of one row's key
 //! and under random writes of keys up to beyond a log block, cut back to a few rows.
-//!
-//! A build's insert asks before it splits a run of two or more full nodes on a row's path, and changes nothing
-//! when told the run does not fit.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,8 +20,6 @@ use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec};
 use native_table::tree::node::{child, count, is_leaf, ko};
 use native_table::tree::{Cursor, Fwd, Path, Shape};
 use native_table::{ImageId, NodeRead, PageHost};
-use nt_testhost::runs::VecItems;
-use nt_testhost::uploads::TTable;
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};
 
 /// The index's key spec: one Text part.
@@ -86,7 +80,8 @@ fn entries<H: PageHost>(h: &H, ix: &Secondary) -> Vec<(Vec<u8>, bool, i64)> {
     let v = AreaView::new(h, s, ix.log);
     let mut out = Vec::new();
     let mut c: Cursor<Fwd> = Cursor::seek(s, &v, ix.root, std::ops::Bound::<&KeyProbe<'_>>::Unbounded).unwrap();
-    while let Some((n, i)) = c.next(s, &v, std::ops::Bound::<&KeyProbe<'_>>::Unbounded).unwrap() {
+    while let Some((n, i)) = c.peek(s, &v).unwrap() {
+        c.advance(s, &v, n, i).unwrap();
         let at = ko(s, &s.shape(is_leaf(&v, n).unwrap()), i);
         let part = v.bytes(n, at, s.w + 8).unwrap().to_vec();
         let field = u64::from_be_bytes(part[s.w as usize..].try_into().unwrap());
@@ -153,9 +148,9 @@ fn check_tree(side: &Side, m: &Model, what: &str) -> u64 {
     levels
 }
 
-/// Every key's count and the group walk, against the model's counts (`extra`: the segments' counts).
-fn check_counts(side: &Side, m: &Model, extra: &BTreeMap<Vec<u8>, i128>, probes: &[Vec<u8>], what: &str) {
-    let mut want: BTreeMap<Vec<u8>, i128> = extra.clone();
+/// Every key's count and the group walk, against the model's counts.
+fn check_counts(side: &Side, m: &Model, probes: &[Vec<u8>], what: &str) {
+    let mut want: BTreeMap<Vec<u8>, i128> = BTreeMap::new();
     for (k, rids) in m {
         if !rids.is_empty() {
             *want.entry(k.clone()).or_default() += rids.len() as i128;
@@ -167,9 +162,8 @@ fn check_counts(side: &Side, m: &Model, extra: &BTreeMap<Vec<u8>, i128>, probes:
     }
     let mut groups = Vec::new();
     let mut out = vec![0u8; 4_096];
-    let mut scratch = vec![0u8; 4_096];
     let mut after: Option<Vec<u8>> = None;
-    while let Some((len, c)) = side.ix.group_next(&side.h, &SPEC, after.as_deref(), &mut out, &mut scratch).unwrap() {
+    while let Some((len, c)) = side.ix.group_next(&side.h, &SPEC, after.as_deref(), &mut out).unwrap() {
         let k = out[..len].to_vec();
         if let Some(a) = &after {
             assert!(k > *a, "{what}: the walk went back");
@@ -242,14 +236,14 @@ fn case(fill: u8, w: u64, keys: &[Vec<u8>], ops: u64, seed: u64) -> Outcome {
             }
         }
         // The key's count after every operation.
-        let want = m.get(&key).map_or(0, |s| s.len() as i64);
-        assert_eq!(side.ix.tree_count(&side.h, &key).unwrap(), want, "{}: count", what(step));
+        let want = m.get(&key).map_or(0, |s| s.len() as i128);
+        assert_eq!(side.ix.count(&side.h, &key).unwrap(), want, "{}: count", what(step));
         if step % 251 == 0 {
             levels = levels.max(check_tree(&side, &m, &what(step)));
         }
     }
     levels = levels.max(check_tree(&side, &m, &what(ops)));
-    check_counts(&side, &m, &BTreeMap::new(), keys, &what(ops));
+    check_counts(&side, &m, keys, &what(ops));
     let left = entries(&side.h, &side.ix);
     let blocks = side.ix.log.blocks;
     // Every row dropped, in random order: the tree ends empty, and so does its key log.
@@ -258,7 +252,7 @@ fn case(fill: u8, w: u64, keys: &[Vec<u8>], ops: u64, seed: u64) -> Outcome {
         let (k, rid) = rows.swap_remove(i);
         assert!(side.delete(&k, rid));
         m.get_mut(&k).unwrap().remove(&rid);
-        assert_eq!(side.ix.tree_count(&side.h, &k).unwrap(), m[&k].len() as i64);
+        assert_eq!(side.ix.count(&side.h, &k).unwrap(), m[&k].len() as i128);
     }
     assert_eq!((side.ix.root, side.ix.nodes), (0, 0), "{}: the emptied tree", what(ops));
     assert_eq!(side.ix.log, KeyLog::default(), "{}: the emptied tree's key log", what(ops));
@@ -291,55 +285,6 @@ fn inserts_and_deletes_against_the_model() {
     }
 }
 
-#[test]
-fn counts_and_groups_add_the_uploaded_segments() {
-    for fill in FILLS {
-        let mut r = XorShift(0xA11 + u64::from(fill));
-        let keys = pool(&mut r, 400, 30);
-        let mut t = TTable::new(fill);
-        // Two uploads: keys drawn from the first half of the pool and from the whole of it, so some keys are in
-        // the tree only, some in segments only, some in both.
-        let mut extra: BTreeMap<Vec<u8>, i128> = BTreeMap::new();
-        let mut base = 4_096 * 1_000;
-        for (n, span) in [(1_500u64, 200u64), (700, 400)] {
-            let mut items: Vec<(Vec<u8>, u64, bool)> =
-                (0..n).map(|_| (keys[r.below(span) as usize].clone(), 0, false)).collect();
-            items.sort();
-            let items: Vec<(Vec<u8>, u64, bool)> =
-                items.into_iter().enumerate().map(|(i, (k, _, t))| (k, i as u64, t)).collect();
-            for (k, _, _) in &items {
-                *extra.entry(k.clone()).or_default() += 1;
-            }
-            t.add_loaded(&VecItems(items), base, 1);
-            base += 4_096;
-        }
-        let mut ix = Secondary::create(t.ix, 16).unwrap();
-        ix.run_list = t.run_list;
-        let mut side = Side { h: t.h, tbl: t.tbl, ix, path: Path::new() };
-        let mut m = Model::new();
-        let mut rid = 1u64 << 40;
-        for _ in 0..2_000 {
-            let k = keys[(200 + r.below(200)) as usize % keys.len()].clone();
-            let k = if r.below(3) == 0 { keys[r.below(400) as usize].clone() } else { k };
-            rid += 1;
-            assert!(side.insert(&k, rid));
-            m.entry(k).or_default().insert(rid);
-        }
-        let mut probes = keys.clone();
-        probes.push(text(b"absent"));
-        check_tree(&side, &m, "with segments");
-        check_counts(&side, &m, &extra, &probes, &format!("with segments, fill {fill:#x}"));
-        // The segments alone, once the tree is emptied.
-        for (k, rids) in m.iter_mut() {
-            for rid in std::mem::take(rids) {
-                assert!(side.delete(k, rid));
-            }
-        }
-        assert_eq!(side.ix.root, 0);
-        check_counts(&side, &m, &extra, &probes, &format!("segments only, fill {fill:#x}"));
-    }
-}
-
 // ---------------------------------------------------------------- the key log
 
 /// The bytes of a record of a key of `len` bytes, longer than W.
@@ -353,7 +298,8 @@ fn records<H: PageHost>(h: &H, ix: &Secondary) -> BTreeMap<u64, u64> {
     let v = AreaView::new(h, s, ix.log);
     let mut out = BTreeMap::new();
     let mut c: Cursor<Fwd> = Cursor::seek(s, &v, ix.root, std::ops::Bound::<&KeyProbe<'_>>::Unbounded).unwrap();
-    while let Some((n, i)) = c.next(s, &v, std::ops::Bound::<&KeyProbe<'_>>::Unbounded).unwrap() {
+    while let Some((n, i)) = c.peek(s, &v).unwrap() {
+        c.advance(s, &v, n, i).unwrap();
         let at = ko(s, &s.shape(is_leaf(&v, n).unwrap()), i);
         let part = v.bytes(n, at, s.w + 8).unwrap();
         let field = u64::from_be_bytes(part[s.w as usize..].try_into().unwrap());
@@ -471,7 +417,7 @@ fn key_log_under_churn_of_one_row() {
             check_log(&side.h, &side.ix, &format!("after {round} updates"));
         }
     }
-    let counts: Vec<i64> = [&a, &b, &c].iter().map(|k| side.ix.tree_count(&side.h, k).unwrap()).collect();
+    let counts: Vec<i128> = [&a, &b, &c].iter().map(|k| side.ix.count(&side.h, k).unwrap()).collect();
     assert_eq!(counts, [1, 0, 1]);
 }
 

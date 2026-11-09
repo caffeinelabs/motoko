@@ -1,10 +1,10 @@
-//! The key encoding E: the order of every index and run key is memcmp over
+//! The key encoding E: the order of every index key is memcmp over
 //! E(x), never a runtime's native order. Every E is prefix-free within its kind, so parts concatenate.
 //! Integers are big-endian. Keys have no length cap.
 //!
 //! Encoders write through a [`Sink`]; the same encoder with a [`LenSink`] gives a key's length. Decoders
-//! (E⁻¹) read key bytes that may be believed, so every decode is checked and returns `Corrupt` on
-//! malformed bytes, never a panic.
+//! (E⁻¹) read stored key bytes, so every decode is checked and returns `Corrupt` on malformed bytes, never a
+//! panic.
 
 pub mod enc;
 pub mod probe;

@@ -7,29 +7,18 @@
 //! opaque to the array: a directory entry may carry bit 63 as its own flag.
 //!
 //! Uses: the group directory, image block lists, area page lists, the block lists of rewrite work spaces and
-//! the totals space, a load's image tables and key-log block lists. A walk examines a block's 512 entries in
-//! order and skips an absent entry at any level as one unit, so a walk over a sparse array costs at most 512
-//! units per block present; a call or unit examines at most `RADIX_STEP` entries.
+//! the totals space, and key-log block lists. A walk examines a block's 512 entries in order and skips an
+//! absent entry at any level at once.
 
 use crate::area::{alloc_zeroed, free_block};
-use crate::consts::{RADIX_FAN, RADIX_STEP, UNIT_BLOCKS_MAX};
+use crate::consts::RADIX_FAN;
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
-use crate::host::Progress;
 use crate::mem::{put_u64, rd_u64, PageHost, Region};
 
 /// The greatest height a radix array takes: 512^7 = 2^63 entries, more than any count the formats name
 /// (`GROUP_MAX` < 2^49 groups, `IMAGE_MAX` / `PAGE` = 2^44 image blocks). The format names no maximum;
 /// this bound keeps every capacity and position inside a u64.
 pub const HEIGHT_MAX: u8 = 7;
-
-/// Pages one drain unit frees at most (within `UNIT_BLOCKS_MAX`).
-pub const DRAIN_PAGES: u64 = 256;
-
-/// Radix blocks one drain unit frees with `free_block(0, ·)` at most: of `UNIT_BLOCKS_MAX` = 17 changed
-/// pages, one is the drain block, two the host's packed free-page stack for 256 frees, one the host
-/// state block and one the table root whose area-0 free head `free_block` writes; each freed block
-/// is one more.
-pub const DRAIN_BLOCKS: u64 = UNIT_BLOCKS_MAX - 5;
 
 /// Base-2 logarithm of `RADIX_FAN`.
 const BITS: u32 = 9;
@@ -39,7 +28,6 @@ const DIGIT: u64 = RADIX_FAN - 1;
 const LEVELS: usize = HEIGHT_MAX as usize;
 
 const _: () = assert!(RADIX_FAN == 1 << BITS);
-const _: () = assert!(DRAIN_BLOCKS >= HEIGHT_MAX as u64);
 
 /// The base-512 digit of `i` at `level` (0 is the leaf level); `level` < `HEIGHT_MAX`.
 #[inline]
@@ -76,28 +64,6 @@ pub struct Radix {
     /// At height 0, entry 0 itself; else the root block. 0: empty.
     pub root: u64,
     pub height: u8,
-}
-
-/// The end of one bounded walk.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Walk {
-    /// Entries examined, present or absent, at any level.
-    pub examined: u64,
-    /// Where the next call resumes; `None` once the walk has passed the array's end.
-    pub next: Option<u64>,
-}
-
-/// What one drain unit may still spend: pages freed, radix entries examined, and radix blocks freed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Units {
-    pub pages: u64,
-    pub entries: u64,
-    pub blocks: u64,
-}
-
-impl Units {
-    /// One drain unit's allowance.
-    pub const DRAIN: Units = Units { pages: DRAIN_PAGES, entries: RADIX_STEP, blocks: DRAIN_BLOCKS };
 }
 
 impl Radix {
@@ -229,88 +195,35 @@ impl Radix {
         }
     }
 
-    /// Walks the entries from index `from` in order, calling `f(index, value)` for each present entry, and
-    /// examines at most `max` entries, present or absent, at any level; an absent inner entry is skipped with
-    /// everything below it as one examined entry. Resume with `Walk::next`.
-    pub fn walk_max<H, F>(self, h: &H, from: u64, max: u64, mut f: F) -> Result<Walk, Fault>
-    where
-        H: PageHost,
-        F: FnMut(u64, u64) -> Result<(), Fault>,
-    {
-        let mut c = Cursor::new(self, from)?;
-        let mut examined = 0u64;
-        while examined < max {
-            match c.advance(h)? {
-                Event::End => break,
-                Event::Leaf { index, value } => {
-                    // examined < max.
-                    examined = examined.wrapping_add(1);
-                    if value != 0 {
-                        f(index, value)?;
-                    }
-                }
-                // examined < max.
-                Event::Inner => examined = examined.wrapping_add(1),
-            }
-        }
-        Ok(Walk { examined, next: if c.done { None } else { Some(c.pos) } })
-    }
-
-    /// One unit of freeing the whole array, as the drain does: from index `*cursor` on, each present
-    /// leaf entry is handed to `leaf` (which frees what it names, a page) and each radix block is freed with
-    /// `free_block(0, ·)` once every entry below it is done, so a block's pages go before the block. The unit
-    /// spends from `units` and stops before an entry that could pass any of its three allowances; it then
-    /// saves its position in `*cursor` and returns `More`. `Done` once the root is freed. `units.blocks` must
-    /// be at least `HEIGHT_MAX` at the start of a unit for the unit to progress.
-    pub fn release_step<H, F>(
-        self,
-        h: &mut H,
-        tbl: u64,
-        cursor: &mut u64,
-        units: &mut Units,
-        mut leaf: F,
-    ) -> Result<Progress, Fault>
+    /// Frees the whole array: each present leaf entry is handed to `leaf` (which frees what it names) and each
+    /// radix block is freed with `free_block(0, ·)` once every entry below it is done, so a block's entries go
+    /// before the block.
+    pub fn release<H, F>(self, h: &mut H, tbl: u64, mut leaf: F) -> Result<(), Fault>
     where
         H: PageHost,
         F: FnMut(&mut H, u64) -> Result<(), Fault>,
     {
-        let mut c = Cursor::new(self, *cursor)?;
-        loop {
-            if c.done {
-                *cursor = c.pos;
-                return Ok(Progress::Done);
-            }
-            // The next examination finishes at most the blocks from its level up to the root, and frees a page
-            // only at the leaf level.
-            let blocks = u64::from(c.height.saturating_sub(c.level));
-            if units.entries == 0 || units.blocks < blocks || (c.level == 0 && units.pages == 0) {
-                *cursor = c.pos;
-                return Ok(Progress::More);
-            }
-            let ev = c.advance(h)?;
-            units.entries = units.entries.saturating_sub(1);
-            if let Event::Leaf { value, .. } = ev {
+        let mut c = Cursor::new(self)?;
+        while !c.done {
+            if let Event::Leaf { value } = c.advance(h)? {
                 if value != 0 {
                     leaf(h, value)?;
-                    units.pages = units.pages.saturating_sub(1);
                 }
             }
             for &b in c.finished.get(..usize::from(c.n_finished)).unwrap_or(&[]) {
                 free_block(h, tbl, 0, b)?;
-                units.blocks = units.blocks.saturating_sub(1);
             }
         }
+        Ok(())
     }
 }
 
 /// What one examination met.
 enum Event {
     /// A leaf entry, present or absent (value 0).
-    Leaf { index: u64, value: u64 },
+    Leaf { value: u64 },
     /// An inner entry: present (the walk descends) or absent (the walk skips everything below it).
     Inner,
-    /// The walk has passed the array's end.
-    End,
 }
 
 /// A depth-first position in a radix array: `pos` is the next index, `level` the level of the next
@@ -328,7 +241,7 @@ struct Cursor {
 }
 
 impl Cursor {
-    fn new(r: Radix, from: u64) -> Result<Cursor, Fault> {
+    fn new(r: Radix) -> Result<Cursor, Fault> {
         r.check()?;
         let level = r.height.saturating_sub(1);
         let mut stack = [0u64; LEVELS];
@@ -338,25 +251,22 @@ impl Cursor {
         Ok(Cursor {
             root: r.root,
             height: r.height,
-            pos: from,
+            pos: 0,
             level,
             stack,
-            done: r.root == 0 || from >= r.capacity(),
+            done: r.root == 0,
             finished: [0; LEVELS],
             n_finished: 0,
         })
     }
 
-    /// Examines one entry and moves past it.
+    /// Examines one entry and moves past it; the walk is not done.
     fn advance<H: PageHost>(&mut self, h: &H) -> Result<Event, Fault> {
         self.n_finished = 0;
-        if self.done {
-            return Ok(Event::End);
-        }
         if self.height == 0 {
             self.done = true;
             self.pos = 1;
-            return Ok(Event::Leaf { index: 0, value: self.root });
+            return Ok(Event::Leaf { value: self.root });
         }
         let level = self.level;
         let bad = corrupt(ImageId::Runtime, Corruption::Depth, self.root);
@@ -369,7 +279,6 @@ impl Cursor {
             self.level = below;
             return Ok(Event::Inner);
         }
-        let index = self.pos;
         // Past the examined entry: the next multiple of 512^level. pos < capacity ≤ 2^63, so the sum is at
         // most the capacity.
         let step = span(level);
@@ -393,6 +302,6 @@ impl Cursor {
             }
         }
         self.level = l;
-        Ok(if level == 0 { Event::Leaf { index, value } } else { Event::Inner })
+        Ok(if level == 0 { Event::Leaf { value } } else { Event::Inner })
     }
 }

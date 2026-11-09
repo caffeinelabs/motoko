@@ -89,11 +89,9 @@ impl Primary {
         }))
     }
 
-    /// The primary index, making index directory block 0 with an empty M of width `w` when it is not made yet.
-    pub fn ensure<H: PageHost>(h: &mut H, tbl: u64, w: u64, hash: u64) -> Result<Primary, Fault> {
-        if let Some(p) = Primary::read(h, tbl)? {
-            return Ok(p);
-        }
+    /// Makes the primary index of a table that has none yet: index directory block 0 with an empty M of width
+    /// `w`.
+    pub fn create<H: PageHost>(h: &mut H, tbl: u64, w: u64, hash: u64) -> Result<Primary, Fault> {
         let shape = IndexShape::new(w, 0).ok_or(rt(Corruption::Layout, w))?;
         let dir = alloc_zeroed(h, tbl, 0)?;
         {

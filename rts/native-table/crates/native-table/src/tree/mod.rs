@@ -2,8 +2,8 @@
 //! probe and a pending entry. Every function performs exactly `PBTreeMap`'s byte moves, in the same order,
 //! with the same ranges, and calls the host's `alloc` and `hand_back` at exactly its points.
 //!
-//! Typed shapes are unchecked (today's arithmetic); index shapes clamp every count and in-node index to the
-//! node's capacity, so a corrupt node gives `Corrupt` or a wrong answer, never an out-of-bounds access.
+//! Every count and in-node index is clamped to the node's capacity, so a corrupt node gives `Corrupt` or a
+//! wrong answer, never an out-of-bounds access.
 
 pub mod cursor;
 pub mod insert;
@@ -16,7 +16,7 @@ pub use cursor::{Cursor, Dir, Direction, Fwd, Rev};
 pub use insert::{insert_at, insert_first};
 pub use remove::remove_found;
 pub use search::{descend, find, search, Search, Shared};
-pub use shape::{IndexShape, NodeShape, Shape, Typed, TypedShape};
+pub use shape::{IndexShape, NodeShape, Shape};
 
 use crate::consts::PATH_STACK;
 use crate::fault::Fault;
@@ -24,7 +24,7 @@ use crate::fault::Fault;
 /// A search key. `cmp_at` orders the stored key part at offset `koff` of node `n` on the LEFT against this
 /// probe on the right, as `PBTreeMap`'s `K::cmp_lookup(stored.as_lookup(), k)`.
 pub trait Probe<M: ?Sized> {
-    /// Shared-prefix skipping in descents: false by default, so a typed probe's search is a plain binary search exactly.
+    /// Shared-prefix skipping in descents: false by default, so a probe's search is a plain binary search.
     const PREFIX: bool = false;
     fn cmp_at(&self, mem: &M, n: u64, koff: u64) -> Result<core::cmp::Ordering, Fault>;
     /// As `cmp_at`, when the caller guarantees that the stored key and the probe agree on bytes
@@ -75,15 +75,13 @@ impl Path {
         Path { len: 0, frames: [(0, 0); FRAMES] }
     }
 
-    /// Appends (n, i); a 65th frame is `PathOverflow`.
+    /// Appends (n, i). No tree is deeper than the 64 frames (`PATH_STACK`).
     #[inline(always)]
-    pub fn push(&mut self, n: u64, i: u64) -> Result<(), Fault> {
-        match self.frames.get_mut(self.len) {
-            Some(f) => *f = (n, i),
-            None => return Err(Fault::PathOverflow),
+    pub fn push(&mut self, n: u64, i: u64) {
+        if let Some(f) = self.frames.get_mut(self.len) {
+            *f = (n, i);
+            self.len = self.len.wrapping_add(1);
         }
-        self.len = self.len.wrapping_add(1);
-        Ok(())
     }
 
     #[inline(always)]

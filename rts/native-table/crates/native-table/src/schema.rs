@@ -488,12 +488,6 @@ impl<'a> SchemaView<'a> {
         Self::open_checked(bytes, true)
     }
 
-    /// `open` without the hash check: for a table's own stored image, which `open` checked when the table's
-    /// shape was built from it. The canonical hash is O(image bytes).
-    pub fn open_stored(bytes: &'a [u8]) -> Result<Self, Fault> {
-        Self::open_checked(bytes, false)
-    }
-
     fn open_checked(bytes: &'a [u8], check: bool) -> Result<Self, Fault> {
         let hdr = |at: u64| corrupt(ImageId::Runtime, Corruption::Header, at);
         if rd_u32(bytes, 0)? != magic::NTIM || rd_u8(bytes, 6)? != KIND_SCHEMA || rd_u16(bytes, 4)? > FORMAT_IMAGE {

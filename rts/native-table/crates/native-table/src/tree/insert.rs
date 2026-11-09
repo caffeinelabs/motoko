@@ -21,9 +21,6 @@ pub fn insert_first<S: Shape, M: NodeMem>(s: S, m: &mut M, p: &M::Entry<'_>) -> 
 /// Inserts the pending entry `p` at position `i` of node `n`, which `path` leads to from the root, with,
 /// in an internal node, `p.child()` as child i + 1. A full node of capacity c splits as if holding c + 1
 /// entries at h = ⌈c/2⌉; a split root gets a new root, written to `root`. Returns where `p`'s entry ends.
-///
-/// An inline hint: the optimizer then inlines a typed insert into the one place that inserts a new
-/// entry, as it inlines today's typed maps' insert there.
 #[inline]
 pub fn insert_at<'k, S: Shape, M: NodeMem>(
     s: S,
@@ -39,7 +36,7 @@ pub fn insert_at<'k, S: Shape, M: NodeMem>(
         let cnt = count(s, m, n)?;
         let (leaf, sh) = shape_of(s, m, n)?;
         let c = sh.cap;
-        if S::CHECKED && i > cnt {
+        if i > cnt {
             i = cnt;
         }
         if cnt < c {

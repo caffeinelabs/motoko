@@ -17,8 +17,7 @@ pub enum Region {
     Page(u64),
 }
 
-/// Main memory, lent. Motoko: store pages in store partitions; Rust EOP (a Rust library for upgrades that
-/// keep the heap in place): pages of arenas.
+/// Main memory, lent: Motoko's store pages in store partitions.
 ///
 /// A reference is a u64 the host defines; 0 means none, and bits 62 and 63 are never set, so formats may
 /// use bit 63 of a stored word for their own flags. A page reference is the reference of its block 0.
@@ -39,8 +38,7 @@ pub trait PageHost {
     /// 1 + ⌈n/511⌉ 4 KiB blocks of the host's free-page stack plus one block of host state.
     fn page_free(&mut self, p: u64) -> Result<(), Fault>;
     /// The 4 KiB pages the next `page_alloc` may change besides the page it returns, in any memory: the
-    /// host-state block for a pop or a bump; Motoko's records of a new store partition; Rust EOP's pages of a
-    /// new arena.
+    /// host-state block for a pop or a bump; Motoko's records of a new store partition.
     fn alloc_changes(&self) -> u64;
     /// Test mode: the fill pattern P a test host poisons fresh pages with, or
     /// `None`. With `Some(p)`, `area::alloc_block` overwrites the stale free-stack link of every block it takes

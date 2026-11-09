@@ -447,11 +447,6 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
 }
 
 impl<H: PageHost> NodeRead for AreaNodes<'_, H> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        Self: 'a;
-
     #[inline(always)]
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 0)
@@ -538,11 +533,6 @@ impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
         self.nodes = self.nodes.wrapping_sub(1);
         Ok(())
     }
-    fn release(&mut self, root: u64) -> Result<(), Fault> {
-        // A whole tree goes to the table's drain, which frees it in bounded steps; the drain is not part
-        // of this layer, so a tree is released through its owner, never here.
-        Err(rt(Corruption::Link, root))
-    }
 }
 
 impl<H: PageHost> ResolveKey for AreaNodes<'_, H> {
@@ -555,11 +545,8 @@ impl<H: PageHost> ResolveKey for AreaNodes<'_, H> {
     fn key_piece(&self, field: u64, at: u64, out: &mut [u8]) -> Result<usize, Fault> {
         key_piece(&*self.host, self.shape, self.log, field, at, out)
     }
-    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<Option<&[u8]>, Fault> {
-        log_bytes(&*self.host, self.log.radix, self.shape.w, payload(field), at, len).map(Some)
-    }
-    fn rid_base(&self) -> u64 {
-        0
+    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<&[u8], Fault> {
+        log_bytes(&*self.host, self.log.radix, self.shape.w, payload(field), at, len)
     }
 }
 
@@ -663,11 +650,6 @@ impl<'h, H: PageHost + ?Sized> AreaView<'h, H> {
 }
 
 impl<H: PageHost + ?Sized> NodeRead for AreaView<'_, H> {
-    type Bytes<'a>
-        = &'a [u8]
-    where
-        Self: 'a;
-
     #[inline(always)]
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 0)
@@ -696,10 +678,7 @@ impl<H: PageHost + ?Sized> ResolveKey for AreaView<'_, H> {
     fn key_piece(&self, field: u64, at: u64, out: &mut [u8]) -> Result<usize, Fault> {
         key_piece(self.host, self.shape, self.log, field, at, out)
     }
-    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<Option<&[u8]>, Fault> {
-        log_bytes(self.host, self.log.radix, self.shape.w, payload(field), at, len).map(Some)
-    }
-    fn rid_base(&self) -> u64 {
-        0
+    fn key_bytes(&self, field: u64, at: u64, len: u64) -> Result<&[u8], Fault> {
+        log_bytes(self.host, self.log.radix, self.shape.w, payload(field), at, len)
     }
 }

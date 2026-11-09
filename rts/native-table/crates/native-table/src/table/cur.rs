@@ -33,8 +33,6 @@ pub enum At {
     Patch { block: u64, off: u64 },
     /// A patch value chain from its start.
     Chain { head: u64 },
-    /// Bytes of the schema image's page.
-    Schema { page: u64, off: u64 },
 }
 
 /// The one referent of a huge value, which a rewrite that adopts the value must clear.
@@ -137,14 +135,6 @@ pub fn read_at<H: PageHost + ?Sized>(h: &H, a: &At, at: u64, out: &mut [u8]) -> 
             Ok(())
         }
         At::Chain { head } => patch::chain_read(h, head, at, out),
-        At::Schema { page, off } => {
-            let s = h.get(Region::Page(page))?;
-            copy_bytes(
-                out,
-                crate::mem::sub(s, off.checked_add(at).ok_or(rt(Corruption::Range, at))?, out.len() as u64)?,
-            );
-            Ok(())
-        }
     }
 }
 
@@ -240,7 +230,6 @@ pub fn piece<'h, H: PageHost + ?Sized>(h: &'h H, s: &SVal) -> Result<Option<&'h 
             }
             Ok(Some(crate::mem::sub(h.get(Region::Block(head))?, patch::CHAIN_DATA, len)?))
         }
-        At::Schema { page, off } => Ok(Some(crate::mem::sub(h.get(Region::Page(page))?, off, len)?)),
     }
 }
 
@@ -305,7 +294,7 @@ pub fn from_stored_in<H: PageHost + ?Sized>(
             let at = row.long_ref_in(head, vi)?.ok_or(rt(Corruption::Link, u64::from(l.ordinal)))?;
             SVal::Huge { img, len, owner: Owner::Item { loc: row.loc, at } }
         }
-        Stored::Item(Item::None) | Stored::Absent => return Err(rt(Corruption::Link, u64::from(l.ordinal))),
+        Stored::Item(Item::None) => return Err(rt(Corruption::Link, u64::from(l.ordinal))),
     })
 }
 
@@ -451,7 +440,7 @@ pub fn from_entry<H: PageHost + ?Sized>(h: &H, e: &Entry, l: &LeafInfo) -> Resul
     decode_ve(h, l, d, At::Patch { block: e.block, off: e.data })
 }
 
-/// A flat leaf's value from its VE `d`, which lies at `a`.
+/// A flat leaf's value from its VE `d`, which lies at `a`. A Bool has no VE: its updates are written in place.
 pub fn decode_ve<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, d: &[u8], a: At) -> Result<SVal, Fault> {
     let bad = || rt(Corruption::Encoding, u64::from(l.ordinal));
     let le = |n: usize| -> Result<u64, Fault> {
@@ -469,14 +458,13 @@ pub fn decode_ve<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, d: &[u8], a: At) -> 
     let le4 = || -> Result<u32, Fault> { Ok(u32::from_le_bytes(crate::mem::rd_array::<4>(d, 0)?)) };
     let shift = |a: At, by: u64| match a {
         At::Patch { block, off } => At::Patch { block, off: off.wrapping_add(by) },
-        At::Schema { page, off } => At::Schema { page, off: off.wrapping_add(by) },
         At::Row { loc, off } => At::Row { loc, off: off.wrapping_add(by) },
         At::Image { img, g, off } => At::Image { img, g, off: off.wrapping_add(by) },
         other => other,
     };
     Ok(match l.ty {
         Ty::Unit => SVal::Unit,
-        Ty::Bool => SVal::V(Val::Bool(d.first().copied().ok_or(bad())? != 0)),
+        Ty::Bool => return Err(bad()),
         Ty::U(w) => SVal::V(Val::U(le(usize::from(w))?)),
         Ty::I(w) => {
             let raw = le(usize::from(w))?;
@@ -583,8 +571,8 @@ where
 
 // ---------------------------------------------------------------- VE of host values
 
-/// The VE of a host value whose VE is short (all but Text, Blob, `[u8; N]` and Nat and Int beyond i128): its
-/// bytes and length. `None` for the others.
+/// The VE of a host value whose VE is short (all but Text, Blob, `[u8; N]` and Nat and Int beyond i128, and
+/// Bool, whose updates are written in place): its bytes and length. `None` for the others.
 pub fn ve_short(l: &LeafInfo, v: &Val<'_>, out: &mut [u8; 32]) -> Option<usize> {
     let mut put = |b: &[u8]| {
         copy_bytes(out, b);
@@ -593,7 +581,6 @@ pub fn ve_short(l: &LeafInfo, v: &Val<'_>, out: &mut [u8; 32]) -> Option<usize> 
     Some(match (l.ty, *v) {
         (_, Val::Null) => 0,
         (Ty::Unit, _) => 0,
-        (Ty::Bool, Val::Bool(b)) => put(&[u8::from(b)]),
         (Ty::U(w), Val::U(x)) => put(x.to_le_bytes().get(..usize::from(w))?),
         (Ty::I(w), Val::I(x)) => put(x.to_le_bytes().get(..usize::from(w))?),
         (Ty::F32, Val::F32(b)) => put(&b.to_le_bytes()),
@@ -631,24 +618,5 @@ pub fn ve_long_parts(l: &LeafInfo, v: &Val<'_>, head: &mut [u8; 11]) -> Option<(
         (Ty::Fixed(_), Val::Bytes(b)) => Some((0, b.len() as u64)),
         (Ty::Nat | Ty::Int, Val::Big(b)) => Some((0, b.len() as u64)),
         _ => None,
-    }
-}
-
-/// The value a row gets in a leaf its version lacks: a zero of the leaf's type, or null.
-pub fn zero_of(l: &LeafInfo, page: u64) -> SVal {
-    if l.nullable {
-        return SVal::Null;
-    }
-    match l.ty {
-        Ty::Unit => SVal::Unit,
-        Ty::Bool => SVal::V(Val::Bool(false)),
-        Ty::U(_) | Ty::Char | Ty::Nat => SVal::V(Val::U(0)),
-        Ty::I(_) | Ty::Int => SVal::V(Val::I(0)),
-        Ty::F32 => SVal::V(Val::F32(0)),
-        Ty::F64 => SVal::V(Val::F64(0)),
-        Ty::U128 => SVal::V(Val::U128(0)),
-        Ty::I128 => SVal::V(Val::I128(0)),
-        Ty::Text | Ty::Blob | Ty::Principal => SVal::B { at: At::Schema { page, off: 0 }, len: 0 },
-        Ty::Fixed(_) => SVal::Null,
     }
 }

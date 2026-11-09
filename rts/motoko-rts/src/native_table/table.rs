@@ -135,28 +135,66 @@ unsafe fn open<'h, 'a, M: Memory>(
     id: u64,
     hash: u64,
 ) -> Table<'h, StoreHost<'a, M>> {
-    let block = root_block(host, id, hash);
-    let page = or_trap(host.get(Region::Page(or_trap(rd_u64(block, root::SCHEMA_PAGE)))));
-    // The stored image is read in place while the table holds the host. Handed its own schema
-    // page, the crate reads the image's header without checking its schema hash again.
-    let image = core::slice::from_raw_parts(page.as_ptr(), page.len());
-    or_trap(Table::open(host, id, image))
+    root_block(host, id, hash);
+    or_trap(Table::open(host, id))
 }
 
-/// Creates an empty table of the codec's key and row types; returns its root block.
+/// Creates an empty table of the codec's key and row types with a secondary index on each list of
+/// the array `indexes`, an array of arrays of Texts that name fields of the row, in key order.
+/// Returns its root block and the id of each list's index, from 1, in a pair; equal lists share
+/// one index.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value) -> u64 {
+pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) -> Value {
     let layout = layout_of(codec);
-    let store = native_store_location();
-    let uid = StoreHost::new(mem, &mut *store).new_uid();
-    let image = or_trap(schema_image(mem, &layout, uid, SCHEMA_VERSION, &[]));
-    let mut host = StoreHost::new(mem, store);
-    let (_, id) = or_trap(Table::create(&mut host, uid, image));
-    let block = or_trap(host.get_mut(Region::Block(id)));
-    or_trap(put_u64(block, root::HOST_WORDS, TABLE_MAGIC));
-    or_trap(put_u64(block, CODEC_HASH, layout.hash));
-    or_trap(host.add_root(id));
-    id
+    let lists = indexes.as_array();
+    let ids = scratch::<Value, M>(mem, lists.len());
+    let mut decls = [IndexDecl::default(); INDEX_MAX as usize];
+    let mut n = 0;
+    for i in 0..lists.len() {
+        let fields = lists.get(i).as_array();
+        let parts = fields.len();
+        if parts == 0 || parts > INDEX_PARTS {
+            rts_trap_with("native table: an index has 1 to 7 fields");
+        }
+        let mut decl = IndexDecl {
+            id: 0,
+            flags: 0,
+            w: INDEX_W,
+            parts: parts as u8,
+            part: [(0, false); INDEX_PARTS],
+        };
+        // The row's fields are the named columns after the key, each one leaf.
+        for (p, part) in decl.part.iter_mut().take(parts).enumerate() {
+            let (c, codes) = field(mem, &layout, fields.get(p));
+            *part = (c << 16, column_type(codes).1);
+        }
+        let k = match decls[..n]
+            .iter()
+            .position(|d| IndexDecl { id: d.id, ..decl } == *d)
+        {
+            Some(k) => k,
+            None if n < decls.len() => {
+                decl.id = n as u8 + 1;
+                decls[n] = decl;
+                n += 1;
+                n - 1
+            }
+            None => rts_trap_with("native table: a table has at most 63 indexes"),
+        };
+        ids.add(i).write(nat_of_u64(k as u64 + 1));
+    }
+    let image = or_trap(schema_image(mem, &layout, 0, SCHEMA_VERSION, &decls[..n]));
+    let id = {
+        let mut host = StoreHost::new(mem, native_store_location());
+        let (_, id) = or_trap(Table::create(&mut host, 0, image));
+        let block = or_trap(host.get_mut(Region::Block(id)));
+        or_trap(put_u64(block, root::HOST_WORDS, TABLE_MAGIC));
+        or_trap(put_u64(block, CODEC_HASH, layout.hash));
+        or_trap(host.add_root(id));
+        nat64_of(mem, id)
+    };
+    let ids = array_of(mem, ids, lists.len());
+    pair(mem, id, ids)
 }
 
 /// The number of rows of the table whose root block is `id`: the count of its live rows the table
@@ -277,97 +315,6 @@ pub unsafe fn nt_scan<M: Memory>(
     pair(mem, array, rest)
 }
 
-/// The declarations of the table's secondary indexes, at the start of `decls`; their number. A
-/// table only ever has secondary indexes of W `INDEX_W`, none of them primary.
-fn index_decls<H: PageHost>(table: &Table<'_, H>, decls: &mut [IndexDecl; 64]) -> usize {
-    let (shape, h) = (table.shape(), table.host());
-    let mut n = 0;
-    for i in 0..shape.index_decls {
-        let Some(d) = or_trap(indexes::decl(shape, h, i)) else {
-            continue;
-        };
-        let mut decl = IndexDecl {
-            id: d.id,
-            flags: 0,
-            w: d.w as u16,
-            parts: d.ords().len() as u8,
-            part: [(0, false); INDEX_PARTS],
-        };
-        for (part, &o) in decl.part.iter_mut().zip(d.ords()) {
-            let leaf = or_trap(shape.leaf(h, u64::from(o)));
-            *part = (leaf.id, leaf.nullable);
-        }
-        decls[n] = decl;
-        n += 1;
-    }
-    n
-}
-
-/// Declares a secondary index of the table whose root block is `id` on the fields of the row named
-/// by the Texts of the array `fields`, in key order, and returns its id, the lowest free one from 1
-/// to 63. When the table has an equal declaration, returns its id and writes nothing. A table that
-/// holds rows builds the new index over them in maintenance steps, one row group each; counts and
-/// walks of the index wait until then.
-#[ic_mem_fn(ic_only)]
-pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, codec: Value, fields: Value) -> u64 {
-    let layout = layout_of(codec);
-    let fields = fields.as_array();
-    let parts = fields.len();
-    if parts == 0 || parts > INDEX_PARTS {
-        rts_trap_with("native table: an index has 1 to 7 fields");
-    }
-    let mut decl = IndexDecl {
-        id: 0,
-        flags: 0,
-        w: INDEX_W,
-        parts: parts as u8,
-        part: [(0, false); INDEX_PARTS],
-    };
-    // The row's fields are the named columns after the key, each one leaf.
-    let mut columns = [0u32; INDEX_PARTS];
-    for (i, column) in columns.iter_mut().take(parts).enumerate() {
-        *column = field(mem, &layout, fields.get(i)).0;
-    }
-    let mut decls = [IndexDecl::default(); 64];
-    let mem: *mut M = mem;
-    let (n, uid, version) = {
-        let mut host = StoreHost::new(&mut *mem, native_store_location());
-        let table = open(&mut host, id, layout.hash);
-        let (shape, h) = (table.shape(), table.host());
-        for (part, &column) in decl.part.iter_mut().zip(&columns[..parts]) {
-            let o = or_trap(shape.ordinal_of(h, column << 16));
-            let o = o.unwrap_or_else(|| rts_trap_with(Fault::BadRef.text()));
-            let leaf = or_trap(shape.leaf(h, o));
-            *part = (leaf.id, leaf.nullable);
-        }
-        let n = index_decls(&table, &mut decls);
-        for d in &decls[..n] {
-            if (IndexDecl { id: d.id, ..decl }) == *d {
-                return u64::from(d.id);
-            }
-        }
-        let uid = or_trap(root::u64_at(table.host(), id, root::UID));
-        (n, uid, table.shape().version)
-    };
-    let used = decls[..n].iter().fold(0u64, |used, d| used | 1 << d.id);
-    decl.id = (1..=INDEX_MAX)
-        .find(|i| used & 1 << i == 0)
-        .unwrap_or_else(|| rts_trap_with("native table: a table has at most 63 indexes"));
-    decls[n] = decl;
-    // Only the declarations change, so the image keeps the table's version.
-    let image = or_trap(schema_image(
-        &mut *mem,
-        &layout,
-        uid,
-        version,
-        &decls[..n + 1],
-    ));
-    let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let mut table = open(&mut host, id, layout.hash);
-    or_trap(table.change_schema(image));
-    u64::from(decl.id)
-}
-
 /// The secondary index id of the index on the field list `fields`, an array of Texts, as the
 /// array `indexes` gives it: a table keeps its indexes as pairs of a field list and an index id.
 /// The pair is the one whose list is `fields` itself, or else holds the same Texts in the same
@@ -437,7 +384,7 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
 
 /// The number of rows of the table whose root block is `id` whose key under the secondary index
 /// on `fields`, found in `indexes` (`index_of`), is the one the cells of the array `key` give, one
-/// per part of the index, in key order; null while the index is being built.
+/// per part of the index, in key order.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_count<M: Memory>(
     mem: &mut M,
@@ -446,7 +393,7 @@ pub unsafe fn nt_count<M: Memory>(
     indexes: Value,
     fields: Value,
     key: Value,
-) -> Value {
+) -> u64 {
     let layout = layout_of(codec);
     let index = index_of(indexes, fields);
     let mem: *mut M = mem;
@@ -454,13 +401,7 @@ pub unsafe fn nt_count<M: Memory>(
     let table = open(&mut host, id, layout.hash);
     let mut cells = index_cells(mem, &layout, &table, index, key);
     let mut scratch = BlobScratch { mem };
-    match table.count(&mut scratch, index, &mut cells) {
-        Ok(n) => nat_of_u64(
-            u64::try_from(n).unwrap_or_else(|_| rts_trap_with("native table: bad count")),
-        ),
-        Err(Fault::Busy) => NULL_POINTER,
-        Err(fault) => rts_trap_with(fault.text()),
-    }
+    or_trap(table.count(&mut scratch, index, &mut cells)) as u64
 }
 
 /// The key `f` writes at the start of the buffer it is given, of the length it returns, or `None`
@@ -502,9 +443,8 @@ unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
 
 /// Up to `limit` rows, 1 to 64, of the table whose root block is `id`, in the order of the
 /// secondary index on `fields`, found in `indexes` (`index_of`), as pairs of their key and their
-/// row, and the token to go on from, empty when no row is left: an array and a Blob in a pair;
-/// null while the index is being built. Keys rise, or fall when `reverse` is 1; the rows of one key
-/// come in row id order either way.
+/// row, and the token to go on from, empty when no row is left: an array and a Blob in a pair.
+/// Keys rise, or fall when `reverse` is 1; the rows of one key come in row id order either way.
 ///
 /// A walk resumes after the row its `token` names, the last row the call that gave the token
 /// handed back. A walk with an empty token starts, by `start`: 0 at the index's first key in its
@@ -569,7 +509,6 @@ pub unsafe fn nt_walk<M: Memory>(
             (_, Ok(Some(key))) => Some(Start::Key(key)),
             (0, Ok(None)) => Some(Start::End),
             (_, Ok(None)) => None,
-            (_, Err(Fault::Busy)) => return NULL_POINTER,
             (_, Err(fault)) => rts_trap_with(fault.text()),
         }
     };
@@ -620,7 +559,6 @@ pub unsafe fn nt_walk<M: Memory>(
                 Ok(_) => break,
                 Err(_) if stopped => break,
                 Err(Fault::Scratch { need }) => size = (need as usize).max(2 * size),
-                Err(Fault::Busy) => return NULL_POINTER,
                 Err(fault) => rts_trap_with(fault.text()),
             }
         }
@@ -995,9 +933,8 @@ pub unsafe fn nt_sum_where<M: Memory>(
 /// Runs steps of maintenance on the table whose root block is `id`, starting each only while
 /// performance counter 0 is below its value at the start of the call plus `budget`, so a call can
 /// go past its budget by the step it started last; 1 when work is still pending, else 0. A step
-/// compacts or drops one whole row group, or builds a new index over one group's rows; writes run
-/// one step each when work is pending, so a table that receives no writes advances only through
-/// this call.
+/// compacts or drops one whole row group; writes run one step each when work is pending, so a
+/// table that receives no writes advances only through this call.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget: u64) -> u64 {
     let start = ic0_performance_counter(0);

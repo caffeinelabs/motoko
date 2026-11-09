@@ -29,9 +29,8 @@ pub enum Call {
     PageFree(u64),
 }
 
-/// Main memory in a `Vec`. Page k (k ≥ 1) has reference k · 65,536 and block i of it k · 65,536 + i · 4,096,
-/// shaped like the addresses of Rust EOP (a Rust library for upgrades that keep the heap in place); 0 is never
-/// a reference.
+/// Main memory in a `Vec`. Page k (k ≥ 1) has reference k · 65,536 and block i of it k · 65,536 + i · 4,096;
+/// 0 is never a reference.
 #[derive(Clone)]
 pub struct VecHost {
     mem: Vec<u8>,
@@ -364,6 +363,3 @@ pub fn unhex(s: &str) -> Vec<u8> {
 pub mod big;
 pub mod index;
 pub mod rows;
-pub mod runs;
-pub mod typed;
-pub mod uploads;

@@ -12,28 +12,21 @@ pub trait Pending: Sized {
     fn set_child(&mut self, c: u64);
 }
 
-/// How the one B-tree reads nodes: one field at a time, so a reference a typed front end handed out stays
-/// valid across later cursor calls. 0 is never a node.
+/// How the one B-tree reads nodes: one field at a time. 0 is never a node.
 pub trait NodeRead {
-    /// The view `bytes` returns: a lent slice of main memory, or a typed host's own view.
-    type Bytes<'a>: core::ops::Deref<Target = [u8]>
-    where
-        Self: 'a;
-    /// The u16 at node offset 0 (count), as stored; the algorithm clamps it when the shape is checked.
+    /// The u16 at node offset 0 (count), as stored; the algorithm clamps it to the node's capacity.
     fn count(&self, n: u64) -> Result<u16, Fault>;
     /// The u16 at node offset 2 (flags).
     fn flags(&self, n: u64) -> Result<u16, Fault>;
     /// The little-endian u64 at node offset `off` (a child word).
     fn word(&self, n: u64, off: u64) -> Result<u64, Fault>;
-    /// The `len` bytes at node offset `off`: one index-form key part or value part. Index forms only; a
-    /// typed host returns `Err(BadRef)`.
-    fn bytes(&self, n: u64, off: u64, len: u64) -> Result<Self::Bytes<'_>, Fault>;
+    /// The `len` bytes at node offset `off`: one key part or value part, lent.
+    fn bytes(&self, n: u64, off: u64, len: u64) -> Result<&[u8], Fault>;
 }
 
 /// How the one B-tree writes nodes. A read-only view of a tree implements `NodeRead` alone.
 pub trait NodeMem: NodeRead {
-    /// The pending entry of this tree's entry form: the typed front end's two part buffers, or an index
-    /// entry that borrows its key and value part for 'k.
+    /// The pending entry of this tree's entry form: an index entry that borrows its key and value part for 'k.
     type Entry<'k>: Pending;
     fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault>;
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault>;
@@ -49,16 +42,14 @@ pub trait NodeMem: NodeRead {
     fn alloc(&mut self, leaf: bool) -> Result<u64, Fault>;
     /// Returns node n at once; nothing references it.
     fn hand_back(&mut self, n: u64) -> Result<(), Fault>;
-    /// Frees the whole tree under root n later, in maintenance steps; O(1) now. Called by front ends only.
-    fn release(&mut self, root: u64) -> Result<(), Fault>;
 }
 
 /// The instruction meter.
 pub trait Budget {
-    /// `ic0.performance_counter(0)` in both runtimes; 0 in the builder.
+    /// `ic0.performance_counter(0)`.
     fn used(&self) -> u64;
-    /// For an upload message's work and the application's `maintain`: maintenance stops before a step when
-    /// `used() ≥ limit()`. A write's first call runs exactly one step and does not read the budget.
+    /// For the application's `maintain`: maintenance stops before a step when `used() ≥ limit()`. A write's
+    /// first call runs exactly one step and does not read the budget.
     fn limit(&self) -> u64;
 }
 

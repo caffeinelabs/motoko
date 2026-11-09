@@ -7,25 +7,8 @@ name = "native-table"
 version = "0.1.0"
 
 [[package]]
-name = "nt-builder"
-version = "0.1.0"
-dependencies = [
- "native-table",
-]
-
-[[package]]
-name = "nt-probe"
-version = "0.1.0"
-dependencies = [
- "native-table",
- "nt-builder",
-]
-
-[[package]]
 name = "nt-testhost"
 version = "0.1.0"
 dependencies = [
  "native-table",
- "nt-builder",
- "nt-probe",
 ]

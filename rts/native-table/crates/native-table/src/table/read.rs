@@ -56,10 +56,9 @@ pub fn sval_val<'a, H: PageHost + ?Sized>(
 
 /// Leaf `l`'s current value at position `pos` of sealed group `s` (viewed by `gv`, the position's stored slot
 /// `slot`) as a cell, a byte string or a big Nat or Int copied into `piece`: straight from its image cell
-/// when the group has no patches and its image holds the leaf, else through the overlay.
+/// when the group has no patches, else through the overlay.
 pub fn sealed_cell<'a, H: PageHost + ?Sized>(
     gv: &GroupView<'_, H>,
-    shape: &Shape,
     s: &overlay::Sealed,
     l: &LeafInfo,
     slot: Option<u64>,
@@ -67,26 +66,23 @@ pub fn sealed_cell<'a, H: PageHost + ?Sized>(
     piece: &'a mut [u8],
 ) -> Result<Val<'a>, Fault> {
     if let (Some(slot), 0) = (slot, s.dir) {
-        if let Some(ld) = gv.leaf_by_ordinal(u64::from(l.ordinal))? {
-            return cur::cell_val(gv, &ld, l, slot, pos, piece);
-        }
+        return cur::cell_val(gv, &gv.leaf(u64::from(l.ordinal))?, l, slot, pos, piece);
     }
-    patched_cell(gv, shape, s, l, slot, pos, piece)
+    patched_cell(gv, s, l, slot, pos, piece)
 }
 
 /// `sealed_cell` through the overlay: kept out of line, so the common read's stack stays small.
 #[inline(never)]
 fn patched_cell<'a, H: PageHost + ?Sized>(
     gv: &GroupView<'_, H>,
-    shape: &Shape,
     s: &overlay::Sealed,
     l: &LeafInfo,
     slot: Option<u64>,
     pos: u64,
     piece: &'a mut [u8],
 ) -> Result<Val<'a>, Fault> {
-    let ld = gv.leaf_by_ordinal(u64::from(l.ordinal))?;
-    let v = overlay::leaf_value(gv, shape, s, l, ld.as_ref(), slot, pos)?;
+    let ld = gv.leaf(u64::from(l.ordinal))?;
+    let v = overlay::leaf_value(gv, s, l, Some(&ld), slot, pos)?;
     sval_val(gv.h, l, &v, piece)
 }
 
@@ -224,7 +220,7 @@ pub fn emit_sval<H: PageHost + ?Sized, S: RowSink>(h: &H, out: &mut S, l: &LeafI
     }
 }
 
-/// Hands a buffered row's live leaves to `out` in leaf order, under the overlay.
+/// Hands a buffered row's leaves to `out` in leaf order, under the overlay.
 pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     shape: &Shape,
@@ -235,15 +231,13 @@ pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     let mut walk = Walk::of(shape, &row)?;
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        let v = overlay::buffered_value(h, shape, &row, &mut walk, &l)?;
-        if l.live() {
-            emit_sval(h, out, &l, &v)?;
-        }
+        let v = overlay::buffered_value(shape, &row, &mut walk, &l)?;
+        emit_sval(h, out, &l, &v)?;
     }
     Ok(())
 }
 
-/// Hands a sealed row's live leaves to `out` in leaf order, under the overlay.
+/// Hands a sealed row's leaves to `out` in leaf order, under the overlay.
 pub fn emit_sealed<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     shape: &Shape,
@@ -253,10 +247,7 @@ pub fn emit_sealed<H: PageHost + ?Sized, S: RowSink>(
 ) -> Result<(), Fault> {
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        if !l.live() {
-            continue;
-        }
-        let v = overlay::sealed_value(h, shape, s, &l, pos)?;
+        let v = overlay::sealed_value(h, s, &l, pos)?;
         emit_sval(h, out, &l, &v)?;
     }
     Ok(())
@@ -274,7 +265,7 @@ pub fn value_of<H: PageHost + ?Sized>(h: &H, tbl: u64, shape: &Shape, rid: u64, 
         }
         Row::Sealed { page, pos } => {
             let s = overlay::sealed(h, page)?;
-            overlay::sealed_value(h, shape, &s, &l, pos)
+            overlay::sealed_value(h, &s, &l, pos)
         }
     }
 }

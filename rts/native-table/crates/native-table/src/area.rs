@@ -151,8 +151,7 @@ pub fn alloc_block<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Faul
 }
 
 /// alloc_block(a) followed by writing all 4,096 bytes zero: for the structures that are zero-filled when they
-/// are allocated (every radix block, image-table and run-descriptor blocks, long-value list blocks, job,
-/// queue, drain and totals blocks).
+/// are allocated (every radix block, long-value list blocks, queue and totals blocks).
 pub fn alloc_zeroed<H: PageHost>(h: &mut H, tbl: u64, a: u32) -> Result<u64, Fault> {
     let b = alloc_block(h, tbl, a)?;
     fill(h.get_mut(Region::Block(b))?, 0, BLOCK, 0)?;

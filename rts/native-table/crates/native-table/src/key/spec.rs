@@ -92,21 +92,6 @@ pub struct KeySpec<'a> {
 }
 
 impl KeySpec<'_> {
-    /// The length every key of this spec encodes to, when every part has one width (no nullable part, none
-    /// of a kind whose encoding varies in length).
-    pub fn fixed_len(&self) -> Option<u64> {
-        let mut n = 0u64;
-        for p in self.parts {
-            let varies =
-                matches!(p.kind, KeyKind::Nat | KeyKind::Int | KeyKind::Text | KeyKind::Blob | KeyKind::Principal);
-            if p.nullable || varies {
-                return None;
-            }
-            n = n.saturating_add(p.kind.default_width());
-        }
-        Some(n)
-    }
-
     /// The key spec hash: `nt_hash64` over {index kind u8; `FORMAT_KEY` u16; parts u16; per part: leaf u32,
     /// flags u8 (bit 0 nullable, the other bits 0)}, little-endian. Widths are per structure, so W is not
     /// part of it.

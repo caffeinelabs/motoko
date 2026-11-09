@@ -120,15 +120,6 @@ impl Totals {
         self.put_bytes(h, 4, &recs.to_le_bytes())
     }
 
-    /// Moves the records to space offset `at`, inside the used bytes.
-    pub(super) fn set_recs<H: PageHost>(&mut self, h: &mut H, at: u64) -> Result<(), Fault> {
-        if at < SPACE_HEAD || at > self.used {
-            return Err(rt(Corruption::Range, at));
-        }
-        self.recs = at;
-        self.write_used(h)
-    }
-
     /// The block that holds space byte `off`, the byte's offset in it and the bytes of the space contiguous
     /// from there.
     fn locate<H: PageHost + ?Sized>(&self, h: &H, off: u64) -> Result<(u64, u64, u64), Fault> {
@@ -199,11 +190,6 @@ impl Totals {
     fn byte<H: PageHost + ?Sized>(&mut self, h: &H, off: u64) -> Result<u8, Fault> {
         let (b, o, _) = self.locate_kept(h, off)?;
         rd_u8(h.get(Region::Block(b))?, o)
-    }
-
-    fn set_byte<H: PageHost>(&mut self, h: &mut H, off: u64, v: u8) -> Result<(), Fault> {
-        let (b, o, _) = self.locate_kept(&*h, off)?;
-        put_u8(h.get_mut(Region::Block(b))?, o, v)
     }
 
     /// Extends the space's blocks to cover `end` bytes, each new block's header written and, with `zero`, its
@@ -713,92 +699,6 @@ fn space_trimmed<H: PageHost + ?Sized>(h: &H, sp: &mut Totals, at: u64, need: u6
         n = 0;
     }
     Ok(n)
-}
-
-/// Writes into the zeroed record `rec` of integer leaf `l` the total of `n` rows that all read the value `def`:
-/// n non-null and the sum def × n, a big-form sum in a new room of the space of block `tail`.
-pub fn of_default<H: PageHost>(
-    h: &mut H,
-    tbl: u64,
-    tail: u64,
-    l: &LeafInfo,
-    def: &SVal,
-    n: u64,
-    rec: &mut [u8],
-) -> Result<(), Fault> {
-    let bad = || rt(Corruption::Encoding, u64::from(l.ordinal));
-    if def.is_null() || n == 0 || rec_len(l).is_none() {
-        return Ok(());
-    }
-    put_u64(rec, R_NONNULL, n)?;
-    let kind = l.ty.running().ok_or(bad())?;
-    let fixed = match *def {
-        SVal::V(Val::U(x)) => Some((u128::from(x), false)),
-        SVal::V(Val::I(x)) => Some((x as i128 as u128, x < 0)),
-        SVal::V(Val::U128(x)) => Some((x, false)),
-        SVal::V(Val::I128(x)) => Some((x as u128, x < 0)),
-        _ => None,
-    };
-    if let Some((x, neg)) = fixed {
-        // An i192 sum, or an i128 one: |x| < 2^64 there, and n < 2^61.
-        let width = if kind == RKind::Wide { 24 } else { 16 };
-        let mut v = [if neg { 0xFF } else { 0 }; 24];
-        crate::mem::copy_bytes(v.get_mut(..16).ok_or(bad())?, &x.to_le_bytes());
-        let mut carry = 0u128;
-        for b in v.iter_mut() {
-            let p = u128::from(*b).wrapping_mul(u128::from(n)).wrapping_add(carry);
-            *b = p.to_le_bytes()[0];
-            carry = p >> 8;
-        }
-        return put(rec, R_SUM, v.get(..width).ok_or(bad())?);
-    }
-    // A Nat or Int beyond 64 bits: the sum in big form.
-    let signed = matches!(l.ty, Ty::Int);
-    let mut small = [0u8; 19];
-    let (src, len) = match *def {
-        SVal::V(Val::Wide(x)) => {
-            let k = if signed { cell::put_sleb128(&mut small, x) } else { cell::put_uleb128(&mut small, x as u128) };
-            (Leb::Slice(small.get(..k).unwrap_or(&[])), k as u64)
-        }
-        SVal::B { .. } | SVal::Huge { .. } if kind == RKind::Num => (Leb::Cur(def), def.len()),
-        _ => return Err(bad()),
-    };
-    if len == 0 {
-        return Err(bad());
-    }
-    // The value's bytes and a sign byte, then n's.
-    let need = len.checked_mul(7).ok_or(bad())?.div_ceil(8).checked_add(9).ok_or(bad())?;
-    let cap = align8(need.checked_mul(2).ok_or(bad())?).max(BIGSUM_INLINE);
-    let mut sp = Totals::ensure(h, tbl, tail)?;
-    let room = sp.append(h, tbl, tail, ROOM_HEAD.wrapping_add(cap))?;
-    let c32 = u32::try_from(cap).map_err(|_| rt(Corruption::Range, cap))?;
-    sp.write_bytes(h, room, &c32.to_le_bytes())?;
-    sp.write_bytes(h, room.wrapping_add(4), &[0; 4])?;
-    let at = room.wrapping_add(ROOM_HEAD);
-    let neg = signed && src.byte(&*h, len.wrapping_sub(1))? & 0x40 != 0;
-    let group = |h: &H, g: u64| -> Result<u16, Fault> {
-        if g < len {
-            Ok(u16::from(src.byte(h, g)? & 0x7F))
-        } else if neg {
-            Ok(0x7F)
-        } else {
-            Ok(0)
-        }
-    };
-    // Byte i of the value, sign-extended, times n: modulo 2^(8 need), which holds the product and its sign.
-    let mut carry = 0u128;
-    for i in 0..need {
-        let bit = i.wrapping_mul(8);
-        let g = bit / 7;
-        let w = group(&*h, g)? | (group(&*h, g.wrapping_add(1))? << 7);
-        let x = (w >> (bit % 7)).to_le_bytes()[0];
-        let p = u128::from(x).wrapping_mul(u128::from(n)).wrapping_add(carry);
-        sp.set_byte(h, at.wrapping_add(i), p.to_le_bytes()[0])?;
-        carry = p >> 8;
-    }
-    let k = space_trimmed(&*h, &mut sp, at, need)?;
-    put_u32(rec, R_BIG_LEN, u32::try_from(k).map_err(|_| rt(Corruption::Range, k))?)?;
-    put_u32(rec, R_BIG_ROOM, u32::try_from(room).map_err(|_| rt(Corruption::Range, room))?)
 }
 
 // ---------------------------------------------------------------- reading a total

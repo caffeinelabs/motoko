@@ -367,28 +367,6 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         }
     }
 
-    /// The leaf directory entry of leaf `ordinal`, or `None` when the image lacks the leaf (added by a later
-    /// schema version, or released after its drop). Entries are in ordinal order.
-    pub fn leaf_by_ordinal(&self, ordinal: u64) -> Result<Option<LeafDir>, Fault> {
-        if ordinal < self.l {
-            let d = self.leaf(ordinal)?;
-            if u64::from(d.ordinal) == ordinal {
-                return Ok(Some(d));
-            }
-        }
-        let (mut lo, mut hi) = (0u64, self.l);
-        while lo < hi {
-            let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-            let d = self.leaf(mid)?;
-            match u64::from(d.ordinal).cmp(&ordinal) {
-                core::cmp::Ordering::Equal => return Ok(Some(d)),
-                core::cmp::Ordering::Less => lo = mid.wrapping_add(1),
-                core::cmp::Ordering::Greater => hi = mid,
-            }
-        }
-        Ok(None)
-    }
-
     pub fn reader(&self) -> ImageReader<'h, H> {
         ImageReader::new(self.h, ImageId::Group(self.g), self.img)
     }
@@ -417,6 +395,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Ok(Some(rank.wrapping_add(u64::from(below))))
     }
 
+    /// The leaf directory entry of leaf `o`: the image holds every leaf of the table, in ordinal order.
     pub fn leaf(&self, o: u64) -> Result<LeafDir, Fault> {
         if o >= self.l {
             return Err(self.bad(Corruption::Leaf, o));

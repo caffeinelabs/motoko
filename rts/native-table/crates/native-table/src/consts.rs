@@ -1,28 +1,22 @@
 //! Constants.
 //!
 //! **Format** constants are part of stored or exchanged bytes: changing one needs a new format version.
-//! **Policy** constants may change between crate versions without touching stored bytes. **= EOP** marks a
-//! value that must equal `ic-eop-schema`'s constant of the same name; a test of Rust EOP (a Rust library for
-//! upgrades that keep the heap in place) asserts it.
-//! Every size, offset and count is a `u64`.
+//! **Policy** constants may change between crate versions without touching stored bytes. Every size, offset
+//! and count is a `u64`.
 
 // ---- The one B-tree and index entries ----
 
-/// Format, = EOP. Bytes of a node.
+/// Format. Bytes of a node.
 pub const NODE_SIZE: u64 = 4_080;
 /// Format. `{count u16 @0, flags u16 @2, layout u32 @4}`.
 pub const NODE_HEADER: u64 = 8;
-/// Format, = EOP. Flags bit 0: leaf node.
+/// Format. Flags bit 0: leaf node.
 pub const FLAG_LEAF: u16 = 1;
-/// Format. Flags bit 1: index-form node. Index nodes carry exactly 3 (leaf) or 2 (internal); typed nodes
-/// exactly 1 or 0.
+/// Format. Flags bit 1: index-form node. Index nodes carry exactly 3 (leaf) or 2 (internal).
 pub const FLAG_INDEX: u16 = 2;
-/// Format, = EOP. Typed parts above this many bytes are boxed.
-pub const INLINE_LIMIT: u64 = 1_012;
-/// Format, = EOP. Frames of a path. It fixes persistent layouts (the drain walk's path, the depth bound of
-/// believed images), so changing it needs a `FORMAT_TABLE` bump.
+/// Format. Frames of a path, which bounds a tree's depth.
 pub const PATH_STACK: u64 = 64;
-/// Format. An area block; a node slot in areas and runs; one main-memory page-fee page.
+/// Format. An area block; a node slot in areas; one main-memory page-fee page.
 pub const BLOCK: u64 = 4_096;
 /// Format. A host page, an image block: 16 blocks.
 pub const PAGE: u64 = 65_536;
@@ -40,28 +34,10 @@ pub const PART_MAX: u64 = 1_024;
 pub const F_OVF: u64 = 1 << 63;
 /// Format. Entry field bit 62: a count entry.
 pub const F_COUNT: u64 = 1 << 62;
-/// Format. Entry field bit 61, when bit 62 is clear: a tombstone (clear: a row entry).
-pub const F_TOMB: u64 = 1 << 61;
 /// Format. A count entry's payload, bits 0–61.
 pub const PAYLOAD: u64 = (1 << 62) - 1;
-/// Format. A row entry's or tombstone's payload, bits 0–60.
+/// Format. A row entry's payload, bits 0–60; bit 61 of a row entry is zero.
 pub const RID_PAYLOAD: u64 = (1 << 61) - 1;
-/// Policy. Bytes of the stack buffer a streamed key comparison uses.
-pub const KEY_PIECE: u64 = 64;
-/// Format. Row ids in one posting chunk.
-pub const CHUNK_RIDS_MAX: u64 = 256;
-/// Format. A run gives a key a count entry carrying its total from this many entries on.
-pub const SENT_MIN: u64 = 8;
-/// Policy. Entries a count walks before it uses a count entry or two descents.
-pub const WALK_MAX: u64 = 8;
-/// Format. Run filters: bits per distinct key.
-pub const FILTER_BITS: u64 = 10;
-/// Format. Run filters: bits tested.
-pub const FILTER_K: u64 = 7;
-/// Format. 64-byte filter lines per 4 KiB filter block.
-pub const FILTER_LINES_PER_BLOCK: u64 = 64;
-/// Format. Run node trailers: flags bit 0, every entry of the node contributes exactly 1.
-pub const TRAILER_UNIT: u64 = 1;
 /// Format. Index-form node rules, in the layout word.
 pub const FORMAT_NODE: u16 = 1;
 
@@ -107,8 +83,6 @@ pub const PATCH_UNITS_PER_DIR: u64 = 254;
 pub const AREAS: u64 = 16;
 /// Format. u64 references per radix block.
 pub const RADIX_FAN: u64 = 512;
-/// Policy. Radix entries, present or absent, one walk examines per unit or call.
-pub const RADIX_STEP: u64 = 4_096;
 /// Format. The key encoding's version.
 pub const FORMAT_KEY: u16 = 1;
 /// Format. The value encoding's (VE) version.
@@ -144,58 +118,21 @@ pub const IMAGE_V1: u16 = 1;
 /// a group seals it, and a compaction or column release rewrites a group whole in one call, so no group waits
 /// frozen and no rewrite spans calls: the root's frozen queue (64–83) and job slots 2–7, a buffer descriptor's
 /// bytes 24–31 and 56–63 and a group page's bytes 640–655 are zero, no rewrite state block exists, and the drain
-/// holds only removed indexes' trees and key logs. A run list or index directory of another version is refused
-/// with a header fault, so no count reads a record at another layout's offsets or meaning.
+/// holds only removed indexes' trees and key logs. An index directory of another version is refused with a
+/// header fault, so no count reads a record at another layout's offsets or meaning.
 pub const FORMAT_TABLE: u16 = 12;
 
 // ---- Indexes ----
 
 /// Format. The primary index and up to 63 secondary indexes.
 pub const INDEXES_MAX: u64 = 64;
-/// Format. A run carries a count tree when its distinct keys are at most its items / 2.
-pub const COUNT_TREE_DIV: u64 = 2;
 
-// ---- Loads ----
+// ---- Images ----
 
-/// Format. Open loads per table.
-pub const LOAD_SLOTS: u64 = 4;
-/// Format. Finished loads remembered for late retries.
-pub const FINISHED_LOG: u64 = 64;
-/// Format. Run image descriptors per run-descriptor block of a load session.
-pub const RUN_DESC_PER_BLOCK: u64 = 32;
-/// Policy. Image bytes in one `load_put`: 31 blocks of 64 KiB.
-pub const PUT_BYTES_MAX: u64 = 2_031_616;
-/// Policy. Parts (image ranges) in one `load_put`.
-pub const PUT_PARTS_MAX: u64 = 64;
-/// Policy. Completion units one `load_put` runs.
-pub const PUT_UNITS_MAX: u64 = 64;
-/// Policy. The reservation height when `groups_max` = 0.
-pub const DEFAULT_LOAD_HEIGHT: u64 = 3;
 /// Format. The longest image of any kind.
 pub const IMAGE_MAX: u64 = 1 << 60;
-/// Policy. The scratch of `load_step` and of an upload message driving its own work.
-pub const STEP_SCRATCH: u64 = 262_144;
-
-// ---- Maintenance ----
-
-/// Policy. Changed 4 KiB pages one drain step may write in any memory, counted together.
-pub const UNIT_BLOCKS_MAX: u64 = 17;
 
 // ---- Derived values ----
-
-/// The layout word of every index node in areas and runs: bits 0–10 hold W + 8, bits 12–20 hold V,
-/// bits 24–30 the node format, bit 31 set. `None` unless W is a multiple of 8 in `W_MIN..=W_MAX`, V is one
-/// of `V_CHOICES` and W + 8 + V ≤ `PART_MAX`.
-pub const fn form_code(w: u64, v: u64) -> Option<u32> {
-    // Once w ≤ W_MAX and v is one of V_CHOICES (≤ 256), the sums below are at most 1,280.
-    if w < W_MIN || w > W_MAX || w % 8 != 0 || !v_choice(v) || w.wrapping_add(8).wrapping_add(v) > PART_MAX {
-        return None;
-    }
-    // Bounded above: W + 8 ≤ 1,024 and V ≤ 256, so both fit their fields.
-    #[allow(clippy::cast_possible_truncation)]
-    let code = 0x8000_0000 | ((FORMAT_NODE as u32) << 24) | ((v as u32) << 12) | (w.wrapping_add(8) as u32);
-    Some(code)
-}
 
 /// Whether `v` is one of `V_CHOICES`.
 pub const fn v_choice(v: u64) -> bool {
@@ -247,18 +184,8 @@ pub mod magic {
     pub const NTIX: u32 = m(b"NTIX");
     /// Key log.
     pub const NTKL: u32 = m(b"NTKL");
-    /// Run list.
-    pub const NTRL: u32 = m(b"NTRL");
     /// Queue block.
     pub const NTQB: u32 = m(b"NTQB");
-    /// Drain block.
-    pub const NTDR: u32 = m(b"NTDR");
-    /// Load session.
-    pub const NTLS: u32 = m(b"NTLS");
-    /// Load totals.
-    pub const NTLT: u32 = m(b"NTLT");
-    /// Finished-load log.
-    pub const NTFL: u32 = m(b"NTFL");
     /// Work space block.
     pub const NTSX: u32 = m(b"NTSX");
     /// Totals block.
@@ -271,7 +198,6 @@ pub mod magic {
 
 const _: () = assert!((GROUP_MAX + 1) * GROUP_SLOTS == 1 << 61);
 const _: () = assert!(GROUP_MAX * GROUP_SLOTS + (GROUP_SLOTS - 1) <= RID_PAYLOAD);
-const _: () = assert!(PUT_BYTES_MAX == 31 * PAGE);
 const _: () = assert!(W_MAX + 8 == PART_MAX);
 const _: () = assert!(BLOCKS_PER_PAGE == 16);
 const _: () = assert!(magic::NTIM == 0x4D49_544E);

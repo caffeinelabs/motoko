@@ -2,28 +2,19 @@
 //!
 //! Every test runs once per fill pattern (`FILLS`) through `per_fill`, which requires identical results and
 //! identical host-call logs from the two runs: a byte that differs between them was read without being
-//! written. Changed-block counts come from `VecHost::end_message`. The test host keeps its free pages in a
-//! plain list, so the blocks a production host's packed free-page stack changes (at most
-//! 1 + ⌈n/511⌉ stack blocks and one state block for n frees) are not in its counts; the unit bounds below
-//! add them.
+//! written. Changed-block counts come from `VecHost::end_message`.
 
 use std::collections::BTreeSet;
 
-use native_table::area::{
-    alloc_block, alloc_zeroed, free_block, image_page_alloc, image_page_free, new_root, AreaRecord, IMAGE_AREA,
-};
-use native_table::consts::{AREAS, BLOCK, PAGE, RADIX_STEP, UNIT_BLOCKS_MAX};
+use native_table::area::{alloc_block, alloc_zeroed, free_block, image_page_alloc, new_root, AreaRecord, IMAGE_AREA};
+use native_table::consts::{AREAS, BLOCK, PAGE};
 use native_table::fault::corrupt;
-use native_table::host::Progress;
 use native_table::image::{Blocks, Image, ImageReader, BELIEVED, DIRECT};
 use native_table::mem::{put_u64, rd_u64, rd_u8};
-use native_table::radix::{Radix, Units, DRAIN_BLOCKS, DRAIN_PAGES, HEIGHT_MAX};
+use native_table::radix::{Radix, HEIGHT_MAX};
+use native_table::table::drain::free_image;
 use native_table::{CorruptAt, Corruption, Fault, ImageId, PageHost, Region};
 use nt_testhost::{Call, VecHost, XorShift, FILLS};
-
-/// Blocks a drain unit changes outside the test host's count: the drain block, two stack blocks of the
-/// packed free-page stack for 256 frees and the host state block.
-const HOST_UNIT_BLOCKS: u64 = 4;
 
 /// Runs `run` once per fill pattern on a fresh host; the results and the host-call logs must be equal.
 fn per_fill<T: PartialEq + std::fmt::Debug>(run: impl Fn(&mut VecHost) -> T) -> T {
@@ -51,22 +42,29 @@ fn rec(h: &VecHost, t: u64, a: u32) -> AreaRecord {
     AreaRecord::read(h, t, a).unwrap()
 }
 
-/// Every present entry of a radix array, through bounded walks; also checks each call's bound.
+/// Every present entry of a radix array, in index order, read block by block.
 fn entries(h: &VecHost, r: Radix) -> Vec<(u64, u64)> {
-    let mut out = Vec::new();
-    let mut from = 0;
-    loop {
-        let w = r.walk_max(h, from, RADIX_STEP, |i, v| {
-            out.push((i, v));
-            Ok(())
-        });
-        let w = w.unwrap();
-        assert!(w.examined <= RADIX_STEP);
-        match w.next {
-            Some(n) => from = n,
-            None => return out,
+    fn go(h: &VecHost, b: u64, level: u8, base: u64, out: &mut Vec<(u64, u64)>) {
+        for i in 0..512u64 {
+            let v = word(h, b, 8 * i);
+            if v == 0 {
+                continue;
+            }
+            let at = base + i * 512u64.pow(u32::from(level));
+            if level == 0 {
+                out.push((at, v));
+            } else {
+                go(h, v, level - 1, at, out);
+            }
         }
     }
+    let mut out = Vec::new();
+    match (r.height, r.root) {
+        (_, 0) => {}
+        (0, v) => out.push((0, v)),
+        (height, root) => go(h, root, height - 1, 0, &mut out),
+    }
+    out
 }
 
 /// Every block of a radix array with its 512 entries, depth first.
@@ -133,44 +131,11 @@ fn read_back(h: &VecHost, id: ImageId, img: Image) -> Vec<u8> {
     out
 }
 
-/// One drain unit of an image's release: its pages freed in order from `cursor`, within `units`.
-fn release_step(img: &Image, h: &mut VecHost, t: u64, cursor: &mut u64, units: &mut Units) -> Progress {
-    match img.blocks {
-        Blocks::Direct { count, entries } => {
-            while *cursor < u64::from(count) {
-                if units.pages == 0 || units.entries == 0 {
-                    return Progress::More;
-                }
-                let p = entries[*cursor as usize];
-                units.entries -= 1;
-                if p != 0 {
-                    image_page_free(h, t, p).unwrap();
-                    units.pages -= 1;
-                }
-                *cursor += 1;
-            }
-            Progress::Done
-        }
-        Blocks::Radix(r) => r.release_step(h, t, cursor, units, |h, p| image_page_free(h, t, p)).unwrap(),
-    }
-}
-
-/// Frees an image in drain units; returns the per-unit changed-block counts.
-fn release_image(h: &mut VecHost, t: u64, img: &Image) -> Vec<u64> {
-    let mut cursor = 0;
-    let mut counts = Vec::new();
+/// Frees an image whole; returns the blocks the call changed.
+fn release_image(h: &mut VecHost, t: u64, img: &Image) -> u64 {
     h.end_message();
-    loop {
-        let mut u = Units::DRAIN;
-        let p = release_step(img, h, t, &mut cursor, &mut u);
-        let changed = h.end_message();
-        assert!(Units::DRAIN.pages - u.pages <= DRAIN_PAGES);
-        assert!(changed + HOST_UNIT_BLOCKS <= UNIT_BLOCKS_MAX, "a drain unit changed {changed} blocks");
-        counts.push(changed);
-        if p == Progress::Done {
-            return counts;
-        }
-    }
+    free_image(h, t, img).unwrap();
+    h.end_message()
 }
 
 fn is_corrupt(r: Result<impl std::fmt::Debug, Fault>, image: ImageId, kind: Corruption) -> bool {
@@ -398,105 +363,6 @@ fn radix_arrays_at_every_height() {
     });
 }
 
-#[test]
-fn radix_walks_are_bounded_by_radix_step() {
-    per_fill(|h| {
-        let t = new_root(h).unwrap();
-        // A sparse height-3 array: six blocks present, every entry of each examined once, in one call.
-        let mut r = Radix::EMPTY;
-        let set = [(7u64, 70u64), (512 * 300 + 1, 71), (2 * 512 * 512 + 9, 72)];
-        for &(i, v) in &set {
-            r.set(h, t, i, v).unwrap();
-        }
-        assert_eq!(r.height, 3);
-        let nb = blocks(h, r).len() as u64;
-        assert_eq!(nb, 6);
-        let mut seen = Vec::new();
-        let w = r.walk_max(h, 0, RADIX_STEP, |i, v| {
-            seen.push((i, v));
-            Ok(())
-        });
-        let w = w.unwrap();
-        assert_eq!(seen, set.to_vec());
-        assert_eq!(w.examined, 512 * nb, "at most 512 units per block present, each entry once");
-        assert_eq!(w.next, None);
-        // From a cursor: only later entries.
-        let mut later = Vec::new();
-        r.walk_max(h, 8, RADIX_STEP, |i, v| {
-            later.push((i, v));
-            Ok(())
-        })
-        .unwrap();
-        assert_eq!(later, set[1..].to_vec());
-
-        // A dense height-2 array of 10,000 entries: calls of exactly RADIX_STEP entries until the last.
-        let mut d = Radix::EMPTY;
-        for i in 0..10_000u64 {
-            d.set(h, t, i, i + 1).unwrap();
-        }
-        let mut from = 0;
-        let mut calls = Vec::new();
-        let mut got = Vec::new();
-        loop {
-            let w = d.walk_max(h, from, RADIX_STEP, |i, v| {
-                got.push((i, v));
-                Ok(())
-            });
-            let w = w.unwrap();
-            calls.push(w.examined);
-            match w.next {
-                Some(n) => {
-                    assert_eq!(w.examined, RADIX_STEP);
-                    from = n;
-                }
-                None => break,
-            }
-        }
-        assert_eq!(got, (0..10_000u64).map(|i| (i, i + 1)).collect::<Vec<_>>());
-        // 20 leaf blocks and the root: 21 × 512 entries, and one root entry examined again on each resume.
-        assert_eq!(calls.iter().sum::<u64>(), 21 * 512 + (calls.len() as u64 - 1));
-        assert!(calls.len() == 3);
-
-        // A sparse height-7 array: resumes re-descend, and the walk still visits each entry once.
-        let mut s = Radix::EMPTY;
-        let far = [(5u64, 1u64), ((1 << 40) + 3, 2), (1 << 62, 3)];
-        for &(i, v) in &far {
-            s.set(h, t, i, v).unwrap();
-        }
-        assert_eq!(s.height, 7);
-        let nb = blocks(h, s).len() as u64;
-        let mut from = 0;
-        let mut total = 0;
-        let mut n_calls = 0;
-        let mut got = Vec::new();
-        loop {
-            let w = s.walk_max(h, from, RADIX_STEP, |i, v| {
-                got.push((i, v));
-                Ok(())
-            });
-            let w = w.unwrap();
-            assert!(w.examined <= RADIX_STEP);
-            total += w.examined;
-            n_calls += 1;
-            match w.next {
-                Some(n) => from = n,
-                None => break,
-            }
-        }
-        assert_eq!(got, far.to_vec());
-        assert!(total >= 512 * nb && total <= 512 * nb + (n_calls - 1) * u64::from(HEIGHT_MAX - 1));
-        // An error from the visitor stops the walk and is returned.
-        let e = s.walk_max(h, 0, RADIX_STEP, |_, _| Err(Fault::Busy));
-        assert_eq!(e, Err(Fault::Busy));
-        // An empty array, and a cursor past the end, examine nothing.
-        let none = Radix::EMPTY.walk_max(h, 0, RADIX_STEP, |_, _| Ok(())).unwrap();
-        assert_eq!((none.examined, none.next), (0, None));
-        let past = d.walk_max(h, 512 * 512, RADIX_STEP, |_, _| Ok(())).unwrap();
-        assert_eq!((past.examined, past.next), (0, None));
-        (calls, total, n_calls)
-    });
-}
-
 // ---- Images ----
 
 /// Lengths from 8 bytes to 3 image blocks, at and around every block boundary.
@@ -587,9 +453,8 @@ fn image_round_trips_from_8_bytes_to_3_blocks() {
             assert_eq!(rd_u8(stored, 400 + 17).unwrap(), BELIEVED);
             assert!(Image::read_ref(stored, 400).unwrap().believed);
 
-            // Freed in one drain unit; every page back to the host and off area 15's count.
+            // Freed whole; every page back to the host and off area 15's count.
             let units = release_image(h, t, &rf);
-            assert_eq!(units.len(), 1);
             assert_eq!(rec(h, t, IMAGE_AREA).pages, 0);
             assert_eq!(h.live_pages(), host_pages);
             (rf, units)
@@ -620,10 +485,9 @@ fn image_records_with_radix_block_lists() {
             assert_eq!(img.ref_form(h, t).unwrap(), img);
             img.put_ref(h.get_mut(Region::Block(holder)).unwrap(), 100).unwrap();
             assert_eq!(Image::read_ref(h.get(Region::Block(holder)).unwrap(), 100).unwrap(), img);
-            assert_eq!(read_back(h, ImageId::Run { index: 1, start_seq: 2 }, back), bytes);
-            // Freed in drain units of at most 256 pages, each radix block after its pages.
+            assert_eq!(read_back(h, ImageId::Group(2), back), bytes);
+            // Freed whole, each radix block after its pages.
             let units = release_image(h, t, &img);
-            assert_eq!(units.len() as u64, blocks_n.div_ceil(DRAIN_PAGES));
             assert_eq!(h.live_pages(), host_pages);
             assert_eq!(rec(h, t, IMAGE_AREA).pages, 0);
             let radix_blocks = if blocks_n == 9 { 1 } else { 3 };
@@ -899,15 +763,9 @@ fn changed_blocks_per_operation() {
         measure(h, "radix set: a new leaf at height 2", 3, &mut |h| r.set(h, t, 3, 3).unwrap());
         measure(h, "radix clear, nothing emptied", 1, &mut |h| r.clear(h, t, 701).unwrap());
         measure(h, "radix clear, a leaf emptied and freed", 3, &mut |h| r.clear(h, t, 3).unwrap());
-        // a drain unit of a 2-block image: its pages (the area-15 count in the root) and its radix
-        // block (its link; the root again).
-        let mut cursor = 0;
-        measure(h, "image release unit", 2, &mut |h| {
-            let mut u = Units::DRAIN;
-            assert_eq!(release_step(&rf, h, t, &mut cursor, &mut u), Progress::Done);
-        });
-        assert!(2 + HOST_UNIT_BLOCKS <= UNIT_BLOCKS_MAX);
-        assert_eq!(DRAIN_BLOCKS + 1 + HOST_UNIT_BLOCKS, UNIT_BLOCKS_MAX);
+        // The release of a 2-block image: its pages (the area-15 count in the root) and its radix block (its
+        // link; the root again).
+        measure(h, "image release", 2, &mut |h| free_image(h, t, &rf).unwrap());
         rows
     });
 }
@@ -924,19 +782,4 @@ fn image_area_counts_pages() {
         assert!(is_corrupt(native_table::area::image_page_free(h, t, p), ImageId::Runtime, Corruption::Count));
         p
     });
-}
-
-// ---- The probe's entry points, natively ----
-
-#[test]
-fn probe_entry_points_never_panic() {
-    assert_eq!(nt_probe::nt_selftest(), 0);
-    let mut x = XorShift(0x6A6A);
-    for _ in 0..300 {
-        let (a, b, c, d) = (x.next_u64(), x.next_u64(), x.next_u64(), x.next_u64());
-        nt_probe::nt_area(a as u32, b, c);
-        nt_probe::nt_radix(a >> x.below(64), b, c >> x.below(64), d >> x.below(64));
-        nt_probe::nt_image(a, b % (3 * PAGE), c % 300, d as u32);
-        nt_probe::nt_image_parse(a, b, c, d);
-    }
 }

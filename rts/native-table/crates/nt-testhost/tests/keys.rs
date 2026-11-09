@@ -452,7 +452,7 @@ fn text_and_principals_sort_by_bytes() {
 fn key_specs() {
     use native_table::table::cell::{enc_key, Val};
     use native_table::table::layout::{LeafInfo, Ty};
-    let leaf = |id, ty, nullable| LeafInfo { ordinal: 0, id, ty, nullable, key: true, path: 0, added: 0, dropped: 0 };
+    let leaf = |id, ty, nullable| LeafInfo { ordinal: 0, id, ty, nullable, key: true, path: 0 };
     let p = |kind, nullable| KeyPart { leaf: 0, kind, nullable };
     // Composite keys: ("a", 2) against ("ab", 1), and a null second part first.
     let parts = [p(KeyKind::Text, false), p(KeyKind::Nat, true)];
@@ -505,7 +505,7 @@ fn hash_in_pieces_equals_whole() {
 
 #[test]
 fn malformed_keys_fault_and_never_panic() {
-    let img = ImageId::Run { index: 2, start_seq: 5 };
+    let img = ImageId::Group(5);
     let is_corrupt = |r: Result<(), Fault>| matches!(r, Err(Fault::Corrupt(c)) if c.image == img);
     assert!(is_corrupt(dec_bool(&[2], 0, img).map(|_| ())));
     assert!(is_corrupt(dec_char(&[0, 0, 0xD8, 0], 0, img).map(|_| ())));

@@ -26,7 +26,7 @@ vendored under `test/*-stub`.
 | Prelude / `Prim` | `src/prelude/` | alters observable language semantics |
 | Error codes | `src/lang_utils/error_codes.ml` + `src/lang_utils/error_codes/M0NNN.md` | append-only registry |
 | Runtime system | `rts/` | Rust crates (`motoko-rts*`) producing `mo-rts*.wasm`; GC, layout, stable memory |
-| Native-table crate | `rts/native-table/` | Cargo workspace of its own (Rust pinned in `rust-toolchain.toml`): the crate `mo-rts-table*.wasm` links, its test hosts, references and benchmarks; `scripts/check.sh` builds and tests them |
+| Native-table crate | `rts/native-table/` | Cargo workspace of its own (Rust pinned in `rust-toolchain.toml`): the crate `mo-rts-table*.wasm` links and its test host; `scripts/check.sh` builds and tests them |
 | Libraries in the tree | `lib/` | `lib/native-table`: the `NativeTable` library (package `native-table`, not part of the releases), with its guide `README.md`; tests in `test/run-drun/nt-*` |
 | Tests | `test/` | see [test/README.md](test/README.md) |
 | Design docs | `design/` | e.g. [OrthogonalPersistence.md](design/OrthogonalPersistence.md), [Stable.md](design/Stable.md), [Implementation.md](design/Implementation.md) |

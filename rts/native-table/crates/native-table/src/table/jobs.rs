@@ -1,12 +1,10 @@
 //! Maintenance: the jobs a table's writes leave pending, their order, and the one step a write's first call
 //! runs.
 //!
-//! Jobs, in order: compactions and group drops (the compaction queue); the column release (job slot 0); the
-//! builds of indexes a schema change added (job slot 1, `indexes::build_step`); the drain. A step runs the first
-//! pending job's next piece: a compaction or column release rewrites one whole group (`seal`), a drop frees one
-//! group, a build takes the next group's rows, the drain frees up to its blocks. A queued compaction is urgent
-//! while a patch chain or a group's patch units passed their bounds; the seal of a full group is no job: the
-//! write that fills the group runs it (`write::freeze`).
+//! The one job is the compaction queue: compactions and group drops. A step runs its next piece: a compaction
+//! rewrites one whole group (`seal`), a drop frees one group. A queued compaction is urgent while a patch chain
+//! or a group's patch units passed their bounds; the seal of a full group is no job: the write that fills the
+//! group runs it (`write::freeze`).
 //!
 //! **Compaction queue** `NTQB` (area 0, zero-filled when allocated): {magic u32 @0; `FORMAT_TABLE` u16 @4;
 //! kind u8 @6 (1 compaction); head u16 @8 (the next entry to pop); entries written u16 @10; next block u64
@@ -16,9 +14,8 @@
 
 use crate::consts::{magic, COMPACT_DEAD, FORMAT_TABLE, PATCH_BLOCKS_MAX, PATCH_FOLD_BLOCKS, PATCH_UNITS_PER_DIR};
 use crate::fault::{rt, Corruption, Fault};
-use crate::host::{wake_from_state, Progress, Wake, STATE_PENDING, STATE_URGENT};
+use crate::host::{wake_from_state, Wake, STATE_PENDING, STATE_URGENT};
 use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, PageHost, Region};
-use crate::radix::Units;
 
 use super::buffer::{self, DESC_BIT};
 use super::drain;
@@ -208,35 +205,12 @@ pub enum Ran {
     Nothing,
     Compaction,
     Drop,
-    Release,
-    Build,
-    Drain,
 }
 
-/// Runs one step: the first pending job's next piece (the jobs' order above). Returns what ran
-/// (`Ran::Nothing` when no job is pending).
+/// Runs one step: the compaction queue's next piece. Returns what ran (`Ran::Nothing` when no job is pending).
 pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fault> {
     push_recorded(h, tbl)?;
-    let ran = if queued(&*h, tbl)? {
-        compaction(h, tbl, shape)?
-    } else if root::u8_at(&*h, tbl, root::FLAGS)? & root::FLAG_RELEASE != 0 {
-        super::evolve::release_step(h, tbl, shape)?;
-        Ran::Release
-    } else if super::indexes::building(&*h, tbl)? != 0 {
-        super::indexes::build_step(h, tbl, shape)?;
-        Ran::Build
-    } else if drain::pending(&*h, tbl)? {
-        let mut u = Units::DRAIN;
-        loop {
-            let (p, changed) = drain::step(h, tbl, &mut u)?;
-            if p == Progress::Done || !changed {
-                break;
-            }
-        }
-        Ran::Drain
-    } else {
-        Ran::Nothing
-    };
+    let ran = if queued(&*h, tbl)? { compaction(h, tbl, shape)? } else { Ran::Nothing };
     settle(h, tbl)?;
     Ok(ran)
 }
@@ -259,7 +233,7 @@ fn compaction<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fa
     Ok(Ran::Compaction)
 }
 
-/// The maintenance state: pending while any job waits, urgent while an urgent compaction does; the root's state
+/// The maintenance state: pending while a compaction waits, urgent while an urgent one does; the root's state
 /// byte is written only when it changes.
 pub fn settle<H: PageHost>(h: &mut H, tbl: u64) -> Result<Wake, Fault> {
     let comp_w = queued(&*h, tbl)?;
@@ -272,11 +246,7 @@ pub fn settle<H: PageHost>(h: &mut H, tbl: u64) -> Result<Wake, Fault> {
         root::set_u8(h, tbl, root::FLAGS, flags)?;
     }
     let mut s = 0u8;
-    if comp_w
-        || flags & root::FLAG_RELEASE != 0
-        || super::indexes::building(&*h, tbl)? != 0
-        || drain::pending(&*h, tbl)?
-    {
+    if comp_w {
         s |= STATE_PENDING;
     }
     if comp_w && flags & root::FLAG_COMPACT_URGENT != 0 {

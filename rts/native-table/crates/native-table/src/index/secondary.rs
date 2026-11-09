@@ -1,5 +1,5 @@
-//! The secondary index: one B-tree in table memory per index, holding every row the index has taken on
-//! chain, with a count per key, beside the segments its uploads brought.
+//! The secondary index: one B-tree in table memory per index, holding every row of the table, with a count per
+//! key.
 //!
 //! **The tree.** An index-form tree of shape (W, 0) in area 1, reached through the area node host
 //! (`area_nodes`): one row entry (key, rid) per row, and one count entry per distinct key, which sorts just
@@ -18,32 +18,19 @@
 //! Removing an entry hands its record back (`area_nodes`), so the log follows the rows the tree holds. A key
 //! too long for a stack buffer is changed through a `LongKey`, a record of the key log written first.
 //!
-//! **Uploaded segments.** The index data an upload brings stays apart: one run per upload in the loaded-run
-//! list of the index's run list, never merged into the tree or with another run. A count adds each run's count
-//! of the key (`runprobe::count_key`); a group walk adds each run's keys and totals, and the sorted walk
-//! (`sorted`) each run's keys and rows.
-//!
 //! **Descriptor.** A table's secondary index `id` keeps its state in its index descriptor (`directory`): kind
 //! 2 @0, the tree's W u16 @2, the key spec hash u64 @8, the tree's root u64 @16, node count u32 @24, key-log
-//! blocks u32 @28, key-log radix root u64 @32 and height u8 @40, the rid its build takes next u64 @48 and the
-//! rid the build ends before u64 @56 (both 0 when the tree holds every row), and the run list block u64 @80;
-//! bytes @64 to @80 are not used.
-//! The table makes it when it is created or a schema change adds the index, and writes the tree's fields
-//! back whenever a write changes them.
+//! blocks u32 @28, key-log radix root u64 @32 and height u8 @40; bytes @48 to @88 are zero. The table makes it
+//! when it is created, and writes the tree's fields back whenever a write changes them.
 
 use core::cmp::Ordering;
 use core::ops::Bound;
 
-use crate::consts::{magic, FORMAT_TABLE};
 use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::host::NodeRead;
-use crate::image::ImageReader;
 use crate::index::area_insert;
 use crate::index::area_nodes::{AreaNodes, AreaView, KeyLog};
 use crate::index::directory;
-use crate::index::nodes::Run;
-use crate::index::runlist::LoadedRecord;
-use crate::index::runprobe;
 use crate::key::probe::{
     count_field, is_count, is_ovf, ovf_field, payload, payload_to_count, row_field, IndexPending, KeyProbe, Kind,
     RecProbe, ResolveKey,
@@ -54,7 +41,7 @@ use crate::mem::{
 };
 use crate::radix::Radix;
 use crate::tree::node::{count, is_leaf, ko};
-use crate::tree::{self, Cursor, Dir, Fwd, IndexShape, Path, Probe, Search, Shape};
+use crate::tree::{self, Cursor, Fwd, IndexShape, Path, Probe, Search, Shape};
 
 mod sorted;
 pub use sorted::Start;
@@ -73,15 +60,11 @@ const D_NODES: u64 = 24;
 const D_LOG_BLOCKS: u64 = 28;
 const D_LOG_ROOT: u64 = 32;
 const D_LOG_HEIGHT: u64 = 40;
-const D_BUILD_NEXT: u64 = 48;
-const D_BUILD_END: u64 = 56;
-const D_RUN_LIST: u64 = 80;
 
-/// One secondary index: its tree's state, kept by the index's owner, and where its uploaded segments are
-/// listed.
+/// One secondary index: its tree's state, kept by the index's owner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Secondary {
-    /// The index's id, which its runs' image ids carry.
+    /// The index's id.
     pub index: u8,
     /// The tree's shape, (W, 0).
     pub shape: IndexShape,
@@ -91,19 +74,17 @@ pub struct Secondary {
     pub nodes: u64,
     /// The tree's key log.
     pub log: KeyLog,
-    /// The block of the index's run list, which lists its uploaded segments (0: none).
-    pub run_list: u64,
 }
 
 impl Secondary {
-    /// An empty index `index` of key width `w` (a multiple of 8 in 8..=1,016), with no uploaded segment;
-    /// `None` for any other width. It holds no block until its first row.
+    /// An empty index `index` of key width `w` (a multiple of 8 in 8..=1,016); `None` for any other width. It
+    /// holds no block until its first row.
     pub fn create(index: u8, w: u64) -> Option<Secondary> {
-        Some(Secondary { index, shape: IndexShape::new(w, 0)?, root: 0, nodes: 0, log: KeyLog::default(), run_list: 0 })
+        Some(Secondary { index, shape: IndexShape::new(w, 0)?, root: 0, nodes: 0, log: KeyLog::default() })
     }
 
     /// Makes table `tbl`'s descriptor of index `index` (1 to 63), for an empty tree of key width `w` and the key
-    /// spec hash `hash`, with no uploaded segment; its directory block is made when needed.
+    /// spec hash `hash`; its directory block is made when needed.
     pub fn declare<H: PageHost>(h: &mut H, tbl: u64, index: u8, w: u64, hash: u64) -> Result<Secondary, Fault> {
         let s = Secondary::create(index, w).ok_or(rt(Corruption::Layout, w))?;
         if index == 0 {
@@ -137,31 +118,7 @@ impl Secondary {
                 radix: Radix { root: rd_u64(blk, at(D_LOG_ROOT))?, height: rd_u8(blk, at(D_LOG_HEIGHT))? },
                 blocks: u64::from(rd_u32(blk, at(D_LOG_BLOCKS))?),
             },
-            run_list: rd_u64(blk, at(D_RUN_LIST))?,
         })
-    }
-
-    /// Clears table `tbl`'s descriptor of index `index`, whose tree and key log its owner has handed on: the
-    /// table has no such index any more.
-    pub fn clear<H: PageHost>(h: &mut H, tbl: u64, index: u8) -> Result<(), Fault> {
-        let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        crate::mem::fill(h.get_mut(Region::Block(b))?, o, directory::INDEX_DESC, 0)
-    }
-
-    /// Table `tbl`'s build of index `index`: the rid it takes next and the rid it ends before (both 0 when the
-    /// tree holds every row).
-    pub fn build_state<H: PageHost + ?Sized>(h: &H, tbl: u64, index: u8) -> Result<(u64, u64), Fault> {
-        let (b, o) = directory::locate(h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        let blk = h.get(Region::Block(b))?;
-        Ok((rd_u64(blk, o.wrapping_add(D_BUILD_NEXT))?, rd_u64(blk, o.wrapping_add(D_BUILD_END))?))
-    }
-
-    /// Writes table `tbl`'s build of index `index` into its descriptor (`build_state`).
-    pub fn set_build_state<H: PageHost>(h: &mut H, tbl: u64, index: u8, next: u64, end: u64) -> Result<(), Fault> {
-        let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
-        let blk = h.get_mut(Region::Block(b))?;
-        put_u64(blk, o.wrapping_add(D_BUILD_NEXT), next)?;
-        put_u64(blk, o.wrapping_add(D_BUILD_END), end)
     }
 
     /// Writes the tree's root, node count and key log into table `tbl`'s descriptor of the index.
@@ -264,97 +221,28 @@ impl Secondary {
         r
     }
 
-    /// The rows that hold `key`, its full encoding: its count entry in the tree, found by one descent, plus
-    /// its count in every uploaded segment.
+    /// The rows that hold `key`, its full encoding: its count entry in the tree, found by one descent.
     pub fn count<H: PageHost + ?Sized>(&self, h: &H, key: &[u8]) -> Result<i128, Fault> {
-        let mut sum = i128::from(self.tree_count(h, key)?);
-        if self.run_list != 0 {
-            sum = sum.wrapping_add(runprobe::count_key(h, self.run_list, self.index, key)?);
-        }
-        Ok(sum)
-    }
-
-    pub fn tree_count<H: PageHost + ?Sized>(&self, h: &H, key: &[u8]) -> Result<i64, Fault> {
-        self.tree_count_by(h, &KeyProbe { key, kind: Kind::Count })
+        Ok(i128::from(self.tree_count_by(h, &KeyProbe { key, kind: Kind::Count })?))
     }
 
     /// The next group of the index in key order: the smallest key above `after` (the smallest of all when
-    /// `None`) that the tree or an uploaded segment holds, written whole at the start of `out`, with its
-    /// length and its count over the tree and every segment; `None` past the last key. `spec` is the index's
-    /// key spec, which gives each key's end; `scratch` takes each segment's key in turn. A step is two descents
-    /// of the tree (to the key after `after`, then to its count entry) and one key step in each segment, so a
-    /// walk of g groups over s segments costs g·(2 + s) descents, whatever the rows. It keeps no state: a walk
-    /// resumes from the key it handed out last.
+    /// `None`), written whole at the start of `out`, with its length and its count; `None` past the last key.
+    /// `spec` is the index's key spec, which gives each key's end. A step is two descents of the tree (to the
+    /// key after `after`, then to its count entry), so a walk of g groups costs 2g descents, whatever the rows.
+    /// It keeps no state: a walk resumes from the key it handed out last.
     pub fn group_next<H: PageHost + ?Sized>(
         &self,
         h: &H,
         spec: &KeySpec<'_>,
         after: Option<&[u8]>,
         out: &mut [u8],
-        scratch: &mut [u8],
     ) -> Result<Option<(usize, i128)>, Fault> {
-        let mut best = match self.tree_next(h, after, out)? {
-            Some((len, c)) => Some((exact(spec, out, len)?, i128::from(c))),
-            None => None,
-        };
-        let key_run_len = key_run_len(spec);
-        self.segments(h, |run| {
-            let Some((len, total)) = run.key_step(after, Dir::Fwd, key_run_len, scratch)? else { return Ok(()) };
-            let len = exact(spec, scratch, len)?;
-            let key = scratch.get(..len).ok_or(Fault::Scratch { need: len as u64 })?;
-            let total = i128::from(total);
-            best = match best {
-                Some((bl, bt)) => match key.cmp(out.get(..bl).unwrap_or(&[])) {
-                    Ordering::Less => Some((take(out, key)?, total)),
-                    Ordering::Equal => Some((bl, bt.wrapping_add(total))),
-                    Ordering::Greater => Some((bl, bt)),
-                },
-                None => Some((take(out, key)?, total)),
-            };
-            Ok(())
-        })?;
-        Ok(best)
-    }
-
-    /// Calls `f` with each uploaded segment, opened, in upload order.
-    fn segments<'h, H: PageHost + ?Sized>(
-        &self,
-        h: &'h H,
-        mut f: impl FnMut(&Run<ImageReader<'h, H>>) -> Result<(), Fault>,
-    ) -> Result<(), Fault> {
-        let Some(loaded) = self.loaded(h)? else { return Ok(()) };
-        let mut j = 0u64;
-        while j < loaded.runs {
-            f(&self.segment(h, &loaded, j)?)?;
-            j = j.wrapping_add(1);
+        match self.tree_next(h, after, out)? {
+            Some((len, c)) => Ok(Some((exact(spec, out, len)?, i128::from(c)))),
+            None => Ok(None),
         }
-        Ok(())
     }
-
-    /// The list of the uploaded segments; `None` when the index has none.
-    fn loaded<H: PageHost + ?Sized>(&self, h: &H) -> Result<Option<LoadedRecord>, Fault> {
-        if self.run_list == 0 {
-            return Ok(None);
-        }
-        let b = h.get(Region::Block(self.run_list))?;
-        if rd_u32(b, 0)? != magic::NTRL || rd_u16(b, 4)? != FORMAT_TABLE {
-            return Err(rt(Corruption::Header, self.run_list));
-        }
-        LoadedRecord::read(b).map(Some)
-    }
-
-    /// Uploaded segment j of `loaded`, opened.
-    fn segment<'h, H: PageHost + ?Sized>(
-        &self,
-        h: &'h H,
-        loaded: &LoadedRecord,
-        j: u64,
-    ) -> Result<Run<ImageReader<'h, H>>, Fault> {
-        let d = loaded.get(h, j)?;
-        let id = ImageId::Run { index: self.index, start_seq: d.start_seq };
-        Run::open(ImageReader::new(h, id, d.image(h)?), d.rid_base, d.rid_lo, d.rid_hi)
-    }
-
     /// The tree's first key above `after` (its first key when `None`), as the tree holds it, at the start of
     /// `out`: its key area of W bytes when it fits W, else the whole key; with its length so written and its
     /// count.
@@ -677,7 +565,7 @@ fn add_count<'k, H: PageHost, K: EntryKey<'k>>(
 /// The offset in node n of entry i's field, and the field.
 fn field_at<M: NodeRead + ?Sized>(s: IndexShape, m: &M, n: u64, i: u64) -> Result<(u64, u64), Fault> {
     let at = ko(s, &s.shape(is_leaf(m, n)?), i).wrapping_add(s.w);
-    let field = u64::from_be_bytes(rd_array::<8>(&m.bytes(n, at, 8)?, 0)?);
+    let field = u64::from_be_bytes(rd_array::<8>(m.bytes(n, at, 8)?, 0)?);
     Ok((at, field))
 }
 
@@ -740,12 +628,6 @@ fn exact(spec: &KeySpec<'_>, buf: &[u8], written: usize) -> Result<usize, Fault>
     let key = buf.get(..written).ok_or(rt(Corruption::Bounds, written as u64))?;
     let end = spec.end(key, ImageId::Runtime)?;
     usize::try_from(end).ok().filter(|&e| e <= written).ok_or(rt(Corruption::Encoding, end))
-}
-
-/// The length of the keys of key runs, which a run stores only for keys longer than its key area: the index's
-/// one key length, when it has one.
-fn key_run_len(spec: &KeySpec<'_>) -> u64 {
-    spec.fixed_len().unwrap_or(0)
 }
 
 /// Copies `key` to the start of `out`; returns its length.

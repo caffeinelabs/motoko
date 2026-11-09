@@ -11,8 +11,6 @@ use crate::host::NodeMem;
 /// Removes entry i of node n, which `path` (from `descend`) leads to; rebalances up the path and may
 /// change `root`.
 ///
-/// An inline hint: the optimizer then inlines a typed removal, with its rebalancing, into its caller, as
-/// it inlines today's typed maps' rebalancing into their removal.
 #[inline]
 pub fn remove_found<S: Shape, M: NodeMem>(
     s: S,
@@ -25,11 +23,11 @@ pub fn remove_found<S: Shape, M: NodeMem>(
     let (leaf, gap) = if is_leaf(m, n)? {
         (n, i)
     } else {
-        path.push(n, i)?;
+        path.push(n, i);
         let mut x = child(s, m, n, i)?;
         while !is_leaf(m, x)? {
             let c = count(s, m, x)?;
-            path.push(x, c)?;
+            path.push(x, c);
             x = child(s, m, x, c)?;
         }
         let last = count(s, m, x)?.wrapping_sub(1);

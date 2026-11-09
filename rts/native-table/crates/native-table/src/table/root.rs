@@ -11,15 +11,12 @@ pub const FLAGS: u64 = 7;
 pub const UID: u64 = 8;
 pub const SCHEMA_HASH: u64 = 16;
 pub const SCHEMA_VERSION: u64 = 24;
-pub const CLEANED: u64 = 28;
 pub const SCHEMA_PAGE: u64 = 32;
 pub const NEXT_GROUP: u64 = 40;
 pub const OPEN_GROUP: u64 = 48;
 pub const TAIL: u64 = 56;
 pub const DIR_HEIGHT: u64 = 84;
 pub const DIR_ROOT: u64 = 88;
-pub const RUN_SEQ: u64 = 96;
-pub const DRAIN_TOP: u64 = 144;
 /// The compaction queue's head and tail blocks.
 pub const COMPACT_HEAD: u64 = 112;
 pub const COMPACT_TAIL: u64 = 120;
@@ -27,9 +24,6 @@ pub const COMPACT_TAIL: u64 = 120;
 /// not queued, recorded here in the root the write changes anyway instead of pushed onto the compaction queue,
 /// whose blocks the write would change besides; the next maintenance step pushes it first.
 pub const GROUP_TO_QUEUE: u64 = 128;
-/// Job slots 0–7, 32 bytes each: slot 0 the column release (kind 1), slot 1 the index builds; slots 2–7
-/// zero.
-pub const JOB_SLOTS: u64 = 1_824;
 /// Index directory block references 0–2.
 pub const INDEX_DIRS: u64 = 928;
 pub const FMT_IMAGE: u64 = 2_128;
@@ -47,8 +41,6 @@ const HOST_WORDS_END: u64 = 4_032;
 /// Kind byte: a table, or a set (rows that hold only their key).
 pub const KIND_TABLE: u8 = 1;
 pub const KIND_SET: u8 = 2;
-/// Flags bit 0: a column release is pending.
-pub const FLAG_RELEASE: u8 = 1;
 /// Flags bit 3: a queued compaction is urgent (a patch chain at `PATCH_BLOCKS_MAX` blocks, or a 255th
 /// patched unit).
 pub const FLAG_COMPACT_URGENT: u8 = 8;
@@ -104,14 +96,6 @@ pub fn u8_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u8, Faul
 
 pub fn set_u8<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u8) -> Result<(), Fault> {
     put_u8(h.get_mut(Region::Block(tbl))?, off, v)
-}
-
-pub fn u32_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u32, Fault> {
-    rd_u32(h.get(Region::Block(tbl))?, off)
-}
-
-pub fn set_u32<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u32) -> Result<(), Fault> {
-    put_u32(h.get_mut(Region::Block(tbl))?, off, v)
 }
 
 /// The group directory: a radix array whose entry g names group g's page, or, with bit 63 set, its buffer

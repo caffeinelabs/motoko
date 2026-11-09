@@ -12,7 +12,7 @@ use crate::bytes::uleb_len;
 use crate::consts::{HUGE_VALUE, LONG_VALUE, PAGE, ROW_INLINE_MAX};
 use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::image::{Image, ImageReader};
-use crate::mem::{copy_bytes, rd_u16, rd_u32, rd_u8, sub, PageHost, Region};
+use crate::mem::{copy_bytes, rd_u8, sub, PageHost, Region};
 
 use super::buffer::RowLoc;
 use super::cell::{self, Val};
@@ -84,9 +84,6 @@ pub fn plan<H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     let mut out_of_inline = 0u64;
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        if !l.live() {
-            continue;
-        }
         let (big, item) = {
             let v = cell_of(src, &l)?;
             if l.key {
@@ -229,9 +226,6 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
         let mut bit = 0u64;
         for o in 0..shape.leaves {
             let l = shape.leaf(&*h, o)?;
-            if !l.live() {
-                continue;
-            }
             let set = {
                 let v = cell_of(src, &l)?;
                 if big {
@@ -257,7 +251,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
         let w = l.ty.fixed_width();
-        if w == 0 || !l.live() {
+        if w == 0 {
             continue;
         }
         let v = cell_of(src, &l)?;
@@ -285,7 +279,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     let mut at = shape.items_at();
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
-        if !l.ty.variable() || !l.live() {
+        if !l.ty.variable() {
             continue;
         }
         let item = {
@@ -306,7 +300,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     let mut vi = 0u64;
     for o in 0..shape.leaves {
         let l = shape.leaf(&*h, o)?;
-        if !l.ty.variable() || !l.live() {
+        if !l.ty.variable() {
             continue;
         }
         let this = vi;
@@ -381,16 +375,6 @@ fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     src: &mut R,
 ) -> Result<Option<Image>, Fault> {
     let row = RowRef::new(h, loc)?;
-    // Leaf l's item index in the old image's own layout.
-    let v = row.version()?;
-    let vi = if v == shape.version {
-        vi
-    } else {
-        match shape.offsets_at(h, v, l)? {
-            Some((_, ovi, _)) => ovi,
-            None => return Ok(None),
-        }
-    };
     let Item::Long { img, len } = row.item(shape, vi)? else { return Ok(None) };
     let v = cell_of(src, l)?;
     let b = match v {
@@ -523,13 +507,6 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
         shape.head_for(self.h, self.version()?)
     }
 
-    /// The schema version and flags of the header.
-    pub fn header(&self) -> Result<(u32, u16), Fault> {
-        let mut b = [0u8; 8];
-        self.read(0, &mut b)?;
-        Ok((rd_u32(&b, 0)?, rd_u16(&b, 4)?))
-    }
-
     /// Variable leaf `vi`'s item (vi among the variable leaves of the row's version).
     pub fn item(&self, shape: &Shape, vi: u64) -> Result<Item, Fault> {
         let head = self.head(shape)?;
@@ -559,10 +536,6 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
             ITEM_LONG => {
                 let mut r = [0u8; 24];
                 self.read(at.wrapping_add(8), &mut r)?;
-                if r.iter().all(|&x| x == 0) {
-                    // Its long value moved to its owner of now (a sealed group's list) or to the drain.
-                    return Ok(Item::None);
-                }
                 let img = Image::read_ref(&r, 0)?;
                 Ok(Item::Long { img, len: long::content_len(self.h, img)? })
             }
@@ -602,12 +575,11 @@ pub enum Stored<'h> {
     /// A variable value: its item.
     Item(Item),
     Unit,
-    /// A leaf the row's schema version lacks: it reads its default.
-    Absent,
 }
 
 /// Walks a stored row's leaves in ordinal order, keeping each leaf's fixed offset, variable index and bitmap
-/// bit in the layout of one schema version; a leaf that version lacks is absent and takes no place.
+/// bit in the layout of one schema version; a leaf that version lacks takes no place, and reading it is
+/// `Corrupt`.
 #[derive(Clone, Copy, Debug)]
 pub struct Walk {
     pub fixed: u64,
@@ -630,9 +602,6 @@ impl Walk {
         row: &RowRef<'h, H>,
         l: &LeafInfo,
     ) -> Result<Stored<'h>, Fault> {
-        if !l.at(self.head.version) {
-            return Ok(Stored::Absent);
-        }
         let (fixed, vi, bit) = (self.fixed, self.var, self.bit);
         self.skip(l);
         stored_at(&self.head, row, l, fixed, vi, bit)
@@ -640,9 +609,6 @@ impl Walk {
 
     /// Moves past leaf `l` without reading it.
     pub fn skip(&mut self, l: &LeafInfo) {
-        if !l.at(self.head.version) {
-            return;
-        }
         self.fixed = self.fixed.wrapping_add(l.ty.fixed_width());
         if l.ty.variable() {
             self.var = self.var.wrapping_add(1);

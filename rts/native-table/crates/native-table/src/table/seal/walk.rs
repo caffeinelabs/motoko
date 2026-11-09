@@ -148,19 +148,15 @@ macro_rules! by_code {
     };
 }
 
-/// A leaf's place in a row of one schema version, as offsets from the row's start.
+/// A leaf's place in a row, as offsets from the row's start: every row of the table holds them.
 #[derive(Clone, Copy, Debug)]
 pub struct Cut {
     pub kind: Kind,
-    pub version: u32,
     cell: usize,
     item: usize,
     null_at: usize,
     null_mask: u8,
     big_at: usize,
-    /// The least row length that holds the header, the null byte (and the big byte), the cell and the item
-    /// table entry.
-    need: usize,
 }
 
 impl Cut {
@@ -173,39 +169,22 @@ impl Cut {
         let item = us(head.items_table_at().checked_add(vi.checked_mul(4)?)?)?;
         let null_at = us(8u64.checked_add(bit / 8)?)?;
         let big_at = us(8u64.checked_add(head.bitmap)?.checked_add(bit / 8)?)?;
-        let width = usize::try_from(t.fixed_width()).ok()?;
-        let mut need = null_at.checked_add(1)?.max(8);
-        if t.variable() {
-            need = need.max(item.checked_add(4)?);
-        }
-        if matches!(kind, Kind::Nat | Kind::Int) {
-            need = need.max(big_at.checked_add(1)?);
-        }
-        if width > 0 {
-            need = need.max(cell.checked_add(width)?);
-        }
         let null_mask = 1u8 << (bit % 8);
-        Some(Cut { kind, version: head.version, cell, item, null_at, null_mask, big_at, need })
+        Some(Cut { kind, cell, item, null_at, null_mask, big_at })
     }
 }
 
 // ---------------------------------------------------------------- rows
 
-/// A live row's image, read where it lies. Reads at offsets below the row's checked length.
+/// A live row's image, read where it lies, at the places of a cut, which every row of the table holds.
 pub trait Bytes<'a>: Copy {
     fn len(&self) -> usize;
-    /// Byte i (0 past the row's end, which the callers' checks of its length exclude).
+    /// Byte i (a byte of its block, or 0, past the row's end).
     fn byte(&self, i: usize) -> u8;
     /// The w ∈ {1, 2, 4, 8} bytes at i, little-endian.
     fn le(&self, i: usize, w: usize) -> u64;
     /// Bytes [from, from + n) as one slice, when they lie in the row.
     fn slice(&self, from: usize, n: usize) -> Option<&'a [u8]>;
-
-    /// Whether the row holds the leaf's place at the cut's schema version.
-    #[inline(always)]
-    fn fits(&self, cut: &Cut) -> bool {
-        self.len() >= cut.need && self.le(0, 4) == u64::from(cut.version)
-    }
 
     #[inline(always)]
     fn null(&self, cut: &Cut) -> bool {
@@ -280,8 +259,8 @@ pub trait Bytes<'a>: Copy {
     }
 }
 
-/// A row in its buffer block: offset and length checked to lie in the block, so a byte below its length is
-/// read through a masked index, with no further check.
+/// A row in its buffer block: offset and length checked to lie in the block, so a byte is read through a
+/// masked index, with no further check.
 #[derive(Clone, Copy)]
 pub struct InBlock<'a> {
     b: Blk<'a>,
@@ -298,8 +277,8 @@ impl<'a> Bytes<'a> for InBlock<'a> {
     fn byte(&self, i: usize) -> u8 {
         self.b.get(self.off.wrapping_add(i) & 4_095).copied().unwrap_or(0)
     }
-    /// The callers read below the row's checked length, which lies in the block: the offset is clamped to the
-    /// block's last w bytes (which it never passes), so that no further check remains.
+    /// The callers read below the row's length, which lies in the block: the offset is clamped to the block's
+    /// last w bytes (which it never passes), so that no further check remains.
     #[inline(always)]
     fn le(&self, i: usize, w: usize) -> u64 {
         let j = self.off.wrapping_add(i);
@@ -779,9 +758,6 @@ impl<'a, const K: u8> Visit<'a> for Scan<K> {
     #[inline(always)]
     fn live<R: Bytes<'a>>(&mut self, q: u64, r: R, _long: bool) -> Flow {
         let cut = &self.cut;
-        if !r.fits(cut) {
-            return Flow::Slow;
-        }
         if r.null(cut) {
             self.n.stored_null = true;
             self.seq.ok = false;
@@ -878,9 +854,6 @@ enum V<'a> {
 /// The value at a live row of a leaf of kind code `K`, read in place; `None` when the general path reads it.
 #[inline(always)]
 fn value<'a, R: Bytes<'a>, const K: u8>(r: &R, cut: &Cut) -> Option<V<'a>> {
-    if !r.fits(cut) {
-        return None;
-    }
     if r.null(cut) {
         return Some(V::Null);
     }
@@ -910,9 +883,6 @@ fn value<'a, R: Bytes<'a>, const K: u8>(r: &R, cut: &Cut) -> Option<V<'a>> {
 /// `None` when the general path reads it.
 #[inline(always)]
 fn present<'a, R: Bytes<'a>, const K: u8>(r: &R, cut: &Cut) -> Option<bool> {
-    if !r.fits(cut) {
-        return None;
-    }
     if r.null(cut) {
         return Some(false);
     }

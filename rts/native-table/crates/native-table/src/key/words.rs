@@ -10,9 +10,8 @@
 //!   area's words N = W / 8, 1 to 8. The entry's field orders entries whose key areas equal the key, through
 //!   the caller's rank.
 //! - **Resumable prefixes.** A descent's lower and upper bounds share some first bytes with the key, and so
-//!   does every entry between them. A comparison may start at the fewer of the two (`area_cmp`'s `from`,
-//!   `area_key_cmp`'s `from`) and tells how many bytes the two sides share, so the next comparison resumes
-//!   there.
+//!   does every entry between them. A comparison may start at the fewer of the two (`area_key_cmp`'s `from`)
+//!   and tells how many bytes the two sides share, so the next comparison resumes there.
 //! - **Byte strings of any length** are compared where they lie: over their common length with the bytes
 //!   they share (`bytes_cmp`).
 
@@ -22,8 +21,6 @@ use crate::mem::copy_bytes;
 
 /// Words of a key held ready: its first 64 bytes.
 pub const KEY_WORDS: usize = 8;
-pub const KEY_BYTES: usize = 64;
-const _: () = assert!(KEY_BYTES == 8 * KEY_WORDS);
 
 /// The little-endian word of bytes [o, o + 8) of `s`; `None` past its end.
 #[inline(always)]
@@ -76,28 +73,6 @@ pub struct KeyWords {
 }
 
 impl KeyWords {
-    /// All eight words of `key`. A key of 8 bytes is its one word, the rest zero; a key of 64 bytes or more
-    /// is eight whole words.
-    #[inline(always)]
-    pub fn of(key: &[u8]) -> KeyWords {
-        let mut w = [0u64; KEY_WORDS];
-        if let Ok(x) = <&[u8; 8]>::try_from(key) {
-            if let Some(w0) = w.first_mut() {
-                *w0 = u64::from_le_bytes(*x);
-            }
-            return KeyWords { w };
-        }
-        if let Some(all) = key.first_chunk::<KEY_BYTES>() {
-            for (slot, c) in w.iter_mut().zip(all.chunks_exact(8)) {
-                if let Some(x) = c.first_chunk::<8>() {
-                    *slot = u64::from_le_bytes(*x);
-                }
-            }
-            return KeyWords { w };
-        }
-        KeyWords::first(key, KEY_WORDS)
-    }
-
     /// The first `n` words of `key` (at most eight); the rest zero.
     #[inline(always)]
     pub fn first(key: &[u8], n: usize) -> KeyWords {
@@ -113,23 +88,6 @@ impl KeyWords {
     pub fn get(&self, i: usize) -> u64 {
         self.w.get(i).copied().unwrap_or(0)
     }
-}
-
-/// Orders the key area of `n` words at `koff` of `s` against the key's words `k` (the key zero-padded to
-/// the area), from word `from` on, the words before known equal: memcmp order, 8 bytes at a time. `None`
-/// when the area does not lie inside `s`.
-#[inline(always)]
-pub fn area_cmp(s: &[u8], koff: usize, from: usize, n: usize, k: &KeyWords) -> Option<Ordering> {
-    let mut i = from;
-    while i < n {
-        let a = le64(s, koff.wrapping_add(i.wrapping_mul(8)))?;
-        let b = k.get(i);
-        if a != b {
-            return Some(if word_below(a, b) { Ordering::Less } else { Ordering::Greater });
-        }
-        i = i.wrapping_add(1);
-    }
-    Some(Ordering::Equal)
 }
 
 /// The little-endian word of bytes [at, at + 8) of `b`, zero past its end, its last bytes copied into a

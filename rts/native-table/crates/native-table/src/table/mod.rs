@@ -1,7 +1,6 @@
 //! The table: rows in a write buffer and sealed row groups, a primary index, the secondary indexes its schema
 //! declares (kept current by every write), the integer leaves' totals kept exact and their extremes per group,
-//! and the maintenance that compacts and drops sealed groups, releases dropped leaves, builds added indexes and
-//! frees removed ones.
+//! and the maintenance that compacts and drops sealed groups.
 //!
 //! A row type is flat: every leaf is a row-level scalar or `()` (records, tuples and options of scalars
 //! flatten into such leaves).
@@ -16,9 +15,7 @@
 pub mod buffer;
 pub mod cell;
 pub mod cur;
-pub mod defaults;
 pub mod drain;
-pub mod evolve;
 pub mod extremes;
 pub mod filter;
 pub mod group;
@@ -214,9 +211,6 @@ pub struct Table<'h, H: PageHost> {
     shape: Shape,
     /// Bytes the host copied from the message's argument during the last write.
     pub filled: u64,
-    /// The schema image the table was opened with, while its schema hash differs from the table's (the
-    /// table is stale): the next write or schema change adopts it first.
-    open_image: Option<&'h [u8]>,
 }
 
 impl<'h, H: PageHost> Table<'h, H> {
@@ -231,7 +225,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         root::init(&mut *host, tbl, kind, uid, shape.hash, shape.version, sp)?;
         shape.store(&mut *host, tbl)?;
         indexes::declare(&mut *host, tbl, &shape)?;
-        let mut t = Table { host, root: tbl, shape, filled: 0, open_image: None };
+        let mut t = Table { host, root: tbl, shape, filled: 0 };
         t.open_first_group()?;
         root::set_u64(&mut *t.host, tbl, root::NEXT_GROUP, 1)?;
         Ok((t, tbl))
@@ -258,7 +252,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let mut recs = 0u64;
         for o in 0..shape.leaves {
             let l = shape.leaf(&*h, o)?;
-            let Some(k) = l.ty.running().filter(|_| l.live()) else { continue };
+            let Some(k) = l.ty.running() else { continue };
             let bytes = k.bytes();
             let list = group::align8(r.wrapping_add(1).wrapping_mul(2));
             if base.wrapping_add(list).wrapping_add(recs).wrapping_add(bytes) <= crate::consts::HOT_MAX {
@@ -280,52 +274,22 @@ impl<'h, H: PageHost> Table<'h, H> {
         root::set_group(h, tbl, g, buffer::DESC_BIT | d)
     }
 
-    /// The table whose root block is `root`. A schema image whose schema hash (the canonical one, which
-    /// depends on the row type alone) differs from the table's makes the table *stale*: reads and maintenance
-    /// use its stored schema, and the first write or schema change runs `change_schema` with the given image
-    /// first, adopting its schema and nothing else; a refusal of it is that call's, before anything
-    /// is written. Maintenance steps never adopt it: only a write or a schema change does. An image of the
-    /// table's row type leaves the table as it is.
-    ///
-    /// The table's shape is the one its root holds (`Shape::stored`), O(1), taken without hashing it again.
-    /// When the root holds none of its current schema (another table format wrote it, or its format, schema
-    /// page, schema hash or schema version word changed), the shape is derived from the stored schema image
-    /// again, its schema hash checked, and stored. The image given may be the table's own
-    /// schema page, read in place: its header is then read without checking its schema hash again, which was
-    /// checked when the shape was derived from it.
-    pub fn open(host: &'h mut H, root: u64, schema_image: &'h [u8]) -> Result<Table<'h, H>, Fault> {
+    /// The table whose root block is `root`. Its shape is the one its root holds (`Shape::stored`), O(1). When
+    /// the root holds none of its current schema (another table format wrote it, or its format, schema page,
+    /// schema hash or schema version word changed), the shape is derived from the stored schema image again,
+    /// its schema hash checked, and stored.
+    pub fn open(host: &'h mut H, root: u64) -> Result<Table<'h, H>, Fault> {
         root::check(&*host, root)?;
-        let sp = root::u64_at(&*host, root, root::SCHEMA_PAGE)?;
         let shape = match Shape::stored(&*host, root)? {
             Some(s) => s,
             None => {
+                let sp = root::u64_at(&*host, root, root::SCHEMA_PAGE)?;
                 let s = Shape::open(&*host, sp)?;
                 s.store(&mut *host, root)?;
                 s
             }
         };
-        let v = if core::ptr::eq(schema_image.as_ptr(), host.get(Region::Page(sp))?.as_ptr()) {
-            SchemaView::open_stored(schema_image)?
-        } else {
-            SchemaView::open(schema_image)?
-        };
-        let stored = root::u64_at(&*host, root, root::SCHEMA_HASH)?;
-        let open_image = (v.hash != stored).then_some(schema_image);
-        Ok(Table { host, root, shape, filled: 0, open_image })
-    }
-
-    /// Whether the table is stale: opened with an image of another row type, not adopted yet.
-    pub fn stale(&self) -> bool {
-        self.open_image.is_some()
-    }
-
-    /// Before a mutating call on a stale table: the image it was opened with adopted (`change_schema`).
-    fn adopt(&mut self) -> Result<(), Fault> {
-        if let Some(img) = self.open_image {
-            self.shape = evolve::change_schema(&mut *self.host, self.root, &self.shape, img)?;
-            self.open_image = None;
-        }
-        Ok(())
+        Ok(Table { host, root, shape, filled: 0 })
     }
 
     pub fn root(&self) -> u64 {
@@ -346,12 +310,6 @@ impl<'h, H: PageHost> Table<'h, H> {
         self.host
     }
 
-    /// The host, given back: a host that opens the table again (`open`, with a new schema image after an
-    /// upgrade) takes it from the table it held.
-    pub fn into_host(self) -> &'h mut H {
-        self.host
-    }
-
     /// Live rows: the hot state's count, O(1).
     pub fn len(&self) -> Result<u64, Fault> {
         let tail = root::u64_at(&*self.host, self.root, root::TAIL)?;
@@ -366,7 +324,7 @@ impl<'h, H: PageHost> Table<'h, H> {
     fn encode_key<K: RowSource + ?Sized, T: Sink>(&self, key: &mut K, s: &mut T) -> Result<(), Fault> {
         for o in 0..self.shape.leaves {
             let l = self.shape.leaf(&*self.host, o)?;
-            if l.key && l.live() {
+            if l.key {
                 let v = row::cell_of(key, &l)?;
                 cell::enc_key(s, &l, &v)?;
             }
@@ -433,7 +391,7 @@ impl<'h, H: PageHost> Table<'h, H> {
                 return Ok(false);
             }
             let l = self.shape.leaf(h, o)?;
-            if !l.key || !l.live() {
+            if !l.key {
                 continue;
             }
             let v = match *row {
@@ -443,13 +401,13 @@ impl<'h, H: PageHost> Table<'h, H> {
                 }
                 read::Live::Sealed(ref s, pos) => {
                     let gv = group::GroupView::from_meta(h, &s.meta);
-                    match read::sealed_cell(&gv, &self.shape, s, &l, gv.slot(pos)?, pos, &mut piece) {
+                    match read::sealed_cell(&gv, s, &l, gv.slot(pos)?, pos, &mut piece) {
                         Ok(x) => {
                             cell::enc_key(&mut cmp, &l, &smallest(x, l.ty))?;
                             continue;
                         }
                         // A value longer than `piece`, compared in pieces below.
-                        Err(Fault::Scratch { .. }) => overlay::sealed_value(h, &self.shape, s, &l, pos)?,
+                        Err(Fault::Scratch { .. }) => overlay::sealed_value(h, s, &l, pos)?,
                         Err(e) => return Err(e),
                     }
                 }
@@ -519,9 +477,8 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// The rows whose cells of secondary index `index`'s parts encode to the key the cells of `key` give (by
-    /// leaf id, as a row's): one descent of the index's tree, plus the key's count in each of its uploaded
-    /// segments. A key of any length: one longer than `KEY_STACK` is encoded into `scratch`. `BadRef` when the
-    /// table has no secondary index `index`, `Busy` while a schema change's build of it runs.
+    /// leaf id, as a row's): one descent of the index's tree. A key of any length: one longer than `KEY_STACK` is
+    /// encoded into `scratch`. `BadRef` when the table has no secondary index `index`.
     pub fn count<S: Scratch, K: RowSource + ?Sized>(
         &self,
         scratch: &mut S,
@@ -541,11 +498,10 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// Secondary index `index`'s rows in key order, from `start` in direction `dir` (going backward, the largest
     /// keys first; the rows of one key in rid order either way), at most `limit` of them: each handed to `row` as
     /// its key, the full encoding, and its rid. Returns how many were handed out; a walk stopped by its limit
-    /// resumes with `Start::After` the last row. `buf` holds the walk's keys, three of them, so it needs three
-    /// times the longest key it meets (and at least 3·W, and each segment's shared prefix more): a key that does
-    /// not fit is `Scratch { need }`, the bytes `buf` needs, before any row of the key is handed out, and the walk
-    /// resumes after the last row it handed out with a buffer of `need` bytes. `BadRef` when the table has no
-    /// secondary index `index`, `Busy` while a schema change's build of it runs.
+    /// resumes with `Start::After` the last row. `buf` holds the walk's keys, two of them, so it needs twice the
+    /// longest key it meets (and at least 2·W): a key that does not fit is `Scratch { need }`, the bytes `buf`
+    /// needs, before any row of the key is handed out, and the walk resumes after the last row it handed out
+    /// with a buffer of `need` bytes. `BadRef` when the table has no secondary index `index`.
     pub fn walk<F: FnMut(&[u8], u64) -> Result<(), Fault>>(
         &self,
         index: u8,
@@ -559,17 +515,15 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// Secondary index `index`'s groups in key order: each distinct key its rows hold, the full encoding (a key
-    /// whose first part is null first, as the index orders it), with how many live rows hold it, over the
-    /// index's tree and its uploaded segments. From the first key above `after` (the smallest when `None`), at
-    /// most `limit` of them, each handed to `group`; returns how many were handed out, fewer than `limit` only
-    /// when no group is left. A call stopped by its limit is resumed with `after` the last key it handed out;
-    /// counts are read at each call, so writes between calls change the groups still to come as they change
-    /// the index. A group takes two descents of the tree and one key step in each uploaded segment, whatever
-    /// its rows. `buf` holds three keys (the last handed out, the next, and each segment's), so it needs three
-    /// times the longest key it meets (and at least 3·W): a key that does not fit is `Scratch { need }`, the
-    /// bytes `buf` needs, before it is handed out, and the walk resumes after the last key it handed out with
-    /// a buffer of `need` bytes. `BadRef` when the table has no secondary index `index`, `Busy` while a schema
-    /// change's build of it runs.
+    /// whose first part is null first, as the index orders it), with how many live rows hold it. From the first
+    /// key above `after` (the smallest when `None`), at most `limit` of them, each handed to `group`; returns how
+    /// many were handed out, fewer than `limit` only when no group is left. A call stopped by its limit is
+    /// resumed with `after` the last key it handed out; counts are read at each call, so writes between calls
+    /// change the groups still to come as they change the index. A group takes two descents of the tree,
+    /// whatever its rows. `buf` holds two keys (the last handed out and the next), so it needs twice the longest
+    /// key it meets (and at least 2·W): a key that does not fit is `Scratch { need }`, the bytes `buf` needs,
+    /// before it is handed out, and the walk resumes after the last key it handed out with a buffer of `need`
+    /// bytes. `BadRef` when the table has no secondary index `index`.
     pub fn group_counts<F: FnMut(&[u8], i128) -> Result<(), Fault>>(
         &self,
         index: u8,
@@ -583,9 +537,8 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// Secondary index `index`'s smallest key whose first part is not null (the smallest value of its column,
     /// for an index of one column), its full encoding, at the start of `out`; its length, or `None` when no row
-    /// holds one. `out` also holds each segment's key, in its second half, so it needs twice the key: a key that
-    /// does not fit is `Scratch { need }`, the bytes `out` needs. `BadRef` when the table has no secondary index
-    /// `index`, `Busy` while a schema change's build of it runs.
+    /// holds one. A key that does not fit `out` is `Scratch { need }`, the bytes `out` needs. `BadRef` when the
+    /// table has no secondary index `index`.
     pub fn min_key(&self, index: u8, out: &mut [u8]) -> Result<Option<usize>, Fault> {
         walks::end_key(&*self.host, self.root, &self.shape, index, false, out)
     }
@@ -606,7 +559,6 @@ impl<'h, H: PageHost> Table<'h, H> {
         scratch: &mut S,
         row: &mut R,
     ) -> Result<(Upsert, Wake), Fault> {
-        self.adopt()?;
         let (rid, inserted) = self.write_row(scratch, row)?;
         let u = if inserted { Upsert::Inserted(rid) } else { Upsert::Replaced(rid) };
         Ok((u, self.settle()?))
@@ -671,7 +623,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         indexes::check_source(&self.shape, &*self.host, row)?;
         let mut p = match prim {
             Some(p) => p,
-            None => Primary::ensure(&mut *self.host, self.root, self.shape.key_w, self.shape.key_hash)?,
+            None => Primary::create(&mut *self.host, self.root, self.shape.key_w, self.shape.key_hash)?,
         };
         let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan)?;
         self.filled = filled;
@@ -686,7 +638,6 @@ impl<'h, H: PageHost> Table<'h, H> {
         scratch: &mut S,
         key: &mut K,
     ) -> Result<(Option<u64>, Wake), Fault> {
-        self.adopt()?;
         let mut kb = [0u8; KEY_STACK];
         let e = self.key_in(key, &mut kb, scratch)?;
         let Some(mut p) = Primary::read(&*self.host, self.root)? else { return Ok((None, self.wake()?)) };
@@ -718,7 +669,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(wake_from_state(root::u8_at(&*self.host, self.root, root::STATE)?))
     }
 
-    /// One maintenance step; what it ran. A stale table's steps run on its stored schema.
+    /// One maintenance step; what it ran.
     pub fn step(&mut self) -> Result<jobs::Ran, Fault> {
         jobs::step(&mut *self.host, self.root, &self.shape)
     }
@@ -816,16 +767,5 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// type; the filter's faults are `scan_where`'s.
     pub fn sum_where(&self, f: &filter::Filter<'_>, leaf: u32, buf: &mut [u8]) -> Result<(totals::Total, u64), Fault> {
         filter::sum(&*self.host, self.root, &self.shape, f, leaf, buf)
-    }
-
-    /// Adopts a new schema image (`evolve`): columns and record fields added, columns and fields dropped,
-    /// secondary indexes removed (a dropped column takes those holding it) and added (built over the rows in
-    /// maintenance steps, `Busy` to counts and walks until then), in any combination; every other change is
-    /// refused before anything is written.
-    pub fn change_schema(&mut self, image: &[u8]) -> Result<Wake, Fault> {
-        self.adopt()?;
-        let shape = evolve::change_schema(&mut *self.host, self.root, &self.shape, image)?;
-        self.shape = shape;
-        self.settle()
     }
 }

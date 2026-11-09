@@ -2,9 +2,7 @@
 resolver = "2"
 members = [
     "crates/native-table",
-    "crates/nt-builder",
     "crates/nt-testhost",
-    "crates/nt-probe",
 ]
 
 [workspace.package]

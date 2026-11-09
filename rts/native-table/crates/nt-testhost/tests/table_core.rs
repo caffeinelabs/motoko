@@ -9,17 +9,14 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
 use native_table::area::{AreaRecord, IMAGE_AREA};
-use native_table::consts::{BLOCK, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PAGE, RADIX_STEP};
-use native_table::fault::Fault;
+use native_table::consts::{BLOCK, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PAGE};
+use native_table::fault::{corrupt, Fault};
 use native_table::mem::rd_u32;
 use native_table::table::group::{self, GroupView, LeafDir, Seg};
-use native_table::table::hot::RunCursor;
 use native_table::table::layout::Ty;
-use native_table::table::totals::At;
 use native_table::table::{buffer, extremes, page, read, root, Table, Upsert};
 use native_table::value::ty;
-use native_table::{PageHost, Progress, Region, Wake};
-use nt_testhost::big::Big;
+use native_table::{Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::rows::{rid_of, schema, t, Sink, Src, V};
 use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
@@ -292,173 +289,7 @@ fn expected(m: &Model, row: &[(u32, V)]) -> Vec<(u32, V)> {
 
 // ---------------------------------------------------------------- checks
 
-/// Checks every sealed group's live count against its live rows, and returns the number of groups checked.
-fn check_groups(tb: &Table<'_, VecHost>) -> u64 {
-    let h = tb.host();
-    let tbl = tb.root();
-    let next = root::u64_at(h, tbl, root::NEXT_GROUP).unwrap();
-    let mut checked = 0;
-    for g in 0..next {
-        let e = root::group(h, tbl, g).unwrap();
-        if e == 0 || e & buffer::DESC_BIT != 0 {
-            continue;
-        }
-        checked += 1;
-        let p = buffer::u16_of(h, e, page::P_POSITIONS).unwrap();
-        let mut live = 0;
-        for pos in 0..p {
-            let mut s = Sink::default();
-            if tb.get_rid(g * GROUP_SLOTS + pos, &mut s).unwrap() {
-                live += 1;
-            }
-        }
-        assert_eq!(buffer::u16_of(h, e, page::P_LIVE).unwrap(), live, "group {g} live rows");
-    }
-    checked
-}
-
-/// Checks the integer leaves' totals in the hot state against the model, over every live row.
-fn check_running(tb: &Table<'_, VecHost>, model: &BTreeMap<u64, (u64, Vec<(u32, V)>)>) {
-    let h = tb.host();
-    let tbl = tb.root();
-    let shape = *tb.shape();
-    let tail = root::u64_at(h, tbl, root::TAIL).unwrap();
-    let hot = h.get(Region::Block(tail)).unwrap();
-    let mut rc = RunCursor::open(h, tail).unwrap();
-    for o in 0..shape.leaves {
-        let l = shape.leaf(h, o).unwrap();
-        if !matches!(rc.place(hot, &l).unwrap(), At::Hot(_)) {
-            continue;
-        }
-        let (mut n, mut want) = (0u64, Big::default());
-        for row in model.values().map(|(_, row)| &row[o as usize].1) {
-            let v = match row {
-                V::Null => continue,
-                V::U(x) => Big::from_i128(i128::from(*x)),
-                V::I(x) => Big::from_i128(i128::from(*x)),
-                V::Nat(b) => Big::from_leb(b, false),
-                V::Int(b) => Big::from_leb(b, true),
-                V::U128(x) => Big::from_u128(*x),
-                V::I128(x) => Big::from_i128(*x),
-                other => panic!("leaf {o}: {other:?}"),
-            };
-            n += 1;
-            want = want.add(&v);
-        }
-        let mut buf = vec![0u8; 64];
-        let (t, got_n) = tb.sum(l.id, &mut buf).unwrap();
-        assert_eq!((Big::of_total(t, &buf), got_n), (want, n), "the total of leaf {o}");
-    }
-}
-
 // ---------------------------------------------------------------- rows_model
-
-#[test]
-fn rows_model() {
-    let m = model_schema();
-    let digest = per_fill(|h, lh| {
-        let (mut tb, _) = Table::create(h, 11, &m.img).unwrap();
-        let mut r = XorShift(0x1234_5678);
-        // key → (rid, row as written)
-        let mut model: BTreeMap<u64, (u64, Vec<(u32, V)>)> = BTreeMap::new();
-        let mut refused = 0u64;
-        let mut trace = Vec::new();
-        let mut groups_checked = 0;
-        for step in 0..36_000u64 {
-            let op = r.below(100);
-            if op < 70 {
-                // An upsert: a new key, or one in the model.
-                let k = if model.is_empty() || r.below(4) != 0 {
-                    r.below(1 << 40)
-                } else {
-                    *model.keys().nth(r.below(model.len() as u64) as usize).unwrap()
-                };
-                let row = model_row(&mut r, k, true);
-                match tb.upsert(&mut key_scratch(), &mut Src::new(&row)) {
-                    Ok((Upsert::Inserted(rid), _)) => {
-                        assert!(!model.contains_key(&k));
-                        model.insert(k, (rid, row));
-                    }
-                    Ok((Upsert::Replaced(rid), _)) => {
-                        let (old_rid, _) = model.get(&k).unwrap();
-                        assert_eq!(rid, *old_rid, "an update keeps the rid");
-                        model.insert(k, (rid, row));
-                    }
-                    Err(Fault::Busy) => {
-                        // The row is sealed and its values differ: this version refuses before writing.
-                        refused += 1;
-                        let (rid, _) = model[&k];
-                        assert!(matches!(
-                            read::find(tb.host(), tb.root(), rid).unwrap(),
-                            Some(read::Row::Sealed { .. })
-                        ));
-                        let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-                        assert_eq!(gone, Some(rid));
-                        let (u, _) = tb.upsert(&mut key_scratch(), &mut Src::new(&row)).unwrap();
-                        let Upsert::Inserted(rid2) = u else { panic!("re-insert") };
-                        assert!(rid2 > rid, "rids are never reused");
-                        model.insert(k, (rid2, row));
-                    }
-                    Err(e) => panic!("upsert: {e:?}"),
-                }
-            } else if op < 84 {
-                let k = if model.is_empty() || r.below(5) == 0 {
-                    r.below(1 << 40)
-                } else {
-                    *model.keys().nth(r.below(model.len() as u64) as usize).unwrap()
-                };
-                let (gone, _) = tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap();
-                assert_eq!(gone, model.remove(&k).map(|x| x.0));
-            } else if op < 97 {
-                let k = if model.is_empty() || r.below(5) == 0 {
-                    r.below(1 << 40)
-                } else {
-                    *model.keys().nth(r.below(model.len() as u64) as usize).unwrap()
-                };
-                let got = get_row(&tb, &[(id(0), V::U(k))]);
-                match model.get(&k) {
-                    None => assert!(got.is_none()),
-                    Some((rid, row)) => {
-                        let (grid, cells) = got.expect("present");
-                        assert_eq!(grid, *rid);
-                        assert_eq!(cells, expected(&m, row), "key {k}");
-                    }
-                }
-            } else {
-                // Maintenance at a random point: a write's one step, or all of it.
-                if r.below(2) == 0 {
-                    tb.write_step(&everything()).unwrap();
-                } else {
-                    maintain_all(&mut tb);
-                    groups_checked += check_groups(&tb);
-                }
-            }
-            assert_eq!(tb.len().unwrap(), model.len() as u64, "step {step}");
-            if step % 2_000 == 1_999 {
-                check_running(&tb, &model);
-                lh.take(tb_host(&mut tb));
-                trace.push((step, model.len()));
-            }
-        }
-        maintain_all(&mut tb);
-        groups_checked += check_groups(&tb);
-        check_running(&tb, &model);
-        for (k, (rid, row)) in &model {
-            let (grid, cells) = get_row(&tb, &[(id(0), V::U(*k))]).expect("present");
-            assert_eq!((grid, cells), (*rid, expected(&m, row)));
-        }
-        let seals = open_group(tb.host(), tb.root());
-        assert!(seals >= 3, "several groups sealed: {seals}");
-        assert!(groups_checked >= 3);
-        (model.len(), seals, refused, trace)
-    });
-    eprintln!("rows_model: {digest:?}");
-}
-
-/// The host of a table, writable, for taking its log between steps.
-fn tb_host<'a>(tb: &'a mut Table<'_, VecHost>) -> &'a mut VecHost {
-    tb.host_mut()
-}
 
 // ---------------------------------------------------------------- group images
 
@@ -664,45 +495,6 @@ fn seal_canonical() {
 
 fn nt_testhost_hash(b: &[u8]) -> u64 {
     native_table::hash::nt_hash64(b)
-}
-
-#[test]
-fn no_crossing() {
-    let m = model_schema();
-    per_fill(|h, _| {
-        let (mut tb, _) = Table::create(h, 9, &m.img).unwrap();
-        let mut r = XorShift(77);
-        let mut out = Vec::new();
-        // Several groups: plain, with medium and huge values, and one with 1,100 dead positions (compacted).
-        let mut k = 0u64;
-        for round in 0..3 {
-            let start = k;
-            let g0 = open_group(tb.host(), tb.root());
-            while open_group(tb.host(), tb.root()) == g0 {
-                tb.upsert(&mut key_scratch(), &mut Src::new(&model_row(&mut r, k, true))).unwrap();
-                k += 1;
-            }
-            if round == 2 {
-                for x in (start..k - 1).take(1_100) {
-                    tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(x))])).unwrap();
-                }
-            }
-            maintain_all(&mut tb);
-        }
-        let mut compacted = 0;
-        for (g, pg) in sealed_groups(&tb) {
-            let img = image_bytes(tb.host(), pg);
-            let segs = check_layout(&img);
-            if u16::from_le_bytes(img[46..48].try_into().unwrap()) & group::GF_COMPACTED != 0 {
-                compacted += 1;
-            }
-            out.push((g, img.len(), segs, nt_testhost_hash(&img)));
-        }
-        assert_eq!(compacted, 1, "the group with 1,100 dead positions is written compacted");
-        // Every row of every group reads back.
-        out.push((u64::MAX, tb.len().unwrap() as usize, 0, 0));
-        out
-    });
 }
 
 // ---------------------------------------------------------------- long values
@@ -1019,18 +811,7 @@ fn changed_blocks() {
         // inserted in order leave M's leaves half full) changes more of M; those are counted apart.
         let area1 = |tb: &Table<'_, VecHost>| -> std::collections::BTreeSet<u64> {
             let list = AreaRecord::read(tb.host(), tb.root(), 1).unwrap().page_list;
-            let mut s = std::collections::BTreeSet::new();
-            let mut from = 0;
-            loop {
-                let w = list.walk_max(tb.host(), from, RADIX_STEP, |_, p| {
-                    s.insert(p);
-                    Ok(())
-                });
-                match w.unwrap().next {
-                    Some(n) => from = n,
-                    None => return s,
-                }
-            }
+            (0..list.capacity().min(1 << 20)).map(|i| list.get(tb.host(), i).unwrap()).filter(|&p| p != 0).collect()
         };
         let mut rebalanced = 0;
         let mut del = |tb: &mut Table<'_, VecHost>, key: u64| -> u64 {
@@ -1385,120 +1166,26 @@ fn golden_groups() {
     });
 }
 
-// ---------------------------------------------------------------- the probe's entry points
+// ---------------------------------------------------------------- a group's ranges
 
+/// A sealed group stores no slot for a position past its positions, and refuses a segment past its segment
+/// table as `Corrupt(Range)`.
 #[test]
-fn probe_entry_points() {
-    assert_eq!(nt_probe::nt_selftest(), 0);
-    let mut x = XorShift(99);
-    for _ in 0..300 {
-        let (a, b) = (x.next_u64(), x.next_u64());
-        nt_probe::nt_group_read(a, b, x.below(8), x.below(5_000));
+fn group_refuses_positions_and_segments_past_its_end() {
+    let (img, _) = schema(&[t::scalar(ty::NAT), t::scalar(ty::TEXT)]);
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    let mut k = 0;
+    while sealed_groups(&tb).is_empty() {
+        tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k)), (id(1), V::text("x"))])).unwrap();
+        maintain_all(&mut tb);
+        k += 1;
     }
-    for s in 0..6 {
-        let v = nt_probe::nt_table(s, 280);
-        assert!(v < u64::MAX - 64, "nt_table faulted: {v}");
-    }
+    let (_, pg) = sealed_groups(&tb)[0];
+    let gv = GroupView::open(tb.host(), pg).unwrap();
+    assert_eq!(gv.slot(gv.p).unwrap(), None);
+    assert_eq!(gv.slot(u64::MAX).unwrap(), None);
+    assert_eq!(gv.seg(gv.s).err(), Some(corrupt(ImageId::Group(gv.g), Corruption::Range, gv.s)));
 }
 
 // ---------------------------------------------------------------- keys of any length
-
-/// A key of `n` ASCII bytes, none of them zero, which E(k) escapes into `n + 2` bytes; `salt` makes keys
-/// distinct.
-fn long_key(n: usize, salt: u8) -> Vec<u8> {
-    (0..n).map(|i| 1 + ((i as u64 * 31 + u64::from(salt)) % 126) as u8).collect()
-}
-
-/// Point operations take keys whose E(k) passes the stack's `KEY_STACK` bytes: E(k) is built in the
-/// scratch, and stored keys are compared in pieces. Text keys of E(k) = 4,097 bytes (one past the stack),
-/// 65,538 (a 64 KiB key) and 10^6 bytes, and a Nat key of 6,000 LEB128 bytes, through upsert, get and remove,
-/// with short keys beside them; then the same reads after maintenance.
-#[test]
-fn keys_of_any_length() {
-    use native_table::table::KEY_STACK;
-    assert_eq!(KEY_STACK, 4_096);
-    let (img, _) = schema(&[t::scalar(ty::TEXT), t::scalar(ty::I64)]);
-    per_fill(|h, lh| {
-        let fill = h.fill_pattern();
-        let (mut tb, _) = Table::create(h, 21, &img).unwrap();
-        let mut sc = VecScratch::new(fill);
-        let keys: Vec<Vec<u8>> =
-            vec![long_key(4_095, 1), long_key(65_536, 2), long_key(999_998, 3), b"short".to_vec(), long_key(4_094, 4)];
-        let key = |k: &[u8]| vec![(id(0), V::Bytes(k.to_vec()))];
-        let value = |tb: &Table<'_, VecHost>, sc: &mut VecScratch, k: &[u8]| -> Option<i64> {
-            let mut out = Sink { cells: Vec::new(), rid: None };
-            if !tb.get(sc, &mut Src::new(&key(k)), &mut out).unwrap() {
-                return None;
-            }
-            out.cells.iter().find(|(l, _)| *l == id(1)).map(|(_, v)| match v {
-                V::I(x) => *x,
-                v => panic!("{v:?}"),
-            })
-        };
-        let mut rids = Vec::new();
-        for (i, k) in keys.iter().enumerate() {
-            let mut row = key(k);
-            row.push((id(1), V::I(i as i64)));
-            let (u, _) = tb.upsert(&mut sc, &mut Src::new(&row)).unwrap();
-            let Upsert::Inserted(rid) = u else { panic!("a new key inserts: {u:?}") };
-            rids.push(rid);
-            assert_eq!(tb.upsert(&mut sc, &mut Src::new(&row)).unwrap().0, Upsert::Replaced(rid), "a present key");
-            lh.take(tb.host_mut());
-        }
-        for (i, k) in keys.iter().enumerate() {
-            assert_eq!(value(&tb, &mut sc, k), Some(i as i64), "key of {} bytes", k.len());
-            assert_eq!(rid_of(&tb, &key(k)), Some(rids[i]));
-            // A key that differs only in its last byte is another key.
-            let mut other = k.clone();
-            *other.last_mut().unwrap() ^= 0x40;
-            assert_eq!(value(&tb, &mut sc, &other), None);
-        }
-        for (i, k) in keys.iter().enumerate() {
-            let mut row = key(k);
-            row.push((id(1), V::I(200 + i as i64)));
-            let (u, _) = tb.upsert(&mut sc, &mut Src::new(&row)).unwrap();
-            assert_eq!(u, Upsert::Replaced(rids[i]));
-            assert_eq!(value(&tb, &mut sc, k), Some(200 + i as i64));
-        }
-        // The 10^6-byte key goes, and comes back under a new rid.
-        let (gone, _) = tb.remove(&mut sc, &mut Src::new(&key(&keys[2]))).unwrap();
-        assert_eq!(gone, Some(rids[2]));
-        assert_eq!(value(&tb, &mut sc, &keys[2]), None);
-        assert_eq!(tb.remove(&mut sc, &mut Src::new(&key(&keys[2]))).unwrap().0, None);
-        let mut row = key(&keys[2]);
-        row.push((id(1), V::I(7)));
-        assert!(matches!(tb.upsert(&mut sc, &mut Src::new(&row)).unwrap().0, Upsert::Inserted(_)));
-        maintain_all(&mut tb);
-        for (i, k) in keys.iter().enumerate() {
-            let want = if i == 2 { 7 } else { 200 + i as i64 };
-            assert_eq!(value(&tb, &mut sc, k), Some(want), "key of {} bytes after maintenance", k.len());
-        }
-        assert!(sc.grows > 0, "the long keys were built in the scratch");
-        lh.take(tb.host_mut());
-        tb.len().unwrap()
-    });
-    // A Nat key of 6,000 LEB128 bytes: E(k) about 5,250 bytes, its stored LEB128 bytes read through a window.
-    let (img, _) = schema(&[t::scalar(ty::NAT), t::scalar(ty::I64)]);
-    per_fill(|h, _| {
-        let fill = h.fill_pattern();
-        let (mut tb, _) = Table::create(h, 22, &img).unwrap();
-        let mut sc = VecScratch::new(fill);
-        let nat = |salt: u8| {
-            let mut v: Vec<u8> = (0..6_000u32).map(|i| 0x80 | (((i as u8).wrapping_mul(7) ^ salt) & 0x7F)).collect();
-            *v.last_mut().unwrap() = 0x55;
-            V::Nat(v)
-        };
-        for s in 0..3u8 {
-            let row = vec![(id(0), nat(s)), (id(1), V::I(i64::from(s)))];
-            assert!(matches!(tb.upsert(&mut sc, &mut Src::new(&row)).unwrap().0, Upsert::Inserted(_)));
-        }
-        for s in 0..3u8 {
-            assert!(rid_of(&tb, &[(id(0), nat(s))]).is_some());
-            let row = vec![(id(0), nat(s)), (id(1), V::I(9))];
-            assert!(matches!(tb.upsert(&mut sc, &mut Src::new(&row)).unwrap().0, Upsert::Replaced(_)));
-        }
-        assert!(rid_of(&tb, &[(id(0), nat(9))]).is_none());
-        assert!(tb.remove(&mut sc, &mut Src::new(&[(id(0), nat(1))])).unwrap().0.is_some());
-        tb.len().unwrap()
-    });
-}

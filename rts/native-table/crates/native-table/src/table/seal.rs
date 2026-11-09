@@ -1,10 +1,10 @@
-//! Rewrites: the seal of a full group, and the compaction and column release of a sealed group. Each runs
+//! Rewrites: the seal of a full group, and the compaction of a sealed group. Each runs
 //! whole in the call that starts it: it reads the group's rows, builds the group's new image with one writer,
 //! names the image on a new group page, which the directory then names, and frees what the group held before.
 //! No read or write ever meets a rewrite half done, so the image's bytes depend on the group's live rows alone.
 //!
-//! **Steps.** (1) The group's liveness: a seal reads its buffer blocks' slots, a compaction or column release
-//! its group page's live bitmap; the compacted form follows (`compacted_form`). (2) *Pass 1*, leaf by leaf over
+//! **Steps.** (1) The group's liveness: a seal reads its buffer blocks' slots, a compaction its group page's
+//! live bitmap; the compacted form follows (`compacted_form`). (2) *Pass 1*, leaf by leaf over
 //! the stored positions: the leaf's form and sizes, its plan in the work space. (3) The *layout*, leaf by leaf,
 //! from the sizes alone. (4) The *image*, written in order (header, leaf directory, rank map, cell area, inline
 //! data region, out-of-line area, segment table); a huge value's reference moves into the new long-value list.
@@ -36,7 +36,6 @@ mod walk;
 /// Rewrite kinds.
 pub const SEAL: u8 = 1;
 pub const COMPACTION: u8 = 2;
-pub const RELEASE: u8 = 3;
 
 /// A rewrite's facts and its group's liveness.
 pub struct Rw {
@@ -54,7 +53,7 @@ pub struct Rw {
     pub ordered: bool,
     /// The schema version the image is written at: the table's.
     pub version: u32,
-    /// The patch directory a compaction or column release reads (0: none).
+    /// The patch directory a compaction reads (0: none).
     pub dir: u64,
     /// The live bitmap by position.
     pub bits: [u64; 64],
@@ -103,7 +102,7 @@ impl Rw {
 }
 
 /// Whether a rewrite of a group of p positions, `live` of them live, writes the compacted form: the one rule
-/// of every rewrite (seal, compaction, column release), so the same live rows give the same bytes whatever
+/// of every rewrite (seal, compaction), so the same live rows give the same bytes whatever
 /// rewrite writes them. Dead positions reaching `COMPACT_DEAD` are left out with a rank map; fewer are written
 /// as nulls.
 pub fn compacted_form(p: u64, live: u64) -> bool {
@@ -146,32 +145,18 @@ fn adopts(img: &Image) -> bool {
 type Offsets = (u64, u64, u64);
 
 /// What a rewrite's reads keep between values: its work space and the row layouts built there, the last
-/// row layout looked up and the last leaf's offsets in it, a sealed source's leaf (its patch unit and its
-/// directory entry), and the last default read.
+/// row layout looked up and the last leaf's offsets in it, and a sealed source's leaf (its patch unit and its
+/// directory entry).
 struct Cx {
     ws: Space,
     vs: Versions,
     lay: Option<versions::Entry>,
     lay_head: RowHead,
     lay_at: Option<(u64, Offsets)>,
-    src_leaf: Option<(u64, Option<patch::Unit>, Option<group::LeafDir>)>,
-    dflt: Option<(u64, SVal)>,
+    src_leaf: Option<(u64, Option<patch::Unit>, group::LeafDir)>,
 }
 
 impl Cx {
-    /// Leaf `l`'s default, read once per leaf.
-    fn default_of<H: PageHost + ?Sized>(&mut self, h: &H, shape: &Shape, l: &LeafInfo) -> Result<SVal, Fault> {
-        let o = u64::from(l.ordinal);
-        if let Some((k, v)) = self.dflt {
-            if k == o {
-                return Ok(v);
-            }
-        }
-        let v = super::defaults::of(h, shape, l)?;
-        self.dflt = Some((o, v));
-        Ok(v)
-    }
-
     /// Leaf `o`'s offsets in a row of schema version v, the version's layout then in `lay_head`; `None` when
     /// the version's row layout is not built yet (`entry` builds it).
     #[inline(always)]
@@ -225,9 +210,6 @@ fn value<H: PageHost>(
             loop {
                 let r = RowRef::new(&*h, loc)?;
                 let v = r.version()?;
-                if !l.at(v) {
-                    return cx.default_of(&*h, shape, l);
-                }
                 if let Some((f, vi, b)) = cx.offsets(&*h, v, o)? {
                     let head = cx.lay_head;
                     let s = row::stored_at(&head, &r, l, f, vi, b)?;
@@ -248,7 +230,7 @@ fn value<H: PageHost>(
                 Some((k, u, d)) if k == o => (u, d),
                 _ => {
                     let u = patch::unit(&*h, dir, o)?;
-                    let d = gv.leaf_by_ordinal(o)?;
+                    let d = gv.leaf(o)?;
                     cx.src_leaf = Some((o, u, d));
                     (u, d)
                 }
@@ -258,7 +240,6 @@ fn value<H: PageHost>(
                     return cur::from_entry(&*h, &e, l);
                 }
             }
-            let Some(ld) = ld else { return cx.default_of(&*h, shape, l) };
             let Some(s) = gv.slot(q)? else { return Ok(SVal::Null) };
             cur::from_cell(&gv, &ld, l, s, q)
         }
@@ -291,7 +272,7 @@ fn cut_of<H: PageHost>(
     cx: &mut Cx,
     l: &LeafInfo,
 ) -> Result<Option<walk::Cut>, Fault> {
-    if rw.kind != SEAL || !l.at(rw.version) || walk::Kind::of(l.ty).is_none() {
+    if rw.kind != SEAL || walk::Kind::of(l.ty).is_none() {
         return Ok(None);
     }
     let e = cx.entry(h, shape, rw.version)?;
@@ -301,8 +282,8 @@ fn cut_of<H: PageHost>(
 
 /// Where the in-place walk takes up again after positions it left to the general path: the general path
 /// reads the positions (or slots) up to `until`. A walk that stopped before reading any doubles that stretch,
-/// up to `BACK_MAX`, so that rows the walk cannot read (moved rows, rows of another schema version, long
-/// items) cost the walk little; a walk that read some sets it back to one.
+/// up to `BACK_MAX`, so that rows the walk cannot read (moved rows, long items) cost the walk little; a walk
+/// that read some sets it back to one.
 #[derive(Clone, Copy, Default)]
 struct Back {
     until: Option<u64>,
@@ -411,16 +392,13 @@ fn store_plan<H: PageHost>(h: &mut H, ws: &mut Space, o: u64, pl: &Plan) -> Resu
     ws.write_bytes(h, at, &pl.encode()?)
 }
 
-/// The leaves a rewrite writes, those of its schema version, in ordinal order: `f(ordinal, leaf)` for each.
-fn for_each_leaf<H: PageHost, F>(h: &mut H, shape: &Shape, rw: &Rw, mut f: F) -> Result<(), Fault>
+/// The leaves a rewrite writes, in ordinal order: `f(ordinal, leaf)` for each.
+fn for_each_leaf<H: PageHost, F>(h: &mut H, shape: &Shape, mut f: F) -> Result<(), Fault>
 where
     F: FnMut(&mut H, u64, &LeafInfo) -> Result<(), Fault>,
 {
     for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        if l.at(rw.version) {
-            f(h, o, &l)?;
-        }
+        f(h, o, &shape.leaf(&*h, o)?)?;
     }
     Ok(())
 }
@@ -568,7 +546,7 @@ fn i_form(min: i64, max: i64) -> u8 {
 /// Pass 1, leaf by leaf: each written leaf's plan. Returns the leaves written.
 fn pass1<H: PageHost>(h: &mut H, shape: &Shape, rw: &Rw, src: &Source, cx: &mut Cx) -> Result<u64, Fault> {
     let mut leaves = 0u64;
-    for_each_leaf(h, shape, rw, |h, o, l| {
+    for_each_leaf(h, shape, |h, o, l| {
         let acc = scan(h, shape, rw, src, cx, l)?;
         store_plan(h, &mut cx.ws, o, &plan_of(l, &acc))?;
         leaves = leaves.wrapping_add(1);
@@ -817,7 +795,7 @@ fn layout<H: PageHost>(h: &mut H, shape: &Shape, rw: &Rw, cx: &mut Cx, leaves: u
     lay.rank_at = if rw.compacted { fr } else { 0 };
     lay.hh = group::align8(if rw.compacted { fr.wrapping_add(group::RANK_MAP) } else { fr });
     let (mut c, mut run, mut oolt) = (lay.hh, 0u64, 0u64);
-    for_each_leaf(h, shape, rw, |h, o, _| {
+    for_each_leaf(h, shape, |h, o, _| {
         let mut pl = load_plan(&*h, &cx.ws, o)?;
         pl.cell_at = c;
         pl.first_seg = lay.s;
@@ -998,7 +976,7 @@ fn write<H: PageHost>(
     let mut lv = page::LvBuilder::new();
     out.put(h, &header_bytes(&*h, tbl, shape, rw, lay)?)?;
     // The leaf directory.
-    for_each_leaf(h, shape, rw, |h, o, l| {
+    for_each_leaf(h, shape, |h, o, l| {
         let pl = load_plan(&*h, &cx.ws, o)?;
         let ld = group::LeafDir {
             id: l.id,
@@ -1030,7 +1008,7 @@ fn write<H: PageHost>(
     }
     out.pad_to(h, lay.hh)?;
     // The cell area, each leaf's ending where the layout placed the end of its last segment.
-    for_each_leaf(h, shape, rw, |h, o, l| {
+    for_each_leaf(h, shape, |h, o, l| {
         let pl = load_plan(&*h, &cx.ws, o)?;
         cells_leaf(h, shape, rw, src, cx, l, &pl, &mut out)?;
         if out.pos() != leaf_segments(&pl, rw.n, 0, |_| Ok(true))? {
@@ -1043,7 +1021,7 @@ fn write<H: PageHost>(
         if (!ool && lay.ool_start == lay.inline_at) || (ool && lay.x == 0) {
             continue;
         }
-        for_each_leaf(h, shape, rw, |h, o, l| {
+        for_each_leaf(h, shape, |h, o, l| {
             let pl = load_plan(&*h, &cx.ws, o)?;
             if (!ool && !group::variable(pl.form)) || (ool && pl.ool_k == 0) {
                 return Ok(());
@@ -1057,7 +1035,7 @@ fn write<H: PageHost>(
     }
     // The segment table.
     out.pad_to(h, lay.segs_at)?;
-    for_each_leaf(h, shape, rw, |h, o, _| {
+    for_each_leaf(h, shape, |h, o, _| {
         let pl = load_plan(&*h, &cx.ws, o)?;
         leaf_segments(&pl, rw.n, lay.inline_at.wrapping_add(pl.run_rel), |s| {
             out.put(h, &s.bytes32()?)?;
@@ -1509,11 +1487,11 @@ pub fn seal<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, desc: u64) -> Resul
     let tail = root::u64_at(&*h, tbl, root::TAIL)?;
     let buffered = buffer::u64_of(&*h, tail, buffer::H_BUFFERED)?;
     put_u64(h.get_mut(Region::Block(tail))?, buffer::H_BUFFERED, buffered.wrapping_sub(rw.live))?;
-    super::drain::free_descriptor(h, tbl, shape, desc)?;
+    super::drain::free_descriptor(h, tbl, desc)?;
     super::jobs::after_rewrite(h, tbl, g, pg)
 }
 
-/// Compacts (`COMPACTION`) or releases the dropped leaves of (`RELEASE`) the sealed group whose page is `pg`:
+/// Compacts (`COMPACTION`) the sealed group whose page is `pg`:
 /// its live rows' image, written at the table's schema version without its dead positions' rows, on a new group
 /// page that the directory names; then the old page, its image, its long-value list and its patches are freed.
 pub fn rewrite<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, pg: u64, kind: u8) -> Result<(), Fault> {
@@ -1556,15 +1534,7 @@ fn run<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw) -> Result<u64, 
     let work = crate::area::alloc_block(h, tbl, 0)?;
     let mut ws = Space::begin(h, tbl, work, rw.g, shape.leaves)?;
     ws.zero_step(h, u64::MAX)?;
-    let mut cx = Cx {
-        ws,
-        vs: Versions::new(),
-        lay: None,
-        lay_head: RowHead::default(),
-        lay_at: None,
-        src_leaf: None,
-        dflt: None,
-    };
+    let mut cx = Cx { ws, vs: Versions::new(), lay: None, lay_head: RowHead::default(), lay_at: None, src_leaf: None };
     let src = source(&*h, rw)?;
     let leaves = pass1(h, shape, rw, &src, &mut cx)?;
     let lay = layout(h, shape, rw, &mut cx, leaves)?;
