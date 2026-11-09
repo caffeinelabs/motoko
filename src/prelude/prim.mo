@@ -120,69 +120,43 @@ func ntCodecLabels<T>(codec : NtCodec<T>) : Blob {
 };
 
 func ntCreate<K, R>(codec : NtCodec<(K, R)>) : Nat64 {
-  (prim "nt_create" : Blob -> Nat64)((prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec))
+  (prim "nt_create" : NtCodec<(K, R)> -> Nat64)(codec)
 };
 
 func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {
-  (prim "nt_size" : (Nat64, Blob) -> Nat)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec))
+  (prim "nt_size" : (Nat64, NtCodec<(K, R)>) -> Nat)(id, codec)
 };
 
 func ntPut<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) : Bool {
-  (prim "nt_put" : (Nat64, Blob, K, R) -> Bool)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), k, r)
+  (prim "nt_put" : (Nat64, NtCodec<(K, R)>, K, R) -> Bool)(id, codec, k, r)
 };
 
 func ntGet<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : ?R {
-  (prim "nt_get" : (Nat64, Blob, Blob, K) -> ?R)(
-    id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
-    k,
-  )
+  (prim "nt_get" : (Nat64, NtCodec<(K, R)>, K) -> ?R)(id, codec, k)
 };
 
 func ntRemove<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : Bool {
-  (prim "nt_remove" : (Nat64, Blob, K) -> Bool)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), k)
+  (prim "nt_remove" : (Nat64, NtCodec<(K, R)>, K) -> Bool)(id, codec, k)
 };
 
 // Up to `limit` rows (at most 64) from row id `next` on, and the row id to go on from, or null
 // when no row is left
 func ntScanEntries<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
-  (prim "nt_scan" : (Nat64, Blob, Blob, Nat64, Nat64, Nat64) -> ([(K, R)], ?Nat64))(
-    id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
-    0,
-    next,
-    limit,
-  )
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 0, next, limit)
 };
 
 func ntScanKeys<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([K], ?Nat64) {
-  (prim "nt_scan" : (Nat64, Blob, Blob, Nat64, Nat64, Nat64) -> ([K], ?Nat64))(
-    id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
-    1,
-    next,
-    limit,
-  )
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([K], ?Nat64))(id, codec, 1, next, limit)
 };
 
 func ntScanValues<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([R], ?Nat64) {
-  (prim "nt_scan" : (Nat64, Blob, Blob, Nat64, Nat64, Nat64) -> ([R], ?Nat64))(
-    id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
-    2,
-    next,
-    limit,
-  )
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, next, limit)
 };
 
 // Declares an index on the named fields of R, in key order, and returns its id; a table with an
 // equal declaration gives that index's id
 func ntIndex<K, R>(id : Nat64, codec : NtCodec<(K, R)>, fields : [Text]) : Nat {
-  (prim "nt_index" : (Nat64, Blob, [Text]) -> Nat)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), fields)
+  (prim "nt_index" : (Nat64, NtCodec<(K, R)>, [Text]) -> Nat)(id, codec, fields)
 };
 
 // The id paired with the field list `fields` in `indexes`, field lists with their index ids: the
@@ -214,9 +188,9 @@ type NtFilter = { #eq : NtCell; #range : { low : ?NtBound; high : ?NtBound } };
 // The number of rows with the index key `key`, one cell per field of the index, or null while
 // the index is being built
 func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, key : [NtCell]) : ?Nat {
-  (prim "nt_count" : (Nat64, Blob, Nat64, [NtCell]) -> ?Nat)(
+  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, Nat64, [NtCell]) -> ?Nat)(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
     key,
   )
@@ -228,10 +202,9 @@ func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, key : [NtCe
 // (`start` 0), at its first key whose first field is not null (1), or at the key `from` (2). It
 // stops before the first key past `to`
 func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ?([(K, R)], Blob) {
-  (prim "nt_walk" : (Nat64, Blob, Blob, Nat64, Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ?([(K, R)], Blob))(
+  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, Nat64, Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ?([(K, R)], Blob))(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
     reverse,
     start,
@@ -245,22 +218,21 @@ func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, reverse : Bo
 // The sum and the number of the non-null values of the field `column` of R over every row, or
 // null when the field is not of an integer type
 func ntSum<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text) : ?(Int, Nat) {
-  (prim "nt_sum" : (Nat64, Blob, Text) -> ?(Int, Nat))(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), column)
+  (prim "nt_sum" : (Nat64, NtCodec<(K, R)>, Text) -> ?(Int, Nat))(id, codec, column)
 };
 
 // The smallest non-null value of the field `column` of R over every row, or the largest when
 // `largest`; null when no row holds one, or when the field is not of an integer type
 func ntExtreme<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, largest : Bool) : ?Int {
-  (prim "nt_extreme" : (Nat64, Blob, Text, Bool) -> ?Int)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), column, largest)
+  (prim "nt_extreme" : (Nat64, NtCodec<(K, R)>, Text, Bool) -> ?Int)(id, codec, column, largest)
 };
 
 // Up to `limit` rows (at most 64) whose field `field` meets `filter`, from row id `next` on, and
 // the row id to go on from, or null when no row is left
 func ntScanWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter : NtFilter, next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
-  (prim "nt_scan_where" : (Nat64, Blob, Blob, Text, NtFilter, Nat64, Nat64) -> ([(K, R)], ?Nat64))(
+  (prim "nt_scan_where" : (Nat64, NtCodec<(K, R)>, Text, NtFilter, Nat64, Nat64) -> ([(K, R)], ?Nat64))(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
-    (prim "nt_codec_labels" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     field,
     filter,
     next,
@@ -273,9 +245,9 @@ func ntScanWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter
 // fields `fields` names, in the order named; and the row id to go on from, or null when no row is
 // left
 func ntScanCells<K, R>(id : Nat64, codec : NtCodec<(K, R)>, key : Bool, fields : [Text], filter : ?(Text, NtFilter), next : Nat64, limit : Nat64) : ([[NtCell]], ?Nat64) {
-  (prim "nt_scan_cells" : (Nat64, Blob, Bool, [Text], ?(Text, NtFilter), Nat64, Nat64) -> ([[NtCell]], ?Nat64))(
+  (prim "nt_scan_cells" : (Nat64, NtCodec<(K, R)>, Bool, [Text], ?(Text, NtFilter), Nat64, Nat64) -> ([[NtCell]], ?Nat64))(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     key,
     fields,
     filter,
@@ -286,15 +258,15 @@ func ntScanCells<K, R>(id : Nat64, codec : NtCodec<(K, R)>, key : Bool, fields :
 
 // The number of rows whose field `field` meets `filter`
 func ntCountWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter : NtFilter) : Nat {
-  (prim "nt_count_where" : (Nat64, Blob, Text, NtFilter) -> Nat)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), field, filter)
+  (prim "nt_count_where" : (Nat64, NtCodec<(K, R)>, Text, NtFilter) -> Nat)(id, codec, field, filter)
 };
 
 // The sum and the number of the non-null values of the field `sumField` of R over the rows whose
 // field `field` meets `filter`, or null when `sumField` is not of an integer type
 func ntSumWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, sumField : Text, field : Text, filter : NtFilter) : ?(Int, Nat) {
-  (prim "nt_sum_where" : (Nat64, Blob, Text, Text, NtFilter) -> ?(Int, Nat))(
+  (prim "nt_sum_where" : (Nat64, NtCodec<(K, R)>, Text, Text, NtFilter) -> ?(Int, Nat))(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     sumField,
     field,
     filter,
@@ -305,9 +277,9 @@ func ntSumWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, sumField : Text, fiel
 // have it, from its first key when `after` is empty, else from the first key past `after`; and
 // the key to go on after, empty when no key is left
 func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, after : Blob, limit : Nat64) : ([([NtCell], Nat)], Blob) {
-  (prim "nt_group_counts" : (Nat64, Blob, Nat64, Blob, Nat64) -> ([([NtCell], Nat)], Blob))(
+  (prim "nt_group_counts" : (Nat64, NtCodec<(K, R)>, Nat64, Blob, Nat64) -> ([([NtCell], Nat)], Blob))(
     id,
-    (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec),
+    codec,
     (prim "num_conv_Nat_Nat64" : Nat -> Nat64)(index),
     after,
     limit,
@@ -317,7 +289,7 @@ func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, index : Nat, after
 // Runs units of the table's maintenance, starting each only while the instructions this call has
 // used are fewer than `budget`; true when work is still pending
 func ntMaintain<K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) : Bool {
-  (prim "nt_maintain" : (Nat64, Blob, Nat64) -> Bool)(id, (prim "nt_codec_layout" : NtCodec<(K, R)> -> Blob)(codec), budget)
+  (prim "nt_maintain" : (Nat64, NtCodec<(K, R)>, Nat64) -> Bool)(id, codec, budget)
 };
 
 //TODO: just call this `weak`?

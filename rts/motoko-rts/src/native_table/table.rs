@@ -102,14 +102,22 @@ unsafe fn blob_bytes<'a>(v: Value) -> &'a [u8] {
     core::slice::from_raw_parts(blob.payload_const(), blob.len().as_usize())
 }
 
-/// The layout in the Blob `v`.
-unsafe fn layout_of<'a>(v: Value) -> Layout<'a> {
-    Layout::parse(blob_bytes(v)).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
+/// The layout of the codec `codec`: a codec is a pair of the layout, a Blob, and the hash list of
+/// the row type.
+unsafe fn layout_of<'a>(codec: Value) -> Layout<'a> {
+    let layout = blob_bytes(codec.as_array().get(0));
+    Layout::parse(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
 }
 
-/// The layout in the Blob `v`, its header alone checked (`Layout::header`).
-unsafe fn header_of<'a>(v: Value) -> Layout<'a> {
-    Layout::header(blob_bytes(v)).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
+/// The layout of the codec `codec`, its header alone checked (`Layout::header`).
+unsafe fn header_of<'a>(codec: Value) -> Layout<'a> {
+    let layout = blob_bytes(codec.as_array().get(0));
+    Layout::header(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
+}
+
+/// The hash list of the row type in the codec `codec`.
+unsafe fn labels_of(codec: Value) -> Value {
+    codec.as_array().get(1)
 }
 
 /// The root block `id`, checked to be one the store recorded, of a table of the layout with codec
@@ -139,10 +147,10 @@ unsafe fn open<'h, 'a, M: Memory>(
     or_trap(Table::open(host, id, image))
 }
 
-/// Creates an empty table of the layout's key and row types; returns its root block.
+/// Creates an empty table of the codec's key and row types; returns its root block.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_create<M: Memory>(mem: &mut M, layout: Value) -> u64 {
-    let layout = layout_of(layout);
+pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value) -> u64 {
+    let layout = layout_of(codec);
     let store = native_store_location();
     let uid = StoreHost::new(mem, &mut *store).new_uid();
     let image = or_trap(schema_image(mem, &layout, uid, SCHEMA_VERSION, &[]));
@@ -158,8 +166,8 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, layout: Value) -> u64 {
 /// The number of rows of the table whose root block is `id`: the count of its live rows the table
 /// keeps, read without opening the table, which only its other reads and its writes need.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, layout: Value) -> u64 {
-    let layout = header_of(layout);
+pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, codec: Value) -> u64 {
+    let layout = header_of(codec);
     let host = StoreHost::new(mem, native_store_location());
     root_block(&host, id, layout.hash);
     or_trap(root::check(&host, id));
@@ -170,8 +178,8 @@ pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, layout: Value) -> u64 {
 /// Inserts row `r` under key `k`, or replaces the row `k` has; 1 when `k` is new, else 0. A unit
 /// of maintenance runs first when the table has work pending.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value, r: Value) -> u64 {
-    let layout = layout_of(layout);
+pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r: Value) -> u64 {
+    let layout = layout_of(codec);
     let mut row = cells(mem, &layout, k, r);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
@@ -187,15 +195,14 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value, r
 pub unsafe fn nt_get<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
-    labels: Value,
+    codec: Value,
     k: Value,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
-    let mut row = RowOut::new(mem, &layout, labels, Out::Row);
+    let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Row);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     let mut scratch = BlobScratch { mem };
@@ -209,8 +216,8 @@ pub unsafe fn nt_get<M: Memory>(
 /// Removes the row key `k` has; 1 when `k` had one, else 0. A unit of maintenance runs first when
 /// the table has work pending.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value) -> u64 {
-    let layout = layout_of(layout);
+pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> u64 {
+    let layout = layout_of(codec);
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
@@ -232,13 +239,12 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, layout: Value, k: Value
 pub unsafe fn nt_scan<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
-    labels: Value,
+    codec: Value,
     what: u64,
     next: u64,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let out = match what {
         0 => Out::Entry,
         1 => Out::Key,
@@ -248,7 +254,7 @@ pub unsafe fn nt_scan<M: Memory>(
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
-    let mut row = RowOut::new(mem, &layout, labels, out);
+    let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     let h = table.host();
@@ -316,8 +322,8 @@ fn index_decls<H: PageHost>(table: &Table<'_, H>, decls: &mut [IndexDecl; 64]) -
 /// holds rows builds the new index over them in maintenance units; counts and walks of the index
 /// wait until then.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, layout: Value, fields: Value) -> u64 {
-    let layout = layout_of(layout);
+pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, codec: Value, fields: Value) -> u64 {
+    let layout = layout_of(codec);
     let fields = fields.as_array();
     let parts = fields.len();
     if parts == 0 || parts > INDEX_PARTS {
@@ -456,11 +462,11 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
 pub unsafe fn nt_count<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     index: u64,
     key: Value,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let index = index_id(index);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
@@ -517,8 +523,7 @@ unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
 pub unsafe fn nt_walk<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
-    labels: Value,
+    codec: Value,
     index: u64,
     reverse: u64,
     start: u64,
@@ -527,7 +532,7 @@ pub unsafe fn nt_walk<M: Memory>(
     token: Value,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let index = index_id(index);
     let dir = if reverse != 0 { Dir::Rev } else { Dir::Fwd };
     // A key past `to` in the walk's direction.
@@ -541,7 +546,7 @@ pub unsafe fn nt_walk<M: Memory>(
     let rows = scratch::<Value, M>(mem, limit);
     let token = blob_bytes(token);
     let mem: *mut M = mem;
-    let mut row = RowOut::new(mem, &layout, labels, Out::Entry);
+    let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Entry);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     // Where the walk starts; `None` when no row's first part is not null.
@@ -658,12 +663,12 @@ pub unsafe fn nt_walk<M: Memory>(
 pub unsafe fn nt_group_counts<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     index: u64,
     after: Value,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let index = index_id(index);
     let limit = limit.clamp(1, BATCH_LIMIT) as usize;
     let groups = scratch::<Value, M>(mem, limit);
@@ -729,8 +734,8 @@ pub unsafe fn nt_group_counts<M: Memory>(
 /// over every row of the table whose root block is `id`, as an Int and a Nat in a pair; null when
 /// the field is not of an integer type. One read of the field's running total, at any table size.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, layout: Value, column: Value) -> Value {
-    let layout = layout_of(layout);
+pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, codec: Value, column: Value) -> Value {
+    let layout = layout_of(codec);
     let name = text_bytes(mem, column);
     let Some((c, e)) = layout
         .entries()
@@ -772,11 +777,11 @@ pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, layout: Value, column: Val
 pub unsafe fn nt_extreme<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     column: Value,
     largest: u64,
 ) -> Value {
-    let layout = header_of(layout);
+    let layout = header_of(codec);
     let name = text_bytes(mem, column);
     let Some((c, e)) = layout
         .entries()
@@ -868,19 +873,18 @@ impl<M: Memory, H: PageHost> RowSink for Matches<'_, '_, '_, M, H> {
 pub unsafe fn nt_scan_where<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
-    labels: Value,
+    codec: Value,
     column: Value,
     filter: Value,
     next: u64,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let filter = filter_of(mem, &layout, column, filter);
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
-    let row = RowOut::new(mem, &layout, labels, Out::Entry);
+    let row = RowOut::new(mem, &layout, labels_of(codec), Out::Entry);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     let mut out = Matches {
@@ -916,14 +920,14 @@ pub unsafe fn nt_scan_where<M: Memory>(
 pub unsafe fn nt_scan_cells<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     key: u64,
     fields: Value,
     filter: Value,
     next: u64,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let fields = fields.as_array();
     let first = usize::from(key != 0);
     let width = fields.len() + first;
@@ -977,11 +981,11 @@ pub unsafe fn nt_scan_cells<M: Memory>(
 pub unsafe fn nt_count_where<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     column: Value,
     filter: Value,
 ) -> u64 {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let filter = filter_of(mem, &layout, column, filter);
     let mut host = StoreHost::new(mem, native_store_location());
     or_trap(open(&mut host, id, layout.hash).count_where(&filter))
@@ -995,12 +999,12 @@ pub unsafe fn nt_count_where<M: Memory>(
 pub unsafe fn nt_sum_where<M: Memory>(
     mem: &mut M,
     id: u64,
-    layout: Value,
+    codec: Value,
     sum_column: Value,
     column: Value,
     filter: Value,
 ) -> Value {
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let (c, codes) = field(mem, &layout, sum_column);
     let filter = filter_of(mem, &layout, column, filter);
     let mem: *mut M = mem;
@@ -1033,9 +1037,9 @@ pub unsafe fn nt_sum_where<M: Memory>(
 /// builds indexes, seals or compacts; writes run one unit each when work is pending, so a table
 /// that receives no writes advances only through this call.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, layout: Value, budget: u64) -> u64 {
+pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget: u64) -> u64 {
     let start = ic0_performance_counter(0);
-    let layout = layout_of(layout);
+    let layout = layout_of(codec);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, layout.hash);
