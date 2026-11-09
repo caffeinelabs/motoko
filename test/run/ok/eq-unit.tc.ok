@@ -1,3 +1,0 @@
-eq-unit.mo:4.9-4.42: warning [M0276], this comparison always has the same result, because it is performed at type
-  ()
-which has a single value

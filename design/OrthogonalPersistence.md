@@ -71,6 +71,8 @@ This compatibility check serves as an additional safety measure on top of the DF
 * Records cannot introduce additional optional fields.
 * Same arity for tuple types (no insertion of optional items).
 * Records and tuples are distinct.
+* Mutable arrays (`[var T]`) and mutable fields holding arrays (`var [T]`) are distinct, as are `Char` and `Nat32`, and `()` and `Null`.
+  Type descriptors stored by older compilers encode each of these pairs alike, so the first upgrade from such a descriptor accepts either reading.
 
 ### Garbage Collection
 The implementation focuses on the incremental GC and abandons the other GCs because the GCs use different memory layouts. For example, the incremental GC uses a partitioned heap with objects carrying a forwarding pointer.

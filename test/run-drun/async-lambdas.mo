@@ -6,6 +6,8 @@ actor a {
   func runStar(f : () -> async* Nat) : async* Nat { await* f() };
   func apply(f : Nat -> async Nat) : async Nat { await f(20) };
   func forEach<A>(xs : [A], f : A -> async ()) : async () { for x in xs.values() { await f(x) } };
+  func runAfter<A>(_x : A, f : () -> async Nat) : async Nat { await f() };
+  func runStarAfter<A>(_x : A, f : () -> async* Nat) : async* Nat { await* f() };
 
   type Counter = { next : () -> async* Nat };
   class ValueCounter(v : Nat) {
@@ -13,6 +15,7 @@ actor a {
   };
 
   var log = "";
+  var sum = 0;
 
   public func go() : async () {
     assert (await run(func() { 1 })) == 1;
@@ -21,6 +24,12 @@ actor a {
     assert (await* runStar(func() { await run(func() { 3 }) })) == 3;
     await forEach(["a", "b", "c"], func(x) { log #= x });
     assert log == "abc";
+
+    // Generic calls too, with explicit parameters
+    assert (await runAfter("a", func() { 7 })) == 7;
+    assert (await* runStarAfter(0, func() { await* runStar(func() { 8 }) })) == 8;
+    await forEach([1, 2], func(n : Nat) { sum += n });
+    assert sum == 3;
 
     // Declared functions: a block body and `= e` are the same
     func four() : async Nat = 4;

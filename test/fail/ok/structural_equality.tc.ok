@@ -10,21 +10,80 @@ structural_equality.mo:6.1-6.11: type error [M0060], operator is not defined for
   {inner : () -> Nat}
 and
   {inner : () -> Nat}
-structural_equality.mo:8.9-8.37: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:8.9-8.37: type error [M0276], this comparison always has the same result, because it compares type
+  {x : Nat}
+with type
+  {var x : Nat}
+at their common supertype
   {}
 which has a single value
-structural_equality.mo:10.8-10.18: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:10.8-10.18: type error [M0276], this comparison always has the same result, because it compares type
+  Nat
+with type
+  Text
+at their common supertype
   Any
 which has a single value
-structural_equality.mo:12.37-12.43: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:12.37-12.43: type error [M0276], this comparison always has the same result, because it compares abstract type
+  A
+to itself at supertype
   Any
 which has a single value
-structural_equality.mo:13.41-13.47: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:13.41-13.47: type error [M0276], this comparison always has the same result, because it compares type
+  A
+with type
+  B
+at their common supertype
   Any
 which has a single value
-structural_equality.mo:15.9-15.19: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:15.9-15.19: type error [M0276], this comparison always has the same result, because it compares type
+  Nat
+with type
+  Text
+at their common supertype
   Any
 which has a single value
-structural_equality.mo:16.9-16.47: type error [M0276], this comparison always has the same result, because it is performed at type
+structural_equality.mo:16.9-16.47: type error [M0276], this comparison always has the same result, because it compares type
+  {x : {p : Nat}}
+with type
+  {x : {q : Nat}}
+at their common supertype
   {x : {}}
+which has a single value
+structural_equality.mo:19.49-19.61: type error [M0276], this comparison always has the same result, because it compares type
+  {name : Text}
+with type
+  {}
+at their common supertype
+  {}
+which has a single value
+structural_equality.mo:20.39-20.45: type error [M0276], this comparison always has the same result, because it compares type
+  Any
+with type
+  Nat
+at their common supertype
+  Any
+which has a single value
+structural_equality.mo:21.47-21.53: type error [M0276], this comparison always has the same result, because it compares type
+  A
+with type
+  Any
+at their common supertype
+  Any
+which has a single value
+structural_equality.mo:22.81-22.87: type error [M0276], this comparison always has the same result, because it compares type
+  {id : Nat; kind : {#key}}
+with type
+  {kind : {#key}}
+at their common supertype
+  {kind : {#key}}
+which has a single value
+structural_equality.mo:25.31-25.38: type error [M0276], this comparison always has the same result, because both operands are compared at type
+  Any
+which has a single value
+structural_equality.mo:26.31-26.40: type error [M0276], this comparison always has the same result, because both operands are compared at type
+  Any
+which has a single value
+structural_equality.mo:27.31-27.38: type error [M0276], this comparison always has the same result, because both operands are compared at type
+  Any
 which has a single value

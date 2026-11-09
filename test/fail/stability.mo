@@ -48,5 +48,6 @@ actor {
 
    public shared func pub2() : () {}; // accept as flexible (no warning)
    stable let wrong = module {}; // reject
+  stable var comp : ?(async* [var Nat]) = null // reject
 
 }

@@ -22,3 +22,25 @@ type
   {foo : () -> Nat}
 is or contains non-shared type
   () -> Nat
+issue103.mo:33.18-33.35: type error [M0033], async type has non-shared content type
+  [var Nat]
+type
+  [var Nat]
+is or contains non-shared type
+  var Nat
+issue103.mo:39.35-39.36: type error [M0033], async has non-shared content type
+  T
+issue103.mo:44.21-44.49: type error [M0032], shared function has non-shared return type
+  [var Nat]
+type
+  [var Nat]
+is or contains non-shared type
+  var Nat
+issue103.mo:49.28-49.46: type error [M0031], shared function has non-shared parameter type
+  async*<$> [var Nat]
+type
+  async*<$> [var Nat]
+is or contains non-shared type
+  async*<$> [var Nat]
+issue103.mo:53.48-53.61: type error [M0173], to_candid argument must have shared type, but instead has non-shared type
+  async*<$> [var Nat]

@@ -843,6 +843,15 @@ let checked_body_kind sort typ_opt s tbs ts2 =
   | Async _, [{T.sort = T.Scope; _}] when s = T.Local -> Some kind
   | _ -> None
 
+(* Whether checking against [t] alone makes the body of a function without a return type async *)
+let async_body_from_expected sort typ_opt t =
+  match typ_opt, t with
+  | None, T.Func (s, _, tbs, _, ts2) ->
+    (match checked_body_kind sort typ_opt s tbs ts2 with
+     | Some (Async _) -> true
+     | _ -> false)
+  | _ -> false
+
 (* Adds the implicit scope binder and `async` that the kind calls for, and records them for the interpreter and lowering *)
 let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
   let typ_binds' =
@@ -1024,7 +1033,8 @@ and check_typ' env typ : T.typ =
   | AsyncT (s, typ0, typ) ->
     let t0 = check_typ env typ0 in
     let t = check_typ env typ in
-    if not env.pre && not (T.shared t) then
+    (* only a future's result crosses a message boundary; a computation runs in its awaiter *)
+    if not env.pre && s = T.Fut && not (T.shared t) then
       error_shared env t typ.at
         "M0033" "async has non-shared content type%a"
         display_typ_expand t;
@@ -2541,10 +2551,25 @@ and infer_exp'' env exp : T.typ =
       let t = Operator.type_relop op (T.lub ~src_fields:env.srcs (T.promote t1) (T.promote t2)) in
       if not (Operator.has_relop op t) then
         error_bin_op env exp.at t1 t2;
-      if T.singleton t then
+      (* operands that already have the single-valued type were declared so on purpose,
+         but a literal-like operand only takes its type from the other one *)
+      let checked = is_explicit_exp exp1 <> is_explicit_exp exp2 in
+      if checked && eq env exp.at t T.Any then
         warn env exp.at "M0276"
-          "this comparison always has the same result, because it is performed at type%a\nwhich has a single value"
+          "this comparison always has the same result, because both operands are compared at type%a\nwhich has a single value"
           display_typ_expand t
+      else if T.singleton t && not (eq env exp1.at t t1 && eq env exp2.at t t2) then
+        if eq env exp.at t1 t2 then
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares abstract type%a\nto itself at supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t
+        else
+          warn env exp.at "M0276"
+            "this comparison always has the same result, because it compares type%a\nwith type%a\nat their common supertype%a\nwhich has a single value"
+            display_typ_expand t1
+            display_typ_expand t2
+            display_typ_expand t
       else if not (eq env exp1.at t t1 || eq env exp2.at t t2) && not (sub env exp1.at T.nat t1 && sub env exp2.at T.nat t2) then
         if eq env exp.at t1 t2 then
           warn env exp.at "M0061"
@@ -2920,7 +2945,7 @@ and infer_exp'' env exp : T.typ =
         scopes = T.ConEnv.add c exp.at env.scopes } in
     let t = infer_exp env' exp1 in
     let t' = T.open_ [t1] (T.close [c] t)  in
-    if not (T.shared t') then
+    if s = T.Fut && not (T.shared t') then
       error_shared env t' exp1.at "M0033" "async type has non-shared content type%a"
         display_typ_expand t';
     T.Async (s, t1, t')
@@ -3777,8 +3802,10 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
         to_fix := (exp, target_type') :: !to_fix;
         target_type'
       (* Future work: more cases to decompose, e.g. T.Opt, T.Obj, T.Variant... *)
-      | FuncE (_, _, _, pat, _, _, _), normalized_target when not (is_explicit_pat pat) ->
-        (* Cannot infer unannotated func, defer it *)
+      | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _, _), normalized_target
+        when not (is_explicit_pat pat)
+          || typ_binds = [] && async_body_from_expected shared_pat.it typ_opt normalized_target ->
+        (* Cannot infer unannotated func, nor one that only the target makes async, defer it *)
         deferred := (exp, target_type) :: !deferred;
         must_solve := (* Inputs of deferred functions must be solved first *)
           (match normalized_target with

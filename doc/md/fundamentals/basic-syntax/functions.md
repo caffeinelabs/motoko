@@ -60,7 +60,7 @@ actor Digit {
    func reset() { value := 0 };
    public shared func inc() : async (){
       value += 1;
-      if (value == 10) reset();
+      if value == 10 { reset() };
    };
    public shared query func get() : async Nat {
       value
@@ -76,7 +76,7 @@ actor Digit {
    func reset() { value := 0 };
    public func inc() : async () {
       value += 1;
-      if (value == 10) reset();
+      if value == 10 { reset() };
    };
    public query func get() : async Nat {
       value

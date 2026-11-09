@@ -10,7 +10,7 @@ actor Alarm {
   };
 
   system func heartbeat() : async () {
-    if (count % n == 0) {
+    if count % n == 0 {
       await ring();
     };
     count += 1;

@@ -521,6 +521,8 @@ data MOTerm :: * -> * where
   -- Wrapping Arithmetic
   WrapAdd, WrapSub, WrapMul, WrapPow
     :: MOTerm (BitLimited n a) -> MOTerm (BitLimited n a) -> MOTerm (BitLimited n a)
+  -- `Prim.shiftLeft`
+  NatShiftL :: MOTerm Natural -> MOTerm (BitLimited 32 Natural) -> MOTerm Natural
   -- Numeric
   Lit :: Integer -> MOTerm a
   Neuralgic :: Neuralgic a -> MOTerm a
@@ -601,6 +603,7 @@ subShrink (a `WrapMul` b) = shrinkOp2 WrapMul a b
 -- an exponent it declines, which is indistinguishable from "traps" (see the NB
 -- in `evaluate`) and would report a bogus minimal case.
 subShrink (a `Pow` b) = (`Pow` b) <$> shrink a
+subShrink (a `NatShiftL` b) = (`NatShiftL` b) <$> shrink a
 subShrink (a `WrapPow` b) = (`WrapPow` b) <$> shrink a
 subShrink (PopCnt n) = shrinkOp1 PopCnt n
 subShrink (Clz n) = shrinkOp1 Clz n
@@ -720,9 +723,14 @@ instance Arbitrary (MOTerm Natural) where
     , (n `div` 2, ConvertNatNToNat <$> (arbitrary @(MOTerm Nat16)))
     , (n `div` 2, ConvertNatNToNat <$> (arbitrary @(MOTerm Nat32)))
     , (n `div` 2, ConvertNatNToNat <$> (arbitrary @(MOTerm Nat64)))
+    , (n `div` 2, resize (n `div` 3) $ NatShiftL <$> arbitrary <*> shiftAmount)
     ]
   shrink (Lit _) = []
   shrink x = [ Lit (fromIntegral x) | Just x <- pure $ evaluate x ] <> subShrink x
+
+-- half of them straddle 32, where the inline fast path for small `Nat`s hands over to the bignum path
+shiftAmount :: Gen (MOTerm Nat32)
+shiftAmount = frequency [ (1, Lit <$> choose (28, 33)), (1, (`Mod` Lit 64) <$> arbitrary) ]
 
 instance Arbitrary (MOTerm Integer) where
   arbitrary = reasonablyShaped $ \n ->
@@ -1076,6 +1084,7 @@ eval (a `Mul` b) = eval a * eval b
 eval (a `Div` b) = eval a `quot` eval b
 eval (a `Mod` b) = eval a `rem` eval b
 eval (a `Pow` (eval -> b)) = do b' <- b; exponentiable b'; (^) <$> eval a <*> b
+eval (a `NatShiftL` b) = do NatN b <- evaluate b; (`shiftL` fromIntegral b) <$> eval a
 eval (ConvertNatural t) = fromIntegral <$> evaluate t
 eval c@(ConvertNatToNatN t) = fromIntegral . (.&. maskFor c) <$> evaluate t
 eval (ConvertNatNToNat t) = fromIntegral <$> evaluate t
@@ -1202,6 +1211,7 @@ unparseMO (a `WrapPow` b) = inParens unparseMO "**%" a b
 unparseMO t@(PopCnt n) = typSuffix t "(Prim.popcnt" <> " " <> unparseMO n <> ")"
 unparseMO t@(Clz n) = typSuffix t "(Prim.clz" <> " " <> unparseMO n <> ")"
 unparseMO t@(Ctz n) = typSuffix t "(Prim.ctz" <> " " <> unparseMO n <> ")"
+unparseMO (a `NatShiftL` b) = "(Prim.shiftLeft(" <> unparseMO a <> ", " <> unparseMO b <> "))"
 unparseMO (Complement a) = "(^ " <> unparseMO a <> ")"
 unparseMO (ConvertNatural a) = "(++++(" <> unparseMO a <> "))"
 unparseMO (ConvertNatNToNat a) = sizeSuffix a "(Prim.nat" <> "ToNat " <> unparseMO a <> ")"

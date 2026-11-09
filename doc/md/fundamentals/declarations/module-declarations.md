@@ -38,14 +38,14 @@ module Matrix {
   public func identity(n : Nat) : Matrix {
     Array.tabulate<[Nat]>(n, func (i : Nat) {
       Array.tabulate<Nat>(n, func (j : Nat) {
-        if (i == j) { 1 } else { 0 }
+        if i == j { 1 } else { 0 }
       })
     })
   };
 
   // Transpose a matrix (flip rows and columns)
   public func transpose(m : Matrix) : Matrix {
-    if (m.size() == 0) return [];
+    if m.size() == 0 { return [] };
     let rows = m.size();
     let cols = m[0].size();
     Array.tabulate<[Nat]>(cols, func (j: Nat) {

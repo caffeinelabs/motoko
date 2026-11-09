@@ -10,10 +10,74 @@
     of returning a wrong value. The interpreter agrees and no longer hangs
     on large shift amounts (#6423).
 
-  * Added `Prim.subnetSelfNodeCount() : Nat32` and
+  * perf: a `switch` on a tuple, such as `switch (a, b)` or
+    `switch (f())`, no longer allocates the tuple on the heap when every case
+    is a tuple pattern (or a wildcard). Neither does a projection from a
+    tuple-returning call like `f().0` (#6486).
+
+## 2.2.1 (2026-11-03)
+
+* motoko (`moc`)
+
+  * bugfix: the upgrade check of enhanced orthogonal persistence now rejects
+    changing a record field between `var f : [T]` and `f : [var T]`, `Char`
+    to or from `Nat32`, and `()` to or from `Null` (or to `?T`). It used to
+    accept these upgrades, after which the new code misread the old heap. The
+    first upgrade from `moc` 2.2.0 or earlier still accepts them, as the
+    stable type those releases stored doesn't tell them apart. Before that
+    upgrade, run `moc --stable-compatible`, which rejects them: for example,
+    a stored `Nat32` read as a `Char` can become an invalid code point (a
+    surrogate or one above `0x10FFFF`), and a `var [T]` field read as
+    `[var T]` reads the heap out of bounds. Once upgraded, a canister whose
+    stable type contains `[var T]`, `Char`, or `()` (including tags without
+    payload, such as `#on`) fails to downgrade to `moc` 2.2.0 or earlier with
+    `Memory-incompatible program upgrade` (#6452).
+
+## 2.2.0 (2026-11-02)
+
+* motoko (`moc`)
+
+  * bugfix: `cancelTimer` cancels a one-shot timer whose job is waiting to be
+    retried after a failed dispatch, and `cancelTimer(0)` no longer cancels
+    such a retry. A recurring timer no longer runs an extra time after its job
+    could not be dispatched because the call queue was full (#6449).
+
+  * bugfix: a late `await` of a future whose reply callback trapped now
+    terminates the awaiting computation even if the message that runs its
+    `finally` clauses can't be sent (for example, out of cycles) or is
+    rejected. Previously the `catch` ran and execution continued (#6471).
+
+  * feat: `async*` computations can now have non-shared result types,
+    including type parameters, so generic helpers such as
+    `retry<T>(call : () -> async* T) : async* T` compile. Futures
+    (`async T`) and shared functions still require shared types (#6477).
+
+  * bugfix: `Prim.shiftLeft` on `Nat` (`Nat.bitshiftLeft`) returns the right
+    result when it exceeds 2^61. Compiled code took a fast path for operands
+    below 2^32 and amounts up to 32 that silently wrapped larger results,
+    e.g. `shiftLeft(2 ** 30, 32)` gave `0`; the interpreter was right (#6447).
+
+  * bugfix: boxed `Nat64`, `Int64` and `Float` values now allocate 3 words (24 bytes)
+    on the heap instead of 4, matching their RTS layout. The fourth word was
+    an oversight and never used (#6475).
+
+  * bugfix: in a generic call that expects an `async` or `async*` function,
+    a function argument with typed or no parameters, such as `func() { 7 }`,
+    is asynchronous, as one with untyped parameters already was (#6478).
+
+## 2.1.0 (2026-10-21)
+
+* motoko (`moc`)
+
+  * feat: added `Prim.subnetSelfNodeCount() : Nat32` and
     `Prim.costHttpRequestV2(params : Blob) : Nat`, exposing
     `ic0.subnet_self_node_count` and `ic0.cost_http_request_v2` for
     pay-as-you-go HTTPS outcall pricing (#6461).
+
+  * bugfix: an `await` or `await?` of a future whose reply callback already
+    trapped now runs the awaiting computation's `finally` clauses instead
+    of suspending forever. This includes Candid decoding failures before
+    a waiter was registered (#5909, #6469).
 
   * bugfix: timers no longer stop for good when a canister runs short of
     cycles. If the self-call that dispatches expired timers was rejected
@@ -33,6 +97,13 @@
     tables transposed, which could read past the end of the cache or wrongly
     accept an incompatible upgrade once the two versions had different
     type-table sizes (#6463).
+
+  * M0276 no longer reports a comparison whose operands both already have the
+    single-valued type, such as `status == #active` with
+    `status : { #active }`: the type was declared that way on purpose. It
+    still reports operands of different types compared at `Any` or `{}`, and
+    a literal compared with an `Any` value, as in `x == 10`. Its message now
+    names the operand types (#6470).
 
 ## 2.0.0 (2026-10-06)
 

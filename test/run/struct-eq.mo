@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194 -W M0276
+//MOC-FLAG -A=M0194
 assert({ x = 10 } == { x = 10 });
 assert({ x = 10 } != { x = 9 });
 
@@ -34,3 +34,9 @@ assert((#a : { #a; #b }) != (#c : { #a; #c }));
 func f<A <: { id : Nat }>(a : A, b : A) : Bool = a == b;
 assert(not f({ id = 1; name = "a" }, { id = 2; name = "a" }));
 func g(a : actor { f : () -> async () }, b : actor { g : () -> async () }) : Bool = a == b;
+
+// both operands declared at a single-valued type: constant, but deliberate
+type Admin = { status : { #active }; role : { #admin } };
+let admin : Admin = { status = #active; role = #admin };
+assert(admin.status == #active and admin.role == #admin);
+assert(admin == admin);

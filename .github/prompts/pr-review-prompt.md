@@ -42,7 +42,7 @@ This is the Motoko compiler repository:
    - New compiler warnings/errors MUST have a `test/fail/ok/*.tc.ok` (or equivalent) update.
    - No redundant or overlapping tests.
 4. Code consistency: MUST match existing OCaml patterns in `src/`.
-5. Correctness over style: only flag style if it causes defects or long-term risk.
+5. Correctness over style: only flag style if it causes defects or long-term risk. moc 2 syntax (rule 10) is the one exception.
 6. Changelog: verify ALL three (each a P# defect if missing):
    - Entry present for user-visible language/prelude/CLI changes (internal-only changes are exempt).
    - Entry placed on top, not inside a frozen `## X.Y.Z (YYYY-MM-DD)` section.
@@ -60,6 +60,11 @@ This is the Motoko compiler repository:
    - Then inspect all changed files batch-by-batch in risk order until coverage is complete.
    - Keep a running list of candidate findings and deduplicate before final output.
    - Do NOT skip files just because the PR is large.
+10. moc 2 syntax in new Motoko code:
+   - `AGENTS.md` requires every `.mo` line the PR adds or modifies to be in moc 2 syntax, and lists the forms that means.
+   - Check each added or modified `.mo` line against those forms, and list every violation with its file and line in the Consistency row's Details, marked ⚠️.
+   - Lines the PR doesn't touch, and tests about legacy syntax itself, are exempt.
+   - A violation is neither a P# nor an S# finding and does not change the decision on its own.
 
 ## Motoko-specific defect signals
 
@@ -84,7 +89,7 @@ Treat these as high-priority candidates when present in the diff:
 
 - Pre-existing issues unchanged by this PR.
 - Formatting-only diffs with no behavioral impact.
-- Subjective style nits.
+- Subjective style nits. moc 2 syntax (rule 10) is not one.
 - **Findings that would apply equally to every PR** (e.g. generic prompt-injection risk on this AI-review workflow) — assume the existing mitigations hold (no-approval contract, sandbox deny rules, fork/draft/dependabot gating, `skip-ai-review` escape hatch) and do NOT surface them unless this specific PR weakens them.
 - **Cursor CLI supply-chain / install-pinning concerns** — the upstream installer is not checksummed; this is a known platform constraint, not a per-PR finding.
 - Any secrets — NEVER reproduce; redact as [REDACTED].
@@ -198,7 +203,7 @@ Exception: if this PR adds a new call site, code path, or input source that make
 | --------------- | ---------- | ------------------------------------ |
 | Summary         | ✅         | What this PR does [1-2 sentences]    |
 | Code Quality    | ✅/⚠️/❌   | Reuse, DRY, YAGNI compliance         |
-| Consistency     | ✅/⚠️/❌   | Alignment with compiler/OCaml patterns |
+| Consistency     | ✅/⚠️/❌   | Alignment with compiler/OCaml patterns; moc 2 syntax violations (rule 10) |
 | Correctness     | ✅/⚠️/❌   | Logic, typing, codegen, edge cases — name what you traced |
 | Tests           | ✅/⚠️/❌   | `.ok` parity AND content; name covering tests or state the gap |
 | Changelog       | ✅/⚠️/❌   | User-visible changes recorded        |
