@@ -249,6 +249,14 @@ No changes to `(^^^)`, `orElse`, or `orsPatternFailure` — they stay
 pure G.t manipulation. The effects are attached at the *leaf*
 combinators that know what kind of value is being discriminated.
 
+*As shipped, the recognizer is not in the EDSL:* `SwitchE` walks the IR
+patterns with `flatten_tag_leaves` and performs `Match_arm` itself, and
+the `br_table` arms bypass `fill_pat`'s tag test by rewriting to
+`known_tag_pat` (`TagP ("", p)`). Moving the recognizer into the EDSL,
+and replacing `known_tag_pat` with a principled mechanism, is the subject
+of "Finally-tagless pattern code and switch-specialised interpreters"
+below.
+
 ### Strategy for V2 launch
 
 Gosper-based `MaskShift` only — same cost model as V1. The multi-
@@ -281,6 +289,8 @@ a sibling) and is the acceptance gate for V2.
   outer match — fit the same protocol: the outer handler installs
   "component `k` is known to be `v`" context, the inner recognizer
   asks, and the handler returns `No_op` instead of a dispatch plan.
+  (Generalised below: the handler returns a *specialised interpreter*
+  that answers `No_op` for every known test, not a one-off reply.)
 - **Testable in isolation.** The recognizer can be exercised with a
   synthetic handler that records the effect trace; the handler can
   be exercised on hand-built `token_set` inputs without a Wasm
@@ -749,8 +759,161 @@ Measured wins on `test/bench/variant-switch.mo`: −6.70% on `isWeekendOr` (or-p
 
 Follow-up: [#6124](https://github.com/caffeinelabs/motoko/issues/6124).
 
+## Future: Finally-tagless pattern code and switch-specialised interpreters
+
+Picks up the PR's TODO "distill not from IR, but from the `(^^^)` EDSL
+(maybe change to finally-tagless?)", and takes it one step further.
+
+### Where we are
+
+- **Producer from IR.** The recognizer (`flatten_tag_leaves : Ir.pat ->
+  (string * Ir.pat) list option`) sees only `TagP`/`AltP` at the
+  scrutinee root. Wildcard arms, two arms sharing a tag, and tags in a
+  tuple component (which #6486's `fill_case` now matches one local at a
+  time) are invisible to it, so the whole switch falls back to `Linear`.
+- **Opaque EDSL.** `patternCode = CannotFail of G.t | CanFail of (G.t ->
+  G.t)`: a tag test is a closure from failure continuation to code, with
+  `Variant.test_is env l` built in. Nothing downstream can ask "is this a
+  test of label `l`?".
+- **Ad-hoc specialisation.** The `br_table` arms rewrite to
+  `known_tag_pat` (`TagP ("", p)`) so `fill_pat` skips the tag test the
+  `br_table` slot already decided. That *is* the emitter specialised to
+  the fact "on this edge the root has tag `l`", just encoded by IR
+  rewriting, which is why it works only at the root, for one leaf.
+
+### Step A — make pattern code finally-tagless
+
+Turn the combinators `fill_pat` uses into a signature, and make `fill_pat`
+polymorphic over it (a functor, or a first-class module / record of
+functions passed as an argument):
+
+```ocaml
+type path =                       (* which value a primitive looks at *)
+  | Root
+  | Comp of path * int            (* tuple component; #6486's per-component locals *)
+  | Payload of path * string      (* variant payload under a known label *)
+  | Some_ of path                 (* option contents *)
+
+module type PAT_CODE = sig
+  type t                          (* a pattern fragment *)
+  val cannot_fail   : G.t -> t
+  val definite_fail : t
+  val seq           : t -> t -> t           (* (^^^) *)
+  val or_else       : t -> t -> t           (* orElse *)
+  val fresh_local   : string -> G.t * G.t   (* see "Pitfalls" *)
+  val test_tag      : path -> string -> t   (* replaces inline Variant.test_is *)
+  val test_lit      : path -> Ir.lit -> t   (* later: LitP *)
+  val test_null     : path -> t             (* later: OptP / null *)
+end
+```
+
+`fill_pat env ae path pat` threads the access path. Stack conventions
+stay as they are for emission. The path is extra information for the
+interpreters, not a change in how values are reached.
+
+### Three interpreters
+
+1. **Emit.** Today's behaviour: `t = patternCode`, `test_tag _ l =
+   CanFail (fun k -> Variant.test_is env l ^^ E.if0 G.nop k)`. This is the
+   only interpreter the classical backend needs to keep working.
+2. **Analyse.** Runs `fill_pat` symbolically and records, per arm, the
+   sequence of `(path, test)` it would perform. This is where `Match_arm`
+   is performed, so `flatten_tag_leaves` goes away, and whatever
+   `fill_pat` sees, the dispatch sees, including tuple components. On
+   `Match_join` the handler chooses a column (a path) and a strategy, and
+   returns, per *edge*, a third interpreter.
+3. **Specialised emit**, built by (2). It is the emitter with a fact
+   environment `facts : fact PathMap.t`, `fact = Is of label | Not of
+   label set`:
+   - `test_tag p l` with `facts(p) = Is l` → `cannot_fail G.nop`;
+   - with `facts(p) = Is l'`, `l' ≠ l`, or `l ∈ Not s` → `definite_fail`;
+   - otherwise → delegate to Emit.
+   All other primitives delegate. The *same* `fill_pat` program runs under
+   it per arm, unchanged.
+
+This is close to the first Futamura projection: the pattern-code
+interpreter specialised to what is statically known inside one `switch`.
+`known_tag_pat` becomes unnecessary; so does the `TagP ""` encoding.
+
+The plan record shrinks: `MaskShift` / `ModPrime` only decide the
+prologue that computes the `br_table` index. `Match_join` returns
+something like
+
+```ocaml
+type spec = {
+  column   : path;                       (* what the br_table looks at *)
+  prologue : G.t;                        (* index computation + br_table *)
+  slot     : int -> (module PAT_CODE);   (* the interpreter on each edge *)
+  default  : (module PAT_CODE);          (* wildcard arms, with Not-facts *)
+}
+```
+
+### What falls out
+
+- **Wildcard arms** (extension 1): the `br_table` default edge gets an
+  interpreter with `Not {labels with a slot}`; wildcard arms run there
+  instead of `unreachable`.
+- **Arms sharing a tag** (extension 2): a slot holds the *sequence* of
+  arms with that tag. When an arm's payload test fails, the next arm runs
+  under the same interpreter: the tag is still known.
+- **A variant column in a tuple** (extension 3): with `Comp (Root, k)`
+  paths, the column choice is just "which path do most arms test first".
+- **Path-sensitive facts** (roadmap step 4 in the #6464 review): each
+  failure edge gets its own interpreter. Failing at `test_tag p l` adds
+  `l` to `Not` at `p`; failing later in the same arm keeps `Is l` at `p`
+  and adds the later failure. Splitting failure continuations per test is
+  then just choosing which interpreter to continue with.
+- **DAG instead of tree:** two edges with equal facts (restricted to the
+  paths the remaining arms test) and equal remaining arms get the same
+  interpreter. Hash-cons `(facts, remaining arms)` and they share one code
+  block (Maranget-style decision DAGs) without a separate matching-state
+  table.
+
+### Pitfalls
+
+- **Facts are per edge, never per switch.** A fact holds only in the code
+  dominated by the edge that established it. `slot`/`default` must be
+  applied exactly to the arms on that edge, never leaked into arm bodies
+  (nested `switch`es install their own handler; the `Dispatch.with_handler`
+  scoping already guarantees that for effects, but interpreters are
+  values and could be captured).
+- **Construction-time side effects in `fill_pat`.** `TagP (l, p)` calls
+  `new_local env "tag_scrut"` eagerly, outside the `CanFail` closure, as
+  do other cases. Under Analyse that would allocate dead Wasm locals.
+  Hence `fresh_local` in the signature: Analyse hands out symbolic
+  locals, the emitters allocate. Audit every `new_local` reachable from
+  `fill_pat` (and `immut_local` from #6121, which inspects `G.t` via the
+  `InstrList.Inspecting` effect).
+- **`fill_pat` runs once per interpretation.** Cheap, but nothing may rely
+  on physical identity of fragments across the Analyse and emit runs.
+- **Soundness of elision.** A wrong fact silently removes a test, which
+  `check_ir` cannot see. Add a debug mode in which Specialised emit, for a
+  known `test_tag`, emits the test anyway as an assertion (`trap` on
+  mismatch), and run `test/run/variant_switch.mo` and the bench under it
+  in CI.
+- **Access paths are the real refactor.** Without them the fact
+  environment has nothing to index by. `fill_pat`'s `TupP`, `TagP`,
+  `OptP`, `ObjP` cases each extend the path; `AltP` keeps it.
+
+### Migration
+
+1. Signature plus the Emit interpreter, with `fill_pat` threading `path`.
+   Byte-identical output: every existing test, `.ok` unchanged, is the
+   gate.
+2. Analyse replaces `flatten_tag_leaves` as the producer of `Match_arm`.
+   Same plans as today; FileCheck in `test/run/variant_switch.mo` still
+   pins the `br_table` shape.
+3. Specialised emit replaces `known_tag_pat` on the `br_table` arms.
+4. Extensions 1–3 (wildcards, shared tags, tuple column).
+5. Failure-edge facts and hash-consed interpreters (step 4).
+
+Steps 1–3 are refactors with no change in emitted code. 4 and 5 are where
+the wins are. Both backends share `compile.ml` now, so there is no
+separate classical backport.
+
 ## Non-goals
 
 - Nested/wildcard patterns in variant arms (handled by `compile_pat_local`)
+  *— until "Finally-tagless pattern code" above, which makes them goals*
 - `switch` on non-variant types
 - JS backend (`moc.js`)
