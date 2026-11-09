@@ -10,7 +10,6 @@
 
 use core::cmp::Ordering;
 
-use ::native_table::consts::GROUP_SLOTS;
 use ::native_table::index::secondary::Start;
 use ::native_table::mem::{put_u64, rd_u64};
 use ::native_table::schema::IndexDecl;
@@ -248,63 +247,6 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value)
     or_trap(table.write_step());
     let (removed, _) = or_trap(table.remove(&mut scratch, &mut k));
     removed.is_some() as u64
-}
-
-/// Up to `limit` rows, at most 64, of the table whose root block is `id`, from row id `next` on in
-/// row id order, and the row id to go on from, or null when no row is left: an array and an
-/// option in a pair. `what` says what is built of each row: 0 the pair of its key and its row, 1
-/// its key, 2 its row. Groups the directory has no entry for are skipped, and the open group is
-/// read up to its next free position. Row ids never move, so a scan resumed after writes hands
-/// back every row that stays in the table exactly once.
-#[ic_mem_fn(ic_only)]
-pub unsafe fn nt_scan<M: Memory>(
-    mem: &mut M,
-    id: u64,
-    codec: Value,
-    what: u64,
-    next: u64,
-    limit: u64,
-) -> Value {
-    let layout = layout_of(codec);
-    let out = match what {
-        0 => Out::Entry,
-        1 => Out::Key,
-        2 => Out::Row,
-        _ => rts_trap_with("native table: unknown scan"),
-    };
-    let limit = limit.min(BATCH_LIMIT) as usize;
-    let rows = scratch::<Value, M>(mem, limit);
-    let mem: *mut M = mem;
-    let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
-    let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
-    let h = table.host();
-    let (open_group, _, tail) = or_trap(buffer::open_group(h, id));
-    let end = open_group * GROUP_SLOTS + or_trap(buffer::u16_of(h, tail, buffer::H_OPEN_POS));
-    let (mut rid, mut n) = (next, 0);
-    while rid < end && n < limit {
-        let group = rid / GROUP_SLOTS;
-        let group_end = ((group + 1) * GROUP_SLOTS).min(end);
-        if or_trap(root::group(h, id, group)) == 0 {
-            rid = group_end;
-            continue;
-        }
-        while rid < group_end && n < limit {
-            if or_trap(table.get_rid(rid, &mut row)) {
-                rows.add(n).write(row.finish(&table));
-                n += 1;
-            }
-            rid += 1;
-        }
-    }
-    let mem = &mut *mem;
-    let array = array_of(mem, rows, n);
-    let rest = if rid < end {
-        nat64_of(mem, rid)
-    } else {
-        NULL_POINTER
-    };
-    pair(mem, array, rest)
 }
 
 /// The secondary index id of the index on the field list `fields`, an array of Texts, as the
@@ -803,27 +745,35 @@ impl<M: Memory, H: PageHost> RowSink for Matches<'_, '_, '_, M, H> {
     }
 }
 
-/// Up to `limit` rows, at most 64, of the table whose root block is `id` whose field the Text
-/// `column` names meets `filter`, a value of type `NtFilter`, from row id `next` on in row id
-/// order, as pairs of their key and their row, and the row id to go on from, or null when no row
-/// is left: an array and an option in a pair. Row ids never move, so a scan resumed after writes
-/// hands back every row that stays in the table and meets the filter exactly once.
+/// Up to `limit` rows, at most 64, of the table whose root block is `id`, from row id `next` on
+/// in row id order: every row when `filter` is null, else the rows whose field the Text
+/// `filter.0` names meets `filter.1`, a value of type `NtFilter`; and the row id to go on from, or
+/// null when no row is left: an array and an option in a pair. `what` says what is built of each
+/// row: 0 the pair of its key and its row, 1 its key, 2 its row. Row ids never move, so a scan
+/// resumed after writes hands back every row that stays in the table and meets the filter exactly
+/// once.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_scan_where<M: Memory>(
+pub unsafe fn nt_scan<M: Memory>(
     mem: &mut M,
     id: u64,
     codec: Value,
-    column: Value,
+    what: u64,
     filter: Value,
     next: u64,
     limit: u64,
 ) -> Value {
     let layout = layout_of(codec);
-    let filter = filter_of(mem, &layout, column, filter);
+    let out = match what {
+        0 => Out::Entry,
+        1 => Out::Key,
+        2 => Out::Row,
+        _ => rts_trap_with("native table: unknown scan"),
+    };
+    let filter = filter_opt(mem, &layout, filter);
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
-    let row = RowOut::new(mem, &layout, labels_of(codec), Out::Entry);
+    let row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
     let mut out = Matches {
@@ -832,7 +782,7 @@ pub unsafe fn nt_scan_where<M: Memory>(
         rows,
         n: 0,
     };
-    let rest = or_trap(table.scan_where(&filter, next, limit as u64, &mut out));
+    let rest = or_trap(table.scan_where(filter.as_ref(), next, limit as u64, &mut out));
     let n = out.n;
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);

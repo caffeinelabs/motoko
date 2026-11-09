@@ -137,18 +137,18 @@ func ntRemove<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : Bool {
   (prim "nt_remove" : (Nat64, NtCodec<(K, R)>, K) -> Bool)(id, codec, k)
 };
 
-// Up to `limit` rows (at most 64) from row id `next` on, and the row id to go on from, or null
-// when no row is left
-func ntScanEntries<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
-  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 0, next, limit)
+// Up to `limit` rows (at most 64) from row id `next` on, every row, or with `filter` = ?(field, f)
+// the rows whose field `field` meets `f`; and the row id to go on from, or null when no row is left
+func ntScanEntries<K, R>(id : Nat64, codec : NtCodec<(K, R)>, filter : ?(Text, NtFilter), next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 0, filter, next, limit)
 };
 
 func ntScanKeys<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([K], ?Nat64) {
-  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([K], ?Nat64))(id, codec, 1, next, limit)
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([K], ?Nat64))(id, codec, 1, null, next, limit)
 };
 
 func ntScanValues<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([R], ?Nat64) {
-  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, next, limit)
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, null, next, limit)
 };
 
 // The value of one field of an index key
@@ -218,19 +218,6 @@ func ntSum<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, filter : ?(
 // `largest`; null when no row holds one, or when the field is not of an integer type
 func ntExtreme<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, largest : Bool) : ?Int {
   (prim "nt_extreme" : (Nat64, NtCodec<(K, R)>, Text, Bool) -> ?Int)(id, codec, column, largest)
-};
-
-// Up to `limit` rows (at most 64) whose field `field` meets `filter`, from row id `next` on, and
-// the row id to go on from, or null when no row is left
-func ntScanWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter : NtFilter, next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
-  (prim "nt_scan_where" : (Nat64, NtCodec<(K, R)>, Text, NtFilter, Nat64, Nat64) -> ([(K, R)], ?Nat64))(
-    id,
-    codec,
-    field,
-    filter,
-    next,
-    limit,
-  )
 };
 
 // Up to `limit` rows (at most 64) from row id `next` on, every row, or with `filter` = ?(field, f)

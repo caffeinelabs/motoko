@@ -166,7 +166,7 @@ module {
   /// stays in the table while the iterator runs comes exactly once, also when other rows are
   /// added or removed in between.
   public func entries<K, R>(self : NativeTable<K, R>) : { next : () -> ?(K, R) } {
-    batches<(K, R), Nat64>([], ?0, func from = Prim.ntScanEntries(self.id, self.codec, from, batch))
+    batches<(K, R), Nat64>([], ?0, func from = Prim.ntScanEntries(self.id, self.codec, null, from, batch))
   };
 
   /// The keys of the table, in the order of `entries`.
@@ -330,8 +330,8 @@ module {
   public func entriesWhere<K, R>(self : NativeTable<K, R>, field : Text, filter : Filter) : {
     next : () -> ?(K, R)
   } {
-    let (first, next) = Prim.ntScanWhere(self.id, self.codec, field, filter, 0 : Nat64, batch);
-    batches<(K, R), Nat64>(first, next, func from = Prim.ntScanWhere(self.id, self.codec, field, filter, from, batch))
+    let (first, next) = Prim.ntScanEntries(self.id, self.codec, ?(field, filter), 0 : Nat64, batch);
+    batches<(K, R), Nat64>(first, next, func from = Prim.ntScanEntries(self.id, self.codec, ?(field, filter), from, batch))
   };
 
   /// The number of rows whose field `field` meets `filter`.

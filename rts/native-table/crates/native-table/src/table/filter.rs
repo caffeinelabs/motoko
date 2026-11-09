@@ -792,19 +792,24 @@ impl<H: PageHost + ?Sized> Visit<H> for Sum<'_> {
     }
 }
 
-/// The live rows meeting `f`, from rid `next` on in rid order, at most `limit` of them, handed to `out`; the
-/// rid to go on from, or `None` when no row is left.
+/// The live rows meeting `f` (every live row when it is `None`), from rid `next` on in rid order, at most
+/// `limit` of them, handed to `out`; the rid to go on from, or `None` when no row is left.
 pub fn scan<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     tbl: u64,
     shape: &Shape,
-    f: &Filter<'_>,
+    f: Option<&Filter<'_>>,
     next: u64,
     limit: u64,
     out: &mut S,
 ) -> Result<Option<u64>, Fault> {
-    let t = Test::new(h, shape, f)?;
-    run(h, tbl, shape, Some(&t), next, &mut Rows { out, left: limit })
+    let t = test_of(h, shape, f)?;
+    run(h, tbl, shape, t.as_ref(), next, &mut Rows { out, left: limit })
+}
+
+/// The test of `f`, or none.
+fn test_of<'f, H: PageHost + ?Sized>(h: &H, shape: &Shape, f: Option<&Filter<'f>>) -> Result<Option<Test<'f>>, Fault> {
+    f.map(|f| Test::new(h, shape, f)).transpose()
 }
 
 /// The live rows meeting `f` (every live row when it is `None`), from rid `next` on in rid order, at most `limit`
@@ -821,10 +826,7 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     limit: u64,
     out: &mut S,
 ) -> Result<Option<u64>, Fault> {
-    let t = match f {
-        Some(f) => Some(Test::new(h, shape, f)?),
-        None => None,
-    };
+    let t = test_of(h, shape, f)?;
     let mut c = Cells::new(h, shape, leaves, t.as_ref().map(|t| t.l.ordinal), out, limit)?;
     run(h, tbl, shape, t.as_ref(), next, &mut c)
 }

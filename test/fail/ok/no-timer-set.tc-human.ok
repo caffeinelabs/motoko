@@ -269,8 +269,8 @@ error[M0119]: object field setTimer is not contained in expected type
              limit : Nat64) ->
         ([[NtCell]], ?Nat64);
     ntScanEntries :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64,
-             limit : Nat64) ->
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, filter : ?(Text, NtFilter),
+             next : Nat64, limit : Nat64) ->
         ([(K, R)], ?Nat64);
     ntScanKeys :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64,
@@ -280,10 +280,6 @@ error[M0119]: object field setTimer is not contained in expected type
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64,
              limit : Nat64) ->
         ([R], ?Nat64);
-    ntScanWhere :
-      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text,
-             filter : NtFilter, next : Nat64, limit : Nat64) ->
-        ([(K, R)], ?Nat64);
     ntSize : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Nat;
     ntSum :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,

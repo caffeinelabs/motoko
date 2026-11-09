@@ -1120,12 +1120,11 @@ let native_table_prims = [
   "nt_put", ([`W; `V; `V; `V], `B);
   "nt_get", ([`W; `V; `V], `V);
   "nt_remove", ([`W; `V; `V], `B);
-  "nt_scan", ([`W; `V; `W; `W; `W], `V);
+  "nt_scan", ([`W; `V; `W; `V; `W; `W], `V);
   "nt_count", ([`W; `V; `V; `V; `V], `N);
   "nt_walk", ([`W; `V; `V; `V; `V; `W; `V; `V; `V; `W], `V);
   "nt_sum", ([`W; `V; `V; `V], `V);
   "nt_extreme", ([`W; `V; `V; `V], `V);
-  "nt_scan_where", ([`W; `V; `V; `V; `W; `W], `V);
   "nt_scan_cells", ([`W; `V; `V; `V; `V; `W; `W], `V);
   "nt_count_where", ([`W; `V; `V; `V], `N);
   "nt_group_counts", ([`W; `V; `V; `V; `V; `W], `V);

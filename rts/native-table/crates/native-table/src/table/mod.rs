@@ -723,16 +723,16 @@ impl<'h, H: PageHost> Table<'h, H> {
         extremes::extreme(h, self.root, &self.shape, &l, largest, buf)
     }
 
-    /// The live rows whose value of leaf `f.leaf` meets `f.cond`, from rid `next` on in rid order, at most
-    /// `limit` of them, each handed to `out` in leaf order and ended with its rid; returns the rid to go on
-    /// from, or `None` when no row is left. Rids never move, so a scan resumed after writes hands out every row
+    /// The live rows whose value of leaf `f.leaf` meets `f.cond` (every live row when `f` is `None`), from rid
+    /// `next` on in rid order, at most `limit` of them, each handed to `out` in leaf order and ended with its rid;
+    /// returns the rid to go on from, or `None` when no row is left. Rids never move, so a scan resumed after writes hands out every row
     /// that stays in the table and meets the filter then exactly once. A row's value of the leaf is read in the
     /// group the scan has open, and an integer leaf's sealed groups are skipped or passed whole by their
     /// minimum and maximum (`filter`). `BadRef` for a leaf the table does not have; `BadValue` for a filter
     /// value that is not of the leaf's type, a null end of a range, or a value still in the message's argument.
     pub fn scan_where<S: RowSink>(
         &self,
-        f: &filter::Filter<'_>,
+        f: Option<&filter::Filter<'_>>,
         next: u64,
         limit: u64,
         out: &mut S,

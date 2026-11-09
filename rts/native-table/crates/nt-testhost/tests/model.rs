@@ -1109,7 +1109,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         let mut out = Rows::new(tb, s, r);
         let mut next = Some(0);
         while let Some(n) = next {
-            next = tb.scan_where(&f, n, limit, &mut out).unwrap();
+            next = tb.scan_where(Some(&f), n, limit, &mut out).unwrap();
         }
         assert!(out.out == exp, "a filtered scan of column {c} ({k:?}) with {mc:?}");
         assert_eq!(tb.count_where(&f).unwrap(), exp.len() as u64, "a filtered count, column {c} with {mc:?}");
