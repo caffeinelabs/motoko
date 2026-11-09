@@ -253,18 +253,27 @@ actor {
     (wrong, got)
   };
 
-  // Prints, after `step`, the number of rows, the number of answers that are not the model's,
-  // and the number of rows read over every read
-  func check(step : Text) {
-    var wrong = 0;
-    var cells = 0;
+  // The step the next check reports, and what its two parts have counted so far
+  var step = "";
+  var wrong = 0;
+  var cells = 0;
+
+  // The first part of the check after `step`: every read of the narrow field lists
+  public func checkNarrow() : async () {
+    wrong := 0;
+    cells := 0;
     for fields in narrow.values() {
       for filter in filters.values() {
         let (w, n) = read(fields, filter);
         wrong += w;
         cells += n * (fields.size() + 1)
       }
-    };
+    }
+  };
+
+  // The second part: the reads of the wide field lists; then prints, after `step`, the number of
+  // rows, the number of answers that are not the model's, and the number of cells read over every read
+  public func checkWide() : async () {
     for fields in wide.values() {
       for filter in filters.values() {
         switch filter {
@@ -291,23 +300,24 @@ actor {
   };
 
   public func empty() : async () {
-    check("empty")
+    step := "empty"
   };
 
-  // Every key, in key order
+  // Every key, in key order, a third of them per call
+  var filled = 0;
   public func fill() : async () {
-    var k = 0;
-    while k < m {
-      put(k, row(k, 1));
-      k += 1
+    let end = if filled + m / 3 < m { filled + m / 3 } else { m };
+    while filled < end {
+      put(filled, row(filled, 1));
+      filled += 1
     };
-    check("fill")
+    step := "fill"
   };
 
   // Runs the upkeep until no work is pending
   public func upkeep() : async () {
     while rows.maintain(100_000_000) {};
-    check("upkeep")
+    step := "upkeep"
   };
 
   // A third of the rows replaced by rows of other values, a fifth removed
@@ -317,7 +327,7 @@ actor {
       if k % 5 == 0 { drop(k) } else if k % 3 == 1 { put(k, row(k, 2)) };
       k += 1
     };
-    check("change")
+    step := "change"
   };
 
   // The removed rows inserted again, with other values
@@ -327,7 +337,7 @@ actor {
       if model[k] == null { put(k, row(k, 3)) };
       k += 1
     };
-    check("refill")
+    step := "refill"
   };
 
   // A read stopped after 100 rows, writes that remove, replace and insert rows, and the read
@@ -391,7 +401,7 @@ actor {
       if not touched[k] and seen[k] != (if before[k] { 1 } else { 0 }) { wrong += 1 }
     };
     Prim.debugPrint("resume " # debug_show { wrong });
-    check("resumed")
+    step := "resumed"
   };
 
   public func clear() : async () {
@@ -400,7 +410,7 @@ actor {
       drop(k);
       k += 1
     };
-    check("clear")
+    step := "clear"
   };
 
   // Keys of 1 to 200 bytes, read with no field: each key once; without the key, each row as no
@@ -448,14 +458,34 @@ actor {
 //SKIP run-low
 //MOC-FLAG --package native-table ../../lib/native-table
 //CALL ingress empty "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress fill "DIDL\x00\x00"
+//CALL ingress fill "DIDL\x00\x00"
+//CALL ingress fill "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress change "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress refill "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress resume "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress clear "DIDL\x00\x00"
+//CALL ingress checkNarrow "DIDL\x00\x00"
+//CALL ingress checkWide "DIDL\x00\x00"
 //CALL ingress keys "DIDL\x00\x00"
 //CALL ingress noField "DIDL\x00\x00"
 //CALL ingress noRowField "DIDL\x00\x00"
