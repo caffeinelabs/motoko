@@ -113,6 +113,7 @@ impl Path {
         self.len = self.len.min(n);
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }

@@ -1,12 +1,6 @@
-//! The schema's type codes, skipping a type expression, and the incremental UTF-8 validator for text read or
-//! copied in pieces.
+//! The schema's type codes, and the incremental UTF-8 validator for text read or copied in pieces.
 //!
 //! VE is schema-directed, little-endian, without padding; every length and count is canonical ULEB128.
-//! `skip_ty` has no depth cap: it takes its frame stack from the caller's scratch and returns
-//! `Fault::Scratch { need }` when a type is deeper than it allows.
-
-use crate::fault::{bounds, corrupt, Corruption, Fault, ImageId};
-use crate::mem::{rd_u16, rd_u32, rd_u8};
 
 /// Type codes of the schema's type pool.
 pub mod ty {
@@ -34,16 +28,6 @@ pub mod ty {
     pub const UNIT: u8 = 0x15;
     /// Option(T).
     pub const OPTION: u8 = 0x20;
-    /// Record(u16 n main fields, u16 a added fields, (n + a) × {u32 hash, u32 name offset, u8 flags, u32
-    /// default offset, u32 default length, T}): a field's declared default is its VE in the default pool
-    /// (length 0: none).
-    pub const RECORD: u8 = 0x21;
-    /// Bytes of a record field's entry before its type.
-    pub const FIELD_HDR: u32 = 17;
-    /// Tuple(u16 n, T…).
-    pub const TUPLE: u8 = 0x22;
-    /// A record field's flags: bit 0, dropped.
-    pub const FIELD_DROPPED: u8 = 1;
 }
 
 // ---------------------------------------------------------------- incremental UTF-8
@@ -109,83 +93,4 @@ impl Utf8Stream {
     pub fn finish(&self) -> bool {
         self.carried == 0
     }
-}
-
-// ---------------------------------------------------------------- skipping a type expression
-
-/// Bytes of one frame of a walk over a type expression.
-pub const FRAME: usize = 16;
-
-/// The frame kind of `skip_ty`.
-const F_SKIP_TY: u8 = 5;
-
-struct Stack<'s> {
-    buf: &'s mut [u8],
-    top: usize,
-}
-
-impl Stack<'_> {
-    fn push(&mut self, kind: u8, a: u32, b: u64) -> Result<(), Fault> {
-        let end = self.top.saturating_add(FRAME);
-        let f = match self.buf.get_mut(self.top..end) {
-            Some(f) => f,
-            None => return Err(Fault::Scratch { need: (end as u64).saturating_mul(2) }),
-        };
-        f.fill(0);
-        if let Some(k) = f.first_mut() {
-            *k = kind;
-        }
-        crate::mem::put(f, 4, &a.to_le_bytes())?;
-        crate::mem::put(f, 8, &b.to_le_bytes())?;
-        self.top = end;
-        Ok(())
-    }
-
-    fn pop(&mut self) -> Result<Option<(u8, u32, u64)>, Fault> {
-        if self.top == 0 {
-            return Ok(None);
-        }
-        self.top = self.top.saturating_sub(FRAME);
-        let f = self.buf.get(self.top..self.top.saturating_add(FRAME)).ok_or(bounds(0))?;
-        let kind = rd_u8(f, 0)?;
-        let a = rd_u32(f, 4)?;
-        let b = crate::mem::rd_u64(f, 8)?;
-        Ok(Some((kind, a, b)))
-    }
-}
-
-/// The offset just past the type expression at `t` in `pool`.
-pub fn skip_ty(pool: &[u8], t: u32, scratch: &mut [u8]) -> Result<u32, Fault> {
-    let rt = |at: u32| corrupt(ImageId::Runtime, Corruption::Encoding, u64::from(at));
-    let mut st = Stack { buf: scratch, top: 0 };
-    let mut p = t;
-    st.push(F_SKIP_TY, 0, 1)?;
-    // Each frame counts sub-expressions still to skip; a record's fields carry a header.
-    while let Some((_, hdr, left)) = st.pop()? {
-        if left == 0 {
-            continue;
-        }
-        st.push(F_SKIP_TY, hdr, left.wrapping_sub(1))?;
-        p = p.checked_add(hdr).ok_or(rt(p))?;
-        let code = rd_u8(pool, u64::from(p))?;
-        p = p.checked_add(1).ok_or(rt(p))?;
-        match code {
-            ty::BOOL..=ty::I128 | ty::UNIT => {}
-            ty::BYTES => p = p.checked_add(2).ok_or(rt(p))?,
-            ty::OPTION => st.push(F_SKIP_TY, 0, 1)?,
-            ty::TUPLE => {
-                let n = rd_u16(pool, u64::from(p))?;
-                p = p.checked_add(2).ok_or(rt(p))?;
-                st.push(F_SKIP_TY, 0, u64::from(n))?;
-            }
-            ty::RECORD => {
-                let n = u32::from(rd_u16(pool, u64::from(p))?);
-                let a = u32::from(rd_u16(pool, u64::from(p).wrapping_add(2))?);
-                p = p.checked_add(4).ok_or(rt(p))?;
-                st.push(F_SKIP_TY, ty::FIELD_HDR, u64::from(n.wrapping_add(a)))?;
-            }
-            _ => return Err(rt(p.wrapping_sub(1))),
-        }
-    }
-    Ok(p)
 }

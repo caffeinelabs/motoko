@@ -4,7 +4,7 @@
 
 use native_table::schema::{flatten, write_schema, Column, ColumnType, IndexDecl, Leaf, LeafSink, SchemaParts};
 use native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
-use native_table::value::{ty, FRAME};
+use native_table::value::ty;
 use native_table::{Fault, PageHost};
 
 /// The Candid idl hash of a field name: h = h · 223 + b mod 2^32 over its UTF-8 bytes.
@@ -53,21 +53,6 @@ pub mod t {
         v.extend(inner);
         v
     }
-    /// A record of fields in declaration order.
-    pub fn record(fields: &[(&str, Vec<u8>)]) -> Vec<u8> {
-        let mut v = vec![ty::RECORD];
-        v.extend((fields.len() as u16).to_le_bytes());
-        v.extend(0u16.to_le_bytes());
-        for (name, f) in fields {
-            v.extend(idl_hash(name.as_bytes()).to_le_bytes());
-            v.extend(0u32.to_le_bytes());
-            v.push(0);
-            // No declared default: offset and length 0.
-            v.extend([0u8; 8]);
-            v.extend(f);
-        }
-        v
-    }
 }
 
 struct Leaves(Vec<Leaf>);
@@ -112,12 +97,11 @@ pub fn schema_versioned(version: u32, cols: &[VCol], indexes: &[IndexDecl]) -> (
     let mut out = Leaves(Vec::new());
     let mut columns = Vec::new();
     let mut defaults = Vec::new();
-    let mut scratch = vec![0u8; 256 * FRAME];
     for (i, (&tpos, c)) in at.iter().zip(cols).enumerate() {
         let first = out.0.len() as u16;
         let ct =
             ColumnType { pool: &pool, column: i as u32, ty: tpos, version: c.added, first_ordinal: first, key: i == 0 };
-        flatten(ct, &mut out, &mut scratch).unwrap();
+        flatten(ct, &mut out).unwrap();
         for l in out.0.iter_mut().skip(usize::from(first)) {
             l.dropped = c.dropped;
         }

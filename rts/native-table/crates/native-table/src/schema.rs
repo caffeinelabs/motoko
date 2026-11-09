@@ -1,16 +1,14 @@
-//! The shared schema: flattening a column's type into leaves, the
-//! 28-byte leaf records, and the schema image.
+//! The shared schema: a column's type as its leaf, the 28-byte leaf records, and the schema image.
 //!
-//! Types are expressions in a type pool (`value::ty`): scalars, `()`, options of scalars, records and tuples.
-//! Flattening is depth-first, record and tuple fields in declaration order, into one leaf per scalar or `()`;
-//! an option of anything but a scalar, and any other type code, is refused as corrupt. Leaf ordinals are
-//! table-wide and append-only.
+//! Types are expressions in a type pool (`value::ty`): every column is a scalar, `()` or an option of a
+//! scalar, one leaf; a record, a tuple, an option of anything but a scalar, and any other type code are refused
+//! as corrupt. Leaf ordinals are table-wide and append-only.
 
 use crate::consts::{magic, FORMAT_IMAGE, IMAGE_V1};
 use crate::fault::{bounds, corrupt, Corruption, Fault, ImageId};
 use crate::hash::Hasher64;
 use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u8};
-use crate::value::{skip_ty, ty, FRAME};
+use crate::value::ty;
 
 /// Node kinds of leaf records.
 pub mod node {
@@ -84,50 +82,6 @@ fn rt(at: u32) -> Fault {
     corrupt(ImageId::Runtime, Corruption::Encoding, u64::from(at))
 }
 
-// Frame kinds of the flattening walk.
-const W_TYPE: u8 = 1;
-const W_FIELDS: u8 = 2;
-const W_ELEMS: u8 = 3;
-
-/// A frame: kind u8, nullable u8, pad, a u32 (type or header offset), b u32 (items left), name offset u32.
-struct Frames<'s> {
-    buf: &'s mut [u8],
-    top: usize,
-}
-
-/// A popped frame: kind, context, and its two words.
-type Frame = (u8, Ctx, u32, u32);
-
-#[derive(Clone, Copy)]
-struct Ctx {
-    nullable: bool,
-    name: u32,
-}
-
-impl Frames<'_> {
-    fn push(&mut self, kind: u8, c: Ctx, a: u32, b: u32) -> Result<(), Fault> {
-        let end = self.top.saturating_add(FRAME);
-        let f = self.buf.get_mut(self.top..end).ok_or(Fault::Scratch { need: (end as u64).saturating_mul(2) })?;
-        put_u8(f, 0, kind)?;
-        put_u8(f, 1, u8::from(c.nullable))?;
-        put_u32(f, 4, a)?;
-        put_u32(f, 8, b)?;
-        put_u32(f, 12, c.name)?;
-        self.top = end;
-        Ok(())
-    }
-
-    fn pop(&mut self) -> Result<Option<Frame>, Fault> {
-        if self.top == 0 {
-            return Ok(None);
-        }
-        self.top = self.top.saturating_sub(FRAME);
-        let f = self.buf.get(self.top..).ok_or(bounds(0))?;
-        let c = Ctx { nullable: rd_u8(f, 1)? & 1 != 0, name: rd_u32(f, 12)? };
-        Ok(Some((rd_u8(f, 0)?, c, rd_u32(f, 4)?, rd_u32(f, 8)?)))
-    }
-}
-
 /// One column to flatten: its id, its type expression in `pool`, the schema version adding it, the
 /// table-wide ordinal of its first leaf, and whether it is the key column.
 #[derive(Clone, Copy, Debug)]
@@ -140,93 +94,34 @@ pub struct ColumnType<'p> {
     pub key: bool,
 }
 
-/// Flattens a column's type into leaves, appending them to `out` with table-wide ordinals from the
-/// column's first ordinal; returns the number of leaves. `scratch` holds the walk's frames (two halves:
-/// the walk and type skipping).
-pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S, scratch: &mut [u8]) -> Result<u16, Fault> {
-    let ColumnType { pool, column, ty: t, version, first_ordinal, key } = col;
-    let half = (scratch.len() / 2 / FRAME).wrapping_mul(FRAME);
-    let (walk, tys) = scratch.split_at_mut_checked(half).ok_or(bounds(0))?;
-    let mut st = Frames { buf: walk, top: 0 };
-    let mut next_in_col: u32 = 0;
-    let mut ordinal = first_ordinal;
-    st.push(W_TYPE, Ctx { nullable: false, name: 0 }, t, 0)?;
-    let mut emit = |kind: u8, code: u8, c: &Ctx, path: u32, width: u16, out: &mut S| -> Result<(), Fault> {
-        if next_in_col > 0xFFFF {
-            return Err(Fault::Schema(crate::fault::SchemaError::TooManyIndexes));
-        }
-        let id = column.checked_mul(65_536).and_then(|x| x.checked_add(next_in_col)).ok_or(rt(path))?;
-        let mut flags = 0u8;
-        if c.nullable {
-            flags |= LEAF_NULLABLE;
-        }
-        if key {
-            flags |= LEAF_KEY;
-        }
-        out.leaf(&Leaf { id, kind, code, flags, width, path, added: version, dropped: 0, name: c.name })?;
-        ordinal = ordinal.checked_add(1).ok_or(rt(path))?;
-        next_in_col = next_in_col.wrapping_add(1);
-        Ok(())
-    };
-    while let Some((kind, c, a, b)) = st.pop()? {
-        match kind {
-            W_TYPE => {
-                let code = rd_u8(pool, u64::from(a))?;
-                let body = a.checked_add(1).ok_or(rt(a))?;
-                match code {
-                    ty::BOOL..=ty::I128 => emit(node::SCALAR, code, &c, a, 0, out)?,
-                    ty::BYTES => {
-                        let n = rd_u16(pool, u64::from(body))?;
-                        emit(node::SCALAR, code, &c, a, n, out)?;
-                    }
-                    ty::UNIT => emit(node::UNIT, 0, &c, a, 0, out)?,
-                    ty::OPTION => {
-                        // An option of a scalar: the scalar's leaf, nullable.
-                        if !matches!(rd_u8(pool, u64::from(body))?, ty::BOOL..=ty::BYTES) {
-                            return Err(rt(a));
-                        }
-                        st.push(W_TYPE, Ctx { nullable: true, ..c }, body, 0)?;
-                    }
-                    ty::RECORD => {
-                        // Fields into the same space, in pool order (main fields, then added fields).
-                        let n = u32::from(rd_u16(pool, u64::from(body))?);
-                        let added = u32::from(rd_u16(pool, u64::from(body).wrapping_add(2))?);
-                        let first = body.checked_add(4).ok_or(rt(body))?;
-                        st.push(W_FIELDS, Ctx { name: 0, ..c }, first, n.wrapping_add(added))?;
-                    }
-                    ty::TUPLE => {
-                        let n = u32::from(rd_u16(pool, u64::from(body))?);
-                        let first = body.checked_add(2).ok_or(rt(body))?;
-                        st.push(W_ELEMS, Ctx { name: 0, ..c }, first, n)?;
-                    }
-                    _ => return Err(rt(a)),
-                }
-            }
-            W_FIELDS => {
-                if b == 0 {
-                    continue;
-                }
-                let flags = rd_u8(pool, u64::from(a).wrapping_add(8))?;
-                let name = rd_u32(pool, u64::from(a).wrapping_add(4))?;
-                let field_ty = a.checked_add(ty::FIELD_HDR).ok_or(rt(a))?;
-                let next = skip_ty(pool, field_ty, tys)?;
-                st.push(W_FIELDS, c, next, b.wrapping_sub(1))?;
-                if flags & ty::FIELD_DROPPED == 0 {
-                    st.push(W_TYPE, Ctx { name, ..c }, field_ty, 0)?;
-                }
-            }
-            W_ELEMS => {
-                if b == 0 {
-                    continue;
-                }
-                let next = skip_ty(pool, a, tys)?;
-                st.push(W_ELEMS, c, next, b.wrapping_sub(1))?;
-                st.push(W_TYPE, c, a, 0)?;
-            }
-            _ => return Err(bounds(0)),
-        }
+/// Flattens a column's type into its leaf, appended to `out` with the column's first ordinal; returns the
+/// number of leaves, 1.
+pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fault> {
+    let ColumnType { pool, column, ty: t, version, first_ordinal: _, key } = col;
+    let mut at = t;
+    let mut code = rd_u8(pool, u64::from(at))?;
+    // An option of a scalar: the scalar's leaf, nullable.
+    let nullable = code == ty::OPTION;
+    if nullable {
+        at = at.checked_add(1).ok_or(rt(at))?;
+        code = rd_u8(pool, u64::from(at))?;
     }
-    Ok(ordinal.wrapping_sub(first_ordinal))
+    let (kind, code, width) = match code {
+        ty::BOOL..=ty::I128 => (node::SCALAR, code, 0),
+        ty::BYTES => (node::SCALAR, code, rd_u16(pool, u64::from(at).wrapping_add(1))?),
+        ty::UNIT if !nullable => (node::UNIT, 0, 0),
+        _ => return Err(rt(at)),
+    };
+    let id = column.checked_mul(65_536).ok_or(rt(at))?;
+    let mut flags = 0u8;
+    if nullable {
+        flags |= LEAF_NULLABLE;
+    }
+    if key {
+        flags |= LEAF_KEY;
+    }
+    out.leaf(&Leaf { id, kind, code, flags, width, path: at, added: version, dropped: 0, name: 0 })?;
+    Ok(1)
 }
 
 // ---------------------------------------------------------------- the schema image
@@ -383,17 +278,11 @@ pub fn write_schema(p: &SchemaParts<'_>, uid: u64, out: &mut [u8]) -> Result<(u6
     Ok((total, hash))
 }
 
-/// The deepest type expression the canonical form walks.
-const CANON_DEPTH: usize = 64;
-
 /// The canonical form's writer over a type pool and a name pool.
 struct Canon<'a, 'o> {
     pool: &'a [u8],
     names: &'a [u8],
-    defaults: &'a [u8],
     out: &'o mut dyn FnMut(&[u8]),
-    /// The number of enclosing type constructors.
-    depth: usize,
 }
 
 impl Canon<'_, '_> {
@@ -413,59 +302,20 @@ impl Canon<'_, '_> {
         Ok(())
     }
 
-    /// The canonical form of the type at `at`; returns the offset past it.
-    fn ty(&mut self, at: u32) -> Result<u32, Fault> {
+    /// The canonical form of the type at `at`, a scalar, `()` or an option of a scalar.
+    fn ty(&mut self, at: u32) -> Result<(), Fault> {
         let code = rd_u8(self.pool, u64::from(at))?;
-        let mut p = at.checked_add(1).ok_or(Self::rt(at))?;
         (self.out)(&[code]);
-        let rd16 = |pool: &[u8], p: u32| rd_u16(pool, u64::from(p));
-        let rd32 = |pool: &[u8], p: u32| rd_u32(pool, u64::from(p));
-        let adv = |p: u32, k: u32| p.checked_add(k).ok_or(Self::rt(p));
+        let p = at.checked_add(1).ok_or(Self::rt(at))?;
         match code {
-            ty::BOOL..=ty::I128 | ty::UNIT => {}
+            ty::BOOL..=ty::I128 | ty::UNIT => Ok(()),
             ty::BYTES => {
-                (self.out)(&rd16(self.pool, p)?.to_le_bytes());
-                p = adv(p, 2)?;
+                (self.out)(&rd_u16(self.pool, u64::from(p))?.to_le_bytes());
+                Ok(())
             }
-            ty::OPTION | ty::TUPLE | ty::RECORD => {
-                if self.depth >= CANON_DEPTH {
-                    return Err(Self::rt(at));
-                }
-                self.depth = self.depth.wrapping_add(1);
-                match code {
-                    ty::OPTION => p = self.ty(p)?,
-                    ty::TUPLE => {
-                        let n = rd16(self.pool, p)?;
-                        (self.out)(&n.to_le_bytes());
-                        p = adv(p, 2)?;
-                        for _ in 0..n {
-                            p = self.ty(p)?;
-                        }
-                    }
-                    _ => {
-                        let n = rd16(self.pool, p)?;
-                        let a = rd16(self.pool, adv(p, 2)?)?;
-                        let all = n.checked_add(a).ok_or(Self::rt(p))?;
-                        (self.out)(&all.to_le_bytes());
-                        p = adv(p, 4)?;
-                        for i in 0..all {
-                            (self.out)(&rd32(self.pool, p)?.to_le_bytes());
-                            self.name(rd32(self.pool, adv(p, 4)?)?)?;
-                            let flags = rd_u8(self.pool, u64::from(adv(p, 8)?))?;
-                            let canon = u8::from(i >= n) | (u8::from(flags & ty::FIELD_DROPPED != 0) << 1);
-                            (self.out)(&[canon]);
-                            let (doff, dlen) = (rd32(self.pool, adv(p, 9)?)?, rd32(self.pool, adv(p, 13)?)?);
-                            (self.out)(&dlen.to_le_bytes());
-                            (self.out)(crate::mem::sub(self.defaults, u64::from(doff), u64::from(dlen))?);
-                            p = self.ty(adv(p, ty::FIELD_HDR)?)?;
-                        }
-                    }
-                }
-                self.depth = self.depth.wrapping_sub(1);
-            }
-            _ => return Err(Self::rt(at)),
+            ty::OPTION if rd_u8(self.pool, u64::from(p))? != ty::OPTION => self.ty(p),
+            _ => Err(Self::rt(at)),
         }
-        Ok(p)
     }
 }
 
@@ -526,11 +376,9 @@ impl<'a> SchemaView<'a> {
     /// alone and never on the table's history (its schema versions, leaf ordinals, the order fields were
     /// added in, or pool offsets). The form is, per column in column-id order: {u32 column id; u8 flags (bit 0
     /// dropped); u16 name length ‖ the name's bytes; the column's type in canonical form; u32 default length ‖
-    /// the default's bytes}. A type's canonical form is its expression depth first, codes and operands as in
-    /// the type pool, but: a record's field count is one u16 (main and added together) and each field's flags
-    /// one u8 (bit 0 added, bit 1 dropped), followed by u32 length ‖ its declared default's VE (length 0
-    /// for none); a name offset becomes u16 length ‖ the name's bytes (an offset
-    /// below 2 names none). O(image bytes), twice: once to count the form's bytes, once to hash them.
+    /// the default's bytes}. A type's canonical form is its codes and operands as in the type pool; a name
+    /// offset becomes u16 length ‖ the name's bytes (an offset below 2 names none). O(image bytes), twice: once
+    /// to count the form's bytes, once to hash them.
     pub fn canonical_hash(&self) -> Result<u64, Fault> {
         let mut n = 0u64;
         self.canonical(&mut |b: &[u8]| n = n.saturating_add(b.len() as u64))?;
@@ -543,7 +391,7 @@ impl<'a> SchemaView<'a> {
         let pool = self.types();
         let defaults = self.bytes.get(self.layout.defaults as usize..self.layout.names as usize).unwrap_or(&[]);
         let names = self.bytes.get(self.layout.names as usize..self.layout.total as usize).unwrap_or(&[]);
-        let mut c = Canon { pool, names, defaults, out, depth: 0 };
+        let mut c = Canon { pool, names, out };
         let mut last: Option<u32> = None;
         for i in 0..self.columns {
             let col = self.column(i)?;

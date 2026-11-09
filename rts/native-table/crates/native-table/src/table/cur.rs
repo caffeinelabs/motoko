@@ -72,6 +72,7 @@ impl SVal {
     }
 
     /// Bytes of a byte-string value; 0 otherwise.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         match *self {
             SVal::B { len, .. } | SVal::Huge { len, .. } => len,

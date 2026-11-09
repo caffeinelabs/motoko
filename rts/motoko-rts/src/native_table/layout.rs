@@ -11,7 +11,7 @@ use ::native_table::fault::bounds;
 use ::native_table::schema::{
     self, Column, ColumnType, IndexDecl, Leaf, LeafSink, SchemaParts, flatten, write_schema,
 };
-use ::native_table::value::{FRAME, ty};
+use ::native_table::value::ty;
 
 use crate::memory::{Memory, alloc_blob};
 use crate::types::{Bytes, TAG_BLOB_B};
@@ -22,8 +22,6 @@ const VERSION: u32 = 1;
 const HEADER: usize = 20;
 /// The schema version of a new table, which added every column.
 pub const SCHEMA_VERSION: u32 = 1;
-/// Scratch for flattening one column of a scalar or an option of one.
-const FLATTEN_SCRATCH: usize = 16 * FRAME;
 
 /// A checked layout.
 pub struct Layout<'a> {
@@ -219,7 +217,6 @@ pub unsafe fn schema_image<'b, M: Memory>(
         type_at += e.codes.len();
     }
     let columns = core::slice::from_raw_parts_mut(columns, n);
-    let mut frames = [0u8; FLATTEN_SCRATCH];
     for column in columns.iter_mut() {
         let first = u16::try_from(leaves.len).map_err(|_| bounds(leaves.len as u64))?;
         let col = ColumnType {
@@ -230,7 +227,7 @@ pub unsafe fn schema_image<'b, M: Memory>(
             first_ordinal: first,
             key: column.id == 0,
         };
-        flatten(col, &mut leaves, &mut frames)?;
+        flatten(col, &mut leaves)?;
         column.first_leaf = first;
     }
     let parts = SchemaParts {

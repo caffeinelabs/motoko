@@ -1,67 +1,9 @@
-//! Values: the LEB128 writers, skipping random type expressions, and the incremental UTF-8 validator.
+//! Values: the LEB128 writers and the incremental UTF-8 validator.
 
 use native_table::bytes::put_uleb;
 use native_table::table::cell::put_sleb128;
-use native_table::value::{skip_ty, ty, Utf8Stream, FRAME};
+use native_table::value::Utf8Stream;
 use nt_testhost::XorShift;
-
-/// A type pool built in a Vec; each builder returns the expression's offset.
-#[derive(Default)]
-struct Pool(Vec<u8>);
-
-#[derive(Clone)]
-enum T {
-    P(u8),
-    Bytes(u16),
-    Opt(Box<T>),
-    Rec(Vec<(u32, u8, T)>),
-    Tup(Vec<T>),
-}
-
-impl Pool {
-    fn add(&mut self, t: &T) -> u32 {
-        let at = self.0.len() as u32;
-        self.emit(t);
-        at
-    }
-    fn emit(&mut self, t: &T) {
-        let b = &mut self.0;
-        match t {
-            T::P(c) => b.push(*c),
-            T::Bytes(n) => {
-                b.push(ty::BYTES);
-                b.extend(n.to_le_bytes());
-            }
-            T::Opt(x) => {
-                b.push(ty::OPTION);
-                self.emit(x);
-            }
-            T::Rec(fields) => {
-                b.push(ty::RECORD);
-                b.extend((fields.len() as u16).to_le_bytes());
-                b.extend(0u16.to_le_bytes());
-                for (h, flags, x) in fields {
-                    self.0.extend(h.to_le_bytes());
-                    self.0.extend(0u32.to_le_bytes());
-                    self.0.push(*flags);
-                    self.0.extend([0u8; 8]);
-                    self.emit(x);
-                }
-            }
-            T::Tup(xs) => {
-                b.push(ty::TUPLE);
-                b.extend((xs.len() as u16).to_le_bytes());
-                for x in xs {
-                    self.emit(x);
-                }
-            }
-        }
-    }
-}
-
-fn scratch() -> Vec<u8> {
-    vec![0u8; 512 * FRAME]
-}
 
 #[test]
 fn leb_writers() {
@@ -87,44 +29,6 @@ fn leb_writers() {
             let (prev, last) = (b[n - 2], b[n - 1]);
             assert!(!((last == 0 && prev & 0x40 == 0) || (last == 0x7F && prev & 0x40 != 0)), "{v}");
         }
-    }
-}
-
-#[test]
-fn random_types_skip_to_their_end() {
-    let mut r = XorShift(77);
-    let prims = [
-        ty::BOOL,
-        ty::U8,
-        ty::I16,
-        ty::U32,
-        ty::F64,
-        ty::NAT,
-        ty::INT,
-        ty::CHAR,
-        ty::TEXT,
-        ty::BLOB,
-        ty::PRINCIPAL,
-        ty::U128,
-        ty::UNIT,
-    ];
-    fn gen(r: &mut XorShift, prims: &[u8], depth: u32) -> T {
-        if depth == 0 || r.below(3) == 0 {
-            return T::P(prims[r.below(prims.len() as u64) as usize]);
-        }
-        match r.below(4) {
-            0 => T::Opt(Box::new(gen(r, prims, depth - 1))),
-            1 => T::Tup((0..r.below(4)).map(|_| gen(r, prims, depth - 1)).collect()),
-            2 => {
-                T::Rec((0..r.below(4)).map(|i| (i as u32, (r.below(4) == 0) as u8, gen(r, prims, depth - 1))).collect())
-            }
-            _ => T::Bytes(r.below(5) as u16),
-        }
-    }
-    for _ in 0..3_000 {
-        let mut p = Pool::default();
-        let t = p.add(&gen(&mut r, &prims, 4));
-        assert_eq!(skip_ty(&p.0, t, &mut scratch()).unwrap(), p.0.len() as u32);
     }
 }
 
