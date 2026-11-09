@@ -10,9 +10,7 @@ The compiler (`moc`) and runtime system for Motoko, a language for the Internet
 Computer. The compiler is OCaml, the runtime system is Rust compiled to Wasm.
 The base/core libraries are NOT in-tree (they live in the external
 `motoko-core` / `motoko-base` repositories); only compiler-known stubs are
-vendored under `test/*-stub`. The one library in the tree is
-`lib/native-table`, the `NativeTable` library of native tables, which is not
-part of the releases.
+vendored under `test/*-stub`.
 
 ## Repository map
 
@@ -29,7 +27,7 @@ part of the releases.
 | Error codes | `src/lang_utils/error_codes.ml` + `src/lang_utils/error_codes/M0NNN.md` | append-only registry |
 | Runtime system | `rts/` | Rust crates (`motoko-rts*`) producing `mo-rts*.wasm`; GC, layout, stable memory |
 | Native-table crate | `rts/native-table/` | Cargo workspace of its own (Rust pinned in `rust-toolchain.toml`): the crate `mo-rts-table*.wasm` links, its test hosts, references and benchmarks; `scripts/check.sh` builds and tests them |
-| Libraries in the tree | `lib/` | `lib/native-table`: the `NativeTable` library (package `native-table`), with its guide `README.md`; tests in `test/run-drun/nt-*` |
+| Libraries in the tree | `lib/` | `lib/native-table`: the `NativeTable` library (package `native-table`, not part of the releases), with its guide `README.md`; tests in `test/run-drun/nt-*` |
 | Tests | `test/` | see [test/README.md](test/README.md) |
 | Design docs | `design/` | e.g. [OrthogonalPersistence.md](design/OrthogonalPersistence.md), [Stable.md](design/Stable.md), [Implementation.md](design/Implementation.md) |
 | User docs | `doc/` | legacy `doc/md/`, Starlight site `doc/site/` |

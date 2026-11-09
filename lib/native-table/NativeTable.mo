@@ -360,10 +360,7 @@ module {
   /// null when the field is not of an integer type. The table keeps the sum up to date as rows
   /// are written, so this is one read at any table size.
   public func sum<K, R>(self : NativeTable<K, R>, column : Text) : ?Int {
-    switch Prim.ntSum(self.id, self.codec, column) {
-      case null { null }
-      case ?(s, _) { ?s }
-    }
+    do ? { Prim.ntSum(self.id, self.codec, column)!.0 }
   };
 
   /// The sum and the number of the non-null values of the named field over every row, (0, 0) when
