@@ -25,7 +25,7 @@ use motoko_rts_macros::ic_mem_fn;
 use super::layout::{Layout, SCHEMA_VERSION, schema_image, scratch};
 use super::row::{
     CellRows, Cells, Out, RowOut, cells, column_type, compact, filter_cond, int_of_i128,
-    int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, pair, text_bytes,
+    int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap, pair, text_bytes,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -90,10 +90,6 @@ impl<M: Memory> Scratch for BlobScratch<M> {
             Ok(core::slice::from_raw_parts_mut(bytes, need))
         }
     }
-}
-
-fn or_trap<T>(r: Result<T, Fault>) -> T {
-    r.unwrap_or_else(|fault| rts_trap_with(fault.text()))
 }
 
 /// The bytes of the Blob `v`, in place.
@@ -192,12 +188,7 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
 
 /// The row key `k` has, built as a value of the row type, or null.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_get<M: Memory>(
-    mem: &mut M,
-    id: u64,
-    codec: Value,
-    k: Value,
-) -> Value {
+pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
     let layout = layout_of(codec);
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
@@ -277,11 +268,7 @@ pub unsafe fn nt_scan<M: Memory>(
         }
     }
     let mem = &mut *mem;
-    let array = alloc_array(mem, TAG_ARRAY_I, n);
-    for i in 0..n {
-        array.as_array().initialize(i, *rows.add(i), mem);
-    }
-    let array = allocation_barrier(array);
+    let array = array_of(mem, rows, n);
     let rest = if rid < end {
         nat64_of(mem, rid)
     } else {
@@ -339,14 +326,7 @@ pub unsafe fn nt_index<M: Memory>(mem: &mut M, id: u64, codec: Value, fields: Va
     // The row's fields are the named columns after the key, each one leaf.
     let mut columns = [0u32; INDEX_PARTS];
     for (i, column) in columns.iter_mut().take(parts).enumerate() {
-        let name = text_bytes(mem, fields.get(i));
-        *column = match layout
-            .entries()
-            .position(|e| !e.name.is_empty() && e.name == name)
-        {
-            Some(c) => c as u32,
-            None => rts_trap_with("native table: the row type has no field of that name"),
-        };
+        *column = field(mem, &layout, fields.get(i)).0;
     }
     let mut decls = [IndexDecl::default(); 64];
     let mem: *mut M = mem;
@@ -501,6 +481,16 @@ unsafe fn key_of<'k, M: Memory>(
     }
 }
 
+/// A new array of the first `n` values at `values`.
+#[inline(always)]
+unsafe fn array_of<M: Memory>(mem: &mut M, values: *const Value, n: usize) -> Value {
+    let array = alloc_array(mem, TAG_ARRAY_I, n);
+    for i in 0..n {
+        array.as_array().initialize(i, *values.add(i), mem);
+    }
+    allocation_barrier(array)
+}
+
 /// A new Blob that holds `a` and then `b`.
 unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
     let v = alloc_blob(mem, TAG_BLOB_B, Bytes(a.len() + b.len()));
@@ -642,11 +632,7 @@ pub unsafe fn nt_walk<M: Memory>(
         rows.add(i).write(row.finish(&table));
     }
     let mem = &mut *mem;
-    let array = alloc_array(mem, TAG_ARRAY_I, n);
-    for i in 0..n {
-        array.as_array().initialize(i, *rows.add(i), mem);
-    }
-    let array = allocation_barrier(array);
+    let array = array_of(mem, rows, n);
     let token = if n == limit {
         blob_of_parts(mem, last, &last_rid.to_le_bytes())
     } else {
@@ -725,39 +711,23 @@ pub unsafe fn nt_group_counts<M: Memory>(
         }
     }
     let mem = &mut *mem;
-    let array = alloc_array(mem, TAG_ARRAY_I, n);
-    for i in 0..n {
-        array.as_array().initialize(i, *groups.add(i), mem);
-    }
-    let array = allocation_barrier(array);
+    let array = array_of(mem, groups, n);
     let token = blob_of_parts(mem, if n == limit { last } else { &[] }, &[]);
     pair(mem, array, token)
 }
 
-/// The sum and the number of the non-null values of the field of the row the Text `column` names,
-/// over every row of the table whose root block is `id`, as an Int and a Nat in a pair; null when
-/// the field is not of an integer type. One read of the field's running total, at any table size.
-#[ic_mem_fn(ic_only)]
-pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, codec: Value, column: Value) -> Value {
-    let layout = layout_of(codec);
-    let name = text_bytes(mem, column);
-    let Some((c, e)) = layout
-        .entries()
-        .enumerate()
-        .find(|(_, e)| !e.name.is_empty() && e.name == name)
-    else {
-        rts_trap_with("native table: the row type has no field of that name")
-    };
-    let mem: *mut M = mem;
-    let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
-    if !matches!(column_type(e.codes).0, ty::U8..=ty::INT) {
-        return NULL_POINTER;
-    }
+/// The sum and the number of values `f` gives, as an Int and a Nat in a pair. `f` writes a sum past
+/// i128 to the buffer it is given, scratch of `SUM_BUFFER` bytes that grows to the bytes each
+/// `Scratch` fault of `f` names.
+#[inline(always)]
+unsafe fn sum_of<M: Memory>(
+    mem: *mut M,
+    mut f: impl FnMut(&mut [u8]) -> Result<(Total, u64), Fault>,
+) -> Value {
     let mut size = SUM_BUFFER;
     loop {
         let buf = core::slice::from_raw_parts_mut(scratch::<u8, M>(&mut *mem, size), size);
-        match table.sum((c as u32) << 16, buf) {
+        match f(buf) {
             Ok((total, n)) => {
                 let mem = &mut *mem;
                 let sum = match total {
@@ -770,6 +740,22 @@ pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, codec: Value, column: Valu
             Err(fault) => rts_trap_with(fault.text()),
         }
     }
+}
+
+/// The sum and the number of the non-null values of the field of the row the Text `column` names,
+/// over every row of the table whose root block is `id`, as an Int and a Nat in a pair; null when
+/// the field is not of an integer type. One read of the field's running total, at any table size.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_sum<M: Memory>(mem: &mut M, id: u64, codec: Value, column: Value) -> Value {
+    let layout = layout_of(codec);
+    let (c, codes) = field(mem, &layout, column);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    let table = open(&mut host, id, layout.hash);
+    if !matches!(column_type(codes).0, ty::U8..=ty::INT) {
+        return NULL_POINTER;
+    }
+    sum_of(mem, |buf| table.sum(c << 16, buf))
 }
 
 /// The smallest non-null value of the field of the row the Text `column` names over every row of
@@ -786,25 +772,18 @@ pub unsafe fn nt_extreme<M: Memory>(
     largest: u64,
 ) -> Value {
     let layout = header_of(codec);
-    let name = text_bytes(mem, column);
-    let Some((c, e)) = layout
-        .entries()
-        .enumerate()
-        .find(|(_, e)| !e.name.is_empty() && e.name == name)
-    else {
-        rts_trap_with("native table: the row type has no field of that name")
-    };
+    let (c, codes) = field(mem, &layout, column);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let table = open(&mut host, id, layout.hash);
-    if !matches!(column_type(e.codes).0, ty::U8..=ty::INT) {
+    if !matches!(column_type(codes).0, ty::U8..=ty::INT) {
         return NULL_POINTER;
     }
     // A value past i128 goes to this buffer, or to scratch when it needs more room.
     let mut first = [0u8; SUM_BUFFER];
     let mut buf: &mut [u8] = &mut first;
     loop {
-        match table.extreme((c as u32) << 16, largest != 0, buf) {
+        match table.extreme(c << 16, largest != 0, buf) {
             Ok(Some(Total::Small(x))) => return int_of_i128(&mut *mem, x),
             Ok(Some(Total::Big(k))) => return int_of_twos(&mut *mem, &buf[..k]),
             Ok(None) => return NULL_POINTER,
@@ -819,6 +798,7 @@ pub unsafe fn nt_extreme<M: Memory>(
 
 /// The column of the field of the row the Text `name` names, and its type codes; traps when the
 /// row has no field of that name.
+#[inline(always)]
 unsafe fn field<'l, M: Memory>(mem: &mut M, layout: &Layout<'l>, name: Value) -> (u32, &'l [u8]) {
     let name = text_bytes(mem, name);
     match layout
@@ -900,11 +880,7 @@ pub unsafe fn nt_scan_where<M: Memory>(
     let rest = or_trap(table.scan_where(&filter, next, limit as u64, &mut out));
     let n = out.n;
     let mem = &mut *mem;
-    let array = alloc_array(mem, TAG_ARRAY_I, n);
-    for i in 0..n {
-        array.as_array().initialize(i, *rows.add(i), mem);
-    }
-    let array = allocation_barrier(array);
+    let array = array_of(mem, rows, n);
     let rest = match rest {
         Some(rid) => nat64_of(mem, rid),
         None => NULL_POINTER,
@@ -967,11 +943,7 @@ pub unsafe fn nt_scan_cells<M: Memory>(
     let rest = or_trap(table.scan_cells(leaves, filter.as_ref(), next, limit as u64, &mut out));
     let n = out.len();
     let mem = &mut *mem;
-    let array = alloc_array(mem, TAG_ARRAY_I, n);
-    for i in 0..n {
-        array.as_array().initialize(i, *rows.add(i), mem);
-    }
-    let array = allocation_barrier(array);
+    let array = array_of(mem, rows, n);
     let rest = match rest {
         Some(rid) => nat64_of(mem, rid),
         None => NULL_POINTER,
@@ -1017,22 +989,7 @@ pub unsafe fn nt_sum_where<M: Memory>(
     if !matches!(column_type(codes).0, ty::U8..=ty::INT) {
         return NULL_POINTER;
     }
-    let mut size = SUM_BUFFER;
-    loop {
-        let buf = core::slice::from_raw_parts_mut(scratch::<u8, M>(&mut *mem, size), size);
-        match table.sum_where(&filter, c << 16, buf) {
-            Ok((total, n)) => {
-                let mem = &mut *mem;
-                let sum = match total {
-                    Total::Small(x) => int_of_i128(mem, x),
-                    Total::Big(k) => int_of_twos(mem, &buf[..k]),
-                };
-                return pair(mem, sum, nat_of_u64(n));
-            }
-            Err(Fault::Scratch { need }) => size = (need as usize).max(2 * size),
-            Err(fault) => rts_trap_with(fault.text()),
-        }
-    }
+    sum_of(mem, |buf| table.sum_where(&filter, c << 16, buf))
 }
 
 /// Runs units of maintenance on the table whose root block is `id`, starting each only while

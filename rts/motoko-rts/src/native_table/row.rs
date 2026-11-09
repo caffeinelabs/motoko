@@ -628,7 +628,8 @@ pub unsafe fn key_cells<M: Memory>(
     allocation_barrier(array)
 }
 
-fn or_trap<T>(r: Result<T, Fault>) -> T {
+/// The value of `r`; traps with the fault's text on a fault.
+pub(super) fn or_trap<T>(r: Result<T, Fault>) -> T {
     r.unwrap_or_else(|fault| rts_trap_with(fault.text()))
 }
 
@@ -785,6 +786,24 @@ unsafe fn cell_value<M: Memory>(
     Some(variant_of(mem, case, payload))
 }
 
+/// The bytes of the value of `leaf` in row `rid` of `table`, read into `v`, the Blob made for them
+/// when the value's cell came.
+#[inline(always)]
+unsafe fn read_later<'b, H: PageHost>(
+    table: &Table<'_, H>,
+    rid: u64,
+    leaf: u32,
+    v: Value,
+) -> Result<&'b mut [u8], Fault> {
+    let blob = v.as_blob_mut();
+    let len = blob.len().as_usize();
+    let bytes = core::slice::from_raw_parts_mut(blob.payload_addr(), len);
+    if table.read_large(rid, leaf, 0, bytes)? != len {
+        return Err(Fault::BadValue { leaf });
+    }
+    Ok(bytes)
+}
+
 /// Rows of a cell scan, each built as an array of `NtCell` values, one per cell the scan hands
 /// out: the cells of the columns asked for, the key's among them when asked for, in the order
 /// asked. No row record is built. A value that does not lie in one piece of table memory gets its Blob when its cell
@@ -880,13 +899,7 @@ impl<M: Memory, H: PageHost> RowSink for CellRows<'_, '_, M, H> {
             for i in 0..self.pending_len {
                 let at = *self.pending.add(i);
                 let slot = self.cells.add(at);
-                let blob = (*slot).as_blob_mut();
-                let len = blob.len().as_usize();
-                let bytes = core::slice::from_raw_parts_mut(blob.payload_addr(), len);
-                let leaf = self.leaves[at];
-                if self.table.read_large(rid, leaf, 0, bytes)? != len {
-                    return Err(Fault::BadValue { leaf });
-                }
+                let bytes = read_later(self.table, rid, self.leaves[at], *slot)?;
                 let (case, payload) = match self.types[at].0 {
                     ty::NAT => (CELL_NAT, nat_of_leb(bytes)),
                     ty::INT => (CELL_INT, int_of_sleb(bytes)),
@@ -1036,15 +1049,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
             let p = *self.pending.add(i);
             let (column, code) = (p >> 8, p as u8);
             let slot = self.slot(column);
-            let blob = (*slot).as_blob_mut();
-            let len = blob.len().as_usize();
-            let bytes = core::slice::from_raw_parts_mut(blob.payload_addr(), len);
-            let leaf = (column as u32) << 16;
-            match table.read_large(self.rid, leaf, 0, bytes) {
-                Ok(n) if n == len => {}
-                Ok(_) => rts_trap_with(Fault::BadValue { leaf }.text()),
-                Err(fault) => rts_trap_with(fault.text()),
-            }
+            let bytes = or_trap(read_later(table, self.rid, (column as u32) << 16, *slot));
             match code {
                 ty::NAT => *slot = nat_of_leb(bytes),
                 ty::INT => *slot = int_of_sleb(bytes),
