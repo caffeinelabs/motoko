@@ -95,7 +95,8 @@ module {
   /// or when the old or the new row type is a scalar and the two differ. Its cost does not grow
   /// with the table: at most one row group of 4,096 rows is packed. The memory of a dropped field,
   /// and of an index that goes with it, is not given back. Once the row type has changed, use only
-  /// the table this returns: a call on `self` traps.
+  /// the table this returns: a call on `self` traps, unless a later `evolve` returns the table to
+  /// that row type.
   public func evolve<K, R1, R2>(self : NativeTable<K, R1>, codec : (implicit : Prim.NtCodec<(K, R2)>)) : NativeTable<K, R2> {
     ignore Prim.ntEvolve(self.id, self.codec, codec);
     let fields = fieldsOf(codec);

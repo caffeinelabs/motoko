@@ -255,8 +255,7 @@ actor {
 - `evolve` takes the new row type from the migration's declared result type, as in the example:
   `let t = old.orders.evolve()` alone does not compile. To write the types out, give all three:
   `old.orders.evolve<Nat, OldOrder, Order>()`.
-- Its cost depends on the number of fields, and it packs at most one group of 4,096 rows written
-  since the last pack: it does not grow with the table.
+- Its cost does not grow with the table: at most one group of 4,096 rows is packed.
 - Indexes cannot be added at upgrade.
 - After `evolve`, use only the table it returns.
 - Without `evolve`, a change of the row type does not compile.
@@ -276,7 +275,7 @@ Each message starts with `native table: `.
 | `a field changes its type` | `evolve` | a field keeps its name but changes its type |
 | `a new field is not an option` | `evolve` | a field the old row type lacks is not of an option type |
 | `a row that is a scalar cannot change` | `evolve` | the old or the new row type is a scalar, and the two differ |
-| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value from before an `evolve` that changed its row type |
+| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value from before an `evolve` that changed its row type, unless a later `evolve` returned the table to that row type |
 | `graph-copy stabilization is not possible while a table exists` | `__motoko_stabilize_before_upgrade` | the start of an upgrade by graph copy, once the canister has made a table |
 
 ## With OQL
