@@ -50,6 +50,8 @@ pub fn walk<H: PageHost + ?Sized, F: FnMut(&[u8], u64) -> Result<(), Fault>>(
 
 /// Index `index`'s smallest key (`largest`: its largest) whose first part is not null, at the start of `out`;
 /// its length: `Scratch` with the bytes it needs when the key does not fit.
+/// Always inlined: with a second caller the compiler would keep it out of line, which costs every call.
+#[inline(always)]
 pub fn end_key<H: PageHost + ?Sized>(
     h: &H,
     tbl: u64,

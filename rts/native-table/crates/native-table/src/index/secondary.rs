@@ -213,6 +213,8 @@ impl Secondary {
     /// `spec` is the index's key spec, which gives each key's end. A step is two descents of the tree (to the
     /// key after `after`, then to its count entry), so a walk of g groups costs 2g descents, whatever the rows.
     /// It keeps no state: a walk resumes from the key it handed out last.
+    /// Only a hint: forcing the inline here makes slightly slower code.
+    #[inline]
     pub fn group_next<H: PageHost + ?Sized>(
         &self,
         h: &H,
