@@ -186,8 +186,6 @@ fn against_key<H: PageHost + ?Sized>(
 
 /// The row of `key` a forward cursor standing at or after the key's first row stands at: its rid, node and
 /// index; `None` at the key's count entry or past it.
-/// Always inlined: with a second caller the compiler would keep it out of line, which costs every call.
-#[inline(always)]
 fn tree_row<H: PageHost + ?Sized>(
     s: IndexShape,
     v: &AreaView<'_, H>,

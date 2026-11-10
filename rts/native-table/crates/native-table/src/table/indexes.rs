@@ -455,8 +455,6 @@ impl<H: PageHost> Table<'_, H> {
 
 /// The rows whose key under index `index` the cells of `key` give: one descent of the index's tree. A key longer
 /// than `KEY_STACK` is encoded into `scratch`.
-/// Only a hint: forcing the inline here makes slightly slower code.
-#[inline]
 pub fn count<H: PageHost + ?Sized, K: RowSource + ?Sized, S: Scratch>(
     h: &H,
     tbl: u64,

@@ -363,8 +363,6 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// The live row of E(k): its rid and where it lies, after checking that the row's key leaves encode to E(k).
     /// `path` is the caller's, for the lookup.
-    /// Always inlined: with a second caller the compiler would keep it out of line, which costs every call.
-    #[inline(always)]
     fn find_key(&self, e: &[u8], path: &mut Path) -> Result<Option<(u64, read::Row)>, Fault> {
         let Some(p) = Primary::read(&*self.host, self.root)? else { return Ok(None) };
         let look = primary::lookup(&*self.host, &p, e, path)?;
