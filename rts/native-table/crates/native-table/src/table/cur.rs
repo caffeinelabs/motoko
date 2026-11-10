@@ -436,7 +436,7 @@ pub fn from_entry<H: PageHost + ?Sized>(h: &H, e: &Entry, l: &LeafInfo) -> Resul
     decode_ve(h, l, d, At::Patch { block: e.block, off: e.data })
 }
 
-/// A flat leaf's value from its VE `d`, which lies at `a`. A Bool has no VE: its updates are written in place.
+/// A flat leaf's value from its VE `d`, which lies at `a`.
 pub fn decode_ve<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, d: &[u8], a: At) -> Result<SVal, Fault> {
     let bad = || rt(Corruption::Encoding, u64::from(l.ordinal));
     let le = |n: usize| -> Result<u64, Fault> {
@@ -461,7 +461,8 @@ pub fn decode_ve<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, d: &[u8], a: At) -> 
     Ok(match l.ty {
         Ty::Unit => SVal::Unit,
         // A dropped leaf's patches hold only nulls.
-        Ty::Bool | Ty::Dropped => return Err(bad()),
+        Ty::Dropped => return Err(bad()),
+        Ty::Bool => SVal::V(Val::Bool(d.first().copied().ok_or(bad())? != 0)),
         Ty::U(w) => SVal::V(Val::U(le(usize::from(w))?)),
         Ty::I(w) => {
             let raw = le(usize::from(w))?;
@@ -568,8 +569,8 @@ where
 
 // ---------------------------------------------------------------- VE of host values
 
-/// The VE of a host value whose VE is short (all but Text, Blob, `[u8; N]` and Nat and Int beyond i128, and
-/// Bool, whose updates are written in place): its bytes and length. `None` for the others.
+/// The VE of a host value whose VE is short (all but Text, Blob, `[u8; N]` and Nat and Int beyond i128): its
+/// bytes and length. `None` for the others.
 pub fn ve_short(l: &LeafInfo, v: &Val<'_>, out: &mut [u8; 32]) -> Option<usize> {
     let mut put = |b: &[u8]| {
         copy_bytes(out, b);
@@ -578,6 +579,7 @@ pub fn ve_short(l: &LeafInfo, v: &Val<'_>, out: &mut [u8; 32]) -> Option<usize> 
     Some(match (l.ty, *v) {
         (_, Val::Null) => 0,
         (Ty::Unit, _) => 0,
+        (Ty::Bool, Val::Bool(b)) => put(&[u8::from(b)]),
         (Ty::U(w), Val::U(x)) => put(x.to_le_bytes().get(..usize::from(w))?),
         (Ty::I(w), Val::I(x)) => put(x.to_le_bytes().get(..usize::from(w))?),
         (Ty::F32, Val::F32(b)) => put(&b.to_le_bytes()),

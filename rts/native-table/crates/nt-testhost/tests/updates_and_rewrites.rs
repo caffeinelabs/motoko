@@ -1119,3 +1119,21 @@ fn update_wider_than_its_sealed_cell() {
     assert_eq!(get_row(&tb, 1).unwrap().1[1], (id(1), V::U(70_000)));
     assert_eq!(get_row(&tb, 2).unwrap().1[1], (id(1), V::U(2)));
 }
+
+/// A sealed row's option Bool, in a group packed with no null, set to null and then to another value: a patch
+/// holds the value, and the row reads it back.
+#[test]
+fn option_bool_set_after_null() {
+    let (img, _) = schema(&[t::scalar(ty::NAT), t::opt(t::scalar(ty::BOOL))]);
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    for k in 0..5_000 {
+        tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k)), (id(1), V::Bool(true))])).unwrap();
+    }
+    assert!(seals(&tb) > 0);
+    tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(3)), (id(1), V::Null)])).unwrap();
+    assert_eq!(get_row(&tb, 3).unwrap().1[1], (id(1), V::Null));
+    tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(3)), (id(1), V::Bool(false))])).unwrap();
+    assert_eq!(get_row(&tb, 3).unwrap().1[1], (id(1), V::Bool(false)));
+    assert_eq!(get_row(&tb, 2).unwrap().1[1], (id(1), V::Bool(true)));
+}
