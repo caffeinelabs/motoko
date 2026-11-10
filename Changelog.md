@@ -7,10 +7,13 @@
   * feat: native tables. The `NativeTable` library, in `lib/native-table`,
     keeps a table's rows outside the garbage-collected heap, across upgrades
     that keep main memory, and answers reads by key, scans, index walks and
-    counts, filters, and totals of integer fields; see its `README.md`. The
-    compiler supplies a table's codec from its key and row types and rejects
-    types a table cannot have with the new error M0279; `moc.js` rejects a
-    program that uses native tables with the new error M0280 (#6492).
+    counts, filters, and totals of integer fields; see its `README.md`. A
+    stable table's row type changes in an upgrade through `evolve` in the
+    migration function, which adds fields of an option type and drops fields.
+    The compiler supplies a table's codec from its key and row types and
+    rejects types a table cannot have with the new error M0279; `moc.js`
+    rejects a program that uses native tables with the new error M0280
+    (#6492).
 
   * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
     value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
