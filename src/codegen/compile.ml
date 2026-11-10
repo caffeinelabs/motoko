@@ -410,9 +410,10 @@ module E = struct
      Alllocated in the dynamic heap on program initialization/upgrade.
      Identified by the index position in this list and accessed via the runtime system.
      Registered as GC root set and replaced on program upgrade.
+     Each entry holds the source line that added it, whether it is small, and its allocation.
   *)
   and object_pool = {
-    objects: (int * object_allocation) Table.t ref;
+    objects: (int * bool * object_allocation) Table.t ref;
     frozen: bool ref;
   }
   and t = {
@@ -730,9 +731,14 @@ module E = struct
         sv
       | Vanilla _ -> sv
 
-  let object_pool_add (env : t) line (allocation : t -> G.t) : int64 =
+  (* Objects with at most this many fields are small: their allocation costs at most about
+     1,100 complexity points, so start-up can run 128 of them in one function, far below the
+     IC's limit of 1,000,000, instead of giving each a function of its own. *)
+  let small_object_fields = 16
+
+  let object_pool_add ?(small = true) (env : t) line (allocation : t -> G.t) : int64 =
     if !(env.object_pool.frozen) then raise (Invalid_argument "Object pool frozen");
-    let index, t = Table.add !(env.object_pool.objects) (line, allocation) in
+    let index, t = Table.add !(env.object_pool.objects) (line, small, allocation) in
     env.object_pool.objects := t;
     Int64.of_int index
 
@@ -741,7 +747,7 @@ module E = struct
 
   let object_pool_report (env : t) : unit =
     let e = ref StringEnv.empty in
-    List.iter (fun (l, _) ->
+    List.iter (fun (l, _, _) ->
         let line = Int.to_string l in
         e := StringEnv.add line
                (match StringEnv.find_opt line (!e) with
@@ -757,10 +763,10 @@ module E = struct
       Printf.eprintf "\npool report = %s" profile
     end
 
-  (* The pool's allocations paired with their indices, in consecutive chunks of at most [n]. *)
+  (* The pool's allocations with their indices and smallness, in consecutive chunks of at most [n]. *)
   let chunk_object_pool (env : t) n =
     Table.to_list !(env.object_pool.objects)
-    |> List.mapi (fun index (_, allocation) -> (index, allocation))
+    |> List.mapi (fun index (_, small, allocation) -> (index, small, allocation))
     |> Lib.List.chunks n
 
   let collect_garbage env force =
@@ -2133,8 +2139,8 @@ module Tagged = struct
     get_object ^^
     allocation_barrier env
 
-  let shared_object line env allocation =
-    let index = E.object_pool_add env line allocation in
+  let shared_object ?small line env allocation =
+    let index = E.object_pool_add ?small env line allocation in
     E.SharedObject index
 
   let materialize_shared_value env = function
@@ -3700,11 +3706,10 @@ module BigNumLibtommath : BigNumType = struct
     ] @ limbs
     in
 
-    Tagged.shared_object __LINE__ env (fun env ->
+    let words = StaticBytes.as_words payload in
+    Tagged.shared_object ~small:(List.length words <= E.small_object_fields) __LINE__ env (fun env ->
       (*TODO: Why isn't this just loaded from a segment? *)
-      let instructions =
-        let words = StaticBytes.as_words payload in
-        List.map compile_unboxed_const words in
+      let instructions = List.map compile_unboxed_const words in
       Tagged.obj env Tagged.BigInt instructions
     )
 
@@ -4157,7 +4162,7 @@ module Object = struct
   let constant env (fs : (string * E.shared_value) list) =
     let materialize_fields = List.map (fun (name, value) -> (name, fun env -> Tagged.materialize_shared_value env value)) fs in
     let allocation = object_builder env materialize_fields in
-    Tagged.shared_object __LINE__ env allocation
+    Tagged.shared_object ~small:(List.length fs <= E.small_object_fields) __LINE__ env allocation
 
   (* This is for non-recursive objects, i.e. ObjNewE *)
   (* The instructions in the field already create the indirection if needed *)
@@ -4551,7 +4556,7 @@ module Arr = struct
       Tagged.allocation_barrier env
 
   let constant env sort elements =
-    Tagged.shared_object __LINE__ env (fun env ->
+    Tagged.shared_object ~small:(List.length elements <= E.small_object_fields) __LINE__ env (fun env ->
       lit_elements env sort (List.map (fun value -> Shared value) elements))
 
   (* Does not initialize the fields! *)
@@ -9627,13 +9632,15 @@ module GCRoots = struct
       compile_unboxed_const length ^^
       E.call_rts env "initialize_static_variables" ^^
       (* Chunked, as the IC rejects a function with complexity over 1,000,000 (about 20,000 calls).
-         Chunks are small so that modest programs, and so ordinary tests, already span several. *)
+         Chunks are small so that modest programs, and so ordinary tests, already span several.
+         Small allocations run inline, so that the IC's limit of 50,000 functions per module does
+         not limit their number; larger ones keep a function of their own. *)
       (E.chunk_object_pool env 128
       |> G.concat_mapi (fun chunk allocations ->
         Func.share_code0 Func.Always env (Printf.sprintf "initialize_root_array_%i" chunk) [] (fun env ->
           allocations
-          |> G.concat_map (fun (index, allocation) ->
-            Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
+          |> G.concat_map (fun (index, small, allocation) ->
+            Func.share_code0 (if small then Func.Never else Func.Always) env (Printf.sprintf "alloc_%i" index) [] (fun env ->
               compile_unboxed_const (Int64.of_int index) ^^
               allocation env ^^
                 E.call_rts env "set_static_variable")

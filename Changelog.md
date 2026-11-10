@@ -9,10 +9,10 @@
     is a tuple pattern (or a wildcard). Neither does a projection from a
     tuple-returning call like `f().0` (#6486).
 
-  * bugfix: a canister with more than about 20,000 static allocations (for
-    example, that many distinct text literals) no longer fails to install with
-    `IC0505` (function complexity exceeds the maximum allowed). Static variables
-    are now initialized by several functions instead of one (#6490).
+  * bugfix: a canister with more than about 20,000 constant values (for example,
+    that many distinct text literals), or with an array literal of more than
+    about 18,500 constant elements, now installs instead of failing with
+    `IC0505` (function complexity exceeds the maximum allowed) (#6490).
 
 ## 2.2.1 (2026-11-03)
 
