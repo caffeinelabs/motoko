@@ -6,10 +6,12 @@
 //! **Extremes block** (area 0, zero-filled when allocated), made when its group opens and named by the group's
 //! buffer descriptor (@48), then by its group page (@656), to which its seal moves it, as a compaction moves
 //! it to the group's next page: {magic `NTEX` u32 @0; `FORMAT_TABLE` u16 @4; zero u16
-//! @6; group number u64 @8; leaves u32 @16, the ordinals its records cover; zero @20..32; then from @32 a
-//! record of 40 bytes per ordinal below the leaves}. A record is {flags u8 @0; zero @1..8; minimum u128 @8;
-//! maximum u128 @24}, the values as `totals::Rank` ranks them. Flags: bit 0 the record holds a value; bit 1
-//! the minimum is loose; bit 2 the maximum is loose; bit 3 a value beyond i128 joined the group.
+//! @6; group number u64 @8; leaves u32 @16, the table's ordinals below `CAP` when the block was made; zero
+//! @20..32; then from @32 a record of 40 bytes per ordinal below `CAP`}. A record is {flags u8 @0; zero @1..8;
+//! minimum u128 @8; maximum u128 @24}, the values as `totals::Rank` ranks them. Flags: bit 0 the record holds a
+//! value; bit 1 the minimum is loose; bit 2 the maximum is loose; bit 3 a value beyond i128 joined the group.
+//! The records from the leaves on are zero when the block is made: they serve the leaves a change of the row
+//! type adds later, every row of the group holding null for them until a write gives one a value.
 //!
 //! A value joining the group (an insert, the new side of an update) widens the record, and a minimum or
 //! maximum it reaches is exact again. A value leaving the group (a delete, the old side of an update) that
@@ -22,7 +24,7 @@ use core::cmp::Ordering;
 use crate::area::alloc_zeroed;
 use crate::consts::{magic, BLOCK, FORMAT_TABLE, RADIX_FAN};
 use crate::fault::{rt, Corruption, Fault};
-use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u32, rd_u64, rd_u8, PageHost, Region};
+use crate::mem::{put, put_u16, put_u32, put_u64, put_u8, rd_array, rd_u64, rd_u8, PageHost, Region};
 
 use super::buffer::{self, Located, DESC_BIT};
 use super::cur::{self, SVal};
@@ -133,11 +135,11 @@ pub fn of_page<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<u64, Fault> {
     rd_u64(h.get(Region::Block(pg))?, page::P_EXT)
 }
 
-/// Leaf `l`'s record in block `blk`; `None` when the block does not cover the leaf.
+/// Leaf `l`'s record in block `blk`; `None` when the block does not cover the leaf (an ordinal from `CAP` on).
 pub fn record<H: PageHost + ?Sized>(h: &H, blk: u64, l: &LeafInfo) -> Result<Option<Rec>, Fault> {
     let b = h.get(Region::Block(blk))?;
     let o = u64::from(l.ordinal);
-    if o >= u64::from(rd_u32(b, LEAVES)?) {
+    if o >= CAP {
         return Ok(None);
     }
     Rec::read(b, RECS.wrapping_add(o.wrapping_mul(REC))).map(Some)
@@ -363,7 +365,7 @@ fn extreme_of<H: PageHost + ?Sized, const LARGEST: bool>(
         let blk = if entry & DESC_BIT != 0 { of_desc(h, entry & !DESC_BIT)? } else { of_page(h, entry)? };
         if blk != 0 {
             let b = h.get(Region::Block(blk))?;
-            if o < u64::from(rd_u32(b, LEAVES)?) {
+            if o < CAP {
                 let flags = rd_u8(b, at)?;
                 if flags & (BIG | loose) == 0 {
                     if flags & HAS != 0 {

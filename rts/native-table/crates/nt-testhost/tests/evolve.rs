@@ -1,8 +1,12 @@
 //! A change of a table's row type (`Table::evolve`): every refused image leaves every byte of the table as it
 //! was, an image equal to the stored one changes nothing, an open group whose rows are all deleted is sealed
-//! and the next insert works, and an added integer field's total starts at zero beside the others.
+//! and the next insert works, an added integer field's total starts at zero beside the others, and its minimum
+//! and maximum over the groups packed before it was added come from their extremes records, without a row read.
 
+use native_table::mem::{rd_u32, PageHost, Region};
 use native_table::schema::IndexDecl;
+use native_table::table::buffer::DESC_BIT;
+use native_table::table::extremes::{self, Rec, HAS};
 use native_table::table::totals::Total;
 use native_table::table::{buffer, root, Table};
 use native_table::value::ty;
@@ -158,5 +162,87 @@ fn an_added_integer_field_sums_to_zero_and_the_other_sums_stay() {
         tb.evolve(&image(2, &v2, &[])).unwrap();
         assert_eq!(tb.sum(id(3), &mut buf).unwrap(), (Total::Small(0), 0));
         assert_eq!(sums(&tb, &mut buf), before);
+    }
+}
+
+/// Every group's extremes block, by group number.
+fn extremes_blocks(tb: &Table<'_, VecHost>) -> Vec<u64> {
+    let h = tb.host();
+    (0..=open_group(tb))
+        .map(|g| {
+            let e = root::group(h, tb.root(), g).unwrap();
+            if e & DESC_BIT != 0 {
+                extremes::of_desc(h, e & !DESC_BIT).unwrap()
+            } else {
+                extremes::of_page(h, e).unwrap()
+            }
+        })
+        .collect()
+}
+
+/// Leaf `leaf`'s minimum (`largest`: maximum) over the table, and the host calls it took.
+fn extreme_calls(tb: &mut Table<'_, VecHost>, leaf: u32, largest: bool) -> (Option<Total>, usize) {
+    let mut buf = [0u8; 64];
+    tb.host_mut().take_log();
+    let got = tb.extreme(leaf, largest, &mut buf).unwrap();
+    (got, tb.host_mut().take_log().len())
+}
+
+#[test]
+fn an_added_integer_fields_extremes_come_from_the_records_of_groups_packed_before() {
+    for fill in FILLS {
+        // Key Nat, Nat, Text: 10,000 rows, two full groups and one open group, which the change packs.
+        let v1 = [(t::scalar(ty::NAT), 1), (t::scalar(ty::NAT), 1), (t::scalar(ty::TEXT), 1)];
+        let mut h = VecHost::new(fill);
+        let (mut tb, _) = Table::create(&mut h, 1, &image(1, &v1, &[])).unwrap();
+        let old = |k: u64, x: V| [(id(0), V::U(k)), (id(1), V::U(3 * k)), (id(2), V::text("old")), (id(3), x)];
+        for k in 0..10_000u64 {
+            tb.upsert(&mut scratch(), &mut Src::new(&old(k, V::Null)[..3])).unwrap();
+        }
+        let mut v2 = v1.to_vec();
+        v2.push((t::opt(t::scalar(ty::NAT)), 2));
+        tb.evolve(&image(2, &v2, &[])).unwrap();
+        assert_eq!(open_group(&tb), 3);
+        let added = tb.shape().leaf(tb.host(), 3).unwrap();
+        let blocks = extremes_blocks(&tb);
+        assert_eq!(blocks.len(), 4);
+        for &blk in &blocks {
+            // Made before the change: the added leaf lies past the leaves the block's records were made for.
+            assert_eq!(rd_u32(tb.host().get(Region::Block(blk)).unwrap(), extremes::LEAVES).unwrap(), 3);
+            assert_eq!(extremes::record(tb.host(), blk, &added).unwrap(), Some(Rec::default()));
+        }
+
+        // Before any value is written: no value, at the cost of the old Nat field's, whose records give its
+        // extremes.
+        for largest in [false, true] {
+            let (got, calls) = extreme_calls(&mut tb, id(3), largest);
+            let (kept, kept_calls) = extreme_calls(&mut tb, id(1), largest);
+            assert_eq!(got, None);
+            assert_eq!(kept, Some(Total::Small(if largest { 3 * 9_999 } else { 0 })));
+            assert_eq!(calls, kept_calls, "largest {largest}: no row read");
+        }
+
+        // Values written: one old row of each group packed before (an update the patch path takes, as the old
+        // groups hold no cell of the added leaf), and new rows into the open group.
+        for (k, x) in [(5u64, 7u64), (4_100, 900_000), (9_000, 42)] {
+            tb.upsert(&mut scratch(), &mut Src::new(&old(k, V::U(x)))).unwrap();
+        }
+        for k in 10_000..10_100u64 {
+            tb.upsert(&mut scratch(), &mut Src::new(&old(k, V::U(500 + k % 37)))).unwrap();
+        }
+        let has = |x: u128, y: u128| Some(Rec { flags: HAS, min: x, max: y });
+        let want = [has(7, 7), has(900_000, 900_000), has(42, 42), has(500, 536)];
+        for (g, &blk) in blocks.iter().enumerate() {
+            assert_eq!(extremes::record(tb.host(), blk, &added).unwrap(), want[g], "group {g}");
+        }
+        for largest in [false, true] {
+            let (got, calls) = extreme_calls(&mut tb, id(3), largest);
+            let (_, kept_calls) = extreme_calls(&mut tb, id(1), largest);
+            assert_eq!(got, Some(Total::Small(if largest { 900_000 } else { 7 })));
+            assert_eq!(calls, kept_calls, "largest {largest}: no row read");
+        }
+        let mut s = Sink::default();
+        assert!(tb.get(&mut scratch(), &mut Src::new(&[(id(0), V::U(10))]), &mut s).unwrap());
+        assert_eq!(s.cells, old(10, V::Null).to_vec());
     }
 }

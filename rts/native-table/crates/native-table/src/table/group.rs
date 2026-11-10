@@ -395,12 +395,23 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Ok(Some(rank.wrapping_add(u64::from(below))))
     }
 
-    /// The leaf directory entry of leaf `o`: the image holds every leaf of the table, in ordinal order.
+    /// The leaf directory entry of leaf `o`: the image holds every leaf the table had when it was packed, in
+    /// ordinal order. A leaf added later lies past the directory's end and gets an entry without cells, whose
+    /// every value reads as null (an added leaf is always nullable and never of type `()`).
     pub fn leaf(&self, o: u64) -> Result<LeafDir, Fault> {
         if o >= self.l {
-            return Err(self.bad(Corruption::Leaf, o));
+            return self.added(o);
         }
         LeafDir::read(self.reader().bytes(HEADER.wrapping_add(o.wrapping_mul(LD_BYTES)), LD_BYTES)?)
+    }
+
+    /// The entry of leaf `o`, added after the image was packed: no cells. Kept out of line, so that the
+    /// lookups of the image's own leaves compile as they would without it.
+    #[cold]
+    #[inline(never)]
+    fn added(&self, o: u64) -> Result<LeafDir, Fault> {
+        let ordinal = u16::try_from(o).map_err(|_| self.bad(Corruption::Leaf, o))?;
+        Ok(LeafDir { ordinal, form: form::UNIT, ..LeafDir::default() })
     }
 
     pub fn seg(&self, i: u64) -> Result<Seg, Fault> {
