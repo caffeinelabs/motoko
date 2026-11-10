@@ -120,6 +120,13 @@ impl Secondary {
         })
     }
 
+    /// Clears table `tbl`'s descriptor of index `index`: the table has no such index any more. Its tree and key
+    /// log stay allocated, and nothing names them.
+    pub fn clear<H: PageHost>(h: &mut H, tbl: u64, index: u8) -> Result<(), Fault> {
+        let (b, o) = directory::locate(&*h, tbl, index)?.ok_or(rt(Corruption::Link, u64::from(index)))?;
+        crate::mem::fill(h.get_mut(Region::Block(b))?, o, directory::INDEX_DESC, 0)
+    }
+
     /// Writes the tree's root, node count and key log into table `tbl`'s descriptor of the index.
     pub fn write_tree<H: PageHost>(&self, h: &mut H, tbl: u64) -> Result<(), Fault> {
         let (b, o) = directory::locate(&*h, tbl, self.index)?.ok_or(rt(Corruption::Link, u64::from(self.index)))?;

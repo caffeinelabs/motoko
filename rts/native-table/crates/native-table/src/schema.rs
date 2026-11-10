@@ -14,6 +14,9 @@ use crate::value::ty;
 pub mod node {
     pub const SCALAR: u8 = 1;
     pub const UNIT: u8 = 6;
+    /// A leaf whose field a schema change dropped: its record keeps its id, code and width, with the
+    /// nullable flag set.
+    pub const DROPPED: u8 = 8;
 }
 
 /// Leaf record flags.

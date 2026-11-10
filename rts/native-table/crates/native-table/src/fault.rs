@@ -44,6 +44,15 @@ pub struct CorruptAt {
 /// A refused schema image.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SchemaError {
+    /// A change of a column or leaf the table holds, a new leaf that is not nullable, a new index, or a
+    /// version that does not follow the table's.
+    ColumnChanged,
+    /// A change of a key leaf or of the primary index.
+    KeyChanged,
+    /// A dropped leaf or column that is live again.
+    RestoredDropped,
+    /// A drop marked other than by the dropped kind: a dropped version, or a new leaf of the dropped kind.
+    NewDropped,
     TooManyIndexes,
 }
 

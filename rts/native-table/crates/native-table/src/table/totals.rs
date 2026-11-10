@@ -120,6 +120,15 @@ impl Totals {
         self.put_bytes(h, 4, &recs.to_le_bytes())
     }
 
+    /// Moves the records to space offset `at`, inside the used bytes.
+    pub(super) fn set_recs<H: PageHost>(&mut self, h: &mut H, at: u64) -> Result<(), Fault> {
+        if at < SPACE_HEAD || at > self.used {
+            return Err(rt(Corruption::Range, at));
+        }
+        self.recs = at;
+        self.write_used(h)
+    }
+
     /// The block that holds space byte `off`, the byte's offset in it and the bytes of the space contiguous
     /// from there.
     fn locate<H: PageHost + ?Sized>(&self, h: &H, off: u64) -> Result<(u64, u64, u64), Fault> {

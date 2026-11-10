@@ -87,6 +87,14 @@ pub fn set_u64<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u64) -> Result<(),
     put_u64(h.get_mut(Region::Block(tbl))?, off, v)
 }
 
+pub fn u32_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u32, Fault> {
+    rd_u32(h.get(Region::Block(tbl))?, off)
+}
+
+pub fn set_u32<H: PageHost>(h: &mut H, tbl: u64, off: u64, v: u32) -> Result<(), Fault> {
+    put_u32(h.get_mut(Region::Block(tbl))?, off, v)
+}
+
 pub fn u8_at<H: PageHost + ?Sized>(h: &H, tbl: u64, off: u64) -> Result<u8, Fault> {
     rd_u8(h.get(Region::Block(tbl))?, off)
 }

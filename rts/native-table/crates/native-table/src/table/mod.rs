@@ -16,6 +16,7 @@ pub mod buffer;
 pub mod cell;
 pub mod cur;
 pub mod drain;
+pub mod evolve;
 pub mod extremes;
 pub mod filter;
 pub mod group;
@@ -657,6 +658,15 @@ impl<'h, H: PageHost> Table<'h, H> {
             read::Live::Sealed(ref s, pos) => update::delete_sealed(&mut *self.host, self.root, &self.shape, s, pos)?,
         }
         Ok((Some(rid), self.settle()?))
+    }
+
+    /// Changes the table's row type to the one schema image `image` gives (`evolve::change`): the same rows
+    /// and indexes, new leaves null in every row stored before, dropped leaves no longer stored, and the
+    /// secondary indexes the image no longer declares removed. The open group is sealed first when it has a
+    /// position. A refused image is `Schema`, and changes nothing.
+    pub fn evolve(&mut self, image: &[u8]) -> Result<(), Fault> {
+        self.shape = evolve::change(&mut *self.host, self.root, &self.shape, image)?;
+        Ok(())
     }
 
     /// The maintenance state, written when it changes.
