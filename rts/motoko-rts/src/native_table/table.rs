@@ -7,12 +7,19 @@
 //! the word matches before it opens the table. A reference to any other block traps, also one
 //! whose bytes a program wrote, for example through a long Text in a row. Any fault of the crate
 //! traps.
+//!
+//! Once `nt_evolve` has changed a table's row type, the first word holds the new codec hash with
+//! `CHANGED` mixed in, and the second word the address of the table's map page (`Map`): the column
+//! of each field, since a column keeps its id when fields are added or dropped. A call compares the
+//! first word with its codec hash as before, and only when they differ looks for the mark and
+//! reads the map; a call on a table whose row type never changed runs as it did before.
 
 use core::cmp::Ordering;
 
+use ::native_table::area;
 use ::native_table::index::secondary::Start;
-use ::native_table::mem::{put_u64, rd_u64};
-use ::native_table::schema::IndexDecl;
+use ::native_table::mem::{put, put_u64, rd_u64};
+use ::native_table::schema::{IndexDecl, SchemaView};
 use ::native_table::table::filter::Filter;
 use ::native_table::table::totals::Total;
 use ::native_table::table::{CellIn, CellOut, RowSink, Table, Upsert, buffer, indexes, root};
@@ -21,10 +28,11 @@ use ::native_table::value::ty;
 use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
 use motoko_rts_macros::ic_mem_fn;
 
-use super::layout::{Layout, SCHEMA_VERSION, schema_image, scratch};
+use super::layout::{Layout, SCHEMA_VERSION, evolved_image, schema_image, scratch};
 use super::row::{
-    CellRows, Cells, Out, RowOut, cells, column_type, compact, filter_cond, int_of_i128,
-    int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap, pair, text_bytes,
+    CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact,
+    filter_cond, int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap,
+    pair, text_bytes,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -34,8 +42,14 @@ use crate::rts_trap_with;
 use crate::text::text_compare;
 use crate::types::{Bytes, NULL_POINTER, TAG_ARRAY_I, TAG_BLOB_B, Value};
 
-/// The host word that holds the codec hash.
+/// The host word that holds the codec hash, with `CHANGED` mixed in (XOR) once the table's row
+/// type has changed.
 const CODEC_HASH: u64 = root::HOST_WORDS;
+/// The host word that holds the address of the map page of a table whose row type has changed;
+/// read only when the codec hash word says so.
+const MAP_PAGE: u64 = root::HOST_WORDS + 8;
+/// The mark mixed into the codec hash word of a table whose row type has changed.
+const CHANGED: u64 = 0x6E74_5F65_766F_6C76;
 /// The most rows one scan or walk call hands back.
 const BATCH_LIMIT: u64 = 64;
 /// The bytes of the buffers a walk's keys start in: three keys of up to 256 bytes.
@@ -108,27 +122,53 @@ unsafe fn labels_of(codec: Value) -> Value {
     codec.as_array().get(1)
 }
 
-/// The root block `id`, checked to be one the store recorded, of a table of the layout with codec
-/// hash `hash`.
-unsafe fn root_block<'h, M: Memory>(host: &'h StoreHost<'_, M>, id: u64, hash: u64) -> &'h [u8] {
+/// Checks that the root block `id` is one the store recorded, of a table of `layout`. Returns the
+/// map of the table's columns when its row type has changed, else `None`. Inlined, so a call
+/// takes a table whose row type never changed on the path it took before tables could change.
+#[inline(always)]
+unsafe fn root_block<M: Memory>(host: &StoreHost<'_, M>, id: u64, layout: &Layout) -> Option<Map> {
     if !host.is_root(id) {
         rts_trap_with("native table: not a table of this key and row type");
     }
     let block = or_trap(host.get(Region::Block(id)));
-    if rd_u64(block, CODEC_HASH) != Ok(hash) {
-        rts_trap_with("native table: not a table of this key and row type");
+    if rd_u64(block, CODEC_HASH) != Ok(layout.hash) {
+        return Some(changed(host, block, layout.hash));
     }
-    block
+    None
 }
 
-/// The table whose root block is `id`, of the layout with codec hash `hash`.
+/// The map of the table of root block `block`, whose codec hash word does not hold the codec hash
+/// `hash`: it holds that hash with `CHANGED` mixed in when the table's row type has changed to the
+/// one of `hash`. Traps otherwise.
+#[cold]
+#[inline(never)]
+unsafe fn changed<M: Memory>(host: &StoreHost<'_, M>, block: &[u8], hash: u64) -> Map {
+    if rd_u64(block, CODEC_HASH) != Ok(hash ^ CHANGED) {
+        rts_trap_with("native table: not a table of this key and row type");
+    }
+    let page = or_trap(host.get(Region::Page(or_trap(rd_u64(block, MAP_PAGE)))));
+    Map::of(page).unwrap_or_else(|| rts_trap_with(Fault::BadRef.text()))
+}
+
+/// The table whose root block is `id`, checked by `root_block`. Out of line and the only call of
+/// `Table::open`, so the table is built in its caller's place, not copied there.
+#[inline(never)]
+unsafe fn table_at<'h, 'a, M: Memory>(
+    host: &'h mut StoreHost<'a, M>,
+    id: u64,
+) -> Table<'h, StoreHost<'a, M>> {
+    or_trap(Table::open(host, id))
+}
+
+/// The table whose root block is `id`, of `layout`, for a call that looks up no field.
+#[inline(always)]
 unsafe fn open<'h, 'a, M: Memory>(
     host: &'h mut StoreHost<'a, M>,
     id: u64,
-    hash: u64,
+    layout: &Layout,
 ) -> Table<'h, StoreHost<'a, M>> {
-    root_block(host, id, hash);
-    or_trap(Table::open(host, id))
+    root_block(host, id, layout);
+    table_at(host, id)
 }
 
 /// Creates an empty table of the codec's key and row types with a secondary index on each list of
@@ -194,7 +234,7 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) ->
 pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, codec: Value) -> u64 {
     let layout = header_of(codec);
     let host = StoreHost::new(mem, native_store_location());
-    root_block(&host, id, layout.hash);
+    root_block(&host, id, &layout);
     or_trap(root::check(&host, id));
     let tail = or_trap(root::u64_at(&host, id, root::TAIL));
     or_trap(buffer::u64_of(&host, tail, buffer::H_LIVE))
@@ -208,7 +248,10 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     let mut row = cells(mem, &layout, k, r);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let mut table = open(&mut host, id, layout.hash);
+    if let Some(map) = root_block(&host, id, &layout) {
+        row = map.cells(&mut *mem, row);
+    }
+    let mut table = table_at(&mut host, id);
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
     let (done, _) = or_trap(table.upsert(&mut scratch, &mut row));
@@ -224,9 +267,24 @@ pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) ->
     let mem: *mut M = mem;
     let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Row);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    match root_block(&host, id, &layout) {
+        None => get(mem, &mut host, id, &mut k, &mut row),
+        Some(map) => get(mem, &mut host, id, &mut k, &mut row.mapped(map)),
+    }
+}
+
+/// The row key `k` has in the table whose root block is `id`, built by `row`, or null.
+#[inline(always)]
+unsafe fn get<'a, M: Memory, F: Places<'a>>(
+    mem: *mut M,
+    host: &mut StoreHost<'_, M>,
+    id: u64,
+    k: &mut Cells,
+    row: &mut RowOut<'a, M, F>,
+) -> Value {
+    let table = table_at(host, id);
     let mut scratch = BlobScratch { mem };
-    if or_trap(table.get(&mut scratch, &mut k, &mut row)) {
+    if or_trap(table.get(&mut scratch, k, row)) {
         row.finish(&table)
     } else {
         NULL_POINTER
@@ -242,7 +300,7 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value)
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let mut table = open(&mut host, id, layout.hash);
+    let mut table = open(&mut host, id, &layout);
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
     let (removed, _) = or_trap(table.remove(&mut scratch, &mut k));
@@ -328,11 +386,14 @@ pub unsafe fn nt_count<M: Memory>(
     fields: Value,
     key: Value,
 ) -> u64 {
-    let layout = layout_of(codec);
+    let mut layout = layout_of(codec);
     let index = index_of(indexes, fields);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    if let Some(map) = root_block(&host, id, &layout) {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let table = table_at(&mut host, id);
     let mut cells = index_cells(mem, &layout, &table, index, key);
     let mut scratch = BlobScratch { mem };
     or_trap(table.count(&mut scratch, index, &mut cells)) as u64
@@ -399,7 +460,7 @@ pub unsafe fn nt_walk<M: Memory>(
     token: Value,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(codec);
+    let mut layout = layout_of(codec);
     let index = index_of(indexes, fields);
     let dir = if reverse != 0 { Dir::Rev } else { Dir::Fwd };
     // A key past `to` in the walk's direction.
@@ -415,7 +476,11 @@ pub unsafe fn nt_walk<M: Memory>(
     let mem: *mut M = mem;
     let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Entry);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    let map = root_block(&host, id, &layout);
+    if let Some(map) = map {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let table = table_at(&mut host, id);
     // Where the walk starts; `None` when no row's first part is not null.
     let first = if !token.is_empty() {
         let Some(at) = token.len().checked_sub(8) else {
@@ -497,11 +562,9 @@ pub unsafe fn nt_walk<M: Memory>(
             }
         }
     }
-    for i in 0..n {
-        if !or_trap(table.get_rid(*rids.add(i), &mut row)) {
-            rts_trap_with("native table: an index names a row the table does not have");
-        }
-        rows.add(i).write(row.finish(&table));
+    match map {
+        None => rows_of(&table, rids, n, &mut row, rows),
+        Some(map) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
     }
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);
@@ -511,6 +574,23 @@ pub unsafe fn nt_walk<M: Memory>(
         blob_of_parts(mem, &[], &[])
     };
     pair(mem, array, token)
+}
+
+/// The rows of the `n` row ids at `rids` of `table`, built by `row` at the start of `rows`.
+#[inline(always)]
+unsafe fn rows_of<'a, M: Memory, F: Places<'a>>(
+    table: &Table<'_, StoreHost<'_, M>>,
+    rids: *const u64,
+    n: usize,
+    row: &mut RowOut<'a, M, F>,
+    rows: *mut Value,
+) {
+    for i in 0..n {
+        if !or_trap(table.get_rid(*rids.add(i), row)) {
+            rts_trap_with("native table: an index names a row the table does not have");
+        }
+        rows.add(i).write(row.finish(table));
+    }
 }
 
 /// Up to `limit` keys, 1 to 64, of the secondary index on `fields`, found in `indexes`
@@ -530,14 +610,17 @@ pub unsafe fn nt_group_counts<M: Memory>(
     after: Value,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(codec);
+    let mut layout = layout_of(codec);
     let index = index_of(indexes, fields);
     let limit = limit.clamp(1, BATCH_LIMIT) as usize;
     let groups = scratch::<Value, M>(mem, limit);
     let after = blob_bytes(after);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    if let Some(map) = root_block(&host, id, &layout) {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let table = table_at(&mut host, id);
     // The scalar type of each part of the index, and whether it can be null.
     let mut parts = [(0u8, false); INDEX_PARTS];
     let (shape, h) = (table.shape(), table.host());
@@ -634,16 +717,23 @@ pub unsafe fn nt_sum<M: Memory>(
 ) -> Value {
     let layout = header_of(codec);
     let (c, codes) = field(mem, &layout, column);
-    let filter = filter_opt(mem, &layout, filter);
+    let mut leaf = c << 16;
+    let mut filter = filter_opt(mem, &layout, filter);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    if let Some(map) = root_block(&host, id, &layout) {
+        leaf = map.leaf(leaf);
+        if let Some(f) = &mut filter {
+            f.leaf = map.leaf(f.leaf);
+        }
+    }
+    let table = table_at(&mut host, id);
     if !matches!(column_type(codes).0, ty::U8..=ty::INT) {
         return NULL_POINTER;
     }
     let sum = |buf: &mut [u8]| match &filter {
-        None => table.sum(c << 16, buf),
-        Some(f) => table.sum_where(f, c << 16, buf),
+        None => table.sum(leaf, buf),
+        Some(f) => table.sum_where(f, leaf, buf),
     };
     with_buffer(mem, sum, |mem, (t, n), buf| {
         let sum = int_of_total(mem, t, buf);
@@ -666,21 +756,27 @@ pub unsafe fn nt_extreme<M: Memory>(
 ) -> Value {
     let layout = header_of(codec);
     let (c, codes) = field(mem, &layout, column);
+    let mut leaf = c << 16;
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    if let Some(map) = root_block(&host, id, &layout) {
+        leaf = map.leaf(leaf);
+    }
+    let table = table_at(&mut host, id);
     if !matches!(column_type(codes).0, ty::U8..=ty::INT) {
         return NULL_POINTER;
     }
-    let extreme = |buf: &mut [u8]| table.extreme(c << 16, largest != 0, buf);
+    let extreme = |buf: &mut [u8]| table.extreme(leaf, largest != 0, buf);
     with_buffer(mem, extreme, |mem, t, buf| match t {
         Some(t) => int_of_total(mem, t, buf),
         None => NULL_POINTER,
     })
 }
 
-/// The column of the field of the row the Text `name` names, and its type codes; traps when the
-/// row has no field of that name.
+/// The position of the field of the row the Text `name` names in the layout, the key's 0, and
+/// its type codes; traps when the row has no field of that name. In a table whose row type never
+/// changed, the position is the field's column; in one whose row type has changed, the table's map
+/// gives the column.
 #[inline(always)]
 unsafe fn field<'l, M: Memory>(mem: &mut M, layout: &Layout<'l>, name: Value) -> (u32, &'l [u8]) {
     let name = text_bytes(mem, name);
@@ -725,14 +821,14 @@ unsafe fn filter_opt<'c, M: Memory>(
 
 /// The rows a filtered scan hands out, each built as `row` builds it when it ends, at the start
 /// of `rows`.
-struct Matches<'t, 'h, 'a, M: Memory, H: PageHost> {
-    row: RowOut<'a, M>,
+struct Matches<'t, 'h, 'a, M: Memory, H: PageHost, F: Places<'a>> {
+    row: RowOut<'a, M, F>,
     table: &'t Table<'h, H>,
     rows: *mut Value,
     n: usize,
 }
 
-impl<M: Memory, H: PageHost> RowSink for Matches<'_, '_, '_, M, H> {
+impl<'a, M: Memory, H: PageHost, F: Places<'a>> RowSink for Matches<'_, '_, 'a, M, H, F> {
     fn cell(&mut self, leaf: u32, v: CellOut<'_>) -> Result<(), Fault> {
         self.row.cell(leaf, v)
     }
@@ -762,28 +858,27 @@ pub unsafe fn nt_scan<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(codec);
+    let mut layout = layout_of(codec);
     let out = match what {
         0 => Out::Entry,
         1 => Out::Key,
         2 => Out::Row,
         _ => rts_trap_with("native table: unknown scan"),
     };
-    let filter = filter_opt(mem, &layout, filter);
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
     let row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
-    let mut out = Matches {
-        row,
-        table: &table,
-        rows,
-        n: 0,
+    let map = root_block(&host, id, &layout);
+    if let Some(map) = map {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let filter = filter_opt(&mut *mem, &layout, filter);
+    let (rest, n) = match map {
+        None => scan(&mut host, id, filter.as_ref(), next, limit, rows, row),
+        Some(map) => scan(&mut host, id, filter.as_ref(), next, limit, rows, row.mapped(map)),
     };
-    let rest = or_trap(table.scan_where(filter.as_ref(), next, limit as u64, &mut out));
-    let n = out.n;
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);
     let rest = match rest {
@@ -791,6 +886,29 @@ pub unsafe fn nt_scan<M: Memory>(
         None => NULL_POINTER,
     };
     pair(mem, array, rest)
+}
+
+/// `nt_scan`'s scan of the table whose root block is `id`, its rows built by `row` at the start
+/// of `rows`: the row id to go on from, and the number of rows.
+#[inline(always)]
+unsafe fn scan<'a, M: Memory, F: Places<'a>>(
+    host: &mut StoreHost<'_, M>,
+    id: u64,
+    filter: Option<&Filter>,
+    next: u64,
+    limit: usize,
+    rows: *mut Value,
+    row: RowOut<'a, M, F>,
+) -> (Option<u64>, usize) {
+    let table = table_at(host, id);
+    let mut out = Matches {
+        row,
+        table: &table,
+        rows,
+        n: 0,
+    };
+    let rest = or_trap(table.scan_where(filter, next, limit as u64, &mut out));
+    (rest, out.n)
 }
 
 /// Up to `limit` rows, at most 64, of the table whose root block is `id`, from row id `next` on
@@ -812,7 +930,13 @@ pub unsafe fn nt_scan_cells<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let layout = layout_of(codec);
+    let mut layout = layout_of(codec);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    if let Some(map) = root_block(&host, id, &layout) {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let mem = &mut *mem;
     let fields = fields.as_array();
     let first = usize::from(key != 0);
     let width = fields.len() + first;
@@ -837,8 +961,7 @@ pub unsafe fn nt_scan_cells<M: Memory>(
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
-    let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let table = open(&mut host, id, layout.hash);
+    let table = table_at(&mut host, id);
     let mut out = CellRows::new(mem, &table, leaves, types, rows);
     let rest = or_trap(table.scan_cells(leaves, filter.as_ref(), next, limit as u64, &mut out));
     let n = out.len();
@@ -861,10 +984,14 @@ pub unsafe fn nt_count_where<M: Memory>(
     column: Value,
     filter: Value,
 ) -> u64 {
-    let layout = layout_of(codec);
-    let filter = filter_of(mem, &layout, column, filter);
-    let mut host = StoreHost::new(mem, native_store_location());
-    or_trap(open(&mut host, id, layout.hash).count_where(&filter))
+    let mut layout = layout_of(codec);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    if let Some(map) = root_block(&host, id, &layout) {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let filter = filter_of(&mut *mem, &layout, column, filter);
+    or_trap(table_at(&mut host, id).count_where(&filter))
 }
 
 /// Runs steps of maintenance on the table whose root block is `id`, starting each only while
@@ -878,10 +1005,57 @@ pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget:
     let layout = layout_of(codec);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
-    let mut table = open(&mut host, id, layout.hash);
+    let mut table = open(&mut host, id, &layout);
     let meter = Meter {
         limit: start.saturating_add(budget),
     };
     or_trap(table.maintain(&meter));
     (or_trap(table.wake()) != Wake::Idle) as u64
+}
+
+/// Changes the row type of the table whose root block is `id` from the one of `codec` to the one
+/// of `next`, in place, for a migration: 1 when the two differ, else 0, changing nothing. The
+/// fields of `next` are found by name among the table's columns (`evolved_image`): a field of the
+/// same name and type keeps its column, a new field of an option type is a new column that the
+/// rows stored before hold null in, and a column no field names is dropped, with the indexes that
+/// have a part on it. Traps, changing nothing, when a field keeps its name but changes its type,
+/// when a new field is not an option, or when either row type is a scalar. The rows written since
+/// the last row group was packed are packed first; nothing else grows with the table. The table
+/// then keeps the column of each field of `next` on a map page, and the codec hash of `next` with
+/// `CHANGED` mixed in, so only a table value of `next` opens it from then on.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_evolve<M: Memory>(mem: &mut M, id: u64, codec: Value, next: Value) -> u64 {
+    let layout = layout_of(codec);
+    let new = layout_of(next);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    let had_map = root_block(&host, id, &layout).is_some();
+    if new.hash == layout.hash {
+        return 0;
+    }
+    if !layout.record_row() || !new.record_row() {
+        rts_trap_with("native table: a row that is a scalar cannot change");
+    }
+    let mut table = table_at(&mut host, id);
+    let (image, columns, m) = {
+        let page = or_trap(table.host().get(Region::Page(table.shape().page)));
+        let stored = or_trap(SchemaView::open(page));
+        or_trap(evolved_image(&mut *mem, &stored, &new))
+    };
+    or_trap(table.evolve(image));
+    let size = 8 + 2 * (columns.len() + m);
+    let map = core::slice::from_raw_parts_mut(scratch::<u8, M>(&mut *mem, size), size);
+    Map::write(columns, m, map);
+    let h = table.host_mut();
+    let page = or_trap(area::image_page_alloc(h, id));
+    or_trap(put(or_trap(h.get_mut(Region::Page(page))), 0, map));
+    let block = or_trap(h.get_mut(Region::Block(id)));
+    let old = or_trap(rd_u64(block, MAP_PAGE));
+    or_trap(put_u64(block, MAP_PAGE, page));
+    if had_map {
+        or_trap(area::image_page_free(h, id, old));
+    }
+    let block = or_trap(h.get_mut(Region::Block(id)));
+    or_trap(put_u64(block, CODEC_HASH, new.hash ^ CHANGED));
+    1
 }

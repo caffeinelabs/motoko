@@ -66,6 +66,112 @@ impl<'a> Cells<'a> {
     }
 }
 
+/// The field position the map gives a dropped column.
+const MAP_DROPPED: u16 = 0xFFFF;
+
+/// The record position of a dropped column's field, past every field's.
+pub const DROPPED: usize = usize::MAX;
+
+/// The columns of a table whose row type has changed, read from its map page: the field count n
+/// (u32), the column count m (u32), the column of each field position (u16 × n), then the field
+/// position of each column (u16 × m, 0xFFFF for a dropped column). Position 0 is the key, in
+/// column 0. A table whose row type never changed has no map: field position i is column i.
+#[derive(Clone, Copy)]
+pub struct Map {
+    page: *const u8,
+    n: usize,
+    m: usize,
+}
+
+impl Map {
+    /// The map at the start of `page`; `None` when it is not a map whose entries lie in range.
+    pub fn of(page: &[u8]) -> Option<Map> {
+        let word = |at: usize| Some(u32::from_le_bytes(page.get(at..at + 4)?.try_into().ok()?));
+        let half = |at: usize| u16::from_le_bytes([page[at], page[at + 1]]);
+        let (n, m) = (word(0)? as usize, word(4)? as usize);
+        if 8 + 2 * (n + m) > page.len() {
+            return None;
+        }
+        let columns_ok = (0..n).all(|p| usize::from(half(8 + 2 * p)) < m);
+        let positions_ok = (0..m).all(|c| {
+            let p = half(8 + 2 * (n + c));
+            p == MAP_DROPPED || usize::from(p) < n
+        });
+        (columns_ok && positions_ok).then_some(Map {
+            page: page.as_ptr(),
+            n,
+            m,
+        })
+    }
+
+    /// The map bytes of `columns`, the column of each field position, for a table of `m`
+    /// columns, written into `out`, which holds 8 + 2 · (columns.len() + m) bytes.
+    pub fn write(columns: &[u16], m: usize, out: &mut [u8]) {
+        let n = columns.len();
+        out[..4].copy_from_slice(&(n as u32).to_le_bytes());
+        out[4..8].copy_from_slice(&(m as u32).to_le_bytes());
+        out[8..].fill(0xFF);
+        for (p, &c) in columns.iter().enumerate() {
+            out[8 + 2 * p..10 + 2 * p].copy_from_slice(&c.to_le_bytes());
+            let at = 8 + 2 * (n + usize::from(c));
+            out[at..at + 2].copy_from_slice(&(p as u16).to_le_bytes());
+        }
+    }
+
+    /// The number of columns, dropped ones included.
+    pub fn columns(self) -> usize {
+        self.m
+    }
+
+    /// The column of the field at position `at`; traps when the map has no field there.
+    pub fn column(self, at: usize) -> usize {
+        if at >= self.n {
+            rts_trap_with(Fault::BadRef.text());
+        }
+        unsafe { usize::from((self.page.add(8 + 2 * at) as *const u16).read_unaligned()) }
+    }
+
+    /// The leaf of the column of the field whose position `leaf` names as a leaf: position << 16.
+    /// Out of line, so a caller keeps only the leaf of a field it finds by position.
+    #[inline(never)]
+    pub fn leaf(self, leaf: u32) -> u32 {
+        (self.column((leaf >> 16) as usize) as u32) << 16
+    }
+
+    /// The field position of `column`, `DROPPED` for a dropped column or one past the last.
+    pub fn position(self, column: usize) -> usize {
+        if column >= self.m {
+            return DROPPED;
+        }
+        let at = unsafe { (self.page.add(8 + 2 * (self.n + column)) as *const u16).read_unaligned() };
+        if at == MAP_DROPPED {
+            DROPPED
+        } else {
+            usize::from(at)
+        }
+    }
+
+    /// `layout`, the layout of the table's row type, in column order (`Layout::by_column`).
+    pub unsafe fn layout<'l, M: Memory>(self, mem: &mut M, layout: &Layout<'l>) -> Layout<'l> {
+        layout.by_column(mem, self.m, |c| self.position(c))
+    }
+
+    /// The cells of a row by column, from `cells`, the row's cells by field position: null in
+    /// dropped columns. In a Blob that lives until the next collection.
+    pub unsafe fn cells<'a, M: Memory>(self, mem: &mut M, cells: Cells<'a>) -> Cells<'a> {
+        let out = scratch::<CellIn, M>(mem, self.m);
+        for c in 0..self.m {
+            out.add(c).write(CellIn::Null);
+        }
+        for (at, &cell) in cells.cells.iter().enumerate().take(self.n) {
+            out.add(self.column(at)).write(cell);
+        }
+        Cells {
+            cells: core::slice::from_raw_parts(out, self.m),
+        }
+    }
+}
+
 impl RowSource for Cells<'_> {
     fn cell(&mut self, leaf: u32) -> Result<CellIn<'_>, Fault> {
         match self.cells.get((leaf >> 16) as usize) {
@@ -935,18 +1041,85 @@ pub enum Out {
     Entry,
 }
 
-/// Rows read from a table, one after the other, each built as Motoko values: the key as a value
-/// of the key type, the row as a record whose hash list is the codec's labels, or as the one
-/// scalar. Every value is built as compiled code builds it, and every new object goes through
-/// the allocation barrier. A value that does not lie in one piece of table memory gets its Blob
-/// when its cell comes, and its bytes in `finish`, once the row id is known.
-pub struct RowOut<'a, M: Memory> {
-    mem: *mut M,
-    out: Out,
+/// How a row builder finds the field of each cell the table hands over: the table hands a row's
+/// cells over in column order.
+pub trait Places<'a> {
+    /// The type codes of the field of `column`, the column after the one handed over last; `None`
+    /// past the last column.
+    fn next(&mut self, column: usize) -> Option<&'a [u8]>;
+    /// Whether the cell of the field at position `at` is built: a dropped field's is thrown away.
+    fn kept(&self, at: usize) -> bool;
+    /// The field position of `column`, one handed over already or the one `next` was given.
+    fn position(&self, column: usize) -> usize;
+    /// The next row's cells start from the first column again.
+    fn reset(&mut self);
+}
+
+/// The fields of a table whose row type never changed: column i holds the field at position i,
+/// read from the layout in step with the cells.
+pub struct InOrder<'a> {
     /// Every column of the layout.
     all: Entries<'a>,
     /// The columns whose cells have not come yet.
     entries: Entries<'a>,
+}
+
+impl<'a> Places<'a> for InOrder<'a> {
+    #[inline(always)]
+    fn next(&mut self, _: usize) -> Option<&'a [u8]> {
+        self.entries.next().map(|e| e.codes)
+    }
+
+    #[inline(always)]
+    fn kept(&self, _: usize) -> bool {
+        true
+    }
+
+    #[inline(always)]
+    fn position(&self, column: usize) -> usize {
+        column
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) {
+        self.entries = self.all.clone();
+    }
+}
+
+/// The fields of a table whose row type has changed: the field position and the type codes of
+/// each column's field, by column, found through the table's map once per call; position
+/// `DROPPED` and no codes for a dropped column.
+pub struct ByColumn<'a> {
+    fields: &'a [(usize, &'a [u8])],
+}
+
+impl<'a> Places<'a> for ByColumn<'a> {
+    fn next(&mut self, column: usize) -> Option<&'a [u8]> {
+        self.fields.get(column).map(|f| f.1)
+    }
+
+    fn kept(&self, at: usize) -> bool {
+        at != DROPPED
+    }
+
+    fn position(&self, column: usize) -> usize {
+        self.fields[column].0
+    }
+
+    fn reset(&mut self) {}
+}
+
+/// Rows read from a table, one after the other, each built as Motoko values: the key as a value
+/// of the key type, the row as a record whose hash list is the codec's labels, or as the one
+/// scalar. Every value is built as compiled code builds it, and every new object goes through
+/// the allocation barrier. A value that does not lie in one piece of table memory gets its Blob
+/// when its cell comes, and its bytes in `finish`, once the row id is known. `F` finds the field
+/// of each column: `InOrder` for a table whose row type never changed, `ByColumn` for one whose
+/// row type has changed.
+pub struct RowOut<'a, M: Memory, F: Places<'a> = InOrder<'a>> {
+    mem: *mut M,
+    out: Out,
+    fields: F,
     /// The column of the next cell.
     next: usize,
     columns: usize,
@@ -962,6 +1135,7 @@ pub struct RowOut<'a, M: Memory> {
     /// made on the first.
     pending: *mut usize,
     pending_len: usize,
+    _layout: core::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, M: Memory> RowOut<'a, M> {
@@ -983,8 +1157,10 @@ impl<'a, M: Memory> RowOut<'a, M> {
         RowOut {
             mem,
             out,
-            all: layout.entries(),
-            entries: layout.entries(),
+            fields: InOrder {
+                all: layout.entries(),
+                entries: layout.entries(),
+            },
             next: 0,
             columns: layout.columns(),
             labels: record.then_some(labels),
@@ -994,9 +1170,42 @@ impl<'a, M: Memory> RowOut<'a, M> {
             rid: 0,
             pending: core::ptr::null_mut(),
             pending_len: 0,
+            _layout: core::marker::PhantomData,
         }
     }
 
+    /// The same rows for a table whose row type has changed, whose fields `map` finds: the cell of
+    /// each column goes to its field's place, and a dropped column's cell is thrown away.
+    pub unsafe fn mapped(&self, map: Map) -> RowOut<'a, M, ByColumn<'a>> {
+        let m = map.columns();
+        let fields = scratch::<(usize, &'a [u8]), M>(&mut *self.mem, m);
+        for c in 0..m {
+            fields.add(c).write((DROPPED, &[]));
+        }
+        for (at, e) in self.fields.all.clone().enumerate() {
+            fields.add(map.column(at)).write((at, e.codes));
+        }
+        RowOut {
+            mem: self.mem,
+            out: self.out,
+            fields: ByColumn {
+                fields: core::slice::from_raw_parts(fields, m),
+            },
+            next: 0,
+            columns: m,
+            labels: self.labels,
+            record: core::ptr::null_mut(),
+            value: Value::from_scalar(0),
+            key: Value::from_scalar(0),
+            rid: 0,
+            pending: core::ptr::null_mut(),
+            pending_len: 0,
+            _layout: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
     /// The record, made on the first call.
     unsafe fn record(&mut self, labels: Value) -> *mut Object {
         if self.record.is_null() {
@@ -1013,11 +1222,11 @@ impl<'a, M: Memory> RowOut<'a, M> {
         self.record
     }
 
-    /// Where the value of `column` goes.
-    unsafe fn slot(&mut self, column: usize) -> *mut Value {
-        match (column, self.labels) {
+    /// Where the value of the field at position `at` goes.
+    unsafe fn slot(&mut self, at: usize) -> *mut Value {
+        match (at, self.labels) {
             (0, _) => &mut self.key,
-            (_, Some(labels)) => self.record(labels).payload_addr().add(column - 1),
+            (_, Some(labels)) => self.record(labels).payload_addr().add(at - 1),
             (_, None) => &mut self.value,
         }
     }
@@ -1048,7 +1257,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
         for i in 0..self.pending_len {
             let p = *self.pending.add(i);
             let (column, code) = (p >> 8, p as u8);
-            let slot = self.slot(column);
+            let slot = self.slot(self.fields.position(column));
             let bytes = or_trap(read_later(table, self.rid, (column as u32) << 16, *slot));
             match code {
                 ty::NAT => *slot = nat_of_leb(bytes),
@@ -1067,7 +1276,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
             Out::Key => self.key,
             Out::Entry => pair(&mut *self.mem, self.key, self.value),
         };
-        self.entries = self.all.clone();
+        self.fields.reset();
         self.next = 0;
         self.record = core::ptr::null_mut();
         self.pending_len = 0;
@@ -1075,23 +1284,24 @@ impl<'a, M: Memory> RowOut<'a, M> {
     }
 }
 
-impl<M: Memory> RowSink for RowOut<'_, M> {
+impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
     fn cell(&mut self, leaf: u32, v: CellOut<'_>) -> Result<(), Fault> {
         let column = (leaf >> 16) as usize;
-        let e = match self.entries.next() {
-            Some(e) if leaf & 0xFFFF == 0 && column == self.next => e,
+        let codes = match self.fields.next(column) {
+            Some(codes) if leaf & 0xFFFF == 0 && column == self.next => codes,
             _ => return Err(Fault::BadValue { leaf }),
         };
         self.next += 1;
+        let at = self.fields.position(column);
         let built = match self.out {
-            Out::Row => column > 0,
-            Out::Key => column == 0,
+            Out::Row => at > 0,
+            Out::Key => at == 0,
             Out::Entry => true,
         };
-        if !built {
+        if !built || !self.fields.kept(at) {
             return Ok(());
         }
-        let (code, optional) = column_type(e.codes);
+        let (code, optional) = column_type(codes);
         unsafe {
             let mem = &mut *self.mem;
             let x = match (code, v) {
@@ -1117,7 +1327,7 @@ impl<M: Memory> RowSink for RowOut<'_, M> {
                 }
                 _ => return Err(Fault::BadValue { leaf }),
             };
-            *self.slot(column) = x;
+            *self.slot(at) = x;
         }
         Ok(())
     }

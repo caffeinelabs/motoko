@@ -8,12 +8,15 @@
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
+use ::native_table::mem::{rd_u8, rd_u16, rd_u32, rd_u64};
 use ::native_table::schema::{
-    self, Column, ColumnType, IndexDecl, Leaf, LeafSink, SchemaParts, flatten, write_schema,
+    self, Column, ColumnType, DECL_BYTES, IndexDecl, LEAF_NULLABLE, Leaf, LeafSink, SchemaParts,
+    SchemaView, flatten, node, write_schema,
 };
 use ::native_table::value::ty;
 
 use crate::memory::{Memory, alloc_blob};
+use crate::rts_trap_with;
 use crate::types::{Bytes, TAG_BLOB_B};
 
 const MAGIC: &[u8] = b"NTCD";
@@ -24,6 +27,7 @@ const HEADER: usize = 20;
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// A checked layout.
+#[derive(Clone, Copy)]
 pub struct Layout<'a> {
     pub hash: u64,
     columns: usize,
@@ -121,6 +125,39 @@ impl<'a> Layout<'a> {
 
     pub fn entries(&self) -> Entries<'a> {
         Entries { rest: self.entries }
+    }
+
+    /// The layout of a table of `m` columns whose column c holds the field at position
+    /// `position(c)` of this layout, in column order: column c has its field's entry, and a column
+    /// whose position is past the last field's, a dropped one, an entry no field name finds. In a
+    /// Blob that lives until the next collection.
+    pub unsafe fn by_column<M: Memory>(
+        &self,
+        mem: &mut M,
+        m: usize,
+        position: impl Fn(usize) -> usize,
+    ) -> Layout<'a> {
+        const NONE: &[u8] = &[ty::BOOL, 0, 0, 0, 0, 0, 0];
+        let fields = scratch::<&[u8], M>(mem, self.columns);
+        let mut rest = self.entries;
+        for p in 0..self.columns {
+            let (_, after) = entry(rest).unwrap_or_else(|| rts_trap_with("native table: malformed layout"));
+            fields.add(p).write(&rest[..rest.len() - after.len()]);
+            rest = after;
+        }
+        let out = scratch::<u8, M>(mem, self.entries.len() + m * NONE.len());
+        let mut end = 0;
+        for c in 0..m {
+            let p = position(c);
+            let e = if p < self.columns { *fields.add(p) } else { NONE };
+            core::ptr::copy_nonoverlapping(e.as_ptr(), out.add(end), e.len());
+            end += e.len();
+        }
+        Layout {
+            hash: self.hash,
+            columns: m,
+            entries: core::slice::from_raw_parts(out, end),
+        }
     }
 }
 
@@ -243,4 +280,198 @@ pub unsafe fn schema_image<'b, M: Memory>(
     let image = core::slice::from_raw_parts_mut(scratch::<u8, M>(mem, total), total);
     let (bytes, _) = write_schema(&parts, uid, image)?;
     Ok(&image[..bytes as usize])
+}
+
+/// The column flag of a dropped column.
+const COLUMN_DROPPED: u8 = 1;
+
+/// The bytes of the name the name-pool offset `at` names in `names`: its u16 length comes just
+/// before them, and an offset below 2 names none.
+fn name_at(names: &[u8], at: u32) -> &[u8] {
+    let at = at as usize;
+    match at.checked_sub(2).and_then(|len_at| u16_at(names, len_at)) {
+        Some(len) => names.get(at..at + len as usize).unwrap_or(&[]),
+        None => &[],
+    }
+}
+
+/// The type codes at `at` in the type pool `pool`: a scalar's, after the option code when the
+/// type is an option.
+fn codes_at(pool: &[u8], at: u32) -> &[u8] {
+    let at = at as usize;
+    let n = if pool.get(at) == Some(&ty::OPTION) { 2 } else { 1 };
+    pool.get(at..at + n).unwrap_or(&[])
+}
+
+/// The schema image of the next schema version of the table whose schema image is `stored`, for
+/// the row type of `next`, a record, in a Blob that lives until the next collection; with the
+/// column of each field position of `next` (the key's, 0, first) and the number of columns, the
+/// table's map. Each field is found by name among the stored columns not dropped: one of the same
+/// type codes keeps its column, one of other codes traps. A field no stored column names is a new
+/// column after the last one, of a new leaf after the last leaf, added by the new version and
+/// nullable; it traps when its type is not an option. A stored column no field names is dropped:
+/// its dropped flag set, and its leaf's kind `node::DROPPED` with the nullable flag. Every other
+/// column, leaf, type and name stays as stored, at its place in the pools; the new columns' types
+/// and names come after. The index declarations are the stored ones less those with a part on a
+/// dropped leaf; the default pool is empty; the version is the stored one + 1; the uid is kept.
+pub unsafe fn evolved_image<'b, M: Memory>(
+    mem: &mut M,
+    stored: &SchemaView,
+    next: &Layout,
+) -> Result<(&'b [u8], &'b [u16], usize), Fault> {
+    let (old_columns, old_leaves) = (stored.columns as usize, stored.leaves as usize);
+    let version = stored.version.checked_add(1).ok_or(bounds(u64::from(stored.version)))?;
+    let pool = stored.types();
+    let names = stored
+        .bytes
+        .get(stored.layout.names as usize..stored.layout.total as usize)
+        .unwrap_or(&[]);
+    // The column of each field position: a stored one found by name, or a new one.
+    let n = next.columns;
+    let at = scratch::<u16, M>(mem, n);
+    let (mut added, mut type_bytes, mut name_bytes) = (0, 0, 0);
+    for (p, e) in next.entries().enumerate() {
+        let column = if p == 0 {
+            0
+        } else {
+            let mut found = None;
+            for i in 0..stored.columns {
+                let c = stored.column(i)?;
+                if c.flags & COLUMN_DROPPED == 0 && name_at(names, c.name) == e.name {
+                    found = Some(c);
+                    break;
+                }
+            }
+            match found {
+                Some(c) if codes_at(pool, c.ty) == e.codes => c.id as usize,
+                Some(_) => rts_trap_with("native table: a field changes its type"),
+                None if e.codes[0] == ty::OPTION => {
+                    added += 1;
+                    type_bytes += e.codes.len();
+                    name_bytes += 2 + e.name.len();
+                    old_columns + added - 1
+                }
+                None => rts_trap_with("native table: a new field is not an option"),
+            }
+        };
+        if column >= u16::MAX as usize {
+            return Err(bounds(column as u64));
+        }
+        at.add(p).write(column as u16);
+    }
+    let at = core::slice::from_raw_parts(at, n);
+    let m = old_columns + added;
+    // Whether each stored column is named by a field; a stored column no field names is dropped.
+    let named = scratch::<bool, M>(mem, old_columns);
+    for i in 0..old_columns {
+        named.add(i).write(false);
+    }
+    for &c in at {
+        if (c as usize) < old_columns {
+            named.add(c as usize).write(true);
+        }
+    }
+    let dropped = |column: usize| column < old_columns && !*named.add(column);
+    // The pools: the stored ones, then the new columns' types and names.
+    let (old_types, old_names) = (pool.len(), names.len());
+    let types = scratch::<u8, M>(mem, old_types + type_bytes);
+    let types = core::slice::from_raw_parts_mut(types, old_types + type_bytes);
+    types[..old_types].copy_from_slice(pool);
+    let new_names = scratch::<u8, M>(mem, old_names + name_bytes);
+    let new_names = core::slice::from_raw_parts_mut(new_names, old_names + name_bytes);
+    new_names[..old_names].copy_from_slice(names);
+    // The columns and leaves: the stored ones, the dropped ones marked, then the new ones.
+    let columns = scratch::<Column, M>(mem, m);
+    for i in 0..old_columns {
+        let mut c = stored.column(i as u16)?;
+        if dropped(c.id as usize) {
+            c.flags |= COLUMN_DROPPED;
+        }
+        columns.add(i).write(c);
+    }
+    let mut leaves = Leaves {
+        at: scratch::<Leaf, M>(mem, old_leaves + added),
+        len: old_leaves,
+        cap: old_leaves + added,
+    };
+    for o in 0..old_leaves {
+        let mut l = stored.leaf(o as u16)?;
+        if dropped((l.id >> 16) as usize) {
+            l.kind = node::DROPPED;
+            l.flags |= LEAF_NULLABLE;
+        }
+        leaves.at.add(o).write(l);
+    }
+    let (mut type_end, mut name_end) = (old_types, old_names);
+    for (e, &c) in next.entries().zip(at) {
+        let c = c as usize;
+        if c < old_columns {
+            continue;
+        }
+        types[type_end..type_end + e.codes.len()].copy_from_slice(e.codes);
+        let name = name_end + 2;
+        new_names[name_end..name].copy_from_slice(&(e.name.len() as u16).to_le_bytes());
+        new_names[name..name + e.name.len()].copy_from_slice(e.name);
+        name_end = name + e.name.len();
+        let first = u16::try_from(leaves.len).map_err(|_| bounds(leaves.len as u64))?;
+        let col = ColumnType {
+            pool: types,
+            column: c as u32,
+            ty: type_end as u32,
+            version,
+            first_ordinal: first,
+            key: false,
+        };
+        flatten(col, &mut leaves)?;
+        columns.add(c).write(Column {
+            id: c as u32,
+            flags: 0,
+            first_leaf: first,
+            ty: type_end as u32,
+            default_off: 0,
+            default_len: 0,
+            name: name as u32,
+        });
+        type_end += e.codes.len();
+    }
+    // The index declarations, less those with a part on a dropped leaf.
+    let count = stored.indexes as usize;
+    let decls = scratch::<IndexDecl, M>(mem, count);
+    let mut kept = 0;
+    for i in 0..count {
+        let b = stored.bytes;
+        let o = u64::from(stored.layout.indexes) + i as u64 * DECL_BYTES;
+        let parts = rd_u8(b, o + 4)?;
+        let nullable = rd_u8(b, o + 5)?;
+        let mut decl = IndexDecl {
+            id: rd_u8(b, o)?,
+            flags: rd_u8(b, o + 1)?,
+            w: rd_u16(b, o + 2)?,
+            parts,
+            part: [(0, false); 7],
+        };
+        let mut gone = false;
+        for (k, part) in decl.part.iter_mut().take(parts as usize).enumerate() {
+            let leaf = rd_u32(b, o + 8 + 4 * k as u64)?;
+            *part = (leaf, nullable >> k & 1 != 0);
+            gone |= dropped((leaf >> 16) as usize);
+        }
+        if !gone {
+            decls.add(kept).write(decl);
+            kept += 1;
+        }
+    }
+    let parts = SchemaParts {
+        version,
+        columns: core::slice::from_raw_parts(columns, m),
+        leaves: core::slice::from_raw_parts(leaves.at, leaves.len),
+        indexes: core::slice::from_raw_parts(decls, kept),
+        type_pool: types,
+        default_pool: &[],
+        name_pool: new_names,
+    };
+    let total = schema::layout(&parts)?.total as usize;
+    let image = core::slice::from_raw_parts_mut(scratch::<u8, M>(mem, total), total);
+    let (bytes, _) = write_schema(&parts, rd_u64(stored.bytes, 16)?, image)?;
+    Ok((&image[..bytes as usize], at, m))
 }
