@@ -33,6 +33,16 @@
 //! of a field that is not an integer. The pages the host lends are those the table's areas hold. Once every row is deleted and maintenance has run, the table holds the image
 //! pages it was made with, and the blocks it uses do not grow when it is filled and emptied again.
 //!
+//! Each run changes the table's row type 1 to 3 times, at points drawn from the seed, with the writes and the
+//! maintenance of the run between them. A change adds option fields (integer ones often), drops fields
+//! (indexed ones often, the indexes on them going with them), or both; an added field may have the type of a
+//! field dropped before, as a field that comes back under a dropped one's name has: a new column, null in the
+//! rows written before. Rows written after a drop give null for the dropped field. A read hands out a cell for
+//! the dropped field, which the runtime throws away: null for a row written after the drop, else null or what
+//! the bytes stored before the drop read as. Every read is checked against the model right after each change,
+//! and the writes that follow update, delete and compact rows of groups packed under every earlier version.
+//! The indexes kept are checked as before; a removed one is refused.
+//!
 //! `NT_MODEL_SEED` sets the seed (a default is fixed below), `NT_MODEL_TABLES` how many tables are drawn
 //! from it (one per key type unless set), and `NT_MODEL_OPS` the writes per table; `NT_MODEL_TABLE` runs only the table of that number,
 //! as the output names it.
@@ -55,7 +65,7 @@ use native_table::tree::Dir;
 use native_table::value::ty;
 use native_table::{Fault, PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
-use nt_testhost::rows::{schema_indexed, t, Src, V};
+use nt_testhost::rows::{schema_versioned, t, Src, VCol, V};
 use nt_testhost::{TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 const DEFAULT_SEED: u64 = 0x6E74_6D6F_6465_6C31;
@@ -611,24 +621,93 @@ fn fresh(r: &mut XorShift, k: Kind) -> Mv {
 // ---------------------------------------------------------------- schemas
 
 /// A field: its kind, whether it is an option, how often it is null (percent), whether a Text or Blob is
-/// given as an argument cell now and then, and the pool most of its values come from.
+/// given as an argument cell now and then, the pool most of its values come from, the version that added it,
+/// and the version that dropped it (0 while it is a field of the row).
 struct Field {
     kind: Kind,
     opt: bool,
     nulls: u64,
     arg: bool,
     pool: Vec<Mv>,
+    added: u32,
+    dropped: u32,
 }
 
-/// A table's schema: column 0 the key, then one column per field; the indexes as (id, columns).
+/// A table's schema: column 0 the key, then one column per field, dropped ones included; the indexes as (id,
+/// columns); the ids of the indexes removed with a dropped field; the schema version.
 struct Schema {
     cols: Vec<Field>,
     indexes: Vec<(u8, Vec<usize>)>,
+    removed: Vec<u8>,
+    version: u32,
     img: Vec<u8>,
+}
+
+impl Schema {
+    /// The columns of the fields the row has: not the key, not a dropped one.
+    fn fields(&self) -> Vec<usize> {
+        (1..self.cols.len()).filter(|&c| self.cols[c].dropped == 0).collect()
+    }
+
+    /// The schema image of this version.
+    fn image(&self) -> Vec<u8> {
+        let cols: Vec<VCol> = self
+            .cols
+            .iter()
+            .map(|f| VCol {
+                ty: if f.opt { t::opt(f.kind.ty()) } else { f.kind.ty() },
+                added: f.added,
+                dropped: f.dropped,
+                default: None,
+            })
+            .collect();
+        let decls: Vec<IndexDecl> = self
+            .indexes
+            .iter()
+            .map(|(id, on)| {
+                let mut part = [(0u32, false); 7];
+                for (p, &c) in part.iter_mut().zip(on) {
+                    *p = (leaf(c), self.cols[c].opt);
+                }
+                IndexDecl { id: *id, flags: 0, w: 16, parts: on.len() as u8, part }
+            })
+            .collect();
+        schema_versioned(self.version, &cols, &decls).0
+    }
 }
 
 fn leaf(c: usize) -> u32 {
     (c as u32) << 16
+}
+
+/// The integer kinds a wide row's fields and added fields lean to.
+const INTS: [Kind; 10] = [
+    Kind::Nat,
+    Kind::Int,
+    Kind::I(64),
+    Kind::U(8),
+    Kind::I(16),
+    Kind::U(16),
+    Kind::I(32),
+    Kind::U(32),
+    Kind::U128,
+    Kind::I128,
+];
+
+/// A field of kind `k`, an option when `opt`, added by version `added`: how often it is null, and its pool.
+fn draw_field(r: &mut XorShift, kind: Kind, opt: bool, added: u32) -> Field {
+    let nulls = if opt { pick(r, &[0, 25, 75, 100]) } else { 0 };
+    let size = if r.below(6) == 0 { 1 } else { 2 + r.below(40) };
+    // Values of thousands of bytes come fresh only: a pool hands its values to many rows.
+    let pooled = |r: &mut XorShift| loop {
+        match value(r, kind) {
+            Mv::Bytes(b) if b.len() > 5_000 => {}
+            Mv::Int(x) if x.0.len() > 64 => {}
+            v => return v,
+        }
+    };
+    let pool = (0..size).map(|_| pooled(r)).collect();
+    Field { kind, opt, nulls, arg: false, pool, added, dropped: 0 }
 }
 
 fn draw_schema(r: &mut XorShift, key: Kind) -> Schema {
@@ -639,41 +718,12 @@ fn draw_schema(r: &mut XorShift, key: Kind) -> Schema {
         0 => 1,
         _ => 2 + r.below(7) as usize,
     };
-    let mut cols = vec![Field { kind: key, opt: false, nulls: 0, arg: false, pool: Vec::new() }];
+    let mut cols = vec![Field { kind: key, opt: false, nulls: 0, arg: false, pool: Vec::new(), added: 1, dropped: 0 }];
     for _ in 0..n {
-        let kind = if wide && r.below(5) != 0 {
-            pick(
-                r,
-                &[
-                    Kind::Nat,
-                    Kind::Int,
-                    Kind::I(64),
-                    Kind::U(8),
-                    Kind::I(16),
-                    Kind::U(16),
-                    Kind::I(32),
-                    Kind::U(32),
-                    Kind::U128,
-                    Kind::I128,
-                ],
-            )
-        } else {
-            weighted(r, &KINDS)
-        };
+        let kind = if wide && r.below(5) != 0 { pick(r, &INTS) } else { weighted(r, &KINDS) };
         // A schema holds no option of unit.
         let opt = kind != Kind::Unit && r.below(5) < 2;
-        let nulls = if opt { pick(r, &[0, 25, 75, 100]) } else { 0 };
-        let size = if r.below(6) == 0 { 1 } else { 2 + r.below(40) };
-        // Values of thousands of bytes come fresh only: a pool hands its values to many rows.
-        let pooled = |r: &mut XorShift| loop {
-            match value(r, kind) {
-                Mv::Bytes(b) if b.len() > 5_000 => {}
-                Mv::Int(x) if x.0.len() > 64 => {}
-                v => return v,
-            }
-        };
-        let pool = (0..size).map(|_| pooled(r)).collect();
-        cols.push(Field { kind, opt, nulls, arg: false, pool });
+        cols.push(draw_field(r, kind, opt, 1));
     }
     let mut indexes: Vec<(u8, Vec<usize>)> = Vec::new();
     for _ in 0..pick(r, &[0, 1, 1, 2, 2, 3, 4]) {
@@ -693,23 +743,64 @@ fn draw_schema(r: &mut XorShift, key: Kind) -> Schema {
         let indexed = indexes.iter().any(|x| x.1.contains(&c));
         f.arg = matches!(f.kind, Kind::Text | Kind::Blob) && !indexed && r.below(2) == 0;
     }
-    let types: Vec<Vec<u8>> = cols.iter().map(|f| if f.opt { t::opt(f.kind.ty()) } else { f.kind.ty() }).collect();
-    let decls: Vec<IndexDecl> = indexes
-        .iter()
-        .map(|(id, on)| {
-            let mut part = [(0u32, false); 7];
-            for (p, &c) in part.iter_mut().zip(on) {
-                *p = (leaf(c), cols[c].opt);
-            }
-            IndexDecl { id: *id, flags: 0, w: 16, parts: on.len() as u8, part }
-        })
-        .collect();
-    let img = schema_indexed(&types, &decls).0;
-    Schema { cols, indexes, img }
+    let mut s = Schema { cols, indexes, removed: Vec::new(), version: 1, img: Vec::new() };
+    s.img = s.image();
+    s
 }
 
-/// A value of the field for a row: null as often as the field is, else from its pool most of the time.
+/// The next version of the schema: option fields added, fields dropped (with the indexes on them), or both,
+/// at least one field left. An added field has a dropped field's type now and then. Every row of the model
+/// gets null for the added fields; a dropped field keeps its values in the model.
+fn draw_change(r: &mut XorShift, s: &mut Schema, m: &mut Model) {
+    let fields = s.fields();
+    let what = r.below(3);
+    let mut adds = if what != 1 { 1 + r.below(3) } else { 0 };
+    let most = if adds > 0 { fields.len() } else { fields.len() - 1 };
+    let drops = if what != 0 { (1 + r.below(3) as usize).min(most) } else { 0 };
+    if drops == 0 {
+        adds = adds.max(1);
+    }
+    s.version += 1;
+    let mut left = fields;
+    for _ in 0..drops {
+        let indexed: Vec<usize> = left.iter().copied().filter(|c| s.indexes.iter().any(|x| x.1.contains(c))).collect();
+        let c = if !indexed.is_empty() && r.below(2) == 0 { pick(r, &indexed) } else { pick(r, &left) };
+        left.retain(|&x| x != c);
+        s.cols[c].dropped = s.version;
+    }
+    let (kept, removed): (Vec<_>, Vec<_>) =
+        std::mem::take(&mut s.indexes).into_iter().partition(|x| x.1.iter().all(|&c| s.cols[c].dropped == 0));
+    s.indexes = kept;
+    s.removed.extend(removed.iter().map(|x| x.0));
+    let gone: Vec<Kind> = s.cols.iter().filter(|f| f.dropped != 0).map(|f| f.kind).collect();
+    for _ in 0..adds {
+        // An option of any type but unit.
+        let kind = loop {
+            let k = match r.below(4) {
+                0 if !gone.is_empty() => pick(r, &gone),
+                0 | 1 => pick(r, &INTS),
+                _ => weighted(r, &KINDS),
+            };
+            if k != Kind::Unit {
+                break k;
+            }
+        };
+        let mut f = draw_field(r, kind, true, s.version);
+        f.arg = matches!(kind, Kind::Text | Kind::Blob) && r.below(2) == 0;
+        s.cols.push(f);
+        for e in m.values_mut() {
+            e.1.push(Mv::Null);
+        }
+    }
+    s.img = s.image();
+}
+
+/// A value of the field for a row: null for a dropped field and as often as the field is, else from its pool
+/// most of the time.
 fn field_value(r: &mut XorShift, f: &Field) -> Mv {
+    if f.dropped != 0 {
+        return Mv::Null;
+    }
     if f.opt && r.below(100) < f.nulls {
         return Mv::Null;
     }
@@ -771,6 +862,20 @@ fn expected(row: &[Mv]) -> Vec<(u32, Mv)> {
     row.iter().enumerate().map(|(c, m)| (leaf(c), m.clone())).collect()
 }
 
+/// Rows a read handed out (row id and cells) against the model's: equal, but for the cell of a dropped field,
+/// which the runtime throws away: null where the model holds null, and anything where it holds the value the
+/// row had when the field was dropped.
+fn same(s: &Schema, got: &[(u64, Vec<(u32, Mv)>)], want: &[(u64, Vec<(u32, Mv)>)]) -> bool {
+    let cell = |(la, x): &(u32, Mv), (lb, y): &(u32, Mv)| {
+        la == lb && if s.cols[(*la >> 16) as usize].dropped != 0 { *y != Mv::Null || *x == Mv::Null } else { x == y }
+    };
+    got.len() == want.len()
+        && got
+            .iter()
+            .zip(want)
+            .all(|((ra, a), (rb, b))| ra == rb && a.len() == b.len() && a.iter().zip(b).all(|(x, y)| cell(x, y)))
+}
+
 /// A filter on one field, in the model.
 #[derive(Clone, Debug)]
 enum MCond {
@@ -793,7 +898,7 @@ fn meets(v: &Mv, c: &MCond) -> bool {
 }
 
 fn draw_filter(r: &mut XorShift, s: &Schema) -> (usize, MCond) {
-    let c = 1 + r.below(s.cols.len() as u64 - 1) as usize;
+    let c = pick(r, &s.fields());
     let f = &s.cols[c];
     let val = |r: &mut XorShift| {
         if f.pool.is_empty() || r.below(4) == 0 {
@@ -820,9 +925,12 @@ fn draw_filter(r: &mut XorShift, s: &Schema) -> (usize, MCond) {
 // ---------------------------------------------------------------- reading the table
 
 /// Collects the rows a read hands out, reading each long value with `read_large` in pieces of `piece` bytes.
+/// A dropped field's cell is kept as null or not, `Mv::Unit` for any value, and never read further, as the
+/// runtime leaves it.
 struct Rows<'t, 'h> {
     tb: &'t Table<'h, VecHost>,
     kinds: Vec<Kind>,
+    dropped: Vec<bool>,
     piece: usize,
     cur: Vec<(u32, Mv)>,
     long: Vec<(usize, u64)>,
@@ -835,6 +943,7 @@ impl<'t, 'h> Rows<'t, 'h> {
         Rows {
             tb,
             kinds: s.cols.iter().map(|f| f.kind).collect(),
+            dropped: s.cols.iter().map(|f| f.dropped != 0).collect(),
             piece,
             cur: Vec::new(),
             long: Vec::new(),
@@ -845,7 +954,11 @@ impl<'t, 'h> Rows<'t, 'h> {
 
 impl RowSink for Rows<'_, '_> {
     fn cell(&mut self, leaf: u32, v: CellOut<'_>) -> Result<(), Fault> {
-        let k = self.kinds[(leaf >> 16) as usize];
+        let (k, dropped) = (self.kinds[(leaf >> 16) as usize], self.dropped[(leaf >> 16) as usize]);
+        if dropped {
+            self.cur.push((leaf, if let CellOut::Null = v { Mv::Null } else { Mv::Unit }));
+            return Ok(());
+        }
         if let CellOut::Arg { len } = v {
             self.long.push((self.cur.len(), len));
         }
@@ -1020,7 +1133,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         tb.get_rid(rid, &mut rows).unwrap();
         rid += 1;
     }
-    assert!(rows.out == all, "the scan by row id");
+    assert!(same(s, &rows.out, &all), "the scan by row id");
 
     // Point reads: by key, present and absent, and by row id, live and dead.
     let keys: Vec<&Key> = m.keys().collect();
@@ -1030,7 +1143,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         let (rid, row) = &m[k];
         let mut out = Rows::new(tb, s, r);
         assert!(tb.get(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &mut out).unwrap(), "get {k:?}");
-        assert!(out.out == [(*rid, expected(row))], "get {k:?}");
+        assert!(same(s, &out.out, &[(*rid, expected(row))]), "get {k:?}");
     }
     for _ in 0..5 {
         let k = Key(s.cols[0].kind, value(r, s.cols[0].kind));
@@ -1046,7 +1159,8 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
     // Cell scans: some fields or every one, in any order, the key's included now and then, in pieces.
     let cell_scan = |f: Option<&Filter<'_>>, want: &dyn Fn(&Vec<Mv>) -> bool, r: &mut XorShift| {
         let every = r.below(4) == 0;
-        let mut cols: Vec<usize> = (0..s.cols.len()).filter(|_| every || r.below(3) == 0).collect();
+        let mut cols: Vec<usize> =
+            (0..s.cols.len()).filter(|&c| s.cols[c].dropped == 0 && (every || r.below(3) == 0)).collect();
         for i in (1..cols.len()).rev() {
             cols.swap(i, r.below(i as u64 + 1) as usize);
         }
@@ -1073,7 +1187,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
     assert_eq!(bad(Filter { leaf: none, cond: Cond::Eq(CellIn::U64(1)) }), Fault::BadRef, "no such field");
     let mut out = Rows::new(tb, s, r);
     assert_eq!(tb.scan_cells(&[leaf(0), none], None, 0, 10, &mut out), Err(Fault::BadRef), "a cell of no field");
-    let c = 1 + r.below(s.cols.len() as u64 - 1) as usize;
+    let c = pick(r, &s.fields());
     let (k, refused) = (s.cols[c].kind, Fault::BadValue { leaf: leaf(c) });
     if !s.cols[c].opt {
         assert_eq!(bad(Filter { leaf: leaf(c), cond: Cond::Eq(CellIn::Null) }), refused, "column {c}: null");
@@ -1088,7 +1202,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
     }
 
     // Filtered scans, counts, sums and cell scans.
-    let ints: Vec<usize> = (1..s.cols.len()).filter(|&c| s.cols[c].kind.integer()).collect();
+    let ints: Vec<usize> = s.fields().into_iter().filter(|&c| s.cols[c].kind.integer()).collect();
     for _ in 0..6 {
         let (c, mc) = draw_filter(r, s);
         let k = s.cols[c].kind;
@@ -1111,7 +1225,7 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         while let Some(n) = next {
             next = tb.scan_where(Some(&f), n, limit, &mut out).unwrap();
         }
-        assert!(out.out == exp, "a filtered scan of column {c} ({k:?}) with {mc:?}");
+        assert!(same(s, &out.out, &exp), "a filtered scan of column {c} ({k:?}) with {mc:?}");
         assert_eq!(tb.count_where(&f).unwrap(), exp.len() as u64, "a filtered count, column {c} with {mc:?}");
         if let Some(&sc) = ints.get(r.below(ints.len() as u64 + 1) as usize) {
             let (mut sum, mut n) = (big(0), 0u64);
@@ -1148,9 +1262,13 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         }
     }
 
-    // Every index.
+    // Every index, and none of those removed with a dropped field.
     for (ix, on) in &s.indexes {
         check_index(tb, s, *ix, on, &by_rid, r);
+    }
+    for &ix in &s.removed {
+        let got = tb.walk(ix, Dir::Fwd, Start::End, 1, &mut [0u8; 64], |_, _| Ok(()));
+        assert_eq!(got, Err(Fault::BadRef), "index {ix} was removed");
     }
     check_pages(tb);
 }
@@ -1328,10 +1446,15 @@ struct Digest {
     rids: u64,
 }
 
+/// A row of the schema under this key, its fields drawn.
+fn row_of(s: &Schema, r: &mut XorShift, key: Mv) -> Vec<Mv> {
+    std::iter::once(key).chain(s.cols[1..].iter().map(|f| field_value(r, f))).collect()
+}
+
 /// One table drawn from `seed`, `ops` writes, under fill pattern `fill`.
 fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
     let mut r = rng(seed);
-    let s = draw_schema(&mut r, key);
+    let mut s = draw_schema(&mut r, key);
     // A wide row costs its fields on every read: fewer writes.
     let ops = if s.cols.len() > 20 { ops / 4 } else { ops };
     let mut h = VecHost::new(fill);
@@ -1347,11 +1470,12 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
     let mut sealed = 0u64;
     let (mut inserts, mut refused) = (0u64, 0u64);
     let key_kind = s.cols[0].kind;
-    let row_of = |r: &mut XorShift, key: Mv| -> Vec<Mv> {
-        std::iter::once(key).chain(s.cols[1..].iter().map(|f| field_value(r, f))).collect()
-    };
     // About every thousand writes, and no more than 25 times in a long run.
     let check_every = (700 + r.below(600)).max(ops / 25);
+    // The row type changes 1 to 3 times, each before a write drawn from the run's.
+    let mut changes: Vec<u64> = (0..1 + r.below(3)).map(|_| r.below(ops.max(1))).collect();
+    changes.sort_unstable();
+    changes.dedup();
     let mut i = 0u64;
     let (mut burst, mut hot): (u64, Vec<Key>) = (0, Vec::new());
     // The writes, then deletes of every row left.
@@ -1359,6 +1483,16 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
         let draining = i >= ops;
         if draining && m.is_empty() {
             break;
+        }
+        // A change of the row type, then every read against the model.
+        if !draining && changes.first() == Some(&i) {
+            changes.remove(0);
+            draw_change(&mut r, &mut s, &mut m);
+            let mut tb = Table::open(&mut h, tbl).unwrap();
+            tb.evolve(&s.img).unwrap();
+            assert_eq!(tb.shape().version, s.version);
+            sealed = nt_testhost::open_group(tb.host(), tbl);
+            check(&tb, &s, &m, &dead, &mut r);
         }
         let existing = |r: &mut XorShift, m: &Model| m.keys().nth(r.below(m.len() as u64) as usize).cloned().unwrap();
         // Now and then a burst of updates of a few rows with no maintenance, so that patches pile up.
@@ -1404,18 +1538,24 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
         let write: Option<(Key, Option<Vec<Mv>>)> = match op {
             Op::Insert => {
                 let k = if r.below(4) == 0 { value(&mut r, key_kind) } else { fresh(&mut r, key_kind) };
-                Some((Key(key_kind, k.clone()), Some(row_of(&mut r, k))))
+                Some((Key(key_kind, k.clone()), Some(row_of(&s, &mut r, k))))
             }
             Op::Upsert => {
                 let k = existing(&mut r, &m);
-                let row = row_of(&mut r, k.1.clone());
+                let row = row_of(&s, &mut r, k.1.clone());
                 Some((k, Some(row)))
             }
             Op::Update => {
+                // The row as it is, a dropped field null as every write gives it, one field drawn anew.
                 let k = existing(&mut r, &m);
                 let mut row = m[&k].1.clone();
-                if s.cols.len() > 1 && r.below(10) != 0 {
-                    let c = 1 + r.below(s.cols.len() as u64 - 1) as usize;
+                for (v, f) in row.iter_mut().zip(&s.cols) {
+                    if f.dropped != 0 {
+                        *v = Mv::Null;
+                    }
+                }
+                if r.below(10) != 0 {
+                    let c = pick(&mut r, &s.fields());
                     row[c] = field_value(&mut r, &s.cols[c]);
                 }
                 Some((k, Some(row)))
@@ -1493,7 +1633,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             let mut out = Rows::new(&tb, &s, &mut r);
             let found = tb.get(&mut scratch, &mut Src::new(&key_cells(&s, &key.1)), &mut out).unwrap();
             match m.get(key) {
-                Some((rid, row)) => assert!(found && out.out == [(*rid, expected(row))], "read back {key:?}"),
+                Some((rid, row)) => assert!(found && same(&s, &out.out, &[(*rid, expected(row))]), "read back {key:?}"),
                 None => assert!(!found, "{key:?} is deleted"),
             }
             assert_eq!(tb.len().unwrap(), m.len() as u64);
@@ -1515,7 +1655,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
         let open = nt_testhost::open_group(tb.host(), tbl);
         while nt_testhost::open_group(tb.host(), tbl) == open {
             let k = value(&mut r, key_kind);
-            let cells = row_cells(&s, &row_of(&mut r, k.clone()), &mut r);
+            let cells = row_cells(&s, &row_of(&s, &mut r, k.clone()), &mut r);
             tb.upsert(&mut scratch, &mut Src::new(&cells)).unwrap();
             tb.remove(&mut scratch, &mut Src::new(&key_cells(&s, &k))).unwrap();
         }
