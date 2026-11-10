@@ -223,20 +223,20 @@ Customers place orders at a pizza restaurant, but the chef can only make one piz
 import Array "mo:core/Array";
 import Text "mo:core/Text";
 
-persistent actor PizzaParlor {
+actor PizzaParlor {
     var orders : [Text] = [];
 
     public shared func placeOrder(order : Text) : async Text {
         // Use Array.tabulate to create a new array with the additional element
         let newOrders = Array.tabulate<Text>(orders.size() + 1, func(i) {
-            if (i < orders.size()) { orders[i] } else { order }
+            if i < orders.size() { orders[i] } else { order }
         });
         orders := newOrders;
         return "Order received: " # order;
     };
 
     public shared func makePizza() : async Text {
-        if (orders.size() == 0) {
+        if orders.size() == 0 {
             return "No orders to make.";
         };
 
@@ -289,12 +289,12 @@ Use `async*` and `await*` carefully. In Motoko, a regular `await` is a commit po
 ### Example
 
 ```motoko no-repl
-persistent actor class (Logger : actor { log : Text -> async () }) {
+actor class (Logger : actor { log : Text -> async () }) {
 
   var logging = true;
 
   func maybeLog(msg : Text) : async* () {
-    if (logging) { await Logger.log(msg) };
+    if logging { await Logger.log(msg) };
   };
 
   func doStuff() : async () {
@@ -323,7 +323,7 @@ public shared func placeOrder(order : Text) : async Text {
       let newOrders = Array.tabulate<Text>(
         orders.size() + 1,
         func(i) {
-          if (i < orders.size()) {orders[i]} else {order}
+          if i < orders.size() {orders[i]} else {order}
         }
       );
 
@@ -343,7 +343,7 @@ A `catch` block can be inserted inside a `try/finally` expression to catch an er
 ```motoko no-repl
     try {
     // Code that might throw an error
-    } catch (e) {
+    } catch e {
     // Handle the error
     } finally {
     // Cleanup code that always runs
@@ -357,7 +357,7 @@ When `catch` is used, the `finally` clause is optional. The `catch` block only c
 ```motoko no-repl
     try {
         throw Error.reject("Intentional error");
-    } catch (e) {
+    } catch e {
         // This will catch the explicitly thrown error
     }
 ```
@@ -367,7 +367,7 @@ When `catch` is used, the `finally` clause is optional. The `catch` block only c
 ```motoko no-repl
     try {
         let result = await someAsyncFunction(); // If this returns an error
-    } catch (e) {
+    } catch e {
         // The error will be caught here
     }
 ```

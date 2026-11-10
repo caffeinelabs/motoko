@@ -197,10 +197,8 @@ module Make (Cfg : Config) = struct
   let add_trivia (at : region) (it : Js.Unsafe.any) : Js.Unsafe.any =
     match Cfg.include_docs with
     | Some table -> (
-        let rec lookup_trivia (line, column) =
-          Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-        and find_trivia (parser_pos : region) : Trivia.trivia_info =
-          lookup_trivia (parser_pos.left.line, parser_pos.left.column)
+        let find_trivia (parser_pos : region) : Trivia.trivia_info =
+          Trivia.PosHashtbl.find_opt table parser_pos.left
           |> Option.get
         in
         match Trivia.doc_comment_of_trivia_info (find_trivia at) with
@@ -364,7 +362,7 @@ module Make (Cfg : Config) = struct
     | ArrayE (m, es) ->
         to_js_object "ArrayE" ([ mut_js m ] @ exps es |> Array.of_list)
     | IdxE (e1, e2) -> to_js_object "IdxE" [| exp_js e1; exp_js e2 |]
-    | FuncE (x, sp, tp, p, t, sugar, e') ->
+    | FuncE (x, sp, tp, p, t, note, e') ->
         to_js_object "FuncE"
           ([
              js_string (Type.string_of_typ e.note.note_typ);
@@ -377,7 +375,7 @@ module Make (Cfg : Config) = struct
                (match t with
                | None -> js_string "_"
                | Some t -> syntax_typ_js t);
-               js_string (if sugar then "" else "=");
+               js_string (if note.braced then "" else "=");
                exp_js e';
              ]
           |> Array.of_list)
@@ -564,9 +562,9 @@ module Make (Cfg : Config) = struct
                  id i;
                ]
              @ List.map dec_field_js dfs))
-    | MixinD (p, dfs) ->
+    | MixinD (_, p, dfs) ->
        to_js_object "MixinD" ((pat_js p :: List.map dec_field_js dfs) |> Array.of_list)
-    | IncludeD (i, e, _) ->
+    | IncludeD (i, _, e, _) ->
        to_js_object "IncludeD" [| id i; exp_js e |]
 
   and pat_js p =
@@ -627,7 +625,7 @@ module Make (Cfg : Config) = struct
     | Some s -> (
         match s.it with
         | Flexible -> js_string "Flexible"
-        | Stable _ -> js_string "Stable")
+        | Stable -> js_string "Stable")
 
   and exp_field_js ef =
     let open Source in

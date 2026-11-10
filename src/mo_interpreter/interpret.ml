@@ -77,6 +77,12 @@ exception Cancel of string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
 
+(* Compares as a Nat first, as an index need not fit an OCaml int *)
+let index at n len =
+  if Numerics.Nat.lt n (Numerics.Nat.of_int len)
+  then Numerics.Nat.to_int n
+  else trap at "index out of bounds"
+
 let find id env =
   try V.Env.find id env
   with Not_found ->
@@ -442,7 +448,6 @@ let rec interpret_exp env exp (k : V.value V.cont) =
 and interpret_exp_mut env exp (k : V.value V.cont) =
   last_region := exp.at;
   last_env := env;
-  Profiler.bump_region exp.at ;
   match exp.it with
   | HoleE (_, e) -> interpret_exp_mut env (!e) k
   | PrimE s ->
@@ -471,6 +476,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         assert T.(exp.note.note_typ = Prim Blob);
         k (V.Blob contents)
       end
+    | IDLTypesPath _ -> k (V.Obj V.Env.empty)
     | IDLPath _ -> trap exp.at "actor import"
     | PrimPath -> k (find "@prim" env.libs)
     )
@@ -533,7 +539,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     (* NB: we ignore the migration expression _exp_opt *)
     interpret_obj env obj_sort.it self_id_opt dec_fields k
   | ObjE (exp_bases, exp_fields) ->
-    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj env)) in
+    (* shallow-copy var fields carried over from bases into fresh cells, so
+       record-update does not alias the base's mutable state (OCaml-style copy).
+       Snapshot after the explicit fields run so a field initializer that
+       mutates a base var sees the post-initializer value, matching the
+       desugar/lowering order. *)
+    let copy_mut env = V.Env.map (function V.Mut r -> V.Mut (ref !r) | v -> v) env in
+    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj (copy_mut env))) in
     let open V.Env in
     let merges =
       List.fold_left
@@ -600,16 +612,18 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | IdxE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k V.(let i = Numerics.Int.to_int (as_int v2) in
-             match v1 with
+        let n = V.as_int v2 in
+        k V.(match v1 with
              | Blob s ->
-               Nat8 (s.[i] |> Char.code |> Numerics.Nat8.of_int)
+               let c = s.[index exp.at n (String.length s)] in
+               Nat8 (Numerics.Nat8.of_int (Char.code c))
              | _ ->
-               try (as_array v1).(i)
-               with Invalid_argument s -> trap exp.at "%s" s)
+               let a = as_array v1 in
+               a.(index exp.at n (Array.length a)))
       )
     )
-  | FuncE (name, shared_pat, _typbinds, pat, _typ, _sugar, exp2) ->
+  | FuncE (name, shared_pat, typ_binds, pat, _typ, note, exp2) ->
+    let _, exp2 = func_elab note typ_binds exp2 in
     let f = interpret_func env name shared_pat pat (fun env' -> interpret_exp env' exp2) in
     let v = V.Func (CC.call_conv_of_typ exp.note.note_typ, f) in
     let v' =
@@ -736,7 +750,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     )
   | LabelE (id, _typ, exp1) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
-    Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
   | BreakE (kind, id_opt, exp1) ->
     interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)
@@ -1046,7 +1059,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | MixinD (_) -> V.Env.empty
+  | MixinD _ -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
@@ -1083,7 +1096,7 @@ and interpret_dec env dec (k : V.value V.cont) =
   | TypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
-  | IncludeD (_, _arg, _note) ->
+  | IncludeD (_, _, _arg, _note) ->
      (* TODO
         - evaluate arg and bind it against note.pat
         - define note.imports from mixin as local lets

@@ -12,7 +12,7 @@ does not have expected type
     ┌─ cycle-type.mo:5:39
   5 │          await (defaults with cycles = "Can't") async ();
     │                                        ^^^^^^^ 
-warning[M0210]: misplaced parenthetical (this call does not send a message)
+error[M0210]: misplaced parenthetical (this call does not send a message)
     ┌─ cycle-type.mo:7:16
   7 │          ignore (with) nonSend();
     │                 ^^^^^^ 

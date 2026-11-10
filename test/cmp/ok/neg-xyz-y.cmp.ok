@@ -1,3 +1,5 @@
-(unknown location): Compatibility error [M0169], the stable variable `x` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
-(unknown location): Compatibility error [M0169], the stable variable `z` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
+(unknown location): Compatibility error [M0169], stable variable `x` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+(unknown location): Compatibility error [M0169], stable variable `z` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE

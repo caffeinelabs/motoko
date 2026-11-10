@@ -7,10 +7,10 @@ actor {
 
    Prim.debugPrint("Version 2");
 
-   stable var zero : Nat = Prim.trap "unreachable"; // inherited
+   var zero : Nat = Prim.trap "unreachable"; // inherited
    assert zero == 0;
 
-   stable var four : [var (Nat, Text)] = [var];
+   var four : [var (Nat, Text)] = [var];
 
    public func check(): async() {
      Prim.debugPrint(debug_show{zero; four});

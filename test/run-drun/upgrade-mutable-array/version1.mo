@@ -1,13 +1,13 @@
 import Prim "mo:prim";
 
 actor {
-    stable let instance = [
+    let instance = [
         var {
             secondField = 1;
         }
     ];
 
-    stable let alias = [
+    let alias = [
         var {
             firstField = 1;
             secondField = 1;

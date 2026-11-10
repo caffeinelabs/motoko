@@ -4,7 +4,7 @@
 
 import Prim "mo:⛔";
 
-persistent actor  {
+actor  {
 
     public func test() : async () {
         let balance = Prim.cyclesBalance();

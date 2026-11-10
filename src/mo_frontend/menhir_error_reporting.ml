@@ -86,16 +86,17 @@ module Make
     );
     c
 
-  (* [marry past stack] TEMPORARY comment *)
+  (* [marry past env] pairs the symbols of [past] with the positions of the topmost stack cells.
+     It pops only as many cells as [past] is long: the stack can be as deep as the input, and this runs per error and per lookahead token *)
 
-  let rec marry past stack =
-    match past, stack with
-    | [], _ ->
+  let rec marry past env =
+    match past, top env, pop env with
+    | [], _, _ ->
         []
-    | symbol :: past, lazy (Element (s, _, startp, endp) :: stack) ->
+    | symbol :: past, Some (Element (s, _, startp, endp)), Some env ->
         assert (compare_symbols symbol (X (incoming_symbol s)) = 0);
-        (symbol, startp, endp) :: marry past (lazy stack)
-    | _ :: _, lazy [] ->
+        (symbol, startp, endp) :: marry past env
+    | _ :: _, _, _ ->
         assert false
 
   (* [accumulate t env explanations] is called if the parser decides to shift
@@ -109,25 +110,13 @@ module Make
        transition, look at the items that justify shifting [t].
        We view these items as explanations: they explain what
        we have read and what we expect to read. *)
-
-    let stack_elements env =
-      let rec build i : element list Lazy.t =
-        lazy (
-            match get i env with
-            | None -> []
-            | Some elt -> elt :: Lazy.force (build (i + 1))
-          )
-      in
-      build 0 in
-
-    let stack = stack_elements env in
     List.fold_left (fun explanations item ->
       if is_shift_item t item then
         let prod, index = item in
         let rhs = rhs prod in
         {
           item = item;
-          past = List.rev (marry (List.rev (List.take index rhs)) stack)
+          past = List.rev (marry (List.rev (List.take index rhs)) env)
         } :: explanations
       else
         explanations

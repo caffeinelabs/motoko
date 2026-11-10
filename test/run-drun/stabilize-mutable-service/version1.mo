@@ -15,8 +15,8 @@ actor this {
         test3() : async ();
     };
 
-    stable var instance = [var null : ?ReducedActor];
-    stable var alias = [var null : ?OriginalActor];
+    var instance = [var null : ?ReducedActor];
+    var alias = [var null : ?OriginalActor];
 
     public func initialize() : async () {
         Cycles.add<system>(2_000_000_000_000);

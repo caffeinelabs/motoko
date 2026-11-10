@@ -3,5 +3,5 @@ debug.print: Region size: 1
 ingress Completed: Reply: 0x4449444c0000
 debug.print: Region size: 2
 ingress Completed: Reply: 0x4449444c0000
-debug.print: Upgrade instructions: 18_446_744_073_709_551_615
+debug.print: Ignore Diff: (ignored)
 ingress Completed: Reply: 0x4449444c0000

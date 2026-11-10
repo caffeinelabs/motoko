@@ -2,7 +2,7 @@
 // public entry point (add, sub, mul, div).
 
 // Create a simple Calc actor.
-persistent actor Calc {
+actor Calc {
 
   var cell : Int = 0;
 
@@ -23,7 +23,7 @@ persistent actor Calc {
   };
 
   public func div(n:Int) : async ?Int {
-    if ( n == 0 ) {
+    if n == 0 {
       null // null indicates div-by-zero error
     } else {
       cell /= n;

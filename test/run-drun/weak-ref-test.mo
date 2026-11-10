@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   var arr = Prim.Array_init<Nat>(13, 0);
 
@@ -35,13 +35,13 @@ persistent actor {
     var blob2 = Prim.Array_init<Nat64>(1, 2);
     var blob3 = Prim.Array_init<Nat64>(1, 3);
 
-    var wrs = [Prim.allocWeakRef(blob1), Prim.allocWeakRef(blob2), Prim.allocWeakRef(blob3)];
+    let wrs = [Prim.allocWeakRef(blob1), Prim.allocWeakRef(blob2), Prim.allocWeakRef(blob3)];
 
     var idx = 0;
     while (idx < 5) {
 
       Prim.debugPrint(debug_show ("================"));
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
       };
 
@@ -58,15 +58,15 @@ persistent actor {
   };
 
   public func test3() : async () {
-    var blobs = [var Prim.Array_init<Nat64>(3, 1), Prim.Array_init<Nat64>(10, 2), Prim.Array_init<Nat64>(1, 3)];
-    var wrs = [Prim.allocWeakRef(blobs[0]), Prim.allocWeakRef(blobs[1]), Prim.allocWeakRef(blobs[2])];
+    let blobs = [var Prim.Array_init<Nat64>(3, 1), Prim.Array_init<Nat64>(10, 2), Prim.Array_init<Nat64>(1, 3)];
+    let wrs = [Prim.allocWeakRef(blobs[0]), Prim.allocWeakRef(blobs[1]), Prim.allocWeakRef(blobs[2])];
 
     var idx = 0;
     while (idx < 5) {
 
       Prim.debugPrint(debug_show ("================"));
 
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         let val = Prim.weakGet(wr);
         Prim.debugPrint(debug_show (val));
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
@@ -87,6 +87,5 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress test3 "DIDL\x00\x00"

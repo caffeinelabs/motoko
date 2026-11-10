@@ -3,7 +3,7 @@
 */
 
 actor a {
-  flexible var x : Bool = false;
+  transient var x : Bool = false;
 
   public func test(b : Bool) : () {
     if (b) { assert (x == false); x := true; assert (x == true); }

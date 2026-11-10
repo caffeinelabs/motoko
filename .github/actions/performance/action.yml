@@ -28,7 +28,7 @@ runs:
       if: ${{ inputs.is_fork == 'false' }}
       run: |
         # git diff --no-index $(nix build --print-out-paths .#tests.bench)/share test/bench/ok | patch -f -u -p1 -R
-        BENCH_RESULT=$(nix build --print-out-paths .#tests.bench)
+        BENCH_RESULT=$(${{ github.workspace }}/nixbuildcopy.sh .#tests.bench)
         if ! git diff --no-index $BENCH_RESULT/share test/bench/ok | patch -f -u -p1 -R; then
           echo "Patch failed, copying fresh .ok files directly"
           cp $BENCH_RESULT/share/*.ok test/bench/ok/
@@ -54,17 +54,18 @@ runs:
         from="$(git merge-base origin/${{ inputs.base_ref }} HEAD)"
         to="${{ inputs.head_sha }}"
         echo "Comparing changes from $from to $to"
-        nix build -f perf-delta.nix -o perf-delta.txt \
+        PERF_DELTA="$(${{ github.workspace }}/nixbuildcopy.sh -f perf-delta.nix \
           --argstr ref HEAD \
           --argstr from "$from" \
-          --argstr to "$to"
+          --argstr to "$to")"
+        echo "PERF_DELTA=$PERF_DELTA" >> $GITHUB_ENV
       shell: bash
 
     - name: Read performance delta
       id: perf
       uses: juliangruber/read-file-action@v1
       with:
-        path: ./perf-delta.txt
+        path: ${{ env.PERF_DELTA }}
 
     - name: Find performance comment
       if: ${{ inputs.is_fork == 'false' }}

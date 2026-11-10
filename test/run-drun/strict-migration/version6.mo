@@ -6,7 +6,7 @@ import Prim = "mo:⛔";
    { } =
    { }
 )
-persistent actor {
+actor {
   var g : Nat = 0; // ok, exact type
   Prim.debugPrint "version6"
 }

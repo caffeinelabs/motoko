@@ -1,4 +1,4 @@
-//MOC-FLAG -A=M0194
+//MOC-FLAG -A=M0194 -W=M0145
 let x1 = switch 2 {
   case (0) 0;
   case (2) 1;

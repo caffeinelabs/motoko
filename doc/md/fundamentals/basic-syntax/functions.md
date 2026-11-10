@@ -55,12 +55,12 @@ All shared function, unlike ordinary functions, provide access to the identity o
 For example, you can rewrite the object above as an actor:
 
 ```motoko no-repl
-persistent actor Digit {
+actor Digit {
    var value = 0;
    func reset() { value := 0 };
    public shared func inc() : async (){
       value += 1;
-      if (value == 10) reset();
+      if value == 10 { reset() };
    };
    public shared query func get() : async Nat {
       value
@@ -71,12 +71,12 @@ persistent actor Digit {
 Since the public functions of an actor must be `shared`, you can omit the `shared` keyword:
 
 ```motoko no-repl
-persistent actor Digit {
+actor Digit {
    var value = 0;
    func reset() { value := 0 };
    public func inc() : async () {
       value += 1;
-      if (value == 10) reset();
+      if value == 10 { reset() };
    };
    public query func get() : async Nat {
       value

@@ -10,3 +10,10 @@ debug.print: 0_1
 debug.print: 0_2
 debug.print: 0_3
 ingress Completed: Reply: 0x4449444c0000
+debug.print: shared
+debug.print: caught async None
+debug.print: async
+debug.print: caught async* None
+debug.print: caught async* None
+debug.print: async*
+ingress Completed: Reply: 0x4449444c0000

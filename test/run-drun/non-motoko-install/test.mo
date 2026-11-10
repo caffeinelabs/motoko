@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors
+//MOC-FLAG --enhanced-orthogonal-persistence 
 actor {
   public func go() : async () {};
 };

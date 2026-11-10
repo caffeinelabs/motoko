@@ -1,0 +1,4 @@
+and-pattern-type-nested.mo:3.39-3.40: type error [M0260], type identifier `T` bound in both branches of and-pattern
+and-pattern-type-nested.mo:4.33-4.34: type error [M0260], type identifier `T` bound in both branches of and-pattern
+and-pattern-type-nested.mo:5.39-5.40: type error [M0260], type identifier `T` bound in both branches of and-pattern
+and-pattern-type-nested.mo:6.54-6.55: type error [M0260], type identifier `T` bound in both branches of and-pattern

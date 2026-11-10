@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests inference of named types
-moc -i <<__END__
+moc -W M0145 -i <<__END__
 func (#tag (f:Nat)){};
 func (#tag (_:Nat)){};
 func ({x : Nat}){};

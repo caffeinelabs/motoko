@@ -1,0 +1,2 @@
+type b = record { 4294967296 : nat };
+service : { get : () -> (b) }

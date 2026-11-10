@@ -1,10 +1,8 @@
-typtbl.mo:9.7-9.16: warning [M0145], this pattern of type
+typtbl.mo:9.17-9.26: warning [M0145], this pattern of type
   ?()
 does not cover value
   null
-typtbl.mo:14.7-14.9: warning [M0145], this pattern of type
+typtbl.mo:14.17-14.19: warning [M0145], this pattern of type
   ?()
 does not cover value
   null
-typtbl.mo:6.3-6.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
-typtbl.mo:12.3-12.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)

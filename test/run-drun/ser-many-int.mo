@@ -6,7 +6,7 @@ func serInt(x: Int) : Blob = (prim "serialize" : Int -> Blob) x;
 func deserInt(x: Blob) : Int = (prim "deserialize" : Blob -> Int) x;
 
 var n = Prim.int64ToInt(1<<32);
-var l = -n;
+let l = -n;
 var c = n;
 public func go() : async () {
  while (n > l) {

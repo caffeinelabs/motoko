@@ -10,7 +10,7 @@
 ## Heap
 
 * Uniform representation with a defined word size. 
-For [enhanced orthogonal persistence](OrthogonalPersistence.md), 64-bit words are used, while for classical persistence, the word size is 32-bit.
+[Enhanced orthogonal persistence](OrthogonalPersistence.md) uses 64-bit words.
 
 * Use pointer tagging in the LSB:
   - 1 for pointers, 0 for scalars.
@@ -109,9 +109,7 @@ TODO
 
 ## Persistence
 
-Different * [persistence modes](OrthogonalPersistence.md):
-* [Enhanced orthogonal persistence](OrthogonalPersistence.md).
-* [Classical persistence](OldStableMemory.md).
+See [enhanced orthogonal persistence](OrthogonalPersistence.md).
 
 # Hypervisor Extensions needed
 

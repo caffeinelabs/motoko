@@ -1,6 +1,6 @@
 import Debug "mo:core/Debug";
 
-persistent actor Alarm {
+actor Alarm {
 
   let n = 5;
   var count = 0;
@@ -10,7 +10,7 @@ persistent actor Alarm {
   };
 
   system func heartbeat() : async () {
-    if (count % n == 0) {
+    if count % n == 0 {
       await ring();
     };
     count += 1;

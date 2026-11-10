@@ -14,7 +14,7 @@ Only async contexts support [error handling](../error-handling.md) with `try/cat
 In Motoko, an expression is considered to be in an async context if it appears inside an `async` function. Query functions are read-only, so they do not create an async context and therefore cannot use `await` or send messages.
 
 ```motoko no-repl
-persistent actor Counter {
+actor Counter {
     var count : Nat = 0;
 
     public func increment() : async () {
@@ -57,17 +57,17 @@ actor Publisher {
     stable var subscribers : [Subscriber.Subscriber] = [];
 
     public shared func subscribe(subscriber : Subscriber.Subscriber) : async () {
-        if (Array.find<Subscriber.Subscriber>(subscribers, func(s) { s == subscriber }) == null) {
+        if Array.find<Subscriber.Subscriber>(subscribers, func(s) { s == subscriber }) == null {
             let newSubscribers = Array.tabulate<Subscriber.Subscriber>(
                 subscribers.size() + 1,
-                func(i) { if (i < subscribers.size()) subscribers[i] else subscriber }
+                func(i) { if i < subscribers.size() { subscribers[i] } else { subscriber } }
             );
             subscribers := newSubscribers;
         };
     };
 
     public shared func publish(message : Text) : async () {
-        for (sub in subscribers) {
+        for sub in subscribers {
             ignore await sub.notify(message);
         };
     };

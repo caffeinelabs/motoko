@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --enhanced-orthogonal-persistence
 import Prim = "mo:prim";
 

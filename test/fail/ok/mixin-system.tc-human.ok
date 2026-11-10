@@ -1,0 +1,4 @@
+error[M0264]: mixin include requires system capability
+    ┌─ mixin-system.mo:6:11
+  6 │    include MixinSystem2(); // Fails
+    │            ^^^^^^^^^^^^ 

@@ -1,0 +1,125 @@
+# Agent guide to the Motoko compiler
+
+Orientation for AI agents (code review, coding assistants) working on this
+repository. Route to the linked documents instead of guessing; they are the
+source of truth.
+
+## What this repository is
+
+The compiler (`moc`) and runtime system for Motoko, a language for the Internet
+Computer. The compiler is OCaml, the runtime system is Rust compiled to Wasm.
+The base/core libraries are NOT in-tree (they live in the external
+`motoko-core` / `motoko-base` repositories); only compiler-known stubs are
+vendored under `test/*-stub`.
+
+## Repository map
+
+| Area | Path | Notes |
+|---|---|---|
+| Compiler source | `src/` | OCaml; per-library subdirectories, see [src/Structure.md](src/Structure.md) |
+| Frontend (parse, typecheck) | `src/mo_frontend/` | accepted/rejected programs change here |
+| AST / types / values | `src/mo_def/`, `src/mo_types/`, `src/mo_values/` | |
+| IR + passes | `src/ir_def/`, `src/ir_passes/`, `src/lowering/` | |
+| Interpreters | `src/mo_interpreter/`, `src/ir_interpreter/` | reference semantics (`moc -r`); must agree with codegen — a semantic change in one path usually needs mirroring in the others |
+| Codegen (Wasm emission) | `src/codegen/`, `src/wasm-exts/` | changes affect emitted runtime behavior |
+| Pipeline / CLI flags | `src/pipeline/`, `src/mo_config/` | |
+| Prelude / `Prim` | `src/prelude/` | alters observable language semantics |
+| Error codes | `src/lang_utils/error_codes.ml` + `src/lang_utils/error_codes/M0NNN.md` | append-only registry |
+| Runtime system | `rts/` | Rust crates (`motoko-rts*`) producing `mo-rts*.wasm`; GC, layout, stable memory |
+| Tests | `test/` | see [test/README.md](test/README.md) |
+| Design docs | `design/` | e.g. [OrthogonalPersistence.md](design/OrthogonalPersistence.md), [Stable.md](design/Stable.md), [Implementation.md](design/Implementation.md) |
+| User docs | `doc/` | legacy `doc/md/`, Starlight site `doc/site/` |
+| Build | `flake.nix`, `nix/`, `src/Makefile`, `src/dune*` | see [Building.md](Building.md) |
+| CI | `.github/workflows/` | see [CI.md](CI.md) |
+
+## Conventions that reviews and changes must respect
+
+- **OCaml style**: [src/Conventions.md](src/Conventions.md). Warnings policy:
+  there shall be none. `assert false` only for genuinely impossible cases —
+  a new `assert false`/`failwith`/non-exhaustive `match` reachable from valid
+  Motoko input is a bug.
+- **moc 2 syntax for new Motoko code**: every `.mo` line a change adds or
+  modifies (prelude, tests, samples, doc examples) is already in moc 2 syntax,
+  so `mo-fmt --syntax moc2` would leave it unchanged. Lines you don't touch can
+  stay as they are, and tests about legacy syntax itself are exempt. In
+  practice: unparenthesized heads (`if c {`, `while i < n {`, `switch x {`) and
+  case patterns (`case ?x {`); braced `if`/`else`/`case`/`catch`/`try` bodies;
+  no `;` after a block's last item; `do { … }` for a block after `await`,
+  `ignore`, `assert`, or `let … else`. Also write calls as `f(x)`, never
+  `f x`, which the formatter only enforces in control heads. To check, run
+  [`mo-fmt`](https://github.com/caffeinelabs/tree-sitter-motoko) (also
+  installable with `mops toolchain`) with `--syntax moc2 --check`. It can't
+  parse the prelude's `@` names, so check a copy with them renamed.
+  [doc/md/moc-v2-migration.md](doc/md/moc-v2-migration.md) covers the
+  language changes behind the syntax.
+- **Tests are expectation-based**: a test `foo.mo` pairs with `ok/foo.*.ok`
+  files regenerated via `test-runner -b -a <dir>` (or `run-test -a foo.mo` for a
+  single file). Changing compiler output without updating the paired `.ok`
+  files (or vice versa) is a defect. Silent tests produce no output and have no
+  `.ok` by design.
+  Directories encode the kind: `run/` (interpret+wasm), `run-drun/` (IC
+  semantics), `fail/` (must not typecheck, expectations in `fail/ok/*.tc.ok`),
+  plus `perf/`, `repl/`, `mo-idl/`, etc.
+- **Use `test-runner` for local test iteration.** It runs tests in parallel and
+  infers the per-directory `run-test` flags from the path (`-d` for `run-drun/`,
+  `-t` for `fail/`), so pass a path that still contains those components — from
+  a Makefile, `$(CURDIR)`, never `.`. From the repo root:
+  ```shell
+  test-runner -b test/fail          # a directory
+  test-runner -b -a test/fail       # ...and accept/regenerate ok/
+  test-runner -b -f M0236 --in-file # tests whose *output* matches M0236
+  ```
+  `--in-file` matches against `ok/<name>.{tc,drun-run,run}.ok` only, so hits
+  that exist solely in another `.ok` variant are invisible to it.
+  `make -C test/<dir> all|accept` delegates to `test-runner` for the
+  directories it supports (`run`, `run-drun`, `fail`, `trap`), so those are no
+  longer slow. Other directories either hold no top-level `.mo`/`.drun`
+  (`repl/`, `idl/`, `cmp/`, `ld/`, `run-deser/`) or need a flag the path does
+  not imply (`-i` for `mo-idl/`, `-p` for `perf/` and `bench/`, `-d` for
+  `run-drun-non-ci/`, whose name is not the `run-drun` the inference matches),
+  or drive a binary `run-test` is not (`mo-doc/`) — keep using `make` there,
+  since `test-runner` would still find the tests and run them with the wrong
+  flags.
+- **Enhanced-migration test naming**: tests exercising `--enhanced-migration`
+  are named `em-*`. A test that also passes `--stable-baseline` is named after
+  its baseline file: `em-baseline-<basename>.mo` for
+  `baselines/<basename>.most` (e.g. `em-baseline-with-b-at-m2.mo`), so the
+  pairing is visible in review. Older `enhanced-migration-*`/`multi-migration-*`
+  names predate this convention — do not add new ones.
+- **New warnings/errors** need an `M0NNN` code registered in
+  `src/lang_utils/error_codes.ml` (append, never renumber) and test coverage
+  of the new diagnostic.
+- **Changelog.md**: user-visible language/`moc`/`mo-doc` changes get an entry
+  at the top — under the `## Next` heading when present (create it right after
+  a release if absent), always above the most recent `## X.Y.Z (date)` section —
+  ending with the PR number `(#NNNN)`. Released sections are frozen history —
+  never edit them. Internal-only refactors need no entry.
+- **Compatibility**: renames/removals of public compiler surface (CLI flags,
+  `src/prelude/` primitives, stable-signature semantics) need a
+  deprecation/migration path; see `design/` for persistence and stability
+  invariants.
+
+## Building and testing
+
+Environment via Nix: `nix develop`, then `make -C src moc` to build. Test with
+`test-runner` from the repo root (parallel; see the conventions above), e.g.
+`test-runner -b test/run`, or `run-test test/run/foo.mo` for a single file.
+`make -C test` still works — it drives the subdirectories, and for the four
+that `test-runner` supports its `all`/`accept` delegate to it.
+Details in [Building.md](Building.md) and [test/README.md](test/README.md).
+CI must be green; replicate locally with `nix build --no-link`.
+
+## High-risk areas (extra scrutiny)
+
+Changes here can miscompile programs or corrupt canister state even when all
+tests pass, because coverage is necessarily incomplete:
+
+- `src/codegen/**`, `src/wasm-exts/**` — Wasm emission.
+- `rts/**` — GC, heap layout, stable memory, IC system API.
+- `src/mo_types/**` typing rules — soundness; a wrongly-accepted program is
+  worse than a wrongly-rejected one.
+- Interpreter/codegen divergence — a semantic change landed in only one of
+  `src/mo_interpreter/`, `src/ir_interpreter/`, `src/codegen/` silently splits
+  `moc -r` behavior from compiled Wasm.
+- Stable compatibility / orthogonal persistence (`design/Stable.md`,
+  `design/OrthogonalPersistence.md`) — upgrade-safety invariants.

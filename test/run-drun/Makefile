@@ -1,10 +1,10 @@
 RUNFLAGS = -d
 
 all:
-	run-test $(RUNFLAGS) *.mo *.drun
+	test-runner -b $(CURDIR)
 
 accept:
-	run-test $(RUNFLAGS) -a *.mo *.drun
+	test-runner -b -a $(CURDIR)
 
 parallel: $(patsubst %.mo,_out/%_done,$(wildcard *.mo)) $(patsubst %.drun,_out/%_done,$(wildcard *.drun))
 

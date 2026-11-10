@@ -6,7 +6,7 @@ actor {
   // relying on the compiler filling in a default implementation
 
   var count = 0;
-  var max = 3;
+  let max = 3;
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
   let second : Nat64 = 1_000_000_000;
   var repetition = 0;

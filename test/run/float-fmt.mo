@@ -1,3 +1,6 @@
+//MOC-FLAG -A M0266
+// This test deliberately writes an over-precise Float literal (a 19-digit pi)
+// to exercise float formatting, so silence the excess-precision warning.
 import Prim "mo:⛔";
 
 let pi = 3.141592653589793238;

@@ -1,6 +1,3 @@
-#[cfg(feature = "ic")]
-use motoko_rts_macros::enhanced_orthogonal_persistence;
-
 pub const PAGE_SIZE: u64 = 64 * 1024;
 
 unsafe extern "C" {
@@ -122,7 +119,6 @@ pub fn write_u64(offset: u64, n: u64) {
 
 #[cfg(feature = "ic")]
 #[unsafe(no_mangle)]
-#[enhanced_orthogonal_persistence]
 pub extern "C" fn read_persistence_version() -> usize {
     use crate::region::{LEGACY_VERSION_NO_STABLE_MEMORY, VERSION_STABLE_HEAP_NO_REGIONS};
 

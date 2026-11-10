@@ -100,10 +100,19 @@ let num_conv_wrap_prim trap t1 t2 =
   fun v -> try of_big_int_wrap t2 (as_big_int t1 v)
            with Invalid_argument msg -> trap.trap msg
 
+(* Compiled code traps from this length on *)
+let max_array_length = Nat.pow (Nat.of_int 2) (Nat.of_int 48)
+
 let prim trap =
   let via_float f v = Float.(Float (of_float (f (to_float (as_float v))))) in
   let via_float2 f v w = Float.(Float (of_float (f (to_float (as_float v)) (to_float (as_float w))))) in
   let unpack_nat8 v = Nat8.to_int (as_nat8 v) in
+  (* is_int_big_int matters for moc.js only, whose ints have 32 bits *)
+  let array_length v =
+    let n = as_int v in
+    if Nat.lt n max_array_length && Big_int.is_int_big_int (Nat.to_big_int n)
+    then Nat.to_int n
+    else trap.trap "array too large" in
   let float_formatter prec : int -> float -> string =
     let open Printf in
     function
@@ -208,11 +217,21 @@ let prim trap =
 
   | "lsh_Nat" -> fun _ v k ->
     (match as_tup v with
-     | [x; shift] -> k (Int Numerics.Int.(mul (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
+     | [x; shift] ->
+       let x, shift = Int.to_big_int (as_int x), Nat32.to_big_int (as_nat32 shift) in
+       (* Same bound as the RTS, whose libtommath counts bits in a 32-bit `int`.
+          The amount stays a big_int until bounded, as `int` is 32-bit in moc.js. *)
+       if Big_int.sign_big_int x = 0 then k (Int Int.zero)
+       else if Big_int.(gt_big_int (add_int_big_int (num_bits_big_int x) shift) (big_int_of_int 0x7FFF_FFFF))
+       then trap.trap "left shift result too large"
+       else k (Int (Int.of_big_int (Big_int.shift_left_big_int x (Big_int.int_of_big_int shift))))
      | _ -> failwith "lsh_Nat")
   | "rsh_Nat" -> fun _ v k ->
     (match as_tup v with
-     | [x; shift] -> k (Int Numerics.Int.(div (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
+     | [x; shift] ->
+       let x, shift = Int.to_big_int (as_int x), Nat32.to_big_int (as_nat32 shift) in
+       if Big_int.(ge_big_int shift (big_int_of_int (num_bits_big_int x))) then k (Int Int.zero)
+       else k (Int (Int.of_big_int (Big_int.shift_right_big_int x (Big_int.int_of_big_int shift))))
      | _ -> failwith "rsh_Nat")
 
   | "explode_Nat16" -> fun _ v k ->
@@ -312,14 +331,14 @@ let prim trap =
   | "Array.init" -> fun _ v k ->
     (match Value.as_tup v with
     | [len; x] ->
-      k (Array (Array.init (Int.to_int (as_int len)) (fun _ -> Mut (ref x))))
+      k (Array (Array.init (array_length len) (fun _ -> Mut (ref x))))
     | _ -> assert false
     )
   | "Array.tabulate" -> fun c v k ->
     (* TODO: optimize these (https://github.com/dfinity/motoko/pull/5256#discussion_r2143573548) *)
     (match Value.as_tup v with
     | [len; g] ->
-      let len_nat = Int.to_int (as_int len) in
+      let len_nat = array_length len in
       let (_, g') = Value.as_func g in
       let rec go prefix k i =
         if i == len_nat
@@ -331,7 +350,7 @@ let prim trap =
   | "Array.tabulateVar" -> fun c v k ->
     (match Value.as_tup v with
     | [len; g] ->
-      let len_nat = Int.to_int (as_int len) in
+      let len_nat = array_length len in
       let (_, g') = Value.as_func g in
       let rec go prefix k i =
         if i == len_nat

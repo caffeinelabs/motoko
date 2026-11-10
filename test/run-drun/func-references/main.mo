@@ -1,6 +1,6 @@
 import { debugPrint } = "mo:⛔";
 
-persistent actor self {
+actor self {
   // (1) actor-public: a `public shared` method of self. The wire
   // encoding carries self's own canister principal.
   public shared func nullary() : async () {};

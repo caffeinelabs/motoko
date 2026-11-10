@@ -1,2 +1,0 @@
-install $ID multi-value-experiment/multi-value-experiment.mo ""
-ingress $ID go "DIDL\x00\x00"

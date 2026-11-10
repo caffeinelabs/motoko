@@ -28,3 +28,9 @@ warning[M0236]: You can use the dot notation `Map.clone(peopleMap).get(...)` her
     │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `Map.clone(peopleMap)`
     = help: remove `Map.clone(peopleMap),`
+warning[M0236]: You can use the dot notation `n.bump(...)` here
+    ┌─ contextual-dot-suggest.mo:126:12
+126 │      ignore Outer.Inner.bump(n); // warn
+    │             ^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Outer.Inner` with `n`
+    = help: remove `n`

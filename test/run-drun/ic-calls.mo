@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 actor a {
   public func A() : async () {
   };
@@ -11,7 +12,7 @@ actor a {
   };
 
   public func go() : () {
-    let () = await A();
+    await A();
     let 1 = await B(1);
     let (1,true) = await C(1,true);
   };

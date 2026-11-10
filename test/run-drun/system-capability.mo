@@ -21,3 +21,4 @@ actor {
 //SKIP run-low
 //SKIP drun-run
 //SKIP wasm-run
+//MOC-FLAG -A=M0270

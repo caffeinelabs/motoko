@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0270
 import Prim "mo:prim";
 import Cycles "cycles/cycles";
 import TestActor "snapshot/test-actor";

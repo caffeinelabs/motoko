@@ -1,0 +1,6 @@
+// compatible_typ: Nat ↔ Int, Int ↔ Nat arm (L1444)
+actor {
+  stable var n : Int;
+  stable var i : Nat;
+  stable var nn : Nat;
+};

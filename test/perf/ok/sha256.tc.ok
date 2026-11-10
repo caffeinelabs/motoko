@@ -1,2 +1,0 @@
-sha256/SHA256.mo:116.11-116.12: warning [M0244], variable t is never reassigned, consider using `let`
-sha256/SHA256.mo:147.11-147.12: warning [M0244], variable w is never reassigned, consider using `let`

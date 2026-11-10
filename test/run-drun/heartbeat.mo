@@ -5,7 +5,7 @@ actor {
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
   var count = 0;
-  var max = 10;
+  let max = 10;
 
   public shared func inc() : async () {
     if (count < max) {

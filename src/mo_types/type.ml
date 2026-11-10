@@ -378,6 +378,7 @@ let throwErrorCodes = List.sort compare_field [
 
 let call_error = obj Object [("err_code", Prim Nat32)]
 
+(* mirrored by `ErrorCode` (prim.mo) and `@ErrorCode` (internals.mo) *)
 let catchErrorCodes = List.sort compare_field (
   throwErrorCodes @ [
     { lab = "system_fatal"; typ = unit; src = empty_src};
@@ -941,8 +942,6 @@ let serializable allow_mut t =
       | Any | Non | Prim _ -> true
       | Async _ -> false
       | Weak t ->
-         !Mo_config.Flags.enhanced_orthogonal_persistence &&
-         (* NB: Candid serialization doesn't preserve graph structure *)
          (* weak references are stable if content is stable *)
          allow_mut && go t
       | Mut t -> allow_mut && go t
@@ -1792,14 +1791,6 @@ let motoko_async_helper_fld =
     src = empty_src;
   }
 
-let motoko_stable_var_info_fld =
-  { lab = "__motoko_stable_var_info";
-    typ =
-      Func(Shared Query, Promises, [scope_bind], [],
-        [ obj Object [("size", nat64)] ]);
-    src = empty_src;
-  }
-
 let motoko_gc_trigger_fld =
   { lab = "__motoko_gc_trigger";
     typ = Func(Shared Write, Promises, [scope_bind], [], []);
@@ -1834,7 +1825,6 @@ let motoko_runtime_information_fld =
 
 let well_known_actor_fields = [
     motoko_async_helper_fld;
-    motoko_stable_var_info_fld;
     motoko_gc_trigger_fld;
   ]
 

@@ -48,7 +48,7 @@ dune build --root src exes/moc.exe
 ```
 
 Use `dune build` (all targets) to catch errors in JS targets (`moc.js`,
-`moc_interpreter.js`, `didc.js`) and other executables (`mo-ld`, `didc`, etc.)
+`moc_interpreter.js`) and other executables (`mo-ld`, `didc`, etc.)
 that `dune build exes/moc.exe` would miss.
 
 `src/moc` is a symlink to `_build/default/exes/moc.exe`.

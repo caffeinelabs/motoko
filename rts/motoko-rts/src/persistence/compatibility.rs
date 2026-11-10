@@ -6,7 +6,7 @@ use crate::{
     barriers::write_with_barrier,
     bitrel::BitRel,
     constants::WORD_SIZE,
-    idl::TypeVariance,
+    idl::{DescriptorFormat, TableOrder, TypeVariance},
     memory::{Memory, alloc_blob},
     types::{TAG_BLOB_B, Value, Words},
 };
@@ -23,12 +23,18 @@ const DEFAULT_VALUE: Value = Value::from_scalar(0);
 ///   addresses are known at compile-time.
 /// The static type table is only created when calling the Candid subtype or memory compatibility check.
 /// As the static table contains absolute addresses, it can only be used temporarily until the next GC increment.
+/// Part of the persistent metadata: use a long-term representation by relying on C layout.
+#[repr(C)]
 pub struct TypeDescriptor {
     // Blob with candid-encoded type definitions.
     candid_data: Value,
     // Blob with a list of `usize` offsets referring to the `candid_data`.
     type_offsets: Value,
 }
+
+// An in-place EOP upgrade reinterprets these bytes, so reordering or resizing fields needs a `persistence::VERSION` bump.
+const _: () = assert!(core::mem::offset_of!(TypeDescriptor, candid_data) == 0);
+const _: () = assert!(core::mem::offset_of!(TypeDescriptor, type_offsets) == WORD_SIZE);
 
 impl TypeDescriptor {
     pub fn default() -> Self {
@@ -103,6 +109,18 @@ impl TypeDescriptor {
         type_table
     }
 
+    pub(crate) unsafe fn format(&self) -> DescriptorFormat {
+        const LEGACY_MAGIC: &[u8] = b"DIDL";
+        let data = self.candid_data.as_blob();
+        if data.len().as_usize() >= LEGACY_MAGIC.len()
+            && core::slice::from_raw_parts(data.payload_const(), LEGACY_MAGIC.len()) == LEGACY_MAGIC
+        {
+            DescriptorFormat::Legacy
+        } else {
+            DescriptorFormat::Eop1
+        }
+    }
+
     pub unsafe fn candid_length(&self) -> usize {
         self.candid_data.as_blob().len().as_usize()
     }
@@ -160,7 +178,9 @@ pub unsafe fn memory_compatible<M: Memory>(
 
     crate::idl::memory_compatible(
         &cache,
+        old_type.format(),
         TypeVariance::Covariance,
+        TableOrder::OldNew,
         old_type_table,
         new_type_table,
         old_table_end,

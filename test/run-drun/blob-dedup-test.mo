@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   public func test(b : Blob) : async () {
     Prim.debugPrint(debug_show (b));
@@ -84,7 +84,6 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-NO-FORCE-GC
 
 //CALL ingress test2 "DIDL\x00\x00"

@@ -1,7 +1,7 @@
 func magic() : None = magic();
 
 switch (magic () : Nat) {
-  case (-1) {};  // redundant
+  case (-1) {};  // literal type mismatch
   case _ {};
 };
 switch (magic () : Nat) {
@@ -28,7 +28,7 @@ switch (magic () : {a : Nat; b : Nat}) {
 };
 
 switch (magic () : ?Nat) {
-  case (? -1) {};  // redundant
+  case (? -1) {};  // literal type mismatch
   case _ {};
 };
 switch (magic () : ?Nat) {
@@ -41,7 +41,7 @@ switch (magic () : ?Nat) {
 };
 
 switch (magic () : {#A : Nat; #B}) {
-  case (#A(-1)) {};  // redundant
+  case (#A(-1)) {};  // literal type mismatch
   case _ {};
 };
 switch (magic () : {#A : Nat; #B}) {

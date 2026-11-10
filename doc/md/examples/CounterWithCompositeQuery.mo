@@ -1,4 +1,4 @@
-persistent actor class Counter () {
+actor class Counter () {
 
   var count = 0;
 
@@ -10,7 +10,7 @@ persistent actor class Counter () {
 
   public shared composite query func sum(counters : [Counter]) : async Nat {
     var sum = 0;
-    for (counter in counters.values())  {
+    for counter in counters.values() {
       sum += await counter.peek();
     };
     sum

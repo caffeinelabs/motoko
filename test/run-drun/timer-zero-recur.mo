@@ -6,7 +6,7 @@ actor {
   // relying on the compiler filling in a default implementation
 
   var count = 0;
-  var max = 2;
+  let max = 2;
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
 
   public shared func go() : async () {

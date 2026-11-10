@@ -4,8 +4,6 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 #![feature(proc_macro_hygiene)]
 
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
-
 #[macro_use]
 mod print;
 
@@ -17,8 +15,6 @@ mod gc;
 mod leb128;
 mod memory;
 mod principal_id;
-
-#[enhanced_orthogonal_persistence]
 mod stabilization;
 mod stable_option;
 mod text;
@@ -187,15 +183,6 @@ pub extern "C" fn test_utf8() {
     }
 }
 
-#[classical_persistence]
-fn check_architecture() {
-    if std::mem::size_of::<usize>() != 4 {
-        println!("Motoko RTS for classical persistence only works on 32-bit architectures");
-        std::process::exit(1);
-    }
-}
-
-#[enhanced_orthogonal_persistence]
 fn check_architecture() {
     if std::mem::size_of::<usize>() != 8 {
         println!(
@@ -205,45 +192,18 @@ fn check_architecture() {
     }
 }
 
-#[enhanced_orthogonal_persistence]
 fn persistence_test() {
     unsafe {
         stabilization::test();
     }
 }
 
-#[enhanced_orthogonal_persistence]
 fn persistence_small_test() {
     stabilization::test_stabilization_small();
 }
 
-#[enhanced_orthogonal_persistence]
 fn persistence_20k_test() {
     stabilization::test_stabilization_20k();
-}
-
-#[classical_persistence]
-fn persistence_test() {
-    test_read_write_64_bit();
-}
-
-#[classical_persistence]
-fn persistence_small_test() {}
-
-#[classical_persistence]
-fn persistence_20k_test() {}
-
-#[classical_persistence]
-fn test_read_write_64_bit() {
-    use motoko_rts::types::{read64, write64};
-    println!("Testing 64-bit read-write");
-    const TEST_VALUE: u64 = 0x1234_5678_9abc_def0;
-    let mut lower = 0u32;
-    let mut upper = 0u32;
-    write64(&mut lower, &mut upper, TEST_VALUE);
-    assert_eq!(lower, 0x9abc_def0);
-    assert_eq!(upper, 0x1234_5678);
-    assert_eq!(read64(lower, upper), TEST_VALUE);
 }
 
 // Called by the RTS to panic
@@ -273,7 +233,6 @@ extern "C" fn print_ptr(ptr: usize, len: usize) {
 }
 
 // Program entry point by wasmtime
-#[enhanced_orthogonal_persistence]
 #[unsafe(no_mangle)]
 pub fn _start() {
     main();

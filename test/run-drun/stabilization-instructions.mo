@@ -1,10 +1,9 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 import Prim "mo:prim";
 
 actor {
-  stable var lastInstructions = 0;
-  stable var length = 0;
-  stable var stableArray : [Nat] = [];
+  var lastInstructions = 0;
+  var length = 0;
+  var stableArray : [Nat] = [];
 
   if (length > 0) {
     assert (Prim.rts_upgrade_instructions() >= lastInstructions);

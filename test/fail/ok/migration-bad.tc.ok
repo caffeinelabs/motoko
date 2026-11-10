@@ -19,6 +19,6 @@ migration-bad.mo:33.1-33.18: type error [M0208], expected expression with field 
   {other : ()}
 migration-bad.mo:37.1-37.21: type error [M0208], expected expression with field `migration`, but expression has type
   {other : ()}
-migration-bad.mo:41.1-42.18: warning [M0212], unrecognised attribute extra in parenthetical note
+migration-bad.mo:41.1-42.18: type error [M0212], unrecognised attribute extra in parenthetical note
 migration-bad.mo:46.1-46.39: type error [M0209], misplaced actor migration expression on module or object
 migration-bad.mo:50.1-50.39: type error [M0209], misplaced actor migration expression on module or object

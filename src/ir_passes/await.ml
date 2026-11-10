@@ -7,7 +7,10 @@ module R = Rename
 module T = Type
 open Construct
 
-let fresh_cont typ ans_typ = fresh_var "k" (contT typ ans_typ)
+(* Success continuations take one argument, even a tuple, the way an async value passes its result *)
+let unary_contT typ ans_typ = T.(Func (Local, Returns, [], [typ], as_seq ans_typ))
+
+let fresh_cont typ ans_typ = fresh_var "k" (unary_contT typ ans_typ)
 
 let fresh_err_cont ans_typ  = fresh_var "r" (err_contT ans_typ)
 
@@ -61,12 +64,13 @@ module PatEnv = Env.Make(String)
 type label_sort = Cont of var | Label
 
 let precompose vthunk k =
-  let typ0 = match typ_of_var k with
-    | T.(Func (Local, Returns, [], ts1, _)) -> T.seq ts1
+  let ts1 = match typ_of_var k with
+    | T.(Func (Local, Returns, [], ts1, _)) -> ts1
     | _ -> assert false in
-  let v = fresh_var "v" typ0 in
+  let v = fresh_var "v" (T.seq ts1) in
   let e = blockE [expD (varE vthunk -*- unitE ())] (varE k -*- varE v) in
-  let k' = fresh_cont typ0 (typ e) in
+  (* keep k's arity, which is nullary for the cleanup continuation *)
+  let k' = fresh_var "k" T.(Func (Local, Returns, [], ts1, as_seq (typ e))) in
   (k', funcD k' v e)
 
 let preconts context vthunk scope =
@@ -214,7 +218,6 @@ and t_dec' context dec' =
   match dec' with
   | LetD (pat, exp) -> LetD (pat, t_exp context exp)
   | VarD (id, t, exp) -> VarD (id, t, t_exp context exp)
-  | RefD (id, t, lexp) -> RefD (id, t, t_lexp context lexp)
 
 and t_decs context decs = List.map (t_dec context) decs
 
@@ -287,7 +290,7 @@ and c_loop context k e1 =
   | T.Triv ->
     assert false
   | T.Await ->
-    let loop = fresh_var "loop" (contT T.unit T.unit) in
+    let loop = fresh_var "loop" (unary_contT T.unit T.unit) in
     let v1 = fresh_var "v" T.unit in
     blockE
       [funcD loop v1 (c_exp context e1 (ContVar loop))]
@@ -524,8 +527,6 @@ and c_dec context dec (k:kont) =
           (meta (typ exp)
             (fun v -> k -@- define_idE id Var (varE v)))
     end
-  | RefD (id, _typ, _lexp) -> assert false
-    (* TODO: unclear if this can arise at all, and if so, how to translate it with existing tools *)
 
 and c_decs context decs k =
   match decs with
@@ -540,7 +541,6 @@ and declare_dec dec exp : exp =
   match dec.it with
   | LetD (pat, _) -> declare_pat pat exp
   | VarD (id, typ, _exp1) -> declare_id id (T.Mut typ) exp
-  | RefD (id, typ, _exp1) -> declare_id id typ exp
 
 and declare_decs decs exp : exp =
   match decs with

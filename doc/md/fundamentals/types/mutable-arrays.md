@@ -151,7 +151,7 @@ A `for` loop can also be used to iterate over an array by accessing elements via
 
 ```motoko no-repl
 let arr = [var "a", "b", "c"];
-for (i in arr.keys()) {
+for i in arr.keys() {
     Debug.print(arr[i]);
 }
 ```
@@ -180,7 +180,7 @@ A Tic-tac-toe board is a `3x3` grid that requires updates as players take turns.
 import VarArray "mo:core/VarArray";
 import Debug "mo:core/Debug";
 
-persistent actor TicTacToe {
+actor TicTacToe {
 func createTicTacToeBoard() : [var [var Text]] {
     let size : Nat = 3;
 
@@ -198,7 +198,7 @@ func createTicTacToeBoard() : [var [var Text]] {
 
   // Function to make a move
   func makeMove(row : Nat, col : Nat, player : Text) {
-    if (board[row][col] == "_") {
+    if board[row][col] == "_" {
       board[row][col] := player
     } else {
       Debug.print("Invalid move! The spot is already taken.")
@@ -207,7 +207,7 @@ func createTicTacToeBoard() : [var [var Text]] {
 
   // Function to print the board
   func printBoard() {
-    for (row in board.vals()) {
+    for row in board.values() {
       let rowText = Array.foldLeft<Text, Text>(Array.freeze<Text>(row), "", func(acc, cell) = acc # cell # " ");
       Debug.print(rowText)
     }

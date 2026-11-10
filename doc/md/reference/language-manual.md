@@ -91,8 +91,8 @@ The following keywords are reserved and may not be used as identifiers:
 
 ``` bnf
 actor and assert async async* await await? await* break case
-catch class composite continue debug debug_show do else false flexible
-finally for from_candid func if ignore import implicit in include label let
+catch class composite continue debug debug_show do else false finally
+for from_candid func if ignore import implicit in include label let
 loop mixin module not null object or persistent private public query
 return shared stable switch system throw to_candid true transient try
 type var weak while with
@@ -363,9 +363,10 @@ The syntax of an **import** `<imp>` is as follows:
   "ic:<canisterid>"                 Import external actor by <canisterid>
   "canister:<name>"                 Import external actor by <name>
   "blob:file:<filepath>"            Import literal `Blob` value from <filepath>
+  "idl:<filepath>"                  Import types-only module from Candid <filepath>
 ```
 
-An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
+An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, a types-only module from a Candid IDL file, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
 
 Though typically a simple identifier, `<id>`, `<pat>` can also be any composite pattern binding selective components of the resource.
 
@@ -454,8 +455,7 @@ For `<shared-pat>`, an absent `<pat>?` is shorthand for the wildcard pattern `_`
 
 <stab> ::=                                     field stability (actor only)
   stable
-  flexible
-  transient                                      (equivalent to flexible)
+  transient
 ```
 
 The **visibility** qualifier `<vis>?` determines the accessibility of every field `<id>` declared by `<dec>`:
@@ -472,10 +472,8 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 
 The **stability** qualifier `<stab>` determines the **upgrade** behavior of actor fields:
 
--   A stability qualifier should appear on `let` and `var` declarations that are actor fields.
-    Within a `persistent` actor or actor class, an absent stability qualifier defaults to `stable`.
-    Within a non-`persistent` actor or actor class, an absent stability qualifier defaults to `flexible` (or `transient`).
-    The keywords `transient` and `flexible` are interchangeable.
+-   A stability qualifier may appear on `let` and `var` declarations that are actor fields.
+    Actors and actor classes are `persistent` by default, so an absent stability qualifier means the field is persisted across upgrades (`stable`).
 
 -   `<stab>` qualifiers must not appear on fields of objects or modules.
 
@@ -806,7 +804,7 @@ The type `Region` represents opaque stable memory regions. Region objects are dy
 
 The region type is stable but not shared and its objects, which are stateful, may be stored in stable variables and data structures.
 
-Objects of type `Region` are created and updated using the functions provided by base libary `Region`. See [stable regions](./icp-features/stable-memory) and library [Region](https://mops.one/core/docs/Region) for more information.
+Objects of type `Region` are created and updated using the functions provided by core library `Region`. See [stable regions](./icp-features/stable-memory) and library [Region](https://mops.one/core/docs/Region) for more information.
 
 ### Constructed types
 
@@ -878,6 +876,8 @@ Future types typically appear as the result type of a `shared` function that pro
 Computation types typically appear as the result type of a `local` function that produces an `await*`-able value.
 
 They cannot be used as the return types of `shared` functions.
+
+Unlike a future's result, a computation's result type need not be shared, because the computation runs in the context that awaits it.
 
 ### Tuple types
 
@@ -1017,7 +1017,7 @@ For a function, the number of type arguments, when provided, must agree with the
 
 Given a vector of type arguments instantiating a vector of type parameters, each type argument must satisfy the instantiated bounds of the corresponding type parameter.
 
-In function calls, supplying the `system` pseudo type argument grants system capability to the function that requires it.
+In function calls, supplying the `system` pseudo type argument grants system capability to the function that requires it. Supplying it to a function that does not require it is redundant and produces a warning.
 
 System capability is available only in the following syntactic contexts:
 
@@ -1035,7 +1035,7 @@ The `<system>` type parameters of shared and asynchronous functions need not be 
 
 A type `T` is well-formed only if recursively its constituent types are well-formed, and:
 
--   If `T` is `async U` or `async* U` then `U` is shared, and
+-   If `T` is `async U` then `U` is shared, and
 
 -   If `T` is `shared <query>? U -> V`:
     - `U` is shared and,
@@ -1049,6 +1049,8 @@ A type `T` is well-formed only if recursively its constituent types are well-for
     -   `Ti <: Ui[ T0/X0, …​, Tn/Xn ]`, for each `0 <= i <= n`.
 
 -   If `T` is `actor { …​ }` then all fields in `…​` are immutable and have `shared` function type.
+
+A future's result must be shared because even a local `async` expression returns its result through a message, whereas a computation `async* U` runs in the context that awaits it, so `U` can be any type.
 
 ### Subtyping
 
@@ -1192,7 +1194,7 @@ A type `T` is **stable** if it is:
 
 This definition implies that every shared type is a stable type. The converse does not hold: there are types that are stable but not share, notably types with mutable components.
 
-The types of actor fields declared with the `stable` qualifier must have stable type.
+The types of actor fields not declared `transient` must have stable type.
 
 The current value of such a field is preserved upon upgrade, whereas the values of other fields are reinitialized after an upgrade.
 
@@ -1362,6 +1364,8 @@ In detail, if `<url>` is of the form:
 -   `"blob:file:<filepath>"` then `<pat>` is bound to a blob containing the contents of the file `<filepath>`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. For example, `import image "blob:file:/assets/image.jpg"` defines `image` as the blob with bytes from local file `./assets/image.jpg`. Unlike library imports, `<filepath>` should include the
 file's extension, if any.
 
+-   `"idl:<filepath>"` then `<pat>` is bound to a types-only Motoko module derived from the Candid IDL file at `<filepath>`: type field `Self` is the service actor type, and each named Candid type declared in that file is exported (PascalCased when unambiguous). `<filepath>` is interpreted relative to the absolute location of the enclosing file and should include the extension (typically `.did`). For example, `import S "idl:api/ledger.did"` defines `S` with `S.Self` and related type aliases. This import cannot be used to call methods; use `ic:` / `canister:` (or `actor "<principal>" : S.Self`) for a live reference.
+
 The case sensitivity of file references depends on the host operating system so it is recommended not to distinguish resources by filename casing alone.
 
 When building multi-canister projects with the [IC SDK](https://github.com/dfinity/sdk), Motoko programs can typically import canisters by alias (e.g. `import C "canister:counter"`), without specifying low-level canister ids (e.g. `import C "ic:lg264-qjkae"`). The SDK tooling takes care of supplying the appropriate command-line arguments to the Motoko compiler.)
@@ -1376,8 +1380,7 @@ Any identifier bound by a `public` declaration appears in the type of enclosing 
 
 An identifier bound by a `private` or `system` declaration is excluded from the type of the enclosing object, module or actor and thus inaccessible.
 
-In a `persistent` actor or actor class, all declarations are implicitly `stable` unless explicitly declared otherwise.
-In a non-`persistent` actor or actor class, all declarations are implicitly `transient` (equivalently `flexible`) unless explicitly declared otherwise.
+In an actor or actor class (`persistent` by default, so the `persistent` keyword is redundant), all declarations are persisted across upgrades (`stable`) unless explicitly declared `transient`.
 
 The declaration field has type `T` provided:
 
@@ -1385,9 +1388,9 @@ The declaration field has type `T` provided:
 
 -   If `<stab>?` is `stable`  then `T` must be a stable type (see [stability](#stability)).
 
--   If `<stab>?` is absent and the actor or actor class is `persistent`, then `T` must be a stable type (see [stability](#stability)).
+-   If `<stab>?` is absent, then `T` must be a stable type (see [stability](#stability)).
 
-Actor fields declared `transient` (or legacy `flexible`) can have any type, but will not be preserved across upgrades.
+Actor fields declared `transient` can have any type, but will not be preserved across upgrades.
 
 
 In the absence of any `<parenthetical>?` migration expression, sequences of declaration fields are evaluated in order by evaluating their constituent declarations, with the following exception:
@@ -1410,7 +1413,7 @@ These effects can only be achieved using an explicit [migration expression](#mig
 
 #### Migration expressions
 
-Actors and actor class declaration may specify a migration expression, using an optional, leading `<parenthetical>` expression with a required field named `migration`.
+Actors and actor class declarations may specify a migration expression, using an optional, leading `<parenthetical>` expression with a required field named `migration`.
 The value of this field, a function, is applied to the stable variables of an upgraded actor, before initializing any stable fields of the declared actor.
 
 The parenthetical expression must satisfy the following conditions:
@@ -1440,7 +1443,7 @@ the value of a `stable` declaration is obtained as follows:
 - Otherwise, if the stable declaration is not present in the domain and is declared stable in the retired actor,
   then its initial value is obtained from the retired actor.
 
-- Otherwise, its value is obtained by evaluating the declaration's initalizer.
+- Otherwise, its value is obtained by evaluating the declaration's initializer.
 
 Thus a stable variable's initializer is run if the variable is not produced by the migration function and either
 consumed by the migration function (by appearing in its domain) or absent in the retired actor.
@@ -1453,8 +1456,8 @@ For the upgrade to be safe:
 - Every stable identifier declared with type `T` in the retired actor, not present in the domain or codomain,
   and declared stable and of type `U` in the replacement actor, must satisfy `T < U` (stable subtyping).
 
-Thses conditions ensure that every stable variable is either discarded or fresh, requiring initialization,
-or that its value can be safely consumed from the output of migration or the retired actor without loss of date.
+These conditions ensure that every stable variable is either discarded or fresh, requiring initialization,
+or that its value can be safely consumed from the output of migration or the retired actor without loss of data.
 
 The compiler will issue a warning if a migration function appears to be discarding data by consuming a field and not producing it.
 The warnings should be carefully considered to verify any data loss is intentional and not accidental.
@@ -1484,7 +1487,7 @@ The declaration `<dec>` of a `system` field must be a manifest `func` declaratio
 
 :::danger
 
-Using the pre- and post-upgrade system methods is discouraged. It is error-prone and can render a canister unusable.
+The pre- and post-upgrade system methods are deprecated (warning M0270) in favor of [migration expressions](#migration-expressions). They are error-prone and can render a canister unusable.
 In particular, if a `preupgrade` method traps and cannot be prevented from trapping by other means, then your canister may be left in a state in which it can no longer be upgraded.
 Per best practices, using these methods should be avoided if possible.
 
@@ -1560,6 +1563,8 @@ The consequences of pattern match failure depends on the context of the pattern.
 -   In a function application or `let`-binding, failure to match the formal argument pattern or `let`-pattern causes a trap.
 
 -   In a `case` branch of a `switch` expression, failure to match that case’s pattern continues with an attempt to match the next case of the switch, trapping only when no such case remains.
+
+A pattern is checked against the type of the value it matches, not a larger type: a variant pattern needs a tag of that variant type, a literal pattern a literal of that type, and an option pattern an option type. Only `None`, which has no values, accepts any pattern. To match at a larger type, annotate the matched value, as in `switch (n : Int)`.
 
 ### Wildcard pattern
 
@@ -1674,14 +1679,15 @@ All bindings declared by a `let-else` if any are immutable.
 
 In the presence of refutable patterns, the pattern in a `let` declaration may fail to match the value of its expression.
 In such cases, the `let`-declaration will evaluate to a trap.
-The compiler emits a warning for any `let`-declaration than can trap due to pattern match failure.
+The compiler reports an error (M0145) for any `let`-declaration that can trap due to pattern match failure.
+To accept the trap instead, pass `-W M0145` to downgrade it to a warning.
 
 Instead of trapping, a user may want to explicitly handle pattern match failures.
 The `let-else` declaration, `let <pat> = <exp> else <block-or-exp>`, has mostly identical static and dynamic semantics to `let`,
 but diverts the program's control flow to `<block-or-exp>` when pattern matching fails, allowing recovery from failure.
 The `else` expression, `<block-or-exp>`, must have type `None` and typically exits the declaration using imperative control flow
 constructs such as `throw`, `return`, `break` or non-returning functions such as `Debug.trap(...)` that all produce a result of type `None`.
-Any compilation warning that is produced for a `let` can be silenced by handling the potential pattern-match failure using `let-else`.
+Handling the potential pattern-match failure with `let-else` resolves the error.
 
 ### Var declaration
 
@@ -2130,11 +2136,11 @@ Thus the field list serves to:
 -   Define new fields.
 -   Override existing fields and their types.
 -   Add new `var` fields.
--   Redefine existing `var` fields from some base to prevent aliasing.
+-   Override existing `var` fields from some base, replacing the base's field with a fresh one.
 
 The resulting type is determined by the bases' and explicitly given fields' static type.
 
-Any `var` field from some base must be overwritten in the explicit field list. This prevents introducing aliases of `var` fields.
+A `var` field of some base that is not overwritten is copied into a fresh mutable field of the result, initialized with the base field's value at the time the record expression is evaluated. Mutating that field of the result does not affect the base, and mutating the base's field does not affect the result. Since an explicit field initializer may mutate a base, each such copy is made after all the explicit fields have been evaluated.
 
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldn>; }` has type `T` provided:
 
@@ -2149,8 +2155,6 @@ The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_field
     Let `fields(i) == { <idi1>, ..., <idik> }` be the set of static field names of base `i`. Then:
 
     -   `fields(i)` is disjoint from `newfields` (possibly by applying subtyping to the type of `<expi>`).
-
-    -   No field in `field_tysi` is a `var` field.
 
     -  `fields(i)` is disjoint from `fields(j)` for `j < i`.
 
@@ -2171,7 +2175,7 @@ Note that the case for type fields is simpler than the value fields case only be
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldm>; }` evaluates records `<exp1>` through `<expn>` and `{ exp-field1; ... <exp_fieldm }` to results `r1` through `rn` and `r`, trapping on the first result that is a trap. If none of the expressions produces a trap, the results are objects `sort1 { f1 }`, `sortn { fn }` and `object { f }`, where `f1` ... `fn` and `f` are maps from identifiers to values or mutable locations.
 
 The result of the entire expression is the value `object { g }` where `g` is the partial map with domain `fields(1) union fields(n) union newfields` mapping identifiers to unique
-values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)`, for some `i`, or `f(<id>)` if `<id>` is in `newfields`.
+values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)` and is not a `var` field, for some `i`; `g(<id>)` is a fresh location holding the value of `fi(<id>)` if `<id>` is in `fields(i)` and is a `var` field; and `g(<id>) = f(<id>)` if `<id>` is in `newfields`. A location `fi(<id>)` copied this way yields a different location than `g(<id>)`, so the two can be updated independently. As the copy is taken after the evaluation of `{ exp-field1; ... <exp_fieldm> }`, a `var` base field mutated by a field initializer is copied at its updated value.
 
 ### Object projection (member access)
 
@@ -2282,31 +2286,56 @@ Otherwise,
 -   Otherwise, `v` is `vi`, the value currently stored in the `i`-th location of the array.
 
 
+### Resolution of dotted calls and implicit arguments
+
+A [dotted function call](#dotted-function-calls) `<exp1>.<id> <exp2>` whose receiver has no function field `<id>`, and an omitted [implicit argument](#function-calls) named `<id>`, are both resolved by searching the scope for values named `<id>`. The search is the same for both; they differ only in how a candidate is matched against the call and in which of two matching candidates is the closer one.
+
+The values named `<id>` are searched in tiers. The first tier that has a matching candidate decides the resolution, so a closer candidate hides farther ones, and a module reached through another module never competes with a module in scope:
+
+1. The value `<id>` bound in the local scope, provided it is immutable.
+2. The immutable fields `<mid>.<id>` of the modules `<mid>` in scope.
+3. The immutable fields `<mid>.<id1>.….<idn>.<id>` of the modules nested inside the modules in scope, reached through module-typed fields only, up to a depth of 8. In the body of `module M`, the modules nested in `M` are in scope by themselves, so `M` contributes only its direct fields.
+4. When the compiler runs with `--implicit-package <pkg>`, the libraries of package `<pkg>` that the program does not import, searched like tiers 2 and 3 with the library in place of `<mid>`.
+
+Within a tier:
+
+* Every matching candidate counts, even when several of them are the same function reached through several paths, such as `M.f` from an imported library `M` and `Facade.M.f` through a facade that re-exports it. Importing the library directly makes it a direct field and lets it win.
+
+* The set of matching candidates Cs is filtered to the set Ds of the candidates closest to the call. A candidate is dropped when another candidate is strictly closer; candidates that are equally close or unrelated are all kept. In both cases a candidate of exactly the required type, when there is one, wins.
+
+  For a dotted call, a candidate matches when the receiver type is a subtype of its `self` parameter type, and the closest candidate is the one with the smallest `self` type. For a receiver `n : Nat` and candidates `f(self : Nat)` and `f(self : Int)`, both match, since `Nat <: Int`, and `f(self : Nat)` wins.
+
+  For an implicit argument, a candidate matches when its type is a subtype of the required type, and the closest candidate is the one with the greatest type. For a required `n : Int` and candidates `n : Int` and `n : Nat`, both match, since `Nat <: Int`, and `n : Int` wins. Function types compare through their parameters, so for a required `toText : Int -> Text` and candidates `toText : Int -> Text` and `toText : Any -> Text`, both match, since `Any -> Text <: Int -> Text`, and `toText : Int -> Text` wins.
+
+* If Ds is a singleton, its element is the resolution. Otherwise the call is ambiguous and rejected, with M0224 for a dotted call and M0231 for an implicit argument; the error names the candidates by their module paths. Writing the qualified function, or passing the implicit argument explicitly, resolves the ambiguity.
+
+If no tier has a matching candidate, the call is rejected, with M0072 for a dotted call and M0230 for an implicit argument. The error suggests importing a library when one of the libraries the program loads, imported or not and from any package, has a matching field named `<id>` directly or in a nested module. For implicit arguments, [implicit derivation](#function-calls) is attempted before the call is rejected, walking the same tiers.
+
 ### Dotted function calls
 
 The dotted function call expression `<parenthetical>? <exp1>.<id> <T0,…​,Tn>? <exp2>` has type `T` provided
 the expanded function call expression `<parenthetical>? <exp3> <T0,…​,Tn>? <exp4>` has type `T`,
 where
 
-  * If the projection `<exp0>.<id>` has some function type then `<exp3> = <exp0>.<id>` and `<exp4> = <exp2>`.
+  * If the receiver `<exp1>` has an object type with a function-typed field `<id>` then `<exp3> = <exp1>.<id>` and `<exp4> = <exp2>`.
 
-  * Otherwise, the module environment is used to determine an appropriate function `<exp3>` and argument `<exp4>` by
+  * Otherwise, the scope is searched for a function named `<id>` as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments),
     constructing a set of candidates Cs and disambiguation Ds:
 
       * If the receiver `<exp1>` has type `R` and
-      * Cs = { `(<mid>, V1[Ts/Xs], a)` | `<mid>` has type `module {}` and `<mid>.<id>` has type `<Xs <: Vs>(self : V1, ..., Va) -> V` and `R <: V1[Ts/Xs]` for `Ts` } and
-      * Ds = { `(<mid>, V, a)`  in Cs | for all `(_, W, _)` in Cs, `V <: W` } and
-      * { `(<mid>, _, _)` } = Ds and
+      * Cs = { `(<path>, V1[Ts/Xs], a)` | `<path>` is the local value `<id>` or a field `<mid>.<id>` found by the search, `<path>` has type `<Xs <: Vs>(self : V1, ..., Va) -> V` and `R <: V1[Ts/Xs]` for some `Ts` } and
+      * Ds = { `(<path>, V, a)`  in Cs | for all `(_, W, _)` in Cs, `V <: W` } and
+      * { `(<path>, _, _)` } = Ds and
 
-    Then `<exp3> = <mid>.<id>` and `<exp4> = extend_args(<exp1>, <exp2>, a)`.
+    Then `<exp3> = <path>` and `<exp4> = extend_args(<exp1>, <exp2>, a)`.
 
     Here:
 
     * `R` is the type of the receiver expression `<exp1>`.
-    *  Cs is the set of candidate functions `<mid>.<id>` in modules named `<mid>`, with explicitly name `self` parameter that matches the receiver type `R`.
-    *  Ds is the disambiguated set of candidates, filtered by specifity.
-    * `<mid>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
-    *  Finally `extend_args` is the following auxilliary function that inserts the receiver into arguments `<exp2>`, using the candidate's arity `a`:
+    *  Cs is the set of candidate functions with an explicitly named `self` parameter that matches the receiver type `R`, from the first tier of the search that has one: the local value `<id>`, then the modules in scope, then the modules nested in them, then the libraries of the implicit package. `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
+    *  Ds is the disambiguated set of candidates, filtered by specificity of the `self` parameter.
+    * `<path>` is the unique disambiguation, if one exists (that is, when Ds is a singleton set).
+    *  Finally `extend_args` is the following auxiliary function that inserts the receiver into arguments `<exp2>`, using the candidate's arity `a`:
 
     ```
     extend_args(<exp1> : exp, <exp2> : exp, arity : Nat) : exp
@@ -2371,20 +2400,20 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
 
       Otherwise:
 
-      * Cs = { `(<mid>, V)` | `<mid>` has type `module {}` and `<mid>.<idi>` has type `V` and `V <: [T0/X0, …​, Tn/Xn]U1` }; and
-      * Ds = { `(<mid>, V)`  in Cs | for all `(_, W)` in Cs, `W <: V` }; and
-      * { `(<mid>, _)` } = Ds; and
-      * `hole(i, <idi>, Ui) = <mid>.<idi>`.
+      * Cs = { `(<path>, V)` | `<path>` is a field `<mid>.<idi>` found by the scope search and has type `V` with `V <: [T0/X0, …​, Tn/Xn]Ui` }; and
+      * Ds = { `(<path>, V)`  in Cs | for all `(_, W)` in Cs, `W <: V` }; and
+      * { `(<path>, _)` } = Ds; and
+      * `hole(i, <idi>, Ui) = <path>`.
 
     Here:
 
     * `hole(i, <idi>, Ui)` is the description of the `ith` hole, a placeholder for an expression `<idi>` or `<mid>.<idi>`.
-    *  `<idi>` is the resolution of the hole from the local context, if any;
-    *  Cs is the set of candidate module `<mid>` named `<mid>`, with type `V` whose field `<mid>.<idi>` matches hole type `Ui` (after type instantiation).
+    *  `<idi>` is the resolution of the hole from the local context, if any; it must be immutable and have a type `V <: [T0/X0, …​, Tn/Xn]Ui`.
+    *  Cs is the set of candidate fields `<mid>.<idi>` from the first tier of the search that has one: the modules in scope, then the modules nested in them, then the libraries of the implicit package, as described in [Resolution of dotted calls and implicit arguments](#resolution-of-dotted-calls-and-implicit-arguments). `<mid>` is a module name or a path `<mid1>.<id1>.….<idn>` to a nested module.
     *  Ds is the disambiguated set of candidates, filtered by generality.
-    * `<mid>.<idi>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
+    * `<path>` is the unique disambiguation, if one exists (that is, when Ds is a singleton set).
 
-    **Implicit derivation**: When no direct candidate is found (neither from local values, module fields, nor library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates, starting with local values, then among module fields, then among library fields.
+    **Implicit derivation**: When no direct candidate is found (neither from the local value, nor the fields of the modules in scope and their nested modules, nor the library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates, in the same order: the local value, then module fields, then library fields.
     A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
@@ -2393,7 +2422,7 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
 
     - `__record` (parameter type `[(Text, () -> E)] -> R`): handles both unary holes (`SomeRecord -> R`) and binary holes (`(SomeRecord, SomeRecord) -> R` where both args are the same record type). For a unary hole it synthesizes `func($r) { combiner([("f", func() = inst($r.f)), ...]) }` with per-field implicits `FieldType -> E`. For a binary hole it synthesizes `func($r1, $r2) { combiner([("f", func() = inst($r1.f, $r2.f)), ...]) }` with per-field implicits `(FieldType, FieldType) -> E`. Per-field thunks let the combiner short-circuit (e.g. comparison). The arity is determined by the hole type, not the combiner.
     - `__tuple` (parameter type `[() -> E] -> R`): handles both unary holes (`(A, B, ...) -> R` with at least two elements) and binary holes (`((A, B, ...), (A, B, ...)) -> R` where both args are the same tuple type with ≥ 2 elements). For a unary hole it synthesizes `func($t) { combiner([func() = inst0($t.0), func() = inst1($t.1), ...]) }` with per-element implicits `ElemType_i -> E`. For a binary hole it synthesizes `func($t1, $t2) { combiner([func() = inst0($t1.0, $t2.0), ...]) }` with per-element implicits `(ElemType_i, ElemType_i) -> E`. Tuples with fewer than two elements are not synthesized: single-element tuples reduce to the element type, and unit `()` is treated as a scalar.
-    - `__variant` is reserved for future extension.
+    - `__variant` (parameter type `(Text, () -> E) -> R`): handles unary holes (`SomeVariant -> R`) only. Since a variant value is exactly one of its cases, it synthesizes `func($v) { combiner(switch $v { case (#t x) ("t", func() = inst(x)); ... }) }` with per-case implicits `CaseType -> E`. Binary holes (`(SomeVariant, SomeVariant) -> R`) are not synthesized, since the two values may inhabit different cases.
 
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 
@@ -2436,6 +2465,18 @@ The function expression `<shared-pat>? func < X0 <: T0, …​, Xn <: Tn > <pat1
 -   If the function is `shared` then `<pat>` and `<pat1>` must be exhaustive.
 
 -   Expression `<block-or-exp>` has type return type `U2` under the assumption that `<pat1>` has type `U1`.
+
+The body of a function returning `async U` (or `async* U`) is implicitly asynchronous: it is treated as `async <block-or-exp>` (or `async* <block-or-exp>`), so it has type `U`, not `async U`.
+Likewise, the body of a one-way `shared` function, returning `()`, is treated as `ignore (async <block-or-exp>)`.
+Writing the body as a block or as `= <exp>` makes no difference; a body that is already an explicit `async` expression is rejected as redundant.
+
+A local function without type parameters that is checked against an expected function type, for example as an argument of a call, takes the types of its unannotated parameters and its return type from the expected type.
+If that return type is `async U` (or `async* U`), the function is asynchronous as if its return type were written:
+
+```motoko no-repl
+func run(f : Nat -> async Nat) : async Nat { await f(1) };
+func g() : async Nat { await run(func(n) { n + 1 }) };
+```
 
 `<shared-pat>? func <typ-params>? <pat1> (: <typ>)? =? <block-or-exp>` evaluates to a function value denoted `<shared-pat>? func <typ-params>? <pat1> = <exp>`, that stores the code of the function together with the bindings from the current evaluation environment needed to evaluate calls to the function value.
 
@@ -2773,8 +2814,6 @@ The async expression `async* <block-or-exp>` has type `async* T` provided:
 
 -   `<block-or-exp>` has type `T`.
 
--   `T` is shared.
-
 Any control-flow label in scope for `async* <block-or-exp>` is not in scope for `<block-or-exp>`. However, `<block-or-exp>` may declare and use its own, local, labels.
 
 The implicit return type in `<block-or-exp>` is `T`. That is, the return expression, `<exp0>`, implicit or explicit, to any enclosed `return <exp0>?` expression, must have type `T`.
@@ -2807,8 +2846,6 @@ In comparison, calling a local function that returns a proper `async` type requi
 The `await*` expression `await* <exp>` has type `T` provided:
 
 -   `<exp>` has type `async* T`.
-
--   `T` is shared.
 
 -   the `await*` is explicitly enclosed by an `async`-expression or appears in the body of a `shared` function.
 
@@ -2869,6 +2906,13 @@ The preceding `catch` clause may be omitted in the presence of a `finally` claus
 This form is `try <block-or-exp1> (catch <pat> <block-or-exp2>)? finally <block-or-exp3>`, and evaluation proceeds as above with the crucial addition that every control-flow path leaving `<block-or-exp1>` or `<block-or-exp2>` will execute the unit-valued `<block-or-exp3>` before the entire `try` expression produces its result. The cleanup expression will additionally also be executed when the processing after an intervening `await` (directly, or indirectly as `await*`) traps.
 
 :::danger
+
+If a future's reply callback traps before the future is awaited (for example,
+while decoding an incompatible Candid reply), the failure is remembered.
+A later `await` or `await?` terminates the awaiting computation and executes
+its enclosing `finally` clauses; it does not resume normally or turn the trap
+into a catchable error. Plain `await` schedules this cleanup in a later message,
+whereas `await?` executes it immediately for an already failed future.
 
 The code within a `finally` block should terminate promptly and not trap.
 A trapping finally block will fail to free its callback table slot which

@@ -100,6 +100,6 @@ Example output
 --------------
 
 ```
-{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","byte_start":17,"byte_end":21,"line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
+{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"error","spans":[{"file":"example.mo","byte_start":17,"byte_end":21,"line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
 {"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","byte_start":58,"byte_end":65,"line_start":5,"column_start":15,"line_end":5,"column_end":22,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
 ```

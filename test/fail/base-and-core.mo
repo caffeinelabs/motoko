@@ -3,6 +3,6 @@
 import A "mo:base/Array";
 import B "mo:core/Array";
 
-persistent actor {
+actor {
 
 };

@@ -42,8 +42,10 @@ end
 module Uint32 =
 struct
   type t = int32
-  let of_string str = Int32.of_string ("0u" ^ str)
-  let of_string_opt str = Int32.of_string_opt ("0u" ^ str)
+  (* Int32 reads 0x literals as unsigned, decimal ones only with a 0u prefix *)
+  let of_string_opt str =
+    Int32.of_string_opt
+      (if String.starts_with ~prefix:"0x" str then str else "0u" ^ str)
   let to_string n = Printf.sprintf "%lu" n
   let add = Int32.add
   let sub = Int32.sub

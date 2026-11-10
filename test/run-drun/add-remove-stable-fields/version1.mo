@@ -1,8 +1,8 @@
 import Prim "mo:prim";
 
 actor {
-    stable var firstValue = 0;
-    stable var secondValue = 0;
+    var firstValue = 0;
+    var secondValue = 0;
 
     public func increase() : async () {
         firstValue += 1;

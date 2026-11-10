@@ -8,7 +8,7 @@ actor {
 
   private type Bound<A <: {}> = {};
 
-  stable var v : [
+  var v : [
     actor {
       type T = Int;
       type U<A> = (A, A);

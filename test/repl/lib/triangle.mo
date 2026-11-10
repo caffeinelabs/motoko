@@ -1,1 +1,2 @@
-import _ = "a"
+import _ = "a";
+module {};

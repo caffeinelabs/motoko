@@ -7,7 +7,7 @@ import Prim = "mo:⛔";
    { f : Int} =
    { f = f }
 )
-persistent actor {
+actor {
   var f : Int = Prim.trap("impossible");
   Prim.debugPrint("version2");
 }

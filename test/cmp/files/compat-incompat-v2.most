@@ -1,0 +1,5 @@
+// Incompatible: x changed from Nat to Text (different prims), y from [Nat] to [Text]
+actor {
+  stable var x : Text;
+  stable var y : [Text];
+};

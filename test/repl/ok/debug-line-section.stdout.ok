@@ -1,0 +1,4 @@
+--- with -g ---
+.debug_line_str
+.debug_line
+--- without -g ---

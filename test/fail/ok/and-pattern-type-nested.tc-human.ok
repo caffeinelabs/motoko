@@ -1,0 +1,16 @@
+error[M0260]: type identifier `T` bound in both branches of and-pattern
+    ┌─ and-pattern-type-nested.mo:3:39
+  3 │  do { let { type T } and (x and { type T }) : module { type T = Nat } = module { public type T = Nat } };
+    │                                        ^ 
+error[M0260]: type identifier `T` bound in both branches of and-pattern
+    ┌─ and-pattern-type-nested.mo:4:33
+  4 │  do { let { type T } and ({ type T } : module { type T = Nat }) = module { public type T = Nat } };
+    │                                  ^ 
+error[M0260]: type identifier `T` bound in both branches of and-pattern
+    ┌─ and-pattern-type-nested.mo:5:39
+  5 │  do { let ({ type T }, ()) and ({ type T }, ()) : (module { type T = Nat }, ()) = (module { public type T = Nat }, ()) };
+    │                                        ^ 
+error[M0260]: type identifier `T` bound in both branches of and-pattern
+    ┌─ and-pattern-type-nested.mo:6:54
+  6 │  do { let { inner = { type T } } and { inner = { type T } } = { inner = module { public type T = Nat } } };
+    │                                                       ^ 

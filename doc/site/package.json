@@ -8,11 +8,11 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.38.1",
+    "@astrojs/starlight": "^0.41.3",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
-    "astro": "^6.4.8",
+    "astro": "^7.1.3",
     "unist-util-visit": "^5.0.0"
   }
 }

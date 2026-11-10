@@ -1,0 +1,1 @@
+syntax-record-in-block.mo:3.3-3.8: syntax error [M0272], `x = e` is a record field, but this position holds declarations, not a record literal; to declare a variable or field, use `let` (or `var`); to assign, use `:=`; to produce a record from a block, nest it as the block's result: `{ { x = 0 } }`

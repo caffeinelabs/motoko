@@ -72,7 +72,7 @@ let un_prog prog =
   in
   match body.it with
   | ProgU _ -> Ok ([], []) (* treat all fields as private *)
-  | MixinU (_, decs) ->
+  | MixinU (_, _, decs) ->
       Ok ([], decs) (* TODO figure out how to document mixin parameters *)
   | ModuleU (_, decs) -> Ok (imports, decs)
   | ActorU (_, _, _, decs) -> Ok (imports, decs)
@@ -280,11 +280,8 @@ end
 
 let extract_docs : Syntax.prog -> (extracted, string) result =
  fun prog ->
-  let lookup_trivia (line, column) =
-    PosTable.find_opt prog.note.Syntax.trivia Trivia.{ line; column }
-  in
   let find_trivia (parser_pos : region) : Trivia.trivia_info =
-    lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
+    PosTable.find_opt prog.note.Syntax.trivia parser_pos.left |> Option.get
   in
   let module_docs = find_trivia prog.at in
   (* Skip the module header *)

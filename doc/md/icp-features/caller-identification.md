@@ -24,7 +24,7 @@ In this example, the shared function `inc()` specifies a `msg` parameter, a reco
 To access the caller of an actor class constructor, you use the same syntax on the actor class declaration:
 
 ```motoko no-repl
-shared(msg) persistent actor class Counter(init : Nat) {
+shared(msg) actor class Counter(init : Nat) {
   // ... msg.caller ...
 }
 ```

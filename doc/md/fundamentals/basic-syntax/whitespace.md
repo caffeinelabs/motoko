@@ -10,13 +10,13 @@ Whitespace characters (spaces, tabs, newlines) are generally ignored in Motoko, 
 ### Incorrect use of whitespace
 
 ```motoko no-repl
-persistent actor Counter{var x : Nat = 0; public func inc(): async Int{x+1; }};
+actor Counter{var x : Nat = 0; public func inc(): async Int{x+1; }};
 ```
 
 ### Proper whitespace usage
 
 ```motoko no-repl
-persistent actor Counter {
+actor Counter {
   var x : Nat = 0;
   public func inc() : async Int {
     x + 1;

@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID blob-dedup-upgrade/v1.mo ""
 ingress $ID test2 "DIDL\x00\x00"
 upgrade $ID blob-dedup-upgrade/v2.mo ""

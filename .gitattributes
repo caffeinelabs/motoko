@@ -1,2 +1,5 @@
 # .gitattributes file which reclassifies `.mo` files as Swift:
 *.mo linguist-language=Swift
+
+# Keep the CRLF/CR bytes that the line-ending regression tests exercise.
+test/fail/crlf-*.mo -text whitespace=cr-at-eol

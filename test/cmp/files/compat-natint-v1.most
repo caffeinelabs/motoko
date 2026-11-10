@@ -1,0 +1,6 @@
+// Exercise compatible_typ: Nat/Int compatibility (both directions), Non arms
+actor {
+  stable var n : Nat;
+  stable var i : Int;
+  stable var nn : Nat;
+};

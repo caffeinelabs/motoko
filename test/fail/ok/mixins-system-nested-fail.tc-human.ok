@@ -1,0 +1,5 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ mixins/NestedSystem2.mo:4:11
+  4 │    include SystemMixin<system>();
+    │            ^^^^^^^^^^^ 

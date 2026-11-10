@@ -14,12 +14,12 @@ error[M0187]: send capability required, but not available
  35 │       o(); // reject oneway call
     │       ^^^ 
 error[M0187]: send capability required, but not available
-  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+  (cannot call a local `async` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)
     ┌─ composite-query-fail.mo:39:13
  39 │       ignore f(); // reject local async call
     │              ^^^ 
 error[M0187]: send capability required, but not available
-  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+  (cannot call a local `async*` function from a `composite query` function, since such functions may call any `shared` function; only calls to `query` and `composite query` functions are allowed)
     ┌─ composite-query-fail.mo:43:13
  43 │       ignore s(); // reject local async* call
     │              ^^^ 
@@ -31,7 +31,7 @@ error[M0037]: misplaced async expression; a composite query cannot contain an as
     ┌─ composite-query-fail.mo:52:13
  52 │       ignore async* {};
     │              ^^^^^^^^^ 
-warning[M0222]: ignored argument of `async*` type has no effect
+error[M0222]: ignored argument of `async*` type has no effect
     ┌─ composite-query-fail.mo:52:6
  52 │       ignore async* {};
     │       ^^^^^^^^^^^^^^^^ 
@@ -55,3 +55,13 @@ error[M0188]: send capability required, but not available
     ┌─ composite-query-fail.mo:68:14
  68 │        ignore cq(); // reject
     │               ^^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a local `async` function from a `query` function, since such functions may call `shared` functions)
+    ┌─ composite-query-fail.mo:72:14
+ 72 │        ignore f(); // reject local async call
+    │               ^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a local `async*` function from a `query` function, since such functions may call `shared` functions)
+    ┌─ composite-query-fail.mo:76:14
+ 76 │        ignore s(); // reject local async* call
+    │               ^^^ 

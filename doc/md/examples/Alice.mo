@@ -1,7 +1,7 @@
 import Cycles = "mo:core/Cycles";
 import Lib = "PiggyBank";
 
-persistent actor Alice {
+actor Alice {
 
   public func test() : async () {
 

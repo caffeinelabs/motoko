@@ -1,10 +1,3 @@
-use motoko_rts_macros::{
-    classical_persistence, enhanced_orthogonal_persistence, incremental_gc, non_incremental_gc,
-};
-
-#[classical_persistence]
-mod classical;
-#[enhanced_orthogonal_persistence]
 mod enhanced;
 
 use super::utils::{GC, ObjectIdx};
@@ -35,10 +28,6 @@ impl Memory for MotokoHeap {
 impl MotokoHeap {
     /// Create a new Motoko heap from the given object graph and roots. `GC` argument is used to
     /// allocate as little space as possible for the dynamic heap.
-    ///
-    /// Note that for `GC::MarkCompact` we limit the upper bound on mark stack size as
-    /// `super::MAX_MARK_STACK_SIZE`. In the worst case the size would be the same as the heap
-    /// size, but that's not a realistic scenario.
     pub fn new(
         map: &[(ObjectIdx, Vec<ObjectIdx>)],
         roots: &[ObjectIdx],
@@ -73,25 +62,6 @@ impl MotokoHeap {
         self.inner.borrow().heap_ptr_address()
     }
 
-    /// Update the heap pointer given as an address in the current process.
-    #[non_incremental_gc]
-    pub fn set_heap_ptr_address(&self, address: usize) {
-        self.inner.borrow_mut().set_heap_ptr_address(address)
-    }
-
-    /// Get the last heap pointer, as address in the current process. The address can be used to mutate
-    /// the heap.
-    #[non_incremental_gc]
-    pub fn last_ptr_address(&self) -> usize {
-        self.inner.borrow().last_ptr_address()
-    }
-
-    /// Update the last heap pointer given as an address in the current process.
-    #[non_incremental_gc]
-    pub fn set_last_ptr_address(&self, address: usize) {
-        self.inner.borrow_mut().set_last_ptr_address(address)
-    }
-
     /// Get the beginning of dynamic heap, as an address in the current process
     pub fn heap_base_address(&self) -> usize {
         self.inner.borrow().heap_base_address()
@@ -123,7 +93,6 @@ impl MotokoHeap {
     }
 
     /// Get the address of the variable pointing to region0
-    #[incremental_gc]
     pub fn region0_pointer_variable_address(&self) -> usize {
         self.inner.borrow().region0_pointer_address()
     }
@@ -154,9 +123,6 @@ struct MotokoHeapInner {
 
     /// Where the dynamic heap starts
     heap_base_offset: usize,
-
-    /// Last dynamic heap end, used for generational gc testing
-    _heap_ptr_last: usize,
 
     /// Where the dynamic heap ends, i.e. the heap pointer
     heap_ptr_offset: usize,
@@ -203,18 +169,6 @@ impl MotokoHeapInner {
         self.heap_ptr_offset = self.address_to_offset(address);
     }
 
-    /// Get last heap pointer (i.e. where the dynamic heap ends last GC run) in the process's address space
-    #[non_incremental_gc]
-    fn last_ptr_address(&self) -> usize {
-        self.offset_to_address(self._heap_ptr_last)
-    }
-
-    /// Set last heap pointer
-    #[non_incremental_gc]
-    fn set_last_ptr_address(&mut self, address: usize) {
-        self._heap_ptr_last = self.address_to_offset(address);
-    }
-
     /// Get the address of the variable pointing to the static root array.
     fn static_root_array_variable_address(&self) -> usize {
         self.offset_to_address(self.static_root_array_variable_offset)
@@ -226,23 +180,10 @@ impl MotokoHeapInner {
     }
 
     /// Get the address of the region0 pointer
-    #[incremental_gc]
     fn region0_pointer_address(&self) -> usize {
         self.offset_to_address(self.region0_pointer_variable_offset)
     }
 
-    #[classical_persistence]
-    pub fn new(
-        map: &[(ObjectIdx, Vec<ObjectIdx>)],
-        roots: &[ObjectIdx],
-        continuation_table: &[ObjectIdx],
-        gc: GC,
-        _free_space: usize,
-    ) -> MotokoHeapInner {
-        self::classical::new_heap(map, roots, continuation_table, gc)
-    }
-
-    #[enhanced_orthogonal_persistence]
     pub fn new(
         map: &[(ObjectIdx, Vec<ObjectIdx>)],
         roots: &[ObjectIdx],
@@ -253,12 +194,6 @@ impl MotokoHeapInner {
         self::enhanced::new_heap(map, roots, continuation_table, free_space)
     }
 
-    #[non_incremental_gc]
-    unsafe fn alloc_words(&mut self, n: Words<usize>) -> Value {
-        self.linear_alloc_words(n)
-    }
-
-    #[incremental_gc]
     unsafe fn alloc_words(&mut self, n: Words<usize>) -> Value {
         let mut dummy_memory = DummyMemory {};
         let result =
@@ -291,10 +226,8 @@ impl MotokoHeapInner {
     }
 }
 
-#[incremental_gc]
 struct DummyMemory {}
 
-#[incremental_gc]
 impl Memory for DummyMemory {
     unsafe fn alloc_words(&mut self, _n: Words<usize>) -> Value {
         unreachable!()
@@ -304,44 +237,6 @@ impl Memory for DummyMemory {
 }
 
 /// Compute the size of the heap to be allocated for the GC test.
-#[non_incremental_gc]
-fn heap_size_for_gc(gc: GC, total_heap_size_bytes: usize, n_objects: usize) -> usize {
-    use super::utils::WORD_SIZE;
-    match gc {
-        GC::Copying => 2 * total_heap_size_bytes,
-        GC::MarkCompact => {
-            let bitmap_size_bytes = {
-                let heap_bytes = Bytes(total_heap_size_bytes);
-                // `...to_words().to_bytes()` below effectively rounds up heap size to word size
-                // then gets the bytes
-                let heap_words = heap_bytes.to_words();
-                let mark_bit_bytes = heap_words.to_bytes();
-
-                // The bitmap implementation rounds up to 64-bits to be able to read as many
-                // bits as possible in one instruction and potentially skip 64 words in the
-                // heap with single 64-bit comparison
-                (((mark_bit_bytes.as_usize() + 7) / 8) * 8)
-                    + size_of::<Blob>().to_bytes().as_usize()
-            };
-            // In the worst case the entire heap will be pushed to the mark stack, but in tests
-            // we limit the size
-            let mark_stack_words = n_objects.clamp(
-                motoko_rts::gc::mark_compact::mark_stack::INIT_STACK_SIZE.as_usize(),
-                super::utils::MAX_MARK_STACK_SIZE,
-            ) + size_of::<Blob>().as_usize();
-
-            total_heap_size_bytes + bitmap_size_bytes as usize + (mark_stack_words * WORD_SIZE)
-        }
-        GC::Generational => {
-            const ROUNDS: usize = 3;
-            const REMEMBERED_SET_MAXIMUM_SIZE: usize = 1024 * 1024 * WORD_SIZE;
-            let size = heap_size_for_gc(GC::MarkCompact, total_heap_size_bytes, n_objects);
-            size + ROUNDS * REMEMBERED_SET_MAXIMUM_SIZE
-        }
-    }
-}
-
-#[incremental_gc]
 fn heap_size_for_gc(gc: GC, total_heap_size_bytes: usize, _n_objects: usize) -> usize {
     match gc {
         GC::Incremental => {

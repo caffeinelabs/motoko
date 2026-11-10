@@ -1,4 +1,4 @@
-refuted-const-float.mo:2.5-2.9: warning [M0145], this pattern of type
+refuted-const-float.mo:3.5-3.9: warning [M0145], this pattern of type
   Float
 does not cover value
   _

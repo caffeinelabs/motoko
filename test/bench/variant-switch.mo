@@ -11,7 +11,7 @@ import {
   Array_tabulate;
 } = "mo:⛔";
 
-persistent actor Core {
+actor Core {
 
   type Expr = {
     #Var    : Text;
@@ -41,19 +41,19 @@ persistent actor Core {
 
   func sumTriples(ts : [(Text, Expr, Expr)]) : Nat {
     var n = 0;
-    for ((_, r, b) in ts.vals()) n += size r + size b;
+    for ((_, r, b) in ts.values()) n += size r + size b;
     n
   };
 
   func sumAlts(alts : [(Text, Expr)]) : Nat {
     var n = 0;
-    for ((_, e) in alts.vals()) n += size e;
+    for ((_, e) in alts.values()) n += size e;
     n
   };
 
   func sumArgs(args : [Expr]) : Nat {
     var n = 0;
-    for (e in args.vals()) n += size e;
+    for (e in args.values()) n += size e;
     n
   };
 
@@ -120,6 +120,30 @@ persistent actor Core {
       case (#Sat or #Sun) true;
     };
 
+  // 7-way distinct-outcome dispatch (richer than the 2-way isWeekend Bool).
+  // Bodies include two natural same-body groups: {Tue, Thu} → 'T' and
+  // {Sat, Sun} → 'S'. Useful to compare flat-arm vs or-pattern compilation
+  // when the payload is varied rather than collapsed to a Bool.
+  func startLetter(d : Weekday) : Char =
+    switch d {
+      case #Mon { 'M' }
+      case #Tue { 'T' }
+      case #Wed { 'W' }
+      case #Thu { 'T' }
+      case #Fri { 'F' }
+      case #Sat { 'S' }
+      case #Sun { 'S' }
+    };
+
+  func startLetterOr(d : Weekday) : Char =
+    switch d {
+      case #Mon { 'M' }
+      case #Tue or #Thu { 'T' }
+      case #Wed { 'W' }
+      case #Fri { 'F' }
+      case #Sat or #Sun { 'S' }
+    };
+
   transient let week : [Weekday] =
     [#Mon, #Tue, #Wed, #Thu, #Fri, #Sat, #Sun];
 
@@ -184,7 +208,7 @@ persistent actor Core {
     case (#Case (s, alts)) {
       switch (eval(s, env)) {
         case (#VCon (tag, _)) {
-          for ((altTag, altBody) in alts.vals()) {
+          for ((altTag, altBody) in alts.values()) {
             if (tag == altTag) return eval(altBody, env);
           };
           assert false; #VInt 0
@@ -228,7 +252,7 @@ persistent actor Core {
     case_  = func(scr, alts) = func(env) {
       switch (scr env) {
         case (#VCon (tag, _)) {
-          for ((altTag, altBody) in alts.vals()) {
+          for ((altTag, altBody) in alts.values()) {
             if (tag == altTag) return altBody env;
           };
           assert false; #VInt 0
@@ -315,21 +339,37 @@ persistent actor Core {
     var acc1 = 0;
     var i = 0;
     while (i < 10_000) {
-      for (d in week.vals()) { if (isWeekend d) acc1 += 1 };
+      for (d in week.values()) { if (isWeekend d) acc1 += 1 };
       i += 1;
     };
     let (_m1, n1) = counters();
     var acc2 = 0;
     var j = 0;
     while (j < 10_000) {
-      for (d in week.vals()) { if (isWeekendOr d) acc2 += 1 };
+      for (d in week.values()) { if (isWeekendOr d) acc2 += 1 };
       j += 1;
     };
     let (_m2, n2) = counters();
+    var last3 : Char = 'X';
+    var k = 0;
+    while k < 10_000 {
+      for d in week.values() { last3 := startLetter(d) };
+      k += 1
+    };
+    let (_m3, n3) = counters();
+    var last4 : Char = 'X';
+    var l = 0;
+    while l < 10_000 {
+      for d in week.values() { last4 := startLetterOr(d) };
+      l += 1
+    };
+    let (_m4, n4) = counters();
     debugPrint(debug_show {
-      acc1; acc2;
-      instr_isWeekend   = n1 - n0;
-      instr_isWeekendOr = n2 - n1;
+      acc1; acc2; last3; last4;
+      instr_isWeekend      = n1 - n0;
+      instr_isWeekendOr    = n2 - n1;
+      instr_startLetter    = n3 - n2;
+      instr_startLetterOr  = n4 - n3;
     });
   };
 };

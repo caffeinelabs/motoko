@@ -32,11 +32,3 @@
  ; this executable) grows effects of its own.
  (js_of_ocaml (flags (:standard \ --effects=cps) --effects=disabled))
 )
-
-(executable
- (name didc_js)
- (modes js)
- (modules didc_js)
- (libraries lib idllib lang_utils)
- (preprocess (pps js_of_ocaml-ppx))
-)

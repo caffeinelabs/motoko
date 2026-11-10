@@ -1,0 +1,4 @@
+error[M0275]: unexpected token '2', expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is an unparenthesized compound expression (a call, index, projection, or operator application); parenthesize it to keep bare branches — an unspaced `(`/`[` after a bare identifier continues the condition (`if c[i] ...` indexes `c`), a spaced one starts the branch (`if c [i] ...`)
+    ┌─ syntax-else-chain-legacy.mo:4:38
+  4 │  let y = if f(1) { 1 } else if (true) 2 else 3;
+    │                                       ^ 

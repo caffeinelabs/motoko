@@ -1,3 +1,4 @@
+//MOC-FLAG -W=M0145
 import Class "composite-query/Class";
 
 import Prim "mo:prim";

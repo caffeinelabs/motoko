@@ -23,10 +23,10 @@ shared ({ caller = creator }) actor class DAO() = Self {
       proposal_submission_deposit = nominal;
     };
   };
-  stable var accounts = Types.accounts_fromArray(init.accounts);
-  stable var proposals = Types.proposals_fromArray(init.proposals);
-  stable var next_proposal_id : Nat = 0;
-  stable var system_params : Types.SystemParams = init.system_params;
+  var accounts = Types.accounts_fromArray(init.accounts);
+  var proposals = Types.proposals_fromArray(init.proposals);
+  var next_proposal_id : Nat = 0;
+  var system_params : Types.SystemParams = init.system_params;
 
   // Disabled because it leads to non-deterministic performance measurements.
   // system func heartbeat() : async () {

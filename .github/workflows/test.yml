@@ -10,15 +10,24 @@ permissions:
   issues: write
   pull-requests: write
 
+# Abort superseded runs: a new push to a PR cancels the in-progress run for that
+# PR (rapid-fire commits no longer pile up runners). Pushes to master and merge
+# queue runs are never cancelled (each gets a unique group via run_id).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   common-tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # Small/free GitHub runners — the heavy lifting is offloaded to
+        # nixbuild.net by the test-blueprint action.
+        os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -27,45 +36,18 @@ jobs:
           test-target: common-tests
           test-name: ${{ matrix.os }}-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
-  gc-tests:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-24-large
-            max_jobs: auto
-          # arm64-linux-16 OOMs on three parallel ~3 GB RTS-variant builds; serialise.
-          - os: arm64-linux-16
-            max_jobs: 1
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Run GC Tests
-        uses: ./.github/actions/test-blueprint
-        with:
-          os: ${{ matrix.os }}
-          test-target: gc-tests
-          test-name: ${{ matrix.os }}-gc-tests
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          max-jobs: ${{ matrix.max_jobs }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
   tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # Small/free GitHub runners — builds are offloaded to nixbuild.net.
+        os: [ubuntu-latest, ubuntu-26.04-arm]
         build_type: [release, debug]
-        include:
-          - os: ubuntu-24-large
-            max_jobs: auto
-          # arm64-linux-16 OOMs on three parallel ~3 GB derivation builds; serialise.
-          - os: arm64-linux-16
-            max_jobs: 1
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # fetch full history so that git merge-base works
           fetch-depth: 0
@@ -79,13 +61,17 @@ jobs:
           test-target: ${{ matrix.build_type }}-systems-go
           test-name: ${{ matrix.os }}-${{ matrix.build_type }}-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          max-jobs: ${{ matrix.max_jobs }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
+          # Ignored on the nixbuild.net path (builds run remotely). Only applies
+          # to the local fallback (fork PRs / no token): serialise the ~3 GB
+          # derivation builds so they don't OOM the small standard runners.
+          max-jobs: 1
 
       # Secrets/vars are not exposed to fork PRs, so this step (and the perf
       # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
         if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
@@ -106,12 +92,12 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
           name: ic-hs-test
       - name: nix-build
@@ -121,30 +107,31 @@ jobs:
       # https://github.com/actions/upload-artifact/issues/92
       - run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
       - name: upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: moc-${{ matrix.os }}
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 5
 
+  # Job id is pinned by the `master` branch ruleset (required status check);
+  # rename it together with the ruleset.
   verify-common-gc:
-    needs: [common-tests, gc-tests]
+    needs: common-tests
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
     steps:
       - name: Show dependency results
         run: |
           echo common-tests: ${{ needs.common-tests.result }}
-          echo gc-tests: ${{ needs.gc-tests.result }}
       - name: Fail if any dependency did not succeed
         run: |
-          if ${{ needs.common-tests.result != 'success' || needs.gc-tests.result != 'success' }}; then
+          if ${{ needs.common-tests.result != 'success' }}; then
             echo "One or more dependencies failed/skipped/cancelled."
             exit 1
           fi
-      - name: Common and GC tests passed
+      - name: Common tests passed
         if: ${{ success() }}
-        run: echo "Common and GC tests completed successfully."
+        run: echo "Common tests completed successfully."
 
   verify-main-tests:
     needs: tests
@@ -169,7 +156,7 @@ jobs:
     needs: [verify-common-gc, verify-main-tests]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: "master"
       - name: Automatically closing successful trials
@@ -183,11 +170,11 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && github.event.pull_request.changed_files == 1
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token-for-approvals
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}

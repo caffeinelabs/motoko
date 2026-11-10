@@ -73,6 +73,12 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_LTOP -> LTOP
       | T_LT -> LT
       | T_LPAR -> LPAR
+      | T_TIGHT_LPAR -> TIGHT_LPAR
+      | T_TIGHT_HASH -> TIGHT_HASH
+      | T_TIGHT_ADDOP -> TIGHT_ADDOP
+      | T_TIGHT_SUBOP -> TIGHT_SUBOP
+      | T_TIGHT_XOROP -> TIGHT_XOROP
+      | T_TIGHT_LBRACKET -> TIGHT_LBRACKET
       | T_LOOP -> LOOP
       | T_LET -> LET
       | T_LEOP -> LEOP
@@ -91,7 +97,6 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_GEOP -> GEOP
       | T_FUNC -> FUNC
       | T_FOR -> FOR
-      | T_FLEXIBLE -> FLEXIBLE
       | T_FLOAT -> FLOAT "<float>"
       | T_EQOP -> EQOP
       | T_EQ -> EQ
@@ -103,6 +108,8 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_DIVOP -> DIVOP
       | T_DIVASSIGN -> DIVASSIGN
       | T_DISALLOWED -> DISALLOWED
+      | T_DISALLOWED_CONT -> DISALLOWED_CONT
+      | T_DISALLOWED_BIN -> DISALLOWED_BIN
       | T_DEBUG_SHOW -> DEBUG_SHOW
       | T_TO_CANDID -> TO_CANDID
       | T_FROM_CANDID -> FROM_CANDID

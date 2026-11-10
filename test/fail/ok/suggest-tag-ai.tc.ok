@@ -1,0 +1,3 @@
+suggest-tag-ai.mo:4.11-4.20: type error [M0116], variant pattern cannot consume expected type
+expected `{#active; #suspended}`, got `{#suspnded : _}`
+The tag #suspnded is not available. Try something else?

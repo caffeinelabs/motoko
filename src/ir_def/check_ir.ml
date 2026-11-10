@@ -261,8 +261,7 @@ let rec check_typ env typ : unit =
     check_typ env typ1;
     check_typ env typ2;
     check env no_region env.flavor.Ir.has_async_typ "async in non-async flavor";
-    let t' = T.promote typ2 in
-    check_shared env no_region t'
+    if s = T.Fut then check_shared env no_region (T.promote typ2)
   | T.Obj (sort, fields, typ_fields) ->
     List.iter
       (fun _ -> check env no_region env.flavor.Ir.has_typ_field "typ field in non-typ_field flavor")
@@ -607,13 +606,13 @@ let rec check_exp env (exp:Ir.exp) : unit =
         with _ -> error env exp.at "CPSAwait expect async arg, found %s" (T.string_of_typ (typ a))
       in
       (match cont_typ with
-       | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
+       | T.Func(T.Local, T.Returns, [], [t2], ts2) ->
          begin
            (match ts2 with
             | [] -> ()
             | _ -> error env exp.at "CPSAwait answer type error");
            typ krb <: T.(Tup Construct.[cont_typ; err_contT (seq ts2); bail_contT]);
-           t1 <: T.seq ts1;
+           t1 <: t2;
            T.seq ts2 <: t;
          end;
        | _ -> error env exp.at "CPSAwait bad cont");
@@ -622,12 +621,12 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | CPSAsync (s, t0), [exp] ->
       (match typ exp with
        | T.Func (T.Local, T.Returns, [tb],
-                 T.[Func (Local, Returns, [], ts1, []);
+                 T.[Func (Local, Returns, [], [t1], []);
                     Func (Local, Returns, [], [t_error], []);
                     Func (Local, Returns, [], [], [])],
                  []) ->
           T.catch <: t_error;
-          T.Async(s, t0, T.open_ [t0] (T.seq ts1)) <: t
+          T.Async(s, t0, T.open_ [t0] t1) <: t
        | _ -> error env exp.at "CPSAsync unexpected typ");
       check (not (env.flavor.has_await)) "CPSAsync await flavor";
       check (env.flavor.has_async_typ) "CPSAsync in post-async flavor";
@@ -744,9 +743,6 @@ let rec check_exp env (exp:Ir.exp) : unit =
       T.Opt T.blob <: t
     | ICPerformGC, [] ->
       T.unit <: t
-    | ICStableSize t1, [e1] ->
-      typ e1 <: t1;
-      T.nat64 <: t
     | OtherPrim _, _ -> ()
     | p, args ->
       error env exp.at "PrimE %s does not work with %d arguments"
@@ -942,7 +938,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check e1.note.Note.const "constant TagPrim with non-constant subexpression"
     | BlockE (ds, e) ->
       List.iter (fun d -> match d.it with
-        | VarD _ | RefD _ -> check false "VarD/RefD in constant BlockE"
+        | VarD _ -> check false "VarD in constant BlockE"
         | LetD (p, e1) ->
           check (Ir_utils.is_irrefutable p) "refutable pattern in constant BlockE";
           check e1.note.Note.const "non-constant RHS in constant BlockE"
@@ -1183,9 +1179,6 @@ and check_dec env dec  =
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t
-  | RefD (id, t, lexp) ->
-    check_lexp env lexp;
-    lexp.note <: t
 
 and check_decs env decs  =
   List.iter (check_dec env) decs;
@@ -1203,13 +1196,6 @@ and gather_dec env scope dec : scope =
       (not (T.Env.mem id scope.val_env))
       "duplicate variable definition in block";
     let val_info = {typ = T.Mut t; const = false; loc_known = env.lvl = TopLvl} in
-    { val_env = T.Env.add id val_info scope.val_env }
-  | RefD (id, t, lexp) ->
-    check_mut_typ env t;
-    check env dec.at
-      (not (T.Env.mem id scope.val_env))
-      "duplicate variable definition in block";
-    let val_info = {typ = t; const = false; loc_known = false} in
     { val_env = T.Env.add id val_info scope.val_env }
 
 and to_async_sort = Type.(function | AwaitCmp -> Cmp | AwaitFut _ -> Fut)

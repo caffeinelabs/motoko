@@ -86,7 +86,6 @@ The following modules have been **removed** in the core package:
 
 - `AssocList` - Use `Map` or `pure/Map` instead
 - `Buffer` - Use `List` or `VarArray` instead
-- `ExperimentalStableMemory` - Deprecated
 - `Hash` - Vulnerable to hash collision attacks
 - `HashMap` - Use `Map` or `pure/Map`
 - `Heap` - Use `Map` or `Set` instead
@@ -216,12 +215,12 @@ import Debug "mo:base/Debug";
 
 persistent actor {
   // Iterate through -3, -2, -1, 0, 1, 2 (exclusive upper bound)
-  for (number in Int.range(-3, 3)) {
+  for number in Int.range(-3, 3) {
     Debug.print(debug_show number);
   };
 
   // Iterate through -3, -2, -1, 0, 1, 2, 3
-  for (number in Int.rangeInclusive(-3, 3)) {
+  for number in Int.rangeInclusive(-3, 3) {
     Debug.print(debug_show number);
   };
 }
@@ -481,12 +480,12 @@ persistent actor{
   };
 
   public func take() : async ?Item {
-    switch (Deque.popFront(deque)) {
-      case (?(item, newDeque)) {
+    switch Deque.popFront(deque) {
+      case ?(item, newDeque) {
         deque := newDeque;
         ?item;
-      };
-      case null { null };
+      }
+      case null { null }
     };
   };
 };
@@ -508,14 +507,14 @@ import Queue "mo:core/Queue";
   } {
     let queue = Queue.empty<App.Item>();
     label l loop {
-      switch (Deque.popFront(state.deque)) {
-        case (?(item, deque)) {
+      switch Deque.popFront(state.deque) {
+        case ?(item, deque) {
           Queue.pushBack(queue, item);
           state.deque := deque;
-        };
+        }
         case null {
           break l;
-        };
+        }
       };
     };
     { queue };
@@ -546,7 +545,7 @@ import Iter "mo:base/Iter";
 
 persistent actor{
   stable var mapEntries : [(Text, Nat)] = [];
-  let map = HashMap.fromIter<Text, Nat>(mapEntries.vals(), 10, Text.equal, Text.hash);
+  let map = HashMap.fromIter<Text, Nat>(mapEntries.values(), 10, Text.equal, Text.hash);
 
   system func preupgrade() {
     mapEntries := Iter.toArray(map.entries());
@@ -585,7 +584,7 @@ import Iter "mo:core/Iter";
   ) : {
     map : Map.Map<Text, Nat>;
   } = {
-    map = Map.fromIter(state.mapEntries.vals(), Text.compare);
+    map = Map.fromIter(state.mapEntries.values(), Text.compare);
   }
 )
 persistent actor{
@@ -699,7 +698,7 @@ persistent actor{
   };
 
   public query func getItems() : async [Item] {
-    Iter.toArray(textSet.vals(set));
+    Iter.toArray(textSet.values(set));
   };
 };
 ```
@@ -722,7 +721,7 @@ import Iter "mo:core/Iter";
   } {
     let compare = Text.compare;
     let textSet = OrderedSet.Make<App.Item>(compare);
-    let set = Set.fromIter(textSet.vals(state.set), compare);
+    let set = Set.fromIter(textSet.values(state.set), compare);
     { set };
   }
 )
@@ -825,7 +824,7 @@ import Iter "mo:base/Iter";
 
 persistent actor{
   stable var mapEntries : [(Text, Nat)] = [];
-  let map = TrieMap.fromEntries<Text, Nat>(mapEntries.vals(), Text.equal, Text.hash);
+  let map = TrieMap.fromEntries<Text, Nat>(mapEntries.values(), Text.equal, Text.hash);
 
   system func preupgrade() {
     mapEntries := Iter.toArray(map.entries());
@@ -929,7 +928,7 @@ import TrieSet "mo:base/TrieSet";
   ) : {
     set : Set.Set<Text>;
   } = {
-    set = Set.fromIter(TrieSet.toArray(state.set).vals(), Text.compare);
+    set = Set.fromIter(TrieSet.toArray(state.set).values(), Text.compare);
   }
 )
 persistent actorApp {

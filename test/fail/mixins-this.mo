@@ -1,6 +1,6 @@
 import CounterMixin "mixins/Counter";
 // checks this has all fields
-persistent actor this {
+actor this {
   include CounterMixin(0);
   public func decrement() : () { };
   do {

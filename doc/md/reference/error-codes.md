@@ -18,7 +18,7 @@ sidebar:
 | M0030 | Type field does not exist in type. | ```type Person = { name : Text }; func getName(p : Person) : Nat { p.age }``` | The field `age` doesn't exist in the `Person` type. |
 | M0031 | Shared function has non-shared parameter type. | ```public shared func process(obj : { var count : Nat }) { ... }``` | Shared functions cannot have mutable types as parameters. |
 | M0032 | Shared function has non-shared return type. | ```public shared func getData() : { var data : [Nat] } { ... }``` | Shared functions cannot return mutable types. |
-| M0033 | Async has non-shared content type. | ```async { var counter = 0 }``` | Async blocks cannot contain mutable [state](../fundamentals/actors/state.md). |
+| M0033 | Async has non-shared content type. | ```async { [var 0] }``` | A future's result must be shared. For a local computation with a non-shared result, use `async*`. |
 | M0036 | Invalid return type for shared query function. | ```public shared query func getUsers() : async [User] { ... }``` | Query functions cannot return async types. |
 | M0038 | Misplaced await. | ```func compute() { let x = await promise; }``` | `await` can only be used in an async function or block. |
 | M0045 | Wrong number of type arguments. | ```func process<T>(x : Array<T, Nat>) { ... }``` | `Array` type expects one type parameter, not two. |
@@ -39,7 +39,7 @@ sidebar:
 | M0097 | Expected function type. | ```let x = 5; x();``` | Cannot call a non-function value. |
 | M0098 | Cannot instantiate function type. | ```type Func = (Nat) -> Nat; let f = Func();``` | Function types cannot be instantiated directly. |
 | M0112 | Tuple pattern cannot consume type. | ```let (x, y) = { a = 1; b = 2 };``` | Cannot destructure an object using tuple pattern. |
-| M0116 | Variant pattern cannot consume type. | ```switch (value) { case (#ok(x)) { ... } };``` (where `value` is not a variant) | Cannot match a non-variant value with variant patterns. |
+| M0116 | Variant pattern cannot consume type. | ```switch (value) { case (#okk(x)) { ... } };``` (where `value` is not a variant, or its type has no `#okk` tag) | A variant pattern's tag must be a tag of the matched type; check for a misspelled tag. |
 | M0126 | Shared function cannot be private. | ```actor { private shared func publicAPI() { ... } }``` | Shared functions must be public in actors. |
 | M0137 | A type or class was declared that explicitly or implicitly references an outer type parameter. | ```class Container<T>() { class Inner() { var value : T = ... } }``` | Inner classes cannot reference type parameters from outer classes. |
 | M0139 | Inner actor classes are not supported. | ```class Outer() { actor class Inner() { ... } }``` | Actor classes cannot be nested inside other classes. |
