@@ -4,6 +4,12 @@
 
 * motoko (`moc`)
 
+  * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
+    value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
+    result too large" when the result would have 2^31 or more bits, instead
+    of returning a wrong value. The interpreter agrees and no longer hangs
+    on large shift amounts (#6423).
+
   * perf: a `switch` on a tuple, such as `switch (a, b)` or
     `switch (f())`, no longer allocates the tuple on the heap when every case
     is a tuple pattern (or a wildcard). Neither does a projection from a
