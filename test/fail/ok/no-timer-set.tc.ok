@@ -250,6 +250,10 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
         Nat;
     ntCreate :
       <K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) -> (Nat64, [Nat]);
+    ntEvolve :
+      <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,
+                  next : NtCodec<(K, R2)>) ->
+        Bool;
     ntExtreme :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              largest : Bool) ->

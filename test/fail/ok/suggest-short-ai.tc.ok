@@ -251,6 +251,10 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
         Nat;
     ntCreate :
       <K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) -> (Nat64, [Nat]);
+    ntEvolve :
+      <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,
+                  next : NtCodec<(K, R2)>) ->
+        Bool;
     ntExtreme :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              largest : Bool) ->

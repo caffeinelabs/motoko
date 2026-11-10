@@ -261,6 +261,12 @@ func ntMaintain<K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) : Boo
   (prim "nt_maintain" : (Nat64, NtCodec<(K, R)>, Nat64) -> Bool)(id, codec, budget)
 };
 
+// Changes the table's row type from the one of `codec` to the one of `next`; true when the row
+// type changed
+func ntEvolve<K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>, next : NtCodec<(K, R2)>) : Bool {
+  (prim "nt_evolve" : (Nat64, NtCodec<(K, R1)>, NtCodec<(K, R2)>) -> Bool)(id, codec, next)
+};
+
 //TODO: just call this `weak`?
 func allocWeakRef<T>(obj : T) : weak T {
   (prim "alloc_weak_ref" : T -> weak T)(obj);
