@@ -307,3 +307,11 @@ while i < texts.size() {
   assert texts[i] == debug_show (i);
   i += 1
 }
+
+// Each chunk has its own function, so `initialize_root_array` does not grow with every static value.
+// CHECK-LABEL: (func $initialize_root_array (type
+// CHECK-NEXT: i64.const
+// CHECK-NEXT: call $initialize_static_variables
+// CHECK-NEXT: call $initialize_root_array_0
+// CHECK-NEXT: call $initialize_root_array_1
+// CHECK-NEXT: call $initialize_root_array_2)
