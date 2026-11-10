@@ -3,7 +3,7 @@
 
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
 use crate::mem::{rd_u16, PageHost, Region};
-use crate::stats::running::LIST_AT;
+use crate::stats::running::{RKind, LIST_AT};
 
 use super::group::align8;
 use super::layout::{LeafInfo, Shape};
@@ -51,6 +51,27 @@ impl RunCursor {
         self.space = self.space.wrapping_add(k.bytes());
         Ok(At::Space(at))
     }
+
+    /// `place` for the leaf of ordinal `ordinal` and running kind `k`. It keeps its own copy of `place`'s body:
+    /// with one body shared, every insert and delete costs a few instructions more.
+    pub fn place_kind(&mut self, hot: &[u8], ordinal: u16, k: Option<RKind>) -> Result<At, Fault> {
+        let Some(k) = k else { return Ok(At::None) };
+        if self.idx < self.r {
+            let o = rd_u16(hot, LIST_AT.wrapping_add(self.idx.wrapping_mul(2)))?;
+            if o == ordinal {
+                let at = self.off;
+                self.off = self.off.wrapping_add(k.bytes());
+                self.idx = self.idx.wrapping_add(1);
+                return Ok(At::Hot(at));
+            }
+            if o < ordinal {
+                return Err(corrupt(ImageId::Runtime, Corruption::Order, u64::from(o)));
+            }
+        }
+        let at = self.space;
+        self.space = self.space.wrapping_add(k.bytes());
+        Ok(At::Space(at))
+    }
 }
 
 /// How a stored row's values change the totals: +1 for an insert, −1 for a delete.
@@ -65,8 +86,9 @@ pub enum Sign {
 pub fn place_of<H: PageHost + ?Sized>(h: &H, shape: &Shape, tail: u64, l: &LeafInfo) -> Result<At, Fault> {
     let mut rc = RunCursor::open(h, tail)?;
     let b = h.get(Region::Block(tail))?;
-    for o in 0..u64::from(l.ordinal) {
-        let _ = rc.place(b, &shape.leaf(h, o)?)?;
+    let p = h.get(Region::Page(shape.page))?;
+    for o in 0..l.ordinal {
+        let _ = rc.place_kind(b, o, shape.running_of(p, u64::from(o))?)?;
     }
     rc.place(b, l)
 }

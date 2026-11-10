@@ -407,6 +407,18 @@ impl Shape {
         })
     }
 
+    /// The running kind of leaf `o`, read in place from its leaf record in schema page bytes `b`.
+    pub fn running_of(&self, b: &[u8], o: u64) -> Result<Option<RKind>, Fault> {
+        let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
+        let l = Leaf {
+            kind: rd_u8(b, at.wrapping_add(4))?,
+            code: rd_u8(b, at.wrapping_add(5))?,
+            width: rd_u16(b, at.wrapping_add(8))?,
+            ..Leaf::default()
+        };
+        Ok(Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?.running())
+    }
+
     /// Hands the spans of leaves [from, to) (clamped to the leaves) to `f` in ordinal order, each read in place
     /// from its leaf record: a walk over many leaves pays a few loads per leaf, not `leaf`'s whole record.
     pub fn spans<H, F>(&self, h: &H, from: u64, to: u64, mut f: F) -> Result<(), Fault>
