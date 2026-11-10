@@ -347,6 +347,11 @@ struct
     then (List.take n xs, List.drop n xs)
     else (xs, [])
 
+  (* Consecutive chunks of at most [n] elements *)
+  let rec chunks n = function
+    | [] -> []
+    | xs -> let chunk, rest = split_at n xs in chunk :: chunks n rest
+
   let split3 l =
     let rec loop (xs, ys, zs) = function
       | [] -> (List.rev xs, List.rev ys, List.rev zs)

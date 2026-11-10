@@ -759,12 +759,9 @@ module E = struct
 
   (* The pool's allocations paired with their indices, in consecutive chunks of at most [n]. *)
   let chunk_object_pool (env : t) n =
-    let rec chunks = function
-      | [] -> []
-      | xs -> let chunk, rest = Lib.List.split_at n xs in chunk :: chunks rest in
     Table.to_list !(env.object_pool.objects)
     |> List.mapi (fun index (_, allocation) -> (index, allocation))
-    |> chunks
+    |> Lib.List.chunks n
 
   let collect_garbage env force =
     let name = "incremental_gc" in
@@ -4514,11 +4511,48 @@ module Arr = struct
      ([ compile_unboxed_const (Wasm.I64.of_int_u (List.length element_instructions))
       ] @ element_instructions)
 
+  (* An element of an array literal: code computing it, or a constant. *)
+  type element = Code of G.t | Shared of E.shared_value
+
+  (* Most constant elements written by one function, as the IC rejects a function with
+     complexity over 1,000,000 (about 18,500 constant element writes). *)
+  let chunk_size = 128
+
+  (* Compile an array literal. Beyond [chunk_size] elements, the constant elements are written by
+     functions of at most [chunk_size] each, and the others are computed in place, in order. *)
+  let lit_elements env sort elements =
+    if List.length elements <= chunk_size then
+      lit env sort (List.map (function
+        | Code code -> code
+        | Shared value -> Tagged.materialize_shared_value env value) elements)
+    else
+      let length = Wasm.I64.of_int_u (List.length elements) in
+      let field index = Int64.add header_size (Wasm.I64.of_int_u index) in
+      let indexed = List.mapi (fun index element -> (index, element)) elements in
+      let (set_array, get_array) = new_local env "array" in
+      Tagged.alloc env (Int64.add header_size length) Tagged.(Array sort) ^^
+      set_array ^^
+      get_array ^^ compile_unboxed_const length ^^ Heap.store_field len_field ^^
+      (indexed
+      |> List.filter_map (function (index, Shared value) -> Some (index, value) | _ -> None)
+      |> Lib.List.chunks chunk_size
+      |> G.concat_map (fun chunk ->
+        let write_chunk = E.add_fun env "array_elements" (Func.of_body env ["array", I64Type] [] (fun env ->
+          chunk |> G.concat_map (fun (index, value) ->
+            G.i (LocalGet (nr 0l)) ^^
+            Tagged.materialize_shared_value env value ^^
+            Heap.store_field (field index)))) in
+        get_array ^^ G.i (Call (nr write_chunk)))) ^^
+      (indexed
+      |> G.concat_map (function
+        | (index, Code code) -> get_array ^^ code ^^ Heap.store_field (field index)
+        | _ -> G.nop)) ^^
+      get_array ^^
+      Tagged.allocation_barrier env
+
   let constant env sort elements =
     Tagged.shared_object __LINE__ env (fun env ->
-      let materialized_elements = List.map (fun element -> Tagged.materialize_shared_value env element) elements in
-      lit env sort materialized_elements
-    )
+      lit_elements env sort (List.map (fun value -> Shared value) elements))
 
   (* Does not initialize the fields! *)
   (* Note: Post allocation barrier must be applied after initialization *)
@@ -11712,7 +11746,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | ArrayPrim (m, t), es ->
     SR.Vanilla,
-    Arr.lit env Tagged.(if m = Ir.Var then M else I) (List.map (compile_exp_vanilla env ae) es)
+    Arr.lit_elements env Tagged.(if m = Ir.Var then M else I) (List.map (fun e ->
+      match compile_exp_with_hint env ae (Some SR.Vanilla) e with
+      | SR.Const c, _ when e.note.Note.const -> Arr.Shared (StackRep.build_constant env c)
+      | sr, code -> Arr.Code (code ^^ StackRep.adjust env sr SR.Vanilla)) es)
   | IdxPrim, [e1; e2] ->
     SR.Vanilla,
     compile_array_index env ae e1 e2 ^^
