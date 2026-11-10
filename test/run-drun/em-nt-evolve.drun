@@ -1,0 +1,28 @@
+# A migration changes the row type of two native tables twice: the first change drops a field
+# with an index and adds two option fields, the second drops three fields, one of them added by
+# the first, and adds one. Rows stored under each row type read under the next, writes go on,
+# and the indexes left keep working
+install $ID em-nt-evolve/version1.mo ""
+ingress $ID fill "DIDL\x00\x00"
+ingress $ID fill "DIDL\x00\x00"
+ingress $ID fill "DIDL\x00\x00"
+ingress $ID fill "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID em-nt-evolve/version2.mo ""
+ingress $ID check "DIDL\x00\x00"
+ingress $ID write "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+# The table value from before the change traps
+ingress $ID readStale "DIDL\x00\x00"
+# A field that changes its type, a new field that is not an option, and a scalar row that
+# becomes a record are refused, and the canister stays at version 2
+upgrade $ID em-nt-evolve/version-type.mo ""
+upgrade $ID em-nt-evolve/version-nonoption.mo ""
+upgrade $ID em-nt-evolve/version-scalar.mo ""
+ingress $ID check "DIDL\x00\x00"
+# The second change costs the same on both tables to within 500 instructions, whatever else
+# orders holds
+upgrade $ID em-nt-evolve/version3.mo ""
+ingress $ID check "DIDL\x00\x00"
+ingress $ID write "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
