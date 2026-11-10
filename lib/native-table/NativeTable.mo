@@ -87,6 +87,39 @@ module {
     { id; codec = self.codec; indexes = Prim.Array_tabulate<([Text], Nat)>(n, func i = indexes[i]) }
   };
 
+  /// The table under the row type `R2`, for an upgrade's migration function: the same table, with
+  /// the same rows and indexes. `R2` may add fields of an option type, which the rows stored before
+  /// read as null, and may drop fields; an index on a dropped field goes with it, and the other
+  /// indexes stay as they are. It does not rename a field or change a field's type. Traps, changing
+  /// nothing, when a field keeps its name but changes its type, when a new field is not an option,
+  /// or when the old or the new row type is a scalar and the two differ. Its cost does not grow
+  /// with the table: at most one row group of 4,096 rows is packed. The memory of a dropped field,
+  /// and of an index that goes with it, is not given back. Once the row type has changed, use only
+  /// the table this returns: a call on `self` traps.
+  public func evolve<K, R1, R2>(self : NativeTable<K, R1>, codec : (implicit : Prim.NtCodec<(K, R2)>)) : NativeTable<K, R2> {
+    ignore Prim.ntEvolve(self.id, self.codec, codec);
+    let fields = fieldsOf(codec);
+    func kept(index : [Text]) : Bool {
+      for field in index.vals() {
+        var found = false;
+        for (name, _) in fields.vals() {
+          if name == field { found := true }
+        };
+        if not found { return false }
+      };
+      true
+    };
+    let indexes = Prim.Array_init<([Text], Nat)>(self.indexes.size(), ([], 0));
+    var n = 0;
+    for index in self.indexes.vals() {
+      if kept(index.0) {
+        indexes[n] := index;
+        n += 1
+      }
+    };
+    { id = self.id; codec; indexes = Prim.Array_tabulate<([Text], Nat)>(n, func i = indexes[i]) }
+  };
+
   /// The number of rows.
   public func size<K, R>(self : NativeTable<K, R>) : Nat {
     Prim.ntSize(self.id, self.codec)
@@ -202,15 +235,13 @@ module {
     }
   };
 
-  /// The fields of the row and their types, in the order the table keeps them: every field of a
-  /// record row, none when the row is a scalar. Their names are the ones `createIndex`, `sum`,
-  /// `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere` and `sumWhere` take.
-  public func fieldTypes<K, R>(self : NativeTable<K, R>) : [(Text, FieldType)] {
+  /// The fields of the row of `codec` and their types, in the order the table keeps them.
+  func fieldsOf<T>(codec : Prim.NtCodec<T>) : [(Text, FieldType)] {
     // The layout, numbers little-endian: a 20-byte header that ends with the u32 number of
     // columns, then per column, the key first: the option code 0x20 when the column is an option,
     // the type code of its scalar, its u32 label hash, the u16 length of its name and the name,
     // which is empty for the key and for a row that is a scalar
-    let layout = Prim.blobToArray(Prim.ntCodecLayout(self.codec));
+    let layout = Prim.blobToArray(Prim.ntCodecLayout(codec));
     func byte(at : Nat) : Nat = Prim.nat8ToNat(layout[at]);
     let columns = byte(16) + byte(17) * 0x100 + byte(18) * 0x1_0000 + byte(19) * 0x100_0000;
     let fields = Prim.Array_init<(Text, FieldType)>(columns, ("", { scalar = #bool; optional = false }));
@@ -236,6 +267,13 @@ module {
       c += 1
     };
     Prim.Array_tabulate<(Text, FieldType)>(n, func i = fields[i])
+  };
+
+  /// The fields of the row and their types, in the order the table keeps them: every field of a
+  /// record row, none when the row is a scalar. Their names are the ones `createIndex`, `sum`,
+  /// `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere` and `sumWhere` take.
+  public func fieldTypes<K, R>(self : NativeTable<K, R>) : [(Text, FieldType)] {
+    fieldsOf(self.codec)
   };
 
   /// The number of rows whose fields under the index on `index` have the values of `key`, one
