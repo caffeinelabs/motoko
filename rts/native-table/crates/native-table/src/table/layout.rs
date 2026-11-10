@@ -37,6 +37,9 @@ pub enum Ty {
     /// `[u8; N]`.
     Fixed(u16),
     Unit,
+    /// A leaf whose field a schema change dropped: no bytes in a row, no running record. Every row written
+    /// after the drop holds null for it.
+    Dropped,
 }
 
 impl Ty {
@@ -44,6 +47,7 @@ impl Ty {
     pub fn of(l: &Leaf) -> Option<Ty> {
         match l.kind {
             node::UNIT => Some(Ty::Unit),
+            node::DROPPED => Some(Ty::Dropped),
             node::SCALAR => Some(match l.code {
                 ty::BOOL => Ty::Bool,
                 ty::U8 => Ty::U(1),
@@ -81,7 +85,7 @@ impl Ty {
             Ty::F64 => 8,
             Ty::Principal => 30,
             Ty::Fixed(n) => u64::from(n),
-            Ty::Text | Ty::Blob | Ty::Unit => 0,
+            Ty::Text | Ty::Blob | Ty::Unit | Ty::Dropped => 0,
         }
     }
 
@@ -204,7 +208,7 @@ const STORED: usize = 200;
 
 impl Shape {
     /// The shape of the schema image held at the start of page `page`. A leaf a flat table cannot hold (a
-    /// variant, List, Union, Present, Enc or Table leaf), or a dropped leaf, is `Corrupt(Runtime, Leaf)`.
+    /// variant, List, Union, Present, Enc or Table leaf) is `Corrupt(Runtime, Leaf)`.
     pub fn open<H: PageHost + ?Sized>(h: &H, page: u64) -> Result<Shape, Fault> {
         let bytes = h.get(Region::Page(page))?;
         let v = SchemaView::open(bytes)?;
@@ -500,6 +504,7 @@ pub fn key_kind(t: Ty) -> crate::key::KeyKind {
         Ty::U128 => K::U128,
         Ty::I128 => K::I128,
         Ty::Fixed(n) => K::Fixed(n),
-        Ty::Unit => K::Unit,
+        // A dropped leaf is never a key leaf.
+        Ty::Unit | Ty::Dropped => K::Unit,
     }
 }

@@ -460,7 +460,8 @@ pub fn decode_ve<H: PageHost + ?Sized>(h: &H, l: &LeafInfo, d: &[u8], a: At) -> 
     };
     Ok(match l.ty {
         Ty::Unit => SVal::Unit,
-        Ty::Bool => return Err(bad()),
+        // A dropped leaf's patches hold only nulls.
+        Ty::Bool | Ty::Dropped => return Err(bad()),
         Ty::U(w) => SVal::V(Val::U(le(usize::from(w))?)),
         Ty::I(w) => {
             let raw = le(usize::from(w))?;

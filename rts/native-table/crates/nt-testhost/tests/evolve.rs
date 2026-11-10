@@ -1,14 +1,17 @@
 //! A change of a table's row type (`Table::evolve`): every refused image leaves every byte of the table as it
-//! was, an image equal to the stored one changes nothing, an open group whose rows are all deleted is sealed
-//! and the next insert works, an added integer field's total starts at zero beside the others, and its minimum
-//! and maximum over the groups packed before it was added come from their extremes records, without a row read.
+//! was, a dropped field coming back included; an image equal to the stored one changes nothing, an open group
+//! whose rows are all deleted is sealed and the next insert works, an added integer field's total starts at
+//! zero beside the others, and its minimum and maximum over the groups packed before it was added come from
+//! their extremes records, without a row read; after a drop that shrinks the integer fields' totals, rows that
+//! fit a block only under the smaller totals area are stored in place and read back, and the sums hold.
 
+use native_table::consts::BLOCK;
 use native_table::mem::{rd_u32, PageHost, Region};
 use native_table::schema::IndexDecl;
-use native_table::table::buffer::DESC_BIT;
+use native_table::table::buffer::{RowLoc, DESC_BIT, SLOT};
 use native_table::table::extremes::{self, Rec, HAS};
 use native_table::table::totals::Total;
-use native_table::table::{buffer, root, Table};
+use native_table::table::{buffer, root, write, Table, Upsert};
 use native_table::value::ty;
 use native_table::{Fault, Progress, SchemaError, Wake};
 use nt_testhost::rows::{schema_indexed, schema_versioned, t, Sink, Src, VCol, V};
@@ -244,5 +247,111 @@ fn an_added_integer_fields_extremes_come_from_the_records_of_groups_packed_befor
         let mut s = Sink::default();
         assert!(tb.get(&mut scratch(), &mut Src::new(&[(id(0), V::U(10))]), &mut s).unwrap());
         assert_eq!(s.cells, old(10, V::Null).to_vec());
+    }
+}
+
+#[test]
+fn a_dropped_field_coming_back_is_refused_and_changes_no_byte() {
+    // Key Nat, Text, ?Nat; version 2 drops the Text field.
+    let col = |ty: Vec<u8>| VCol { ty, added: 1, dropped: 0, default: None };
+    let v1 = [col(t::scalar(ty::NAT)), col(t::scalar(ty::TEXT)), col(t::opt(t::scalar(ty::NAT)))];
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema_versioned(1, &v1, &[]).0).unwrap();
+    for k in 0..5_000u64 {
+        let row = [(id(0), V::U(k)), (id(1), V::text("old")), (id(2), V::U(k))];
+        tb.upsert(&mut scratch(), &mut Src::new(&row)).unwrap();
+    }
+    let mut v2 = v1.to_vec();
+    v2[1].dropped = 2;
+    tb.evolve(&schema_versioned(2, &v2, &[]).0).unwrap();
+    for k in 5_000..5_100u64 {
+        let row = [(id(0), V::U(k)), (id(1), V::Null), (id(2), V::U(k))];
+        tb.upsert(&mut scratch(), &mut Src::new(&row)).unwrap();
+    }
+
+    // Version 3 declares the dropped field again, as version 1 did.
+    let before = tb.host().memory().to_vec();
+    let pages = tb.host().live_pages();
+    assert_eq!(tb.evolve(&schema_versioned(3, &v1, &[]).0), Err(Fault::Schema(SchemaError::RestoredDropped)));
+    assert!(tb.host().memory() == &before[..] && tb.host().live_pages() == pages, "a byte changed");
+}
+
+#[test]
+fn after_a_drop_shrinks_the_totals_rows_that_fit_only_under_the_smaller_area_are_stored_and_read_back() {
+    for fill in FILLS {
+        // Key Nat, 30 Nat fields, Blob: 31 totals, all in the hot state. Version 2 drops Nat fields 21 to 30.
+        let col = |ty: Vec<u8>| VCol { ty, added: 1, dropped: 0, default: None };
+        let mut v1: Vec<VCol> = (0..31).map(|_| col(t::scalar(ty::NAT))).collect();
+        v1.push(col(t::scalar(ty::BLOB)));
+        let mut v2 = v1.clone();
+        for c in &mut v2[21..31] {
+            c.dropped = 2;
+        }
+        let row = |k: u64, blob: usize, dropped: bool| -> Vec<(u32, V)> {
+            let mut r: Vec<(u32, V)> = (0..31u32)
+                .map(|c| (id(c), if dropped && c >= 21 { V::Null } else { V::U(k + u64::from(c)) }))
+                .collect();
+            r.push((id(31), V::Bytes(vec![(k % 251) as u8; blob])));
+            r
+        };
+        let mut sums = [0i128; 31];
+        let mut add = |k: u64| {
+            for (c, s) in (0u64..).zip(sums.iter_mut()) {
+                *s += i128::from(k + c);
+            }
+        };
+        let mut h = VecHost::new(fill);
+        let (mut tb, _) = Table::create(&mut h, 1, &schema_versioned(1, &v1, &[]).0).unwrap();
+        for k in 0..5_000u64 {
+            tb.upsert(&mut scratch(), &mut Src::new(&row(k, 16, false))).unwrap();
+            add(k);
+        }
+        let old_h = tb.shape().hot_h;
+        tb.evolve(&schema_versioned(2, &v2, &[]).0).unwrap();
+        let new_h = tb.shape().hot_h;
+        assert_eq!((old_h, new_h), (1_248, 912));
+        let opened = open_group(&tb);
+
+        // Images of 3,000 bytes: past an empty block's room under the old first row byte, within it under the
+        // new one. Enough of them to fill the open group's blocks, which seals it.
+        let rows = 5_000..5_300u64;
+        for k in rows.clone() {
+            let r = row(k, 2_557, true);
+            let Upsert::Inserted(rid) = tb.upsert(&mut scratch(), &mut Src::new(&r)).unwrap().0 else {
+                panic!("row {k} replaced one")
+            };
+            add(k);
+            let at = buffer::locate(tb.host(), tb.root(), rid).unwrap().unwrap();
+            let Some(RowLoc::Inline { len, .. }) = buffer::slot_row(tb.host(), at.block, at.slot).unwrap() else {
+                panic!("row {k} is not stored in its block")
+            };
+            let need = write::reserve(len) + SLOT;
+            assert!(len == 3_000 && need > BLOCK - old_h && need <= BLOCK - new_h, "row {k}: {len} bytes");
+        }
+        assert_eq!(tb.maintain(&TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
+        // The group the change opened was filled and packed: its dropped fields hold no cells.
+        assert!(open_group(&tb) > opened);
+
+        for k in rows {
+            let mut s = Sink::default();
+            assert!(tb.get(&mut scratch(), &mut Src::new(&[(id(0), V::U(k))]), &mut s).unwrap());
+            let rid = s.rid.unwrap();
+            let got: Vec<(u32, V)> = s
+                .cells
+                .into_iter()
+                .map(|(l, v)| match v {
+                    V::Arg(mut b) => {
+                        assert_eq!(tb.read_large(rid, l, 0, &mut b).unwrap(), b.len());
+                        (l, V::Bytes(b))
+                    }
+                    v => (l, v),
+                })
+                .collect();
+            assert_eq!(got, row(k, 2_557, true), "row {k}");
+        }
+        let mut buf = [0u8; 64];
+        for (c, s) in (0..21u32).zip(sums) {
+            assert_eq!(tb.sum(id(c), &mut buf).unwrap(), (Total::Small(s), 5_300), "field {c}");
+        }
     }
 }

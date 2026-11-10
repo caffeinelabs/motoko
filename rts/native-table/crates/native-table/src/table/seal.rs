@@ -646,6 +646,8 @@ fn plan_of(l: &LeafInfo, acc: &Acc) -> Plan {
         Ty::Fixed(_) => form::BINARY,
         Ty::U128 | Ty::I128 => form::X16,
         Ty::Unit => form::UNIT,
+        // A dropped leaf keeps its directory entry, with no cells: it reads as null.
+        Ty::Dropped => return Plan { form: form::UNIT, ..Plan::default() },
     };
     let mut pl = Plan { form: f, ..Plan::default() };
     // A null clears the `Seq` test, so a leaf that passes it holds no null.

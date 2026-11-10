@@ -324,7 +324,7 @@ pub fn from_fixed(t: Ty, cell: &[u8]) -> Val<'_> {
             Val::Bytes(cell.get(..n).unwrap_or(&[]))
         }
         Ty::Fixed(n) => Val::Bytes(cell.get(..usize::from(n)).unwrap_or(&[])),
-        Ty::Text | Ty::Blob | Ty::Unit => Val::Unit,
+        Ty::Text | Ty::Blob | Ty::Unit | Ty::Dropped => Val::Unit,
     }
 }
 

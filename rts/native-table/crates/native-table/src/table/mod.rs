@@ -120,7 +120,7 @@ fn check_schema(image: &[u8]) -> Result<(), Fault> {
     }
     for o in 0..v.leaves {
         let l = v.leaf(o)?;
-        if Ty::of(&l).is_none() || l.dropped != 0 {
+        if matches!(Ty::of(&l), None | Some(Ty::Dropped)) || l.dropped != 0 {
             return Err(rt(Corruption::Leaf, u64::from(o)));
         }
     }

@@ -2,7 +2,9 @@
 //! (argument values included, with a count of the bytes the table asked the host to copy), and a `RowSink`
 //! that collects what a read hands out.
 
-use native_table::schema::{flatten, write_schema, Column, ColumnType, IndexDecl, Leaf, LeafSink, SchemaParts};
+use native_table::schema::{
+    flatten, node, write_schema, Column, ColumnType, IndexDecl, Leaf, LeafSink, SchemaParts, LEAF_NULLABLE,
+};
 use native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use native_table::value::ty;
 use native_table::{Fault, PageHost};
@@ -76,7 +78,8 @@ pub fn schema_indexed(cols: &[Vec<u8>], indexes: &[IndexDecl]) -> (Vec<u8>, Vec<
 }
 
 /// A column of a schema version: its type expression, the version that added it, the version that dropped
-/// it (0 for none) and its declared default (its VE).
+/// it (0 for none) and its declared default (its VE). A dropped column is written as a schema change writes
+/// it: the column flagged dropped, each of its leaves of the dropped kind with the nullable flag set.
 #[derive(Clone)]
 pub struct VCol {
     pub ty: Vec<u8>,
@@ -102,8 +105,11 @@ pub fn schema_versioned(version: u32, cols: &[VCol], indexes: &[IndexDecl]) -> (
         let ct =
             ColumnType { pool: &pool, column: i as u32, ty: tpos, version: c.added, first_ordinal: first, key: i == 0 };
         flatten(ct, &mut out).unwrap();
-        for l in out.0.iter_mut().skip(usize::from(first)) {
-            l.dropped = c.dropped;
+        if c.dropped != 0 {
+            for l in out.0.iter_mut().skip(usize::from(first)) {
+                l.kind = node::DROPPED;
+                l.flags |= LEAF_NULLABLE;
+            }
         }
         let (default_off, default_len) = match &c.default {
             Some(d) => {
