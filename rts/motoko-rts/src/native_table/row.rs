@@ -584,14 +584,15 @@ pub unsafe fn cells<'a, M: Memory>(mem: &mut M, layout: &Layout, k: Value, r: Va
 }
 
 /// The cells of the fields of `r`, a value of the row type of `named`, at their positions in
-/// `layout`, null at the key's and the other fields', in a Blob that lives until the next
-/// collection; the leaf of each field of `named`, its position << 16, written at `leaves`. Each
-/// field is found by `merge`, which takes a Nat for an Int, and its cell is made for the table's
-/// type.
+/// `layout`, key cell `k` at the key's, null at the other fields', in a Blob that lives until the
+/// next collection; the leaf of each field of `named`, its position << 16, written at `leaves`.
+/// Each field is found by `merge`, which takes a Nat for an Int, and its cell is made for the
+/// table's type.
 pub unsafe fn update_cells<'a, M: Memory>(
     mem: &mut M,
     layout: &Layout,
     named: &Layout,
+    k: CellIn<'a>,
     r: Value,
     leaves: *mut u32,
 ) -> Cells<'a> {
@@ -601,6 +602,7 @@ pub unsafe fn update_cells<'a, M: Memory>(
     for i in 0..n {
         out.add(i).write(CellIn::Null);
     }
+    out.write(k);
     for (i, (p, e, f)) in merge(layout, named, true).enumerate() {
         let v = match &mut fields {
             Some(fields) => fields.field(f.hash),

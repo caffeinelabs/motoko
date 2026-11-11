@@ -299,8 +299,7 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     let mut table = table_at(&mut host, id);
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
-    let (done, _) = or_trap(table.upsert(&mut scratch, &mut row));
-    matches!(done, Upsert::Inserted(_)) as u64
+    put_row(&mut table, &mut scratch, &mut row)
 }
 
 /// Sets the fields of `fields`, a value of the row type of the codec `named`, in the row key `k`
@@ -318,12 +317,41 @@ pub unsafe fn nt_update<M: Memory>(
     k: Value,
     fields: Value,
 ) -> u64 {
+    set_fields(mem, id, codec, named, k, fields, false)
+}
+
+/// Sets the fields of `fields` in the row key `k` has, as `nt_update` does; when `k` has no row,
+/// inserts one from them, with null in the row's other fields. 1 when `k` is new, else 0.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_upsert<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    named: Value,
+    k: Value,
+    fields: Value,
+) -> u64 {
+    set_fields(mem, id, codec, named, k, fields, true)
+}
+
+/// `nt_update`, and with `insert`, `nt_upsert`. Out of line, as is `put_row`, so that each of the
+/// table's write calls is made in one place, where it is inlined.
+#[inline(never)]
+unsafe fn set_fields<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    named: Value,
+    k: Value,
+    fields: Value,
+    insert: bool,
+) -> u64 {
     let layout = layout_of(codec);
     let named = layout_of(named);
     let n = named.columns() - 1;
     let leaves = scratch::<u32, M>(mem, n);
-    let mut row = update_cells(mem, &layout, &named, fields, leaves);
     let k = [key(mem, &layout, k)];
+    let mut row = update_cells(mem, &layout, &named, k[0], fields, leaves);
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
@@ -338,7 +366,21 @@ pub unsafe fn nt_update<M: Memory>(
     or_trap(table.write_step());
     let leaves = core::slice::from_raw_parts(leaves, n);
     let (rid, _) = or_trap(table.update(&mut scratch, &mut k, leaves, &mut row));
-    rid.is_some() as u64
+    if insert && rid.is_none() {
+        put_row(&mut table, &mut scratch, &mut row);
+    }
+    (rid.is_some() != insert) as u64
+}
+
+/// The table's upsert of `row`; 1 when its key is new.
+#[inline(never)]
+unsafe fn put_row<M: Memory>(
+    table: &mut Table<StoreHost<M>>,
+    scratch: &mut BlobScratch<M>,
+    row: &mut Cells,
+) -> u64 {
+    let (done, _) = or_trap(table.upsert(scratch, row));
+    matches!(done, Upsert::Inserted(_)) as u64
 }
 
 /// The codec of a view of the table of `codec`, a table's codec or a view's, with the row type of

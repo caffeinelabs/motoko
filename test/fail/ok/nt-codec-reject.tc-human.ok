@@ -44,5 +44,9 @@ error[M0279]: native table key has type (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)
     │                                                                         ^^ 
 error[M0279]: native table row has type R, but its type must not depend on a type parameter
     ┌─ nt-codec-reject.mo:40:57
- 40 │  func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>()
+ 40 │  func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>();
     │                                                          ^^ 
+error[M0279]: native table field `age` has type Nat, but a write that can create a row must give every field that is not an option
+    ┌─ nt-codec-reject.mo:44:77
+ 44 │  ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();
+    │                                                                              ^^ 

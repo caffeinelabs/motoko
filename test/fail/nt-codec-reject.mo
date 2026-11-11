@@ -37,4 +37,8 @@ ignore codec<(Text, ?Nat), { name : Text }>();
 ignore codec<(Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), { name : Text }>();
 
 // A generic row type
-func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>()
+func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>();
+
+// A write that can create a row leaves out a field that is not an option
+func makes<K, P, R>(c : (implicit : Prim.NtCodec<(K, P, R)>)) : Prim.NtCodec<(K, P, R)> = c;
+ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();

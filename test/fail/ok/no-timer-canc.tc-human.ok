@@ -294,6 +294,10 @@ error[M0119]: object field cancelTimer is not contained in expected type
       <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
                 k : K, fields : P) ->
         Bool;
+    ntUpsert :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>,
+                named : NtCodec<(K, P, R)>, k : K, fields : P) ->
+        Bool;
     ntView :
       <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
         NtCodec<(K, P)>;

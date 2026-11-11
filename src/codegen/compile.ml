@@ -1133,6 +1133,7 @@ let native_table_prims = [
   "nt_evolve", ([`W; `V; `V], `B);
   "nt_view", ([`V; `V], `V);
   "nt_update", ([`W; `V; `V; `V; `V], `B);
+  "nt_upsert", ([`W; `V; `V; `V; `V], `B);
 ]
 
 module RTS = struct

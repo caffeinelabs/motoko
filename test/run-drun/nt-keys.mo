@@ -5,8 +5,8 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // Keys of several fields: a table whose key is a tuple of 2 or 3 scalars writes, reads and removes
 // rows by the whole key, in rows of the open group and in packed rows, and a key that differs from
 // a row's in one part finds no row. Scans, index walks and views give the key as the tuple, a part
-// too long to lie in one piece of table memory included; update sets fields by the key; evolve
-// keeps the key. The cells of a scan hold no key that is a tuple
+// too long to lie in one piece of table memory included; update and upsert set fields by the key;
+// evolve keeps the key. The cells of a scan hold no key that is a tuple
 actor {
   type Item = { name : Text; qty : Nat };
   type Noted = { name : Text; qty : Nat; note : ?Text };
@@ -102,7 +102,8 @@ actor {
     t.add(("new", 0), { name = "new"; qty = 1; note = ?"added" });
     Prim.debugPrint(debug_show (t.get(key(6)), t.get(("new", 0)), t.get((long("o"), 1)) == ?{ item(1) with note = null : ?Text }, t.size()));
     let rows = t.entries();
-    Prim.debugPrint(debug_show (rows.next(), t.fieldTypes()))
+    Prim.debugPrint(debug_show (rows.next(), t.fieldTypes()));
+    Prim.debugPrint(debug_show (t.upsert(("up", 0), { name = "up"; qty = 2 }), t.upsert(("up", 0), { name = "up"; qty = 3 }), t.get(("up", 0))))
   };
 
   public func cellsWithKey() : async () {

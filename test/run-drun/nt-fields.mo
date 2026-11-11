@@ -11,8 +11,10 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // type, add and evolve on a view, and a view made before an evolve trap, and change nothing.
 // update sets some fields of a row and keeps the others, in packed rows and rows of the open
 // group, with long values, and in a table whose row type changed; the index on a changed field
-// moves and the totals change by the difference; a Nat is taken for an Int. An update of a field
-// the row lacks or has with another type, and an update on a view, trap and change nothing
+// moves and the totals change by the difference; a Nat is taken for an Int. upsert inserts a row,
+// null in the fields it leaves out, when the key has none, and is update when the key has one. An
+// update of a field the row lacks or has with another type, and an update on a view, trap and
+// change nothing
 actor {
   type Order = { customer : Text; city : Text; amount : Nat; paid : Bool; placed : Int; note : ?Text };
   type Name = { customer : Text; city : Text };
@@ -231,6 +233,17 @@ actor {
         scores.update(1, { best = null : ?Int; tag = "b" }),
         scores.get(1),
         scores.count(["score"], [#int(5)]),
+      )
+    );
+    Prim.debugPrint(
+      debug_show (
+        scores.upsert(2, { score = 4; tag = "c" }),
+        scores.get(2),
+        scores.upsert(2, { score = 6; best = ?1; tag = "d" }),
+        scores.upsert(2, { score = 6; tag = "e" }),
+        scores.get(2),
+        scores.count(["score"], [#int(6)]),
+        scores.count(["score"], [#int(4)]),
       )
     );
     switch changed {

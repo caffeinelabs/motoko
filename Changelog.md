@@ -11,7 +11,8 @@
     stable table's row type changes in an upgrade through `evolve` in the
     migration function, which adds fields of an option type and drops fields.
     A view of a table reads only some fields of each row, and `update` sets
-    some fields of a row and keeps the others. A field can hold an array of
+    some fields of a row and keeps the others, and `upsert` inserts one from
+    them when the key has none. A field can hold an array of
     scalars, of options of scalars, or of records of those, read and written
     whole. A key can be a tuple of 2 to 7 scalars. `clear` removes every row
     at a cost that does not grow with the table. The compiler supplies a

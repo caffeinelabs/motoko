@@ -23,6 +23,7 @@ debug.print: (4_197, 4_199, null, true, null)
 ingress Completed: Reply: 0x4449444c0000
 debug.print: (?{name = "item 6"; note = null; qty = 6}, ?{name = "new"; note = ?"added"; qty = 1}, true, 4_200)
 debug.print: (?(("doc-0", 0), {name = "item 0"; note = null; qty = 0}), [("qty", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text}), ("note", {array = null; optional = true; scalar = #text})])
+debug.print: (true, false, ?{name = "up"; note = null; qty = 3})
 ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a key that is a tuple is not one cell'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
