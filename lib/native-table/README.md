@@ -3,8 +3,8 @@
 A `NativeTable<K, R>` maps keys of type `K` to rows of type `R`. Its rows live in the table's own
 pages, outside the garbage-collected heap, and survive upgrades with the actor.
 
-- `K`: a scalar: `Nat`, `Int`, `Nat8`–`Nat64`, `Int8`–`Int64`, `Float`, `Bool`, `Char`, `Text`,
-  `Blob` or `Principal`.
+- `K`: a scalar (`Nat`, `Int`, `Nat8`–`Nat64`, `Int8`–`Int64`, `Float`, `Bool`, `Char`, `Text`,
+  `Blob` or `Principal`), or a tuple of 2 to 7 of them: `NativeTable<(Text, Nat), Item>`.
 - `R`: a scalar, or a record of immutable fields, each a scalar, an immutable array, or an option of
   either. An array's elements are scalars, options of scalars, or records whose fields are those
   (see Arrays in rows).
@@ -46,9 +46,21 @@ let orders = NativeTable.empty<Nat, Order>()
 let plain = NativeTable.empty<Text, Nat>().build() // no indexes
 ```
 
+A key of several fields is a tuple:
+
+```motoko no-repl
+type Item = { name : Text; qty : Nat };
+
+let items = NativeTable.empty<(Text, Nat), Item>().build();
+items.add(("doc-7", 3), { name = "pen"; qty = 2 });
+let i = items.get(("doc-7", 3))
+```
+
 - An index has 1 to 7 fields; a table has at most 63 indexes.
 - Declaring the same field list twice gives one index.
 - Every index holds every row from the start, and every write keeps it current.
+- A key that is a tuple is written and read whole: scans and walks give it as the tuple. To find
+  the rows of one part of it, index a field that holds that part.
 
 ## Write
 
@@ -357,8 +369,9 @@ Each message starts with `native table: `.
 ## With OQL
 
 A native table serves OQL queries through OQL's `NativeEntity` adapter, which needs OQL's support for
-native tables; it is not part of this library, and the example below is not compiled here. The row
-needs an `id` field with its own index, and the adapter reads the table's indexes:
+native tables; it is not part of this library, and the example below is not compiled here. The
+table's key is a scalar, the row needs an `id` field with its own index, and the adapter reads the
+table's indexes:
 
 ```motoko no-repl
 let orders = NativeTable.empty<Nat, Order>().createIndex(["id"]).createIndex(["city"]).build();
