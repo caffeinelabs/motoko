@@ -118,7 +118,7 @@ pub fn read_at<H: PageHost + ?Sized>(h: &H, a: &At, at: u64, out: &mut [u8]) -> 
             }
         }
         At::Image { img, g, off } => {
-            let r = ImageReader::new(h, ImageId::Group(g), img);
+            let r = ImageReader::new(h, ImageId::Group(g), &img);
             long::read_image(&r, off.checked_add(at).ok_or(rt(Corruption::Range, at))?, out)
         }
         At::Long { img } => long::read(h, img, at, out),
@@ -211,13 +211,13 @@ pub fn piece<'h, H: PageHost + ?Sized>(h: &'h H, s: &SVal) -> Result<Option<&'h 
             if (off % PAGE).saturating_add(len) > PAGE {
                 return Ok(None);
             }
-            Ok(Some(ImageReader::new(h, ImageId::Group(g), img).bytes(off, len)?))
+            Ok(Some(ImageReader::new(h, ImageId::Group(g), &img).bytes(off, len)?))
         }
         At::Long { img } => {
             if long::HEAD.saturating_add(len) > PAGE {
                 return Ok(None);
             }
-            Ok(Some(ImageReader::new(h, ImageId::Runtime, img).bytes(long::HEAD, len)?))
+            Ok(Some(ImageReader::new(h, ImageId::Runtime, &img).bytes(long::HEAD, len)?))
         }
         At::Patch { block, off } => Ok(Some(crate::mem::sub(h.get(Region::Block(block))?, off, len)?)),
         At::Chain { head } => {

@@ -240,7 +240,7 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
                 if (at % PAGE).wrapping_add(len) > PAGE {
                     return Ok(None);
                 }
-                Ok(Some(ImageReader::new(h, ImageId::Runtime, img).bytes(at, len)?))
+                Ok(Some(ImageReader::new(h, ImageId::Runtime, &img).bytes(at, len)?))
             }
         }
     }

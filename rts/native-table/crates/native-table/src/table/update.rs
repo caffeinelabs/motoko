@@ -338,7 +338,7 @@ fn in_place<H: PageHost>(h: &mut H, s: &Sealed, l: &LeafInfo, pos: u64, v: &Val<
     // The validity bit.
     if validity {
         let w_at = seg_off.wrapping_add((i / 64).wrapping_mul(8));
-        let r = ImageReader::new(&*h, ImageId::Group(s.meta.g), img);
+        let r = ImageReader::new(&*h, ImageId::Group(s.meta.g), &img);
         let w = r.u64_at(w_at)?;
         let nw = if null { w & !(1u64 << (i % 64)) } else { w | (1u64 << (i % 64)) };
         if nw != w {
@@ -348,7 +348,7 @@ fn in_place<H: PageHost>(h: &mut H, s: &Sealed, l: &LeafInfo, pos: u64, v: &Val<
     match f {
         form::BOOL => {
             let w_at = body.wrapping_add((i / 64).wrapping_mul(8));
-            let r = ImageReader::new(&*h, ImageId::Group(s.meta.g), img);
+            let r = ImageReader::new(&*h, ImageId::Group(s.meta.g), &img);
             let w = r.u64_at(w_at)?;
             let on = matches!(v, Val::Bool(true));
             let nw = if on { w | (1u64 << (i % 64)) } else { w & !(1u64 << (i % 64)) };

@@ -171,17 +171,17 @@ pub fn from_arg<H: PageHost, R: RowSource + ?Sized>(
 }
 
 pub fn content_len<H: PageHost + ?Sized>(h: &H, img: Image) -> Result<u64, Fault> {
-    ImageReader::new(h, ImageId::Runtime, img).u64_at(32)
+    ImageReader::new(h, ImageId::Runtime, &img).u64_at(32)
 }
 
 /// Copies content bytes [at, at + out.len()) of a long value into `out`, across image blocks.
 pub fn read<H: PageHost + ?Sized>(h: &H, img: Image, at: u64, out: &mut [u8]) -> Result<(), Fault> {
-    let r = ImageReader::new(h, ImageId::Runtime, img);
+    let r = ImageReader::new(h, ImageId::Runtime, &img);
     read_image(&r, HEAD.checked_add(at).ok_or(rt(Corruption::Range, at))?, out)
 }
 
 /// Copies image bytes [off, off + out.len()) through a reader, in pieces that never cross an image block.
-pub fn read_image<H: PageHost + ?Sized>(r: &ImageReader<'_, H>, off: u64, out: &mut [u8]) -> Result<(), Fault> {
+pub fn read_image<H: PageHost + ?Sized>(r: &ImageReader<'_, '_, H>, off: u64, out: &mut [u8]) -> Result<(), Fault> {
     let mut at = off;
     let mut rest = out;
     while !rest.is_empty() {

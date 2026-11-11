@@ -120,7 +120,7 @@ fn write_image(h: &mut VecHost, t: u64, bytes: &[u8]) -> Image {
 
 /// The image's bytes, read back block by block through the reader.
 fn read_back(h: &VecHost, id: ImageId, img: Image) -> Vec<u8> {
-    let r = ImageReader::new(h, id, img);
+    let r = ImageReader::new(h, id, &img);
     let mut out = Vec::new();
     let mut off = 0;
     while off < r.length() {
@@ -410,7 +410,7 @@ fn image_round_trips_from_8_bytes_to_3_blocks() {
             assert_eq!(back, img);
             let id = ImageId::Group(len);
             assert_eq!(read_back(h, id, back), bytes);
-            let r = ImageReader::new(&*h, id, back);
+            let r = ImageReader::new(&*h, id, &back);
             assert_eq!(r.u64_at(len - 8).unwrap(), u64::from_le_bytes(bytes[len as usize - 8..].try_into().unwrap()));
             assert_eq!(r.bytes(len, 0).unwrap(), &[] as &[u8]);
             assert!(is_corrupt(r.bytes(len - 8, 16), id, Corruption::Bounds));

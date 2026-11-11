@@ -309,7 +309,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         }
         let g = rd_u64(pb, page::P_GROUP)?;
         let img = Image::read_record(pb, page::P_IMAGE)?;
-        let r = ImageReader::new(h, ImageId::Group(g), img);
+        let r = ImageReader::new(h, ImageId::Group(g), &img);
         let hd = r.bytes(0, HEADER)?;
         let id = ImageId::Group(g);
         if rd_u32(hd, 0)? != magic::NTIM || rd_u16(hd, 4)? > FORMAT_IMAGE || rd_u8(hd, 6)? != KIND_GROUP {
@@ -367,8 +367,8 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         }
     }
 
-    pub fn reader(&self) -> ImageReader<'h, H> {
-        ImageReader::new(self.h, ImageId::Group(self.g), self.img)
+    pub fn reader(&self) -> ImageReader<'h, '_, H> {
+        ImageReader::new(self.h, ImageId::Group(self.g), &self.img)
     }
 
     fn bad(&self, kind: Corruption, at: u64) -> Fault {
@@ -515,8 +515,8 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
                     }
                 }
                 let o = body.wrapping_add(i.wrapping_mul(4));
-                let a = u64::from(rd_u32(r.bytes(o, 4)?, 0)?);
-                let b = u64::from(rd_u32(r.bytes(o.wrapping_add(4), 4)?, 0)?);
+                let ab = r.bytes(o, 8)?;
+                let (a, b) = (u64::from(rd_u32(ab, 0)?), u64::from(rd_u32(ab, 4)?));
                 let run = self.tail_seg(ld, seg::RUN)?;
                 let len = b.checked_sub(a).ok_or(self.bad(Corruption::Order, o))?;
                 if b > u64::from(run.bytes) {

@@ -507,7 +507,7 @@ fn long_row<'a, H: PageHost + ?Sized>(h: &'a H, b: Blk<'a>, off: usize) -> Optio
 #[inline(never)]
 fn long_row_radix<'a, H: PageHost + ?Sized>(h: &'a H, b: Blk<'a>, off: usize) -> Option<&'a [u8]> {
     let img = Image::read_ref(b, u64::try_from(off).ok()?.checked_add(8)?).ok()?;
-    let r = ImageReader::new(h, ImageId::Runtime, img);
+    let r = ImageReader::new(h, ImageId::Runtime, &img);
     let len = r.u64_at(32).ok()?;
     r.bytes(long::HEAD, len).ok()
 }

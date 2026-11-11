@@ -1,13 +1,13 @@
 //! Reads of rows: a row's cells handed to a `RowSink` in leaf order, and long values read in pieces.
 
-use crate::consts::GROUP_SLOTS;
+use crate::consts::{GROUP_SLOTS, PAGE};
 use crate::fault::Fault;
-use crate::mem::PageHost;
+use crate::mem::{rd_u8, PageHost};
 
 use super::buffer::{self, DESC_BIT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
-use super::group::GroupView;
+use super::group::{GCell, GroupView, LeafDir};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay;
 use super::row::{RowRef, Walk};
@@ -239,20 +239,67 @@ pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     Ok(())
 }
 
-/// Hands a sealed row's leaves to `out` in leaf order, under the overlay.
+/// Hands the leaves of the row at position `pos` of sealed group `s` (viewed by `gv`, the position's stored slot
+/// `slot`) to `out` in leaf order, under the overlay.
 pub fn emit_sealed<H: PageHost + ?Sized, S: RowSink>(
-    h: &H,
+    gv: &GroupView<'_, H>,
     shape: &Shape,
     s: &overlay::Sealed,
     pos: u64,
+    slot: Option<u64>,
     out: &mut S,
 ) -> Result<(), Fault> {
     for o in 0..shape.leaves {
-        let l = shape.leaf(h, o)?;
-        let v = overlay::sealed_value(h, s, &l, pos)?;
-        emit_sval(h, out, &l, &v)?;
+        emit_leaf(gv, s, &shape.leaf(gv.h, o)?, &gv.leaf(o)?, slot, pos, out)?;
     }
     Ok(())
+}
+
+/// Hands leaf `l`'s current value at position `pos` of sealed group `s` (viewed by `gv`, the leaf's directory
+/// entry `ld`, the position's stored slot `slot`) to `out`: straight from its image cell when the group has no
+/// patches and the value lies in one piece of the image.
+#[inline(always)]
+pub fn emit_leaf<H: PageHost + ?Sized, S: RowSink>(
+    gv: &GroupView<'_, H>,
+    s: &overlay::Sealed,
+    l: &LeafInfo,
+    ld: &LeafDir,
+    slot: Option<u64>,
+    pos: u64,
+    out: &mut S,
+) -> Result<(), Fault> {
+    if let (Some(slot), 0) = (slot, s.dir) {
+        if emit_cell(gv, out, l, ld, slot, pos)? {
+            return Ok(());
+        }
+    }
+    // Read where the result holds it: moving the value out copies it.
+    let v = overlay::leaf_value(gv, s, l, Some(ld), slot, pos);
+    emit_sval(gv.h, out, l, v.as_ref().map_err(|e| *e)?)
+}
+
+/// Leaf `l`'s image cell (directory entry `ld`) at stored slot `slot` of position `pos` handed to `out` straight
+/// from the image; `false`, with nothing handed out, for a value that does not lie in one piece of it.
+#[inline(always)]
+fn emit_cell<H: PageHost + ?Sized, S: RowSink>(
+    gv: &GroupView<'_, H>,
+    out: &mut S,
+    l: &LeafInfo,
+    ld: &LeafDir,
+    slot: u64,
+    pos: u64,
+) -> Result<bool, Fault> {
+    match gv.cell(ld, slot, pos)? {
+        GCell::Bytes { off, len } if (off % PAGE).saturating_add(len) <= PAGE => {
+            let b = gv.reader().bytes(off, len)?;
+            // A Principal's 30-byte cell holds its length in its last byte.
+            let n = if l.ty == Ty::Principal { usize::from(rd_u8(b, 29)?.min(29)) } else { b.len() };
+            emit_bytes(out, l, b.get(..n).unwrap_or(&[]))?;
+        }
+        GCell::Bytes { .. } | GCell::Huge { .. } => return Ok(false),
+        c => emit_val(out, l, cur::whole(c, ld.form, l.ty).unwrap_or(Val::Null))?,
+    }
+    Ok(true)
 }
 
 /// Leaf `id`'s current value in row `rid`.

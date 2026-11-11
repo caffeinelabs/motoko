@@ -435,11 +435,11 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Rows<'_, S> {
         shape: &Shape,
         s: &Sealed,
         pos: u64,
-        _slot: Option<u64>,
+        slot: Option<u64>,
         rid: u64,
         _v: Option<&SVal>,
     ) -> Result<(), Fault> {
-        read::emit_sealed(gv.h, shape, s, pos, self.out)?;
+        read::emit_sealed(gv, shape, s, pos, slot, self.out)?;
         self.out.row_end(rid)?;
         self.left = self.left.saturating_sub(1);
         Ok(())
@@ -553,11 +553,11 @@ impl<H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<H> for Cells<'_, '_
                     &found
                 }
             };
-            let x = match self.reuse(&c.l, v) {
-                Some(x) => x,
-                None => overlay::leaf_value(gv, s, &c.l, c.ld.as_ref(), slot, pos)?,
-            };
-            read::emit_sval(gv.h, self.out, &c.l, &x)?;
+            match (self.reuse(&c.l, v), c.ld.as_ref()) {
+                (Some(x), _) => read::emit_sval(gv.h, self.out, &c.l, &x)?,
+                (None, Some(ld)) => read::emit_leaf(gv, s, &c.l, ld, slot, pos, self.out)?,
+                (None, None) => return Err(rt(Corruption::Leaf, pos)),
+            }
         }
         self.row_end(rid)
     }
@@ -872,18 +872,17 @@ pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     shape: &Shape,
     leaves: &[u32],
-    row: read::Row,
+    row: &Live,
     rid: u64,
     out: &mut S,
 ) -> Result<(), Fault> {
     let mut c = Cells { ids: leaves, cols: [], tested: None, out, left: 1 };
-    match row {
-        read::Row::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
-        read::Row::Sealed { page, pos } => {
-            let s = overlay::sealed(h, page)?;
+    match *row {
+        Live::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
+        Live::Sealed(ref s, pos) => {
             let gv = GroupView::from_meta(h, &s.meta);
             c.open(&gv)?;
-            c.sealed(&gv, shape, &s, pos, gv.slot(pos)?, rid, None)
+            c.sealed(&gv, shape, s, pos, gv.slot(pos)?, rid, None)
         }
     }
 }
