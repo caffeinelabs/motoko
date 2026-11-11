@@ -1118,6 +1118,7 @@ let native_table_prims = [
   "nt_create", ([`V; `V], `V);
   "nt_size", ([`W; `V], `N);
   "nt_put", ([`W; `V; `V; `V], `B);
+  "nt_try_put", ([`W; `V; `V; `V], `B);
   "nt_get", ([`W; `V; `V], `V);
   "nt_remove", ([`W; `V; `V], `B);
   "nt_scan", ([`W; `V; `W; `V; `W; `W], `V);

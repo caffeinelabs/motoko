@@ -72,6 +72,8 @@ pub enum Fault {
     Scratch { need: u64 },
     /// A token that is malformed, names another table, or names an index whose key spec changed.
     BadToken,
+    /// A write that would give a unique index's value, with no null part, to a second row.
+    Unique,
 }
 
 impl Fault {
@@ -88,6 +90,7 @@ impl Fault {
             Fault::Schema(_) => "native table: schema change refused",
             Fault::Scratch { .. } => "native table: scratch too small",
             Fault::BadToken => "native table: bad or stale token",
+            Fault::Unique => "native table: a unique index already has this value",
         }
     }
 }

@@ -42,7 +42,7 @@ use crate::memory::{Memory, alloc_array, alloc_blob};
 use crate::persistence::native_store_location;
 use crate::rts_trap_with;
 use crate::text::text_compare;
-use crate::types::{Bytes, NULL_POINTER, TAG_ARRAY_I, TAG_BLOB_B, Value};
+use crate::types::{Bytes, NULL_POINTER, TAG_ARRAY_I, TAG_BLOB_B, TRUE_VALUE, Value};
 
 /// The host word that holds the codec hash, with `CHANGED` mixed in (XOR) once the table's row
 /// type has changed.
@@ -217,9 +217,9 @@ unsafe fn open<'h, 'a, M: Memory>(
 }
 
 /// Creates an empty table of the codec's key and row types with a secondary index on each list of
-/// the array `indexes`, an array of arrays of Texts that name fields of the row, in key order.
-/// Returns its root block and the id of each list's index, from 1, in a pair; equal lists share
-/// one index.
+/// the array `indexes`, an array of pairs of an array of Texts that name fields of the row, in key
+/// order, and whether the index is unique. Returns its root block and the id of each list's
+/// index, from 1, in a pair; equal lists share one index, unique when one of them is.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) -> Value {
     let layout = layout_of(codec);
@@ -228,14 +228,15 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) ->
     let mut decls = [IndexDecl::default(); INDEX_MAX as usize];
     let mut n = 0;
     for i in 0..lists.len() {
-        let fields = lists.get(i).as_array();
+        let list = lists.get(i).as_array();
+        let (fields, unique) = (list.get(0).as_array(), list.get(1).get_raw() == TRUE_VALUE);
         let parts = fields.len();
         if parts == 0 || parts > INDEX_PARTS {
             rts_trap_with("native table: an index has 1 to 7 fields");
         }
         let mut decl = IndexDecl {
             id: 0,
-            flags: 0,
+            flags: if unique { indexes::UNIQUE } else { 0 },
             w: INDEX_W,
             parts: parts as u8,
             part: [(0, false); INDEX_PARTS],
@@ -247,9 +248,12 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) ->
         }
         let k = match decls[..n]
             .iter()
-            .position(|d| IndexDecl { id: d.id, ..decl } == *d)
+            .position(|d| (d.parts, d.part) == (decl.parts, decl.part))
         {
-            Some(k) => k,
+            Some(k) => {
+                decls[k].flags |= decl.flags;
+                k
+            }
             None if n < decls.len() => {
                 decl.id = n as u8 + 1;
                 decls[n] = decl;
@@ -289,6 +293,25 @@ pub unsafe fn nt_size<M: Memory>(mem: &mut M, id: u64, codec: Value) -> u64 {
 /// of maintenance runs first when the table has work pending.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r: Value) -> u64 {
+    put_cells::<M, false>(mem, id, codec, k, r)
+}
+
+/// `nt_put`, but 0, writing no row, when a unique index has the value of `r` for another row,
+/// else 1.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_try_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r: Value) -> u64 {
+    put_cells::<M, true>(mem, id, codec, k, r)
+}
+
+/// `nt_put`, and with `TRY`, `nt_try_put`.
+#[inline(always)]
+unsafe fn put_cells<M: Memory, const TRY: bool>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    k: Value,
+    r: Value,
+) -> u64 {
     let layout = layout_of(codec);
     let mut row = cells(mem, &layout, k, r);
     let mem: *mut M = mem;
@@ -299,6 +322,15 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     let mut table = table_at(&mut host, id);
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
+    if TRY {
+        return match table.upsert(&mut scratch, &mut row) {
+            Err(Fault::Unique) => 0,
+            done => {
+                or_trap(done);
+                1
+            }
+        };
+    }
     put_row(&mut table, &mut scratch, &mut row)
 }
 

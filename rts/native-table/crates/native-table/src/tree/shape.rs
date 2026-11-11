@@ -48,7 +48,9 @@ pub struct IndexShape {
 
 impl IndexShape {
     /// W a multiple of 8 in 8..=1,016, V in `V_CHOICES`, W + 8 + V ≤ `PART_MAX`; nL and nI from
-    /// `index_node_shape(W + 8, V, ·)`, so voff = 8 + c·(W + 8) and coff = voff + c·V.
+    /// `index_node_shape(W + 8, V, ·)`, so voff = 8 + c·(W + 8) and coff = voff + c·V. Inlined, so that a
+    /// shape read from an index's descriptor is worked out only as far as its reader uses it.
+    #[inline(always)]
     pub const fn new(w: u64, v: u64) -> Option<IndexShape> {
         if w < W_MIN || w > W_MAX || w % 8 != 0 || !crate::consts::v_choice(v) {
             return None;

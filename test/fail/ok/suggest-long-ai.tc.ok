@@ -251,7 +251,8 @@ suggest-long-ai.mo:4.6-4.12: type error [M0072], field region does not exist in 
              filter : NtFilter) ->
         Nat;
     ntCreate :
-      <K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) -> (Nat64, [Nat]);
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) ->
+        (Nat64, [Nat]);
     ntEvolve :
       <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,
                   next : NtCodec<(K, R2)>) ->
@@ -295,6 +296,8 @@ suggest-long-ai.mo:4.6-4.12: type error [M0072], field region does not exist in 
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              filter : ?(Text, NtFilter)) ->
         ?(Int, Nat);
+    ntTryPut :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
     ntUpdate :
       <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
                 k : K, fields : P) ->

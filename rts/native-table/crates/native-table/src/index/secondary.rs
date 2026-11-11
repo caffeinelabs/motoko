@@ -208,6 +208,12 @@ impl Secondary {
         Ok(i128::from(self.tree_count_by(h, &KeyProbe { key, kind: Kind::Count })?))
     }
 
+    /// Whether the tree holds the row `rid` under `key`, its full encoding: one descent.
+    pub fn holds<H: PageHost + ?Sized>(&self, h: &H, key: &[u8], rid: u64) -> Result<bool, Fault> {
+        let p = KeyProbe { key, kind: Kind::Row(rid) };
+        Ok(self.root != 0 && tree::find(self.shape, &self.view(h), self.root, &p)?.is_some())
+    }
+
     /// The next group of the index in key order: the smallest key above `after` (the smallest of all when
     /// `None`), written whole at the start of `out`, with its length and its count; `None` past the last key.
     /// `spec` is the index's key spec, which gives each key's end. A step is two descents of the tree (to the

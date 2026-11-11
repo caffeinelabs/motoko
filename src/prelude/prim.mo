@@ -115,10 +115,11 @@ func ntCodecLayout<T>(codec : NtCodec<T>) : Blob {
   (prim "nt_codec_layout" : NtCodec<T> -> Blob)(codec)
 };
 
-// Creates a table with an index on each list of fields of R, in key order, and returns its id
-// and the id of each list's index; equal lists share one index
-func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [[Text]]) : (Nat64, [Nat]) {
-  (prim "nt_create" : (NtCodec<(K, R)>, [[Text]]) -> (Nat64, [Nat]))(codec, indexes)
+// Creates a table with an index on each list of fields of R, in key order, unique when its Bool
+// is true, and returns its id and the id of each list's index; equal lists share one index,
+// unique when one of them is
+func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) : (Nat64, [Nat]) {
+  (prim "nt_create" : (NtCodec<(K, R)>, [([Text], Bool)]) -> (Nat64, [Nat]))(codec, indexes)
 };
 
 func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {
@@ -127,6 +128,11 @@ func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {
 
 func ntPut<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) : Bool {
   (prim "nt_put" : (Nat64, NtCodec<(K, R)>, K, R) -> Bool)(id, codec, k, r)
+};
+
+// ntPut, but false, writing nothing, when a unique index has a value of r for another row; else true
+func ntTryPut<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) : Bool {
+  (prim "nt_try_put" : (Nat64, NtCodec<(K, R)>, K, R) -> Bool)(id, codec, k, r)
 };
 
 func ntGet<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : ?R {

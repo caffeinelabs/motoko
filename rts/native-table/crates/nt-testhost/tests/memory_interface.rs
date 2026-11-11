@@ -168,6 +168,7 @@ fn fault_texts() {
         Fault::Schema(SchemaError::TooManyIndexes),
         Fault::Scratch { need: 10 },
         Fault::BadToken,
+        Fault::Unique,
     ];
     for f in all {
         let t = f.text();

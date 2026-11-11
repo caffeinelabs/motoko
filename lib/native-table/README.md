@@ -58,6 +58,8 @@ let i = items.get(("doc-7", 3))
 
 - An index has 1 to 7 fields; a table has at most 63 indexes.
 - Declaring the same field list twice gives one index.
+- `.createUniqueIndex(["email"])` declares an index that holds each value for one row at most. A
+  value with null in one of its fields is never refused. Declared both ways, an index is unique.
 - Every index holds every row from the start, and every write keeps it current.
 - A key that is a tuple is written and read whole: scans and walks give it as the tuple. To find
   the rows of one part of it, index a field that holds that part.
@@ -68,6 +70,7 @@ let i = items.get(("doc-7", 3))
 |---|---|
 | `t.add(k, r)` | inserts `r` under `k`, or replaces the row `k` has |
 | `t.insert(k, r) : Bool` | as `add`; true when `k` was new |
+| `t.tryAdd(k, r) : Bool` | as `add`; false, writing nothing, when a unique index has the value of `r` for another row |
 | `t.update(k, fields) : Bool` | sets the fields of the record `fields` in the row `k` has; true when `k` had a row; when not, writes nothing and gives false |
 | `t.upsert(k, fields) : Bool` | as `update` when `k` has a row; when not, inserts one from `fields`, with null in the row's other fields; true when `k` was new |
 | `t.remove(k)` | removes the row `k` has, if any |
@@ -370,6 +373,7 @@ Each message starts with `native table: `.
 | `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |
 | `an index has 1 to 7 fields` | `build` | a field list given to `createIndex` that is empty or has more than 7 fields |
 | `a table has at most 63 indexes` | `build` | a 64th distinct field list given to `createIndex` |
+| `a unique index already has this value` | `add`, `insert`, `update`, `upsert` | a write that would give a second row the value a unique index has for another row; it writes nothing |
 | `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
 | `index key does not match the index's fields` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a key with the wrong number of cells, or a cell of the wrong kind; in a filter, a cell of the wrong kind, `#null_` for a field that is not an option, or `#null_` as a range end |
 | `index key value out of range` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a cell, of a key or a filter, outside its field's range, for example `#nat(300)` for a `Nat8` |

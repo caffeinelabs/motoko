@@ -30,6 +30,16 @@ debug.print: clear {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong
 ingress Completed: Reply: 0x4449444c0000
 debug.print: walks {walked = 0; wrong = 0}
 ingress Completed: Reply: 0x4449444c0000
+debug.print: {indexes = [(["email"], 1), (["team", "badge"], 2)]; size = 3; three = ?{badge = 1; email = null; team = "blue"}; tried = [false, false, true, true, true]}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a unique index already has this value'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a unique index already has this value'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a unique index already has this value'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {size = 3; three = ?{badge = 1; email = null; note = null; team = "blue"}; tried = false}
+ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: an index has 1 to 7 fields'.

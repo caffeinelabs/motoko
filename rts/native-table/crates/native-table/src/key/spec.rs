@@ -125,4 +125,20 @@ impl KeySpec<'_> {
         }
         Ok(pos)
     }
+
+    /// Whether a part of the key `key` starts with is null.
+    pub fn has_null(&self, key: &[u8], image: ImageId) -> Result<bool, Fault> {
+        let mut pos = 0u64;
+        for p in self.parts {
+            if p.nullable {
+                let (some, next) = dec_bool(key, pos, image)?;
+                if !some {
+                    return Ok(true);
+                }
+                pos = next;
+            }
+            pos = p.kind.skip(key, pos, image)?;
+        }
+        Ok(false)
+    }
 }

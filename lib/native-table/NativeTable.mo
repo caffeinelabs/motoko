@@ -17,8 +17,9 @@ module {
     indexes : [([Text], Nat)]
   };
 
-  /// A table not created yet, with the field lists of the indexes it will have.
-  public type Builder<K, R> = { codec : Prim.NtCodec<(K, R)>; indexes : [[Text]] };
+  /// A table not created yet, with the field lists of the indexes it will have, each with whether
+  /// it is unique.
+  public type Builder<K, R> = { codec : Prim.NtCodec<(K, R)>; indexes : [([Text], Bool)] };
 
   /// The value of one field of an index key: `#null_`, `#bool`, `#nat`, `#int`, `#float`,
   /// `#text`, `#blob` or `#principal`. A Nat or Int stands for a value of any integer type or Char
@@ -70,10 +71,22 @@ module {
   /// The builder with one more index, on the named fields of the row, in key order (1 to 7 of
   /// them). An index declared twice is one index.
   public func createIndex<K, R>(self : Builder<K, R>, fields : [Text]) : Builder<K, R> {
+    declare(self, fields, false)
+  };
+
+  /// `createIndex`, of an index that holds each value for one row at most: `add`, `insert`,
+  /// `update` and `upsert` trap, writing nothing, when they would give a second row the value
+  /// of its fields another row has, and `tryAdd` returns false. A value with null in one of its
+  /// fields is never refused. An index declared both ways is one index, unique.
+  public func createUniqueIndex<K, R>(self : Builder<K, R>, fields : [Text]) : Builder<K, R> {
+    declare(self, fields, true)
+  };
+
+  func declare<K, R>(self : Builder<K, R>, fields : [Text], unique : Bool) : Builder<K, R> {
     let n = self.indexes.size();
     {
       codec = self.codec;
-      indexes = Prim.Array_tabulate<[Text]>(n + 1, func i = if i < n { self.indexes[i] } else { fields })
+      indexes = Prim.Array_tabulate<([Text], Bool)>(n + 1, func i = if i < n { self.indexes[i] } else { (fields, unique) })
     }
   };
 
@@ -86,7 +99,7 @@ module {
     var n = 0;
     for i in ids.keys() {
       if ids[i] > n {
-        indexes[n] := (self.indexes[i], ids[i]);
+        indexes[n] := (self.indexes[i].0, ids[i]);
         n += 1
       }
     };
@@ -157,6 +170,12 @@ module {
   /// is new to the table.
   public func insert<K, R>(self : NativeTable<K, R>, key : K, row : R) : Bool {
     Prim.ntPut(self.id, self.codec, key, row)
+  };
+
+  /// `add`, but returns false, writing nothing, when a unique index (`createUniqueIndex`) has
+  /// the row's value for another row; else true.
+  public func tryAdd<K, R>(self : NativeTable<K, R>, key : K, row : R) : Bool {
+    Prim.ntTryPut(self.id, self.codec, key, row)
   };
 
   /// Sets the fields of the record `fields` in the row the key has, and keeps the row's other

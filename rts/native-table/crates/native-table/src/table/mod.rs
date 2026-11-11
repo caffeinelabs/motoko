@@ -613,12 +613,16 @@ impl<'h, H: PageHost> Table<'h, H> {
         read::read_large(&*self.host, self.root, &self.shape, rid, leaf, at, buf)
     }
 
-    /// Inserts the row, or updates the row with its key to the row's values (core Map's `add`).
+    /// Inserts the row, or updates the row with its key to the row's values (core Map's `add`). `Unique`, with
+    /// nothing written, when a unique index holds the row's key under it for another row.
     pub fn upsert<S: Scratch, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
         row: &mut R,
     ) -> Result<(Upsert, Wake), Fault> {
+        if self.shape.unique != 0 {
+            self.unique_row(&mut indexes::Dyn(row), scratch)?;
+        }
         let (rid, inserted) = self.write_row(scratch, row)?;
         let u = if inserted { Upsert::Inserted(rid) } else { Upsert::Replaced(rid) };
         Ok((u, self.settle()?))
@@ -717,8 +721,8 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// a row still in the open group gets a new image, its stored one with those leaves' cells and items replaced
     /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. Returns the row's
     /// rid, or `None`, with nothing written, when no row has key k. `BadRef` for a leaf the table does not have;
-    /// `BadValue` for a cell its leaf's type refuses, or a key leaf given another value. Every refusal comes
-    /// before the first write.
+    /// `BadValue` for a cell its leaf's type refuses, or a key leaf given another value; `Unique` when a unique
+    /// index holds the row's new key under it for another row. Every refusal comes before the first write.
     pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -753,6 +757,10 @@ impl<'h, H: PageHost> Table<'h, H> {
         }
         // The entries leave under the stored row's keys, and come back under its new ones.
         let live = read::Live::open(&*self.host, row)?;
+        let unique = moved & self.shape.unique;
+        if unique != 0 && self.held(&mut indexes::Dyn(src), Some((&live, leaves)), Some(rid), unique, scratch)? != 0 {
+            return Err(Fault::Unique);
+        }
         match row {
             read::Row::Sealed { page, pos } => {
                 self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;

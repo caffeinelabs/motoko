@@ -234,9 +234,9 @@ pub struct Column {
     pub name: u32,
 }
 
-/// An index declaration: id, flags (bit 0 primary, bit 1 `eq_only`, bit 2 key runs allowed), W, and up to 7
-/// parts {leaf id, nullable}. In the image, `DECL_BYTES` bytes: {id u8 @0; flags u8 @1; W u16 @2; parts u8
-/// @4; nullable parts u8 @5 (bit k: part k); zero u16 @6; part k's leaf id u32 @8 + 4k; zero u32 @36}.
+/// An index declaration: id, flags (bit 0 primary, bit 1 `eq_only`, bit 2 key runs allowed, bit 3 unique), W,
+/// and up to 7 parts {leaf id, nullable}. In the image, `DECL_BYTES` bytes: {id u8 @0; flags u8 @1; W u16 @2;
+/// parts u8 @4; nullable parts u8 @5 (bit k: part k); zero u16 @6; part k's leaf id u32 @8 + 4k; zero u32 @36}.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct IndexDecl {
     pub id: u8,

@@ -488,6 +488,78 @@ fn declarations() {
     assert_eq!(tb.max_key(7, buf).unwrap(), None);
 }
 
+/// Unique indexes, one on the Text, one on (?Bool, i64): a write that would give a second row a key of one with
+/// no null part is refused with nothing written, a whole-row write or an update of some leaves of a buffered or
+/// a sealed row, whose other part comes from the stored row; keys longer than a point operation's stack too. A
+/// row keeps its own key, and keys with a null part never conflict.
+#[test]
+fn unique_indexes() {
+    let unique = |d: IndexDecl| IndexDecl { flags: 8, ..d };
+    let ds = [decl(1, 8, &[(id(4), false)]), unique(decl(2, 16, &[(id(3), true), (id(2), false)]))];
+    let (img, _) = schema_indexed(&columns(), &[ds[0], ds[1], unique(decl(3, 16, &[(id(1), false)]))]);
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    let long = |c: u8| V::Bytes(vec![c; KEY_STACK + 36]);
+    let row = |k: u64, text: V, b: V, i: i64| {
+        let rest = [(id(4), V::U(0)), (id(5), V::Int(sleb(0))), (id(6), V::Unit), (id(7), V::I(0))];
+        [vec![(id(0), V::U(k)), (id(1), text), (id(2), V::I(i)), (id(3), b)], rest.to_vec()].concat()
+    };
+    let put = |tb: &mut Table<'_, VecHost>, r: Vec<(u32, V)>| {
+        tb.host_mut().end_message();
+        tb.upsert(&mut key_scratch(), &mut Src::new(&r)).map(|(u, _)| matches!(u, Upsert::Inserted(_)))
+    };
+    let set = |tb: &mut Table<'_, VecHost>, k: u64, leaf: u32, v: V| {
+        tb.host_mut().end_message();
+        let key = [(id(0), V::U(k))];
+        tb.update(&mut key_scratch(), &mut Src::new(&key), &[leaf], &mut Src::new(&[(leaf, v)]))
+            .map(|(r, _)| r.is_some())
+    };
+    let refused = |tb: &mut Table<'_, VecHost>, got: Result<bool, Fault>| {
+        assert!(matches!(got, Err(Fault::Unique)), "{got:?}");
+        assert_eq!(tb.host_mut().end_message(), 0, "nothing written");
+    };
+    let t = V::Bool(true);
+    assert_eq!(put(&mut tb, row(1, V::text("a"), t.clone(), 1)), Ok(true));
+    assert_eq!(put(&mut tb, row(2, long(b'x'), t.clone(), 2)), Ok(true));
+    assert_eq!(put(&mut tb, row(3, V::text("c"), V::Null, 1)), Ok(true));
+    assert_eq!(put(&mut tb, row(4, V::text("d"), V::Null, 1)), Ok(true), "a null part never conflicts");
+    for k in 100..4_196 {
+        assert_eq!(put(&mut tb, row(k, V::text(&format!("t{k}")), V::Null, 0)), Ok(true));
+    }
+    for sealed in [false, true] {
+        let got = put(&mut tb, row(5, V::text("a"), V::Null, 0));
+        refused(&mut tb, got);
+        let got = put(&mut tb, row(5, long(b'x'), V::Null, 0));
+        refused(&mut tb, got);
+        let got = put(&mut tb, row(5, V::text("e"), t.clone(), 2));
+        refused(&mut tb, got);
+        let got = put(&mut tb, row(1, V::text("c"), t.clone(), 1));
+        refused(&mut tb, got);
+        let got = set(&mut tb, 2, id(2), V::I(1));
+        refused(&mut tb, got);
+        let got = set(&mut tb, 4, id(1), long(b'x'));
+        refused(&mut tb, got);
+        assert_eq!(put(&mut tb, row(1, V::text("a"), t.clone(), 1)), Ok(false), "a row keeps its own key");
+        assert_eq!(set(&mut tb, 2, id(1), long(b'x')), Ok(true));
+        if !sealed {
+            maintain_all(&mut tb);
+        }
+    }
+    // A table opened again has its unique indexes.
+    let root = tb.root();
+    let mut tb = Table::open(&mut h, root).unwrap();
+    assert_eq!(set(&mut tb, 2, id(3), V::Null), Ok(true));
+    assert_eq!(set(&mut tb, 1, id(2), V::I(2)), Ok(true));
+    assert_eq!(set(&mut tb, 3, id(3), t.clone()), Ok(true));
+    let got = set(&mut tb, 4, id(3), t.clone());
+    refused(&mut tb, got);
+    let got = put(&mut tb, row(5, V::text("f"), t.clone(), 1));
+    refused(&mut tb, got);
+    assert_eq!(tb.count(&mut key_scratch(), 2, &mut Src::new(&[(id(3), t.clone()), (id(2), V::I(1))])), Ok(1));
+    assert_eq!(tb.count(&mut key_scratch(), 2, &mut Src::new(&[(id(3), V::Null), (id(2), V::I(2))])), Ok(1));
+    assert_eq!(tb.count(&mut key_scratch(), 3, &mut Src::new(&[(id(1), long(b'x'))])), Ok(1));
+}
+
 /// The key logs of the table's primary index and of its secondary index 1.
 fn key_logs(tb: &Table<'_, VecHost>) -> (KeyLog, KeyLog) {
     let (h, tbl) = (tb.host(), tb.root());

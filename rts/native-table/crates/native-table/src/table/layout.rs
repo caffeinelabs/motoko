@@ -9,7 +9,7 @@ use crate::consts::{FORMAT_TABLE, HOT_MAX, W_MAX, W_MIN};
 use crate::fault::{rt, Corruption, Fault};
 use crate::hash::{nt_hash64, Hasher64};
 use crate::mem::{put, put_u64, rd_u16, rd_u32, rd_u64, rd_u8, sub, PageHost, Region};
-use crate::schema::{node, Leaf, SchemaView, LEAF_BYTES, LEAF_KEY, LEAF_NULLABLE};
+use crate::schema::{node, Leaf, SchemaView, DECL_BYTES, LEAF_BYTES, LEAF_KEY, LEAF_NULLABLE};
 use crate::stats::running::{RKind, LIST_AT};
 
 use super::group::align8;
@@ -197,6 +197,8 @@ pub struct Shape {
     /// ones included (`indexes`).
     pub index_at: u64,
     pub index_decls: u64,
+    /// The unique indexes: bit i for declaration i (`indexes::UNIQUE`).
+    pub unique: u64,
 }
 
 /// The index kind byte of the primary index in its key spec hash.
@@ -234,7 +236,15 @@ impl Shape {
             set: true,
             index_at: u64::from(v.layout.indexes),
             index_decls: u64::from(v.indexes),
+            unique: 0,
         };
+        // At most 64 declarations.
+        for i in 0..s.index_decls {
+            let flags = rd_u8(bytes, s.index_at.wrapping_add(i.wrapping_mul(DECL_BYTES)).wrapping_add(1))?;
+            if flags & super::indexes::UNIQUE != 0 {
+                s.unique |= 1u64.wrapping_shl(u32::try_from(i).unwrap_or(0));
+            }
+        }
         if s.leaves == 0 {
             return Err(rt(Corruption::Leaf, 0));
         }
@@ -290,7 +300,7 @@ impl Shape {
     }
 
     /// The shape's words as the table root holds them: `FORMAT_TABLE`, the schema page, schema hash and
-    /// schema version the shape was derived from, then its other fields and two words of 0.
+    /// schema version the shape was derived from, then its other fields and a word of 0.
     fn words(&self) -> [u64; 24] {
         [
             u64::from(FORMAT_TABLE),
@@ -315,7 +325,7 @@ impl Shape {
             u64::from(self.set),
             self.index_at,
             self.index_decls,
-            0,
+            self.unique,
             0,
         ]
     }
@@ -352,7 +362,7 @@ impl Shape {
         let [format, page, hash, version, leaves, rows_r] = w0;
         let [leaves_at, bitmap, fixed_at, fixed, vars, run_r] = w1;
         let [run_list, run_bytes, tot_bytes, hot_h, key_leaves, key_w] = w2;
-        let [key_hash, set, index_at, index_decls, _, _] = w3;
+        let [key_hash, set, index_at, index_decls, unique, _] = w3;
         let Ok(version) = u32::try_from(version) else { return Ok(None) };
         if format != u64::from(FORMAT_TABLE)
             || page != rd_u64(r, root::SCHEMA_PAGE)?
@@ -383,6 +393,7 @@ impl Shape {
             set: set != 0,
             index_at,
             index_decls,
+            unique,
         }))
     }
 

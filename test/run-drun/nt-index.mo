@@ -14,9 +14,10 @@ import NativeTable "mo:native-table/NativeTable";
 // largest key whose first field is not null. The table goes through inserts, upkeep,
 // replacements and removals, inserts again and the removal of every row. A field list declared
 // twice is one index. A walk of the groups resumed after writes goes on in order and hands back
-// the keys the writes added past it. maintain has no work on an empty table. A field the row does
-// not have, an empty field list, fields the table has no index on, and keys with a cell of the
-// wrong kind, the wrong number of cells or a cell out of range trap
+// the keys the writes added past it. maintain has no work on an empty table. Unique indexes refuse
+// a second row's value. A field the row does not have, an empty field list, fields the table has
+// no index on, and keys with a cell of the wrong kind, the wrong number of cells or a cell out of
+// range trap
 actor {
   type Cell = NativeTable.Cell;
   type Row = {
@@ -474,6 +475,33 @@ actor {
     check("clear")
   };
 
+  // A unique index on email, and one on team and badge declared also as a plain index: a value a
+  // row has, with no null field, is refused for another row, and a row keeps its own. tryAdd gives
+  // false; add, update and upsert trap; neither writes. evolve keeps the indexes unique
+  type Person = { email : ?Text; team : Text; badge : Nat };
+  let people = NativeTable.empty<Nat, Person>().createUniqueIndex(["email"]).createIndex(["team", "badge"]).createUniqueIndex(["team", "badge"]).build();
+
+  public func unique() : async () {
+    people.add(1, { email = ?"a@x"; team = "red"; badge = 1 });
+    people.add(2, { email = null; team = "red"; badge = 2 });
+    let tried = [
+      people.tryAdd(3, { email = ?"a@x"; team = "blue"; badge = 1 }),
+      people.tryAdd(3, { email = ?"c@x"; team = "red"; badge = 2 }),
+      people.tryAdd(1, { email = ?"a@x"; team = "red"; badge = 1 }),
+      people.tryAdd(3, { email = null; team = "blue"; badge = 1 }),
+      people.update(2, { email = ?"b@x" }),
+    ];
+    Prim.debugPrint(debug_show { tried; size = people.size(); three = people.get(3); indexes = people.indexes })
+  };
+  public func uniqueAdd() : async () { people.add(4, { email = ?"b@x"; team = "green"; badge = 1 }) };
+  public func uniqueUpdate() : async () { ignore people.update(3, { team = "red"; badge = 1 }) };
+  public func uniqueUpsert() : async () { ignore people.upsert(4, { email = ?"a@x"; team = "green"; badge = 1 }) };
+  public func uniqueAfter() : async () {
+    let p : NativeTable.NativeTable<Nat, { email : ?Text; team : Text; badge : Nat; note : ?Text }> = people.evolve();
+    let tried = p.tryAdd(4, { email = ?"b@x"; team = "green"; badge = 1; note = null });
+    Prim.debugPrint(debug_show { tried; size = p.size(); three = p.get(3) })
+  };
+
   public func unknownField() : async () {
     ignore NativeTable.empty<Nat, Row>().createIndex(["nope"]).build()
   };
@@ -504,6 +532,11 @@ actor {
 //CALL ingress resume "DIDL\x00\x00"
 //CALL ingress clear "DIDL\x00\x00"
 //CALL ingress walks "DIDL\x00\x00"
+//CALL ingress unique "DIDL\x00\x00"
+//CALL ingress uniqueAdd "DIDL\x00\x00"
+//CALL ingress uniqueUpdate "DIDL\x00\x00"
+//CALL ingress uniqueUpsert "DIDL\x00\x00"
+//CALL ingress uniqueAfter "DIDL\x00\x00"
 //CALL ingress unknownField "DIDL\x00\x00"
 //CALL ingress noFields "DIDL\x00\x00"
 //CALL ingress noIndex "DIDL\x00\x00"

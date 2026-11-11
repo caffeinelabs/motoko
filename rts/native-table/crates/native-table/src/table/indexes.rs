@@ -14,7 +14,7 @@
 //! buffer for the keys they hold and answer `Scratch` with the bytes it needs when a key is longer.
 
 use crate::consts::INDEXES_MAX;
-use crate::fault::{rt, Corruption, Fault, SchemaError};
+use crate::fault::{rt, Corruption, Fault, ImageId, SchemaError};
 use crate::host::Scratch;
 use crate::index::secondary::{Secondary, KIND_SECONDARY};
 use crate::key::{KeyKind, KeyPart, KeySpec, LenSink, Sink, SliceSink};
@@ -22,8 +22,9 @@ use crate::mem::{rd_u16, rd_u32, rd_u8, PageHost, Region};
 use crate::schema::{SchemaView, LEAF_NULLABLE};
 use crate::tree::{IndexShape, Path};
 
+use super::cell::Val;
 use super::group::GroupView;
-use super::layout::{key_kind, Shape};
+use super::layout::{key_kind, LeafInfo, Shape};
 use super::primary::Primary;
 use super::{cell, overlay, read, row, RowSource, Table, KEY_STACK, PIECE};
 
@@ -33,6 +34,8 @@ const DECLS_MAX: u64 = 64;
 pub(super) const DECL: u64 = crate::schema::DECL_BYTES;
 /// Declaration flags bit 0: a primary index.
 pub(super) const PRIMARY: u8 = 1;
+/// Declaration flags bit 3: a unique index, which holds a key with no null part for one row at most.
+pub const UNIQUE: u8 = 8;
 /// The most parts a key has.
 const PARTS_MAX: usize = 7;
 
@@ -216,13 +219,47 @@ pub fn check_source<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     Ok(())
 }
 
+/// The cells a write gives some leaves of a stored row, read in place of the row's own: none for `()`.
+pub(super) trait Over {
+    fn val(&mut self, l: &LeafInfo) -> Option<Result<Val<'_>, Fault>>;
+}
+
+impl Over for () {
+    #[inline(always)]
+    fn val(&mut self, _: &LeafInfo) -> Option<Result<Val<'_>, Fault>> {
+        None
+    }
+}
+
+/// A row source taken as `dyn RowSource`, so that the unique checks are made once for every source type and
+/// leave the code of the writes as it is.
+pub(super) struct Dyn<'a, R: ?Sized>(pub &'a mut R);
+
+impl<R: RowSource + ?Sized> RowSource for Dyn<'_, R> {
+    fn cell(&mut self, leaf: u32) -> Result<super::CellIn<'_>, Fault> {
+        self.0.cell(leaf)
+    }
+    fn fill(&mut self, leaf: u32, at: u64, dst: &mut [u8]) -> Result<(), Fault> {
+        self.0.fill(leaf, at, dst)
+    }
+}
+
+/// The leaves of the list, from the cells of the source.
+impl<R: RowSource + ?Sized> Over for (&[u32], &mut R) {
+    fn val(&mut self, l: &LeafInfo) -> Option<Result<Val<'_>, Fault>> {
+        self.0.contains(&l.id).then(|| row::cell_of(&mut *self.1, l))
+    }
+}
+
 /// Writes the key the stored row `r` has under index `d` into `s`, from its current cells (the overlay's
-/// values); `piece` takes a value that does not lie in one piece of table memory.
-fn enc_live<H: PageHost + ?Sized, S: Sink>(
+/// values), each leaf `over` gives from that; `piece` takes a value that does not lie in one piece of table
+/// memory.
+fn enc_live<H: PageHost + ?Sized, O: Over + ?Sized, S: Sink>(
     shape: &Shape,
     h: &H,
     d: &Decl,
     r: &read::Live,
+    over: &mut O,
     piece: &mut [u8],
     s: &mut S,
 ) -> Result<(), Fault> {
@@ -244,6 +281,10 @@ fn enc_live<H: PageHost + ?Sized, S: Sink>(
                     next = next.wrapping_add(1);
                 }
                 let l = shape.leaf(h, o)?;
+                if let Some(v) = over.val(&l) {
+                    cell::enc_key(s, &l, &v?)?;
+                    continue;
+                }
                 let v = overlay::buffered_value(shape, &rr, &mut walk, &l)?;
                 next = o.wrapping_add(1);
                 cell::enc_key(s, &l, &read::sval_val(h, &l, &v, piece)?)?;
@@ -254,6 +295,10 @@ fn enc_live<H: PageHost + ?Sized, S: Sink>(
             let slot = gv.slot(pos)?;
             for &o in d.ords() {
                 let l = shape.leaf(h, u64::from(o))?;
+                if let Some(v) = over.val(&l) {
+                    cell::enc_key(s, &l, &v?)?;
+                    continue;
+                }
                 cell::enc_key(s, &l, &read::sealed_cell(&gv, sg, &l, slot, pos, piece)?)?;
             }
         }
@@ -287,16 +332,17 @@ pub fn change<H: PageHost>(
 /// The key the stored row `r` has under index `d`, at the start of `buf`: its length, or `None` when it is
 /// longer than `KEY_STACK`.
 #[inline(always)]
-fn key_of_stored<H: PageHost + ?Sized>(
+fn key_of_stored<H: PageHost + ?Sized, O: Over + ?Sized>(
     shape: &Shape,
     h: &H,
     d: &Decl,
     r: &read::Live,
+    over: &mut O,
     piece: &mut [u8; PIECE],
     buf: &mut [u8; KEY_STACK],
 ) -> Result<Option<usize>, Fault> {
     let mut s = SliceSink::new(buf);
-    match enc_live(shape, h, d, r, piece, &mut s) {
+    match enc_live(shape, h, d, r, over, piece, &mut s) {
         Ok(()) => Ok(Some(s.len)),
         Err(Fault::Scratch { .. }) => Ok(None),
         Err(e) => Err(e),
@@ -348,17 +394,18 @@ fn source_key<'s, H: PageHost + ?Sized, R: RowSource + ?Sized, S: Scratch>(
 /// first, with each value that does not lie in one piece of table memory copied into a piece of scratch as
 /// long as the longest of them.
 #[inline(never)]
-fn stored_key<'s, H: PageHost + ?Sized, S: Scratch>(
+fn stored_key<'s, H: PageHost + ?Sized, O: Over + ?Sized, S: Scratch>(
     shape: &Shape,
     h: &H,
     d: &Decl,
     r: &read::Live,
+    over: &mut O,
     scratch: &'s mut S,
 ) -> Result<&'s [u8], Fault> {
     let mut piece = PIECE;
     let len = loop {
         let mut c = LenSink(0);
-        match enc_live(shape, h, d, r, scratch.get(piece)?, &mut c) {
+        match enc_live(shape, h, d, r, over, scratch.get(piece)?, &mut c) {
             Ok(()) => break c.0,
             Err(Fault::Scratch { need }) => {
                 piece = usize::try_from(need).map_err(|_| Fault::Scratch { need })?.max(piece.saturating_mul(2));
@@ -368,11 +415,81 @@ fn stored_key<'s, H: PageHost + ?Sized, S: Scratch>(
     };
     let n = usize::try_from(len).map_err(|_| Fault::Scratch { need: len })?;
     let (p, key) = scratch.get(piece.saturating_add(n))?.split_at_mut(piece);
-    enc_live(shape, h, d, r, p, &mut SliceSink::new(key))?;
+    enc_live(shape, h, d, r, over, p, &mut SliceSink::new(key))?;
     Ok(key)
 }
 
 impl<H: PageHost> Table<'_, H> {
+    /// The unique indexes among the declarations `mask` sets (bit i: declaration i) whose key, with no null part,
+    /// a row other than `own` holds: the key the cells of `src` give, or with `set` = (r, leaves), the key the
+    /// stored row r has once its leaves `leaves` take the cells of `src`. A key's encoding and a descent of its
+    /// index's tree each, and one more descent when one row holds it and `own` is given.
+    #[inline(never)]
+    pub(super) fn held<S: Scratch>(
+        &self,
+        src: &mut dyn RowSource,
+        set: Option<(&read::Live, &[u32])>,
+        own: Option<u64>,
+        mask: u64,
+        scratch: &mut S,
+    ) -> Result<u64, Fault> {
+        let (h, shape) = (&*self.host, &self.shape);
+        let (mut buf, mut piece) = ([0u8; KEY_STACK], [0u8; PIECE]);
+        let mut held = 0u64;
+        for i in 0..shape.index_decls {
+            if mask >> i & 1 == 0 {
+                continue;
+            }
+            let Some(d) = decl(shape, h, i)? else { continue };
+            let key = match set {
+                None => match key_of_source(shape, h, &d, src, &mut buf) {
+                    Ok(n) => buf.get(..n).unwrap_or(&[]),
+                    Err(Fault::Scratch { .. }) => source_key(shape, h, &d, src, scratch)?,
+                    Err(e) => return Err(e),
+                },
+                Some((r, leaves)) => {
+                    match key_of_stored(shape, h, &d, r, &mut (leaves, &mut *src), &mut piece, &mut buf)? {
+                        Some(n) => buf.get(..n).unwrap_or(&[]),
+                        None => stored_key(shape, h, &d, r, &mut (leaves, &mut *src), scratch)?,
+                    }
+                }
+            };
+            if d.spec(&d.parts(shape, h)?).has_null(key, ImageId::Runtime)? {
+                continue;
+            }
+            let ix = Secondary::read(h, self.root, d.id)?;
+            let n = ix.count(h, key)?;
+            let own = match own {
+                Some(rid) if n == 1 => ix.holds(h, key, rid)?,
+                _ => false,
+            };
+            if n > i128::from(own) {
+                held |= 1u64.wrapping_shl(u32::try_from(i).unwrap_or(0));
+            }
+        }
+        Ok(held)
+    }
+
+    /// Refuses (`Unique`) an upsert of the row `src` whose key under a unique index, with no null part, a row
+    /// other than the one of the row's key holds: the row's key is looked up only when a row holds one.
+    #[inline(never)]
+    pub(super) fn unique_row<S: Scratch>(&self, src: &mut dyn RowSource, scratch: &mut S) -> Result<(), Fault> {
+        let held = self.held(src, None, None, self.shape.unique, scratch)?;
+        if held == 0 {
+            return Ok(());
+        }
+        let mut kb = [0u8; KEY_STACK];
+        let e = self.key_in(src, &mut kb, scratch)?;
+        let own = match Primary::read(&*self.host, self.root)? {
+            Some(p) => super::primary::lookup(&*self.host, &p, e, &mut Path::new())?.found.map(|(rid, _, _)| rid),
+            None => None,
+        };
+        if own.is_none() || self.held(src, None, own, held, scratch)? != 0 {
+            return Err(Fault::Unique);
+        }
+        Ok(())
+    }
+
     /// Takes the new row `rid` in every secondary index, under the key the cells of `src` give each; `buf` and
     /// `path` are the caller's.
     pub(super) fn index_insert<R: RowSource + ?Sized, S: Scratch>(
@@ -413,9 +530,9 @@ impl<H: PageHost> Table<'_, H> {
                 continue;
             }
             let Some(d) = decl(shape, &*h, i)? else { continue };
-            let key = match key_of_stored(shape, &*h, &d, r, &mut piece, buf)? {
+            let key = match key_of_stored(shape, &*h, &d, r, &mut (), &mut piece, buf)? {
                 Some(n) => buf.get(..n).unwrap_or(&[]),
-                None => stored_key(shape, &*h, &d, r, scratch)?,
+                None => stored_key(shape, &*h, &d, r, &mut (), scratch)?,
             };
             change(h, tbl, d.id, key, rid, take, path)?;
         }
@@ -443,9 +560,9 @@ impl<H: PageHost> Table<'_, H> {
                 Some(ref x) => x,
                 None => live.insert(read::Live::open(&*h, r)?),
             };
-            let old = match key_of_stored(shape, &*h, &d, lv, &mut piece, buf)? {
+            let old = match key_of_stored(shape, &*h, &d, lv, &mut (), &mut piece, buf)? {
                 Some(n) => buf.get(..n).unwrap_or(&[]),
-                None => stored_key(shape, &*h, &d, lv, scratch)?,
+                None => stored_key(shape, &*h, &d, lv, &mut (), scratch)?,
             };
             let same = {
                 let mut cmp = super::KeyCompare { want: old, at: 0, same: true };
