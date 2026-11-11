@@ -15,7 +15,7 @@
 use crate::consts::{magic, FORMAT_IMAGE, PAGE};
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
 use crate::image::{Image, ImageReader};
-use crate::mem::{rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
+use crate::mem::{rd_u16, rd_u32, rd_u64, rd_u8, sub, PageHost, Region};
 
 use super::page;
 
@@ -284,6 +284,18 @@ pub struct GroupMeta {
     pub version: u32,
 }
 
+/// A leaf's segments as `GroupView::cell_at` last found them: its cell segment holding slots [first, first + n)
+/// (its bytes, at image offset `off`), or the 16 bytes of its `Seq` part; and its run. `Cur::default()` holds
+/// none.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Cur<'h> {
+    cells: &'h [u8],
+    off: u64,
+    first: u64,
+    n: u64,
+    run: Seg,
+}
+
 /// A sealed group, read through its group page and the checked image reader.
 pub struct GroupView<'h, H: PageHost + ?Sized> {
     pub h: &'h H,
@@ -434,6 +446,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
     }
 
     /// The cell segment holding slot s, and s's index in it.
+    #[inline(always)]
     fn cell_seg(&self, ld: &LeafDir, s: u64) -> Result<(Seg, u64), Fault> {
         let (mut lo, mut hi) = (0u64, ld.cell_segs());
         if hi == 0 {
@@ -457,39 +470,50 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
 
     /// The value of leaf `ld` at stored slot s, position p.
     pub fn cell(&self, ld: &LeafDir, s: u64, p: u64) -> Result<GCell, Fault> {
+        self.cell_at(ld, &mut Cur::default(), s, p)
+    }
+
+    /// `cell`, reading the leaf's segments through `c`: they are found when `c` does not hold slot s, then kept
+    /// in it, so a reader of many positions of the group finds each segment once.
+    #[inline(always)]
+    pub fn cell_at(&self, ld: &LeafDir, c: &mut Cur<'h>, s: u64, p: u64) -> Result<GCell, Fault> {
         let r = self.reader();
         if ld.form == form::SEQ {
-            let part = self.tail_seg(ld, seg::SEQ)?;
-            let base = r.u64_at(part.off)?;
-            let step = r.u64_at(part.off.wrapping_add(8))?;
+            if c.cells.is_empty() {
+                c.cells = r.bytes(self.tail_seg(ld, seg::SEQ)?.off, 16)?;
+            }
             // base + step · p in the leaf's 64-bit range, as the seal checked.
-            return Ok(GCell::U(base.wrapping_add(step.wrapping_mul(p))));
+            return Ok(GCell::U(rd_u64(c.cells, 0)?.wrapping_add(rd_u64(c.cells, 8)?.wrapping_mul(p))));
         }
         let validity = ld.flags & LF_VALIDITY != 0;
         if !has_cells(ld.form, validity) {
             return Ok(GCell::Unit);
         }
-        let (sg, i) = self.cell_seg(ld, s)?;
-        let words = u64::from(sg.positions).div_ceil(64).wrapping_mul(8);
-        let mut body = sg.off;
+        let mut i = s.wrapping_sub(c.first);
+        if i >= c.n {
+            let (sg, j) = self.cell_seg(ld, s)?;
+            let cells = r.bytes(sg.off, u64::from(sg.bytes))?;
+            *c = Cur { cells, off: sg.off, first: u64::from(sg.first), n: u64::from(sg.positions), ..*c };
+            i = j;
+        }
+        let b = c.cells;
+        let mut body = 0u64;
         if validity {
-            let w = r.u64_at(sg.off.wrapping_add((i / 64).wrapping_mul(8)))?;
-            if w >> (i % 64) & 1 == 0 {
+            if rd_u64(b, (i / 64).wrapping_mul(8))? >> (i % 64) & 1 == 0 {
                 return Ok(GCell::Null);
             }
-            body = body.wrapping_add(words);
+            body = c.n.div_ceil(64).wrapping_mul(8);
         }
         let width = u64::from(ld.width);
         let at = body.wrapping_add(i.wrapping_mul(width));
         let le = |len: u64| -> Result<u64, Fault> {
-            let b = r.bytes(at, len)?;
             let mut a = [0u8; 8];
-            crate::mem::copy_bytes(&mut a, b);
+            crate::mem::copy_bytes(&mut a, sub(b, at, len)?);
             Ok(u64::from_le_bytes(a))
         };
         Ok(match ld.form {
             form::UNIT => GCell::Unit,
-            form::BOOL => GCell::Bool(r.u64_at(body.wrapping_add((i / 64).wrapping_mul(8)))? >> (i % 64) & 1 != 0),
+            form::BOOL => GCell::Bool(rd_u64(b, body.wrapping_add((i / 64).wrapping_mul(8)))? >> (i % 64) & 1 != 0),
             form::U8 | form::U16 | form::U32 | form::U64 => GCell::U(le(width)?),
             form::I8 | form::I16 | form::I32 | form::I64 => {
                 let raw = le(width)?;
@@ -502,27 +526,25 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
             }
             form::F32 => GCell::F32(u32::try_from(le(4)?).unwrap_or(0)),
             form::F64 => GCell::F64(le(8)?),
-            form::X16 => {
-                let mut a = [0u8; 16];
-                crate::mem::copy_bytes(&mut a, r.bytes(at, 16)?);
-                GCell::X16(a)
-            }
-            form::FIXED => GCell::Bytes { off: at, len: width },
+            form::X16 => GCell::X16(crate::mem::rd_array::<16>(b, at)?),
+            form::FIXED => GCell::Bytes { off: c.off.wrapping_add(at), len: width },
             f if variable(f) => {
                 if ld.flags & LF_OOL != 0 {
-                    if let Some(c) = self.ool_cell(ld, s)? {
-                        return Ok(c);
+                    if let Some(x) = self.ool_cell(ld, s)? {
+                        return Ok(x);
                     }
                 }
                 let o = body.wrapping_add(i.wrapping_mul(4));
-                let ab = r.bytes(o, 8)?;
-                let (a, b) = (u64::from(rd_u32(ab, 0)?), u64::from(rd_u32(ab, 4)?));
-                let run = self.tail_seg(ld, seg::RUN)?;
-                let len = b.checked_sub(a).ok_or(self.bad(Corruption::Order, o))?;
-                if b > u64::from(run.bytes) {
+                let (a, e) = (u64::from(rd_u32(b, o)?), u64::from(rd_u32(b, o.wrapping_add(4))?));
+                if c.run.kind != seg::RUN {
+                    c.run = self.tail_seg(ld, seg::RUN)?;
+                }
+                let o = c.off.wrapping_add(o);
+                let len = e.checked_sub(a).ok_or(self.bad(Corruption::Order, o))?;
+                if e > u64::from(c.run.bytes) {
                     return Err(self.bad(Corruption::Bounds, o));
                 }
-                GCell::Bytes { off: run.off.wrapping_add(a), len }
+                GCell::Bytes { off: c.run.off.wrapping_add(a), len }
             }
             _ => return Err(self.bad(Corruption::Leaf, u64::from(ld.ordinal))),
         })

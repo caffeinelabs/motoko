@@ -7,7 +7,7 @@ use crate::mem::{rd_u8, PageHost};
 use super::buffer::{self, DESC_BIT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
-use super::group::{GCell, GroupView, LeafDir};
+use super::group::{Cur, GCell, GroupView, LeafDir};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay;
 use super::row::{RowRef, Walk};
@@ -250,26 +250,28 @@ pub fn emit_sealed<H: PageHost + ?Sized, S: RowSink>(
     out: &mut S,
 ) -> Result<(), Fault> {
     for o in 0..shape.leaves {
-        emit_leaf(gv, s, &shape.leaf(gv.h, o)?, &gv.leaf(o)?, slot, pos, out)?;
+        emit_leaf(gv, s, &shape.leaf(gv.h, o)?, &gv.leaf(o)?, None, slot, pos, out)?;
     }
     Ok(())
 }
 
 /// Hands leaf `l`'s current value at position `pos` of sealed group `s` (viewed by `gv`, the leaf's directory
-/// entry `ld`, the position's stored slot `slot`) to `out`: straight from its image cell when the group has no
-/// patches and the value lies in one piece of the image.
+/// entry `ld`, its segments read through `c` when given, the position's stored slot `slot`) to `out`: straight
+/// from its image cell when the group has no patches and the value lies in one piece of the image.
+#[allow(clippy::too_many_arguments)]
 #[inline(always)]
-pub fn emit_leaf<H: PageHost + ?Sized, S: RowSink>(
-    gv: &GroupView<'_, H>,
+pub fn emit_leaf<'h, H: PageHost + ?Sized, S: RowSink>(
+    gv: &GroupView<'h, H>,
     s: &overlay::Sealed,
     l: &LeafInfo,
     ld: &LeafDir,
+    c: Option<&mut Cur<'h>>,
     slot: Option<u64>,
     pos: u64,
     out: &mut S,
 ) -> Result<(), Fault> {
     if let (Some(slot), 0) = (slot, s.dir) {
-        if emit_cell(gv, out, l, ld, slot, pos)? {
+        if emit_cell(gv, out, l, ld, c, slot, pos)? {
             return Ok(());
         }
     }
@@ -281,15 +283,20 @@ pub fn emit_leaf<H: PageHost + ?Sized, S: RowSink>(
 /// Leaf `l`'s image cell (directory entry `ld`) at stored slot `slot` of position `pos` handed to `out` straight
 /// from the image; `false`, with nothing handed out, for a value that does not lie in one piece of it.
 #[inline(always)]
-fn emit_cell<H: PageHost + ?Sized, S: RowSink>(
-    gv: &GroupView<'_, H>,
+fn emit_cell<'h, H: PageHost + ?Sized, S: RowSink>(
+    gv: &GroupView<'h, H>,
     out: &mut S,
     l: &LeafInfo,
     ld: &LeafDir,
+    c: Option<&mut Cur<'h>>,
     slot: u64,
     pos: u64,
 ) -> Result<bool, Fault> {
-    match gv.cell(ld, slot, pos)? {
+    let x = match c {
+        Some(c) => gv.cell_at(ld, c, slot, pos)?,
+        None => gv.cell(ld, slot, pos)?,
+    };
+    match x {
         GCell::Bytes { off, len } if (off % PAGE).saturating_add(len) <= PAGE => {
             let b = gv.reader().bytes(off, len)?;
             // A Principal's 30-byte cell holds its length in its last byte.

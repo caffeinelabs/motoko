@@ -29,7 +29,7 @@ use super::buffer::{self, DESC_BIT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
 use super::extremes::{self, BIG, HAS};
-use super::group::{GroupView, LeafDir};
+use super::group::{Cur, GroupView, LeafDir};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay::{self, Buffered, Sealed};
 use super::read::{self, Live};
@@ -289,7 +289,7 @@ impl<'a> Test<'a> {
 // ---------------------------------------------------------------- the scan
 
 /// What a scan does with the matching rows.
-trait Visit<H: PageHost + ?Sized> {
+trait Visit<'h, H: PageHost + ?Sized> {
     /// Whether it takes no more rows.
     fn full(&self) -> bool {
         false
@@ -302,7 +302,7 @@ trait Visit<H: PageHost + ?Sized> {
     }
 
     /// A sealed group opened (`gv`), before its rows.
-    fn open(&mut self, _gv: &GroupView<'_, H>) -> Result<(), Fault> {
+    fn open(&mut self, _gv: &GroupView<'h, H>) -> Result<(), Fault> {
         Ok(())
     }
 
@@ -311,7 +311,7 @@ trait Visit<H: PageHost + ?Sized> {
     #[allow(clippy::too_many_arguments)]
     fn sealed(
         &mut self,
-        gv: &GroupView<'_, H>,
+        gv: &GroupView<'h, H>,
         shape: &Shape,
         s: &Sealed,
         pos: u64,
@@ -326,8 +326,8 @@ trait Visit<H: PageHost + ?Sized> {
 
 /// Runs `t` over the live rows from rid `from` on, handing the matching ones to `v` (every live row when `t` is
 /// `None`); the rid to go on from when `v` became full before the last row, else `None`.
-fn run<H: PageHost + ?Sized, V: Visit<H>>(
-    h: &H,
+fn run<'h, H: PageHost + ?Sized, V: Visit<'h, H>>(
+    h: &'h H,
     tbl: u64,
     shape: &Shape,
     t: Option<&Test<'_>>,
@@ -418,96 +418,77 @@ fn run<H: PageHost + ?Sized, V: Visit<H>>(
     Ok(None)
 }
 
-/// Hands the matching rows to a sink, at most `left` more.
-struct Rows<'o, S: RowSink> {
-    out: &'o mut S,
-    left: u64,
-}
-
-impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Rows<'_, S> {
-    fn full(&self) -> bool {
-        self.left == 0
-    }
-
-    fn sealed(
-        &mut self,
-        gv: &GroupView<'_, H>,
-        shape: &Shape,
-        s: &Sealed,
-        pos: u64,
-        slot: Option<u64>,
-        rid: u64,
-        _v: Option<&SVal>,
-    ) -> Result<(), Fault> {
-        read::emit_sealed(gv, shape, s, pos, slot, self.out)?;
-        self.out.row_end(rid)?;
-        self.left = self.left.saturating_sub(1);
-        Ok(())
-    }
-
-    fn buffered(&mut self, h: &H, shape: &Shape, b: &Buffered, rid: u64, _v: Option<&SVal>) -> Result<(), Fault> {
-        read::emit_buffered(h, shape, b, self.out)?;
-        self.out.row_end(rid)?;
-        self.left = self.left.saturating_sub(1);
-        Ok(())
-    }
-}
-
-/// How many of the leaves a row hands out a cell scan finds once a call, and their leaf directory entries once a
-/// group; a leaf past them is found again for each cell.
+/// How many of the leaves a row hands out a cell scan finds once a call, and their leaf directory entries and
+/// segments once a group; a leaf past them is found again for each cell.
 const COLS: usize = 64;
 
-/// A leaf a cell scan hands out, and its leaf directory entry in the open group (`None`: the image lacks it).
-#[derive(Clone, Copy)]
-struct Col {
-    l: LeafInfo,
-    ld: Option<LeafDir>,
+/// The ordinal of leaf i of `ids`, or i past them.
+#[inline(always)]
+fn ordinal<H: PageHost + ?Sized>(ids: &[u32], h: &H, shape: &Shape, i: usize) -> Result<u64, Fault> {
+    match ids.get(i) {
+        Some(&id) => shape.ordinal_of(h, id)?.ok_or(Fault::BadRef),
+        None => Ok(i as u64),
+    }
 }
 
-/// Hands the leaves `ids` names of each matching row to a sink, at most `left` more rows.
-struct Cells<'o, 'i, S: RowSink, const N: usize> {
+/// A leaf a cell scan hands out, its leaf directory entry in the open group (`None`: the image lacks it), and
+/// the group's segments of the leaf last read.
+#[derive(Clone, Copy)]
+struct Col<'h> {
+    l: LeafInfo,
+    ld: Option<LeafDir>,
+    cur: Cur<'h>,
+}
+
+/// Hands the leaves `ids` names of each matching row to a sink, at most `left` more rows; a whole-row scan names
+/// none and hands every leaf, in leaf order.
+struct Cells<'o, 'i, 'h, S: RowSink, const N: usize> {
     ids: &'i [u32],
-    /// The first `N` leaves of `ids`, found.
-    cols: [Option<Col>; N],
+    /// The leaves a row hands out.
+    n: usize,
+    /// The first `N` of them, found.
+    cols: [Option<Col<'h>>; N],
     /// The filter's leaf, whose value the test has read.
     tested: Option<u16>,
     out: &'o mut S,
     left: u64,
 }
 
-impl<'o, 'i, S: RowSink, const N: usize> Cells<'o, 'i, S, N> {
-    /// `BadRef` for a leaf of `ids` the table does not have live.
-    fn new<H: PageHost + ?Sized>(
-        h: &H,
-        shape: &Shape,
-        ids: &'i [u32],
-        tested: Option<u16>,
-        out: &'o mut S,
-        left: u64,
-    ) -> Result<Self, Fault> {
-        let mut cols = [None; N];
-        for (i, &id) in ids.iter().enumerate() {
-            let o = shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?;
-            if let Some(x) = cols.get_mut(i) {
-                *x = Some(Col { l: shape.leaf(h, o)?, ld: None });
+impl<'o, 'i, S: RowSink, const N: usize> Cells<'o, 'i, '_, S, N> {
+    /// Nothing found yet: `find` finds the leaves. Built where the caller keeps it, as its array is large.
+    #[inline(always)]
+    fn new(ids: &'i [u32], n: usize, tested: Option<u16>, out: &'o mut S, left: u64) -> Self {
+        Cells { ids, n, cols: [None; N], tested, out, left }
+    }
+
+    /// Finds the first `N` leaves; `BadRef` for a leaf of `ids` the table does not have live.
+    fn find<H: PageHost + ?Sized>(&mut self, h: &H, shape: &Shape) -> Result<(), Fault> {
+        for i in 0..self.n {
+            let o = ordinal(self.ids, h, shape, i)?;
+            if let Some(x) = self.cols.get_mut(i) {
+                *x = Some(Col { l: shape.leaf(h, o)?, ld: None, cur: Cur::default() });
             }
         }
-        Ok(Cells { ids, cols, tested, out, left })
+        Ok(())
     }
 
     /// Leaf i of `ids`, found again: one past the first `N`, kept out of the row loops.
     #[inline(never)]
-    fn leaf<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, i: usize) -> Result<LeafInfo, Fault> {
-        let id = *self.ids.get(i).ok_or(rt(Corruption::Range, i as u64))?;
-        shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)
+    fn leaf<H: PageHost + ?Sized>(ids: &[u32], h: &H, shape: &Shape, i: usize) -> Result<LeafInfo, Fault> {
+        shape.leaf(h, ordinal(ids, h, shape, i)?)
     }
 
     /// Leaf i of `ids` and its leaf directory entry in the group `gv` views, found again: one past the first
     /// `N`, kept out of the row loops.
     #[inline(never)]
-    fn col<H: PageHost + ?Sized>(&self, gv: &GroupView<'_, H>, shape: &Shape, i: usize) -> Result<Col, Fault> {
-        let l = self.leaf(gv.h, shape, i)?;
-        Ok(Col { l, ld: Some(gv.leaf(u64::from(l.ordinal))?) })
+    fn col<H: PageHost + ?Sized>(
+        ids: &[u32],
+        gv: &GroupView<'_, H>,
+        shape: &Shape,
+        i: usize,
+    ) -> Result<(LeafInfo, LeafDir), Fault> {
+        let l = Self::leaf(ids, gv.h, shape, i)?;
+        Ok((l, gv.leaf(u64::from(l.ordinal))?))
     }
 
     /// The value `v` the filter's test read, when leaf `l` is the filter's.
@@ -522,21 +503,21 @@ impl<'o, 'i, S: RowSink, const N: usize> Cells<'o, 'i, S, N> {
     }
 }
 
-impl<H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<H> for Cells<'_, '_, S, N> {
+impl<'h, H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<'h, H> for Cells<'_, '_, 'h, S, N> {
     fn full(&self) -> bool {
         self.left == 0
     }
 
-    fn open(&mut self, gv: &GroupView<'_, H>) -> Result<(), Fault> {
+    fn open(&mut self, gv: &GroupView<'h, H>) -> Result<(), Fault> {
         for c in self.cols.iter_mut().flatten() {
-            c.ld = Some(gv.leaf(u64::from(c.l.ordinal))?);
+            *c = Col { ld: Some(gv.leaf(u64::from(c.l.ordinal))?), cur: Cur::default(), ..*c };
         }
         Ok(())
     }
 
     fn sealed(
         &mut self,
-        gv: &GroupView<'_, H>,
+        gv: &GroupView<'h, H>,
         shape: &Shape,
         s: &Sealed,
         pos: u64,
@@ -544,18 +525,18 @@ impl<H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<H> for Cells<'_, '_
         rid: u64,
         v: Option<&SVal>,
     ) -> Result<(), Fault> {
-        for i in 0..self.ids.len() {
+        for i in 0..self.n {
             let found;
-            let c = match self.cols.get(i) {
-                Some(Some(c)) => c,
+            let (l, ld, c) = match self.cols.get_mut(i) {
+                Some(Some(c)) => (&c.l, c.ld.as_ref(), Some(&mut c.cur)),
                 _ => {
-                    found = self.col(gv, shape, i)?;
-                    &found
+                    found = Self::col(self.ids, gv, shape, i)?;
+                    (&found.0, Some(&found.1), None)
                 }
             };
-            match (self.reuse(&c.l, v), c.ld.as_ref()) {
-                (Some(x), _) => read::emit_sval(gv.h, self.out, &c.l, &x)?,
-                (None, Some(ld)) => read::emit_leaf(gv, s, &c.l, ld, slot, pos, self.out)?,
+            match (v.filter(|_| self.tested == Some(l.ordinal)), ld) {
+                (Some(x), _) => read::emit_sval(gv.h, self.out, l, x)?,
+                (None, Some(ld)) => read::emit_leaf(gv, s, l, ld, c, slot, pos, self.out)?,
                 (None, None) => return Err(rt(Corruption::Leaf, pos)),
             }
         }
@@ -567,10 +548,10 @@ impl<H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<H> for Cells<'_, '_
         // bit is the ordinal it stands at).
         let row = RowRef::new(h, b.loc)?;
         let mut walk = Walk::of(shape, &row)?;
-        for i in 0..self.ids.len() {
-            let l = match self.cols.get(i).copied().flatten() {
+        for i in 0..self.n {
+            let l = match self.cols.get(i).and_then(Option::as_ref) {
                 Some(c) => c.l,
-                None => self.leaf(h, shape, i)?,
+                None => Self::leaf(self.ids, h, shape, i)?,
             };
             let x = match self.reuse(&l, v) {
                 Some(x) => x,
@@ -610,7 +591,7 @@ fn live_in<H: PageHost + ?Sized>(h: &H, s: &Sealed, from: u64, to: u64) -> Resul
 /// Counts the matching rows.
 struct Count(u64);
 
-impl<H: PageHost + ?Sized> Visit<H> for Count {
+impl<'h, H: PageHost + ?Sized> Visit<'h, H> for Count {
     fn passed(&mut self, h: &H, s: &Sealed, from: u64, to: u64) -> Result<bool, Fault> {
         self.0 = self.0.wrapping_add(live_in(h, s, from, to)?);
         Ok(true)
@@ -618,7 +599,7 @@ impl<H: PageHost + ?Sized> Visit<H> for Count {
 
     fn sealed(
         &mut self,
-        _gv: &GroupView<'_, H>,
+        _gv: &GroupView<'h, H>,
         _shape: &Shape,
         _s: &Sealed,
         _pos: u64,
@@ -794,15 +775,15 @@ impl Sum<'_> {
     }
 }
 
-impl<H: PageHost + ?Sized> Visit<H> for Sum<'_> {
-    fn open(&mut self, gv: &GroupView<'_, H>) -> Result<(), Fault> {
+impl<'h, H: PageHost + ?Sized> Visit<'h, H> for Sum<'_> {
+    fn open(&mut self, gv: &GroupView<'h, H>) -> Result<(), Fault> {
         self.ld = Some(gv.leaf(u64::from(self.l.ordinal))?);
         Ok(())
     }
 
     fn sealed(
         &mut self,
-        gv: &GroupView<'_, H>,
+        gv: &GroupView<'h, H>,
         _shape: &Shape,
         s: &Sealed,
         pos: u64,
@@ -838,7 +819,15 @@ pub fn scan<H: PageHost + ?Sized, S: RowSink>(
     out: &mut S,
 ) -> Result<Option<u64>, Fault> {
     let t = test_of(h, shape, f)?;
-    run(h, tbl, shape, t.as_ref(), next, &mut Rows { out, left: limit })
+    let mut c = Cells::<_, COLS>::new(
+        &[],
+        usize::try_from(shape.leaves).unwrap_or(0),
+        t.as_ref().map(|t| t.l.ordinal),
+        out,
+        limit,
+    );
+    c.find(h, shape)?;
+    run(h, tbl, shape, t.as_ref(), next, &mut c)
 }
 
 /// The test of `f`, or none.
@@ -861,7 +850,8 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     out: &mut S,
 ) -> Result<Option<u64>, Fault> {
     let t = test_of(h, shape, f)?;
-    let mut c = Cells::<_, COLS>::new(h, shape, leaves, t.as_ref().map(|t| t.l.ordinal), out, limit)?;
+    let mut c = Cells::<_, COLS>::new(leaves, leaves.len(), t.as_ref().map(|t| t.l.ordinal), out, limit);
+    c.find(h, shape)?;
     run(h, tbl, shape, t.as_ref(), next, &mut c)
 }
 
@@ -876,7 +866,7 @@ pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
     rid: u64,
     out: &mut S,
 ) -> Result<(), Fault> {
-    let mut c = Cells { ids: leaves, cols: [], tested: None, out, left: 1 };
+    let mut c = Cells { ids: leaves, n: leaves.len(), cols: [], tested: None, out, left: 1 };
     match *row {
         Live::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
         Live::Sealed(ref s, pos) => {
