@@ -375,32 +375,33 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(buf.get(..n).unwrap_or(&[]))
     }
 
-    /// The live row of E(k): its rid and where it lies, after checking that the row's key leaves encode to E(k).
-    /// `path` is the caller's, for the lookup.
+    /// The live row of E(k), for a write: its rid and where it lies, after checking that the row's key leaves
+    /// encode to E(k). `path` is the caller's, for the lookup.
     fn find_key(&self, e: &[u8], path: &mut Path) -> Result<Option<(u64, read::Row)>, Fault> {
-        self.read_key(e, path, |rid, row| Ok((rid, row.row())))
+        self.read_key::<true, _, _>(e, path, |rid, row| Ok((rid, row.row())))
     }
 
-    /// `f` of the live row of E(k), opened once for all its reads, and its rid, after checking that the row's
-    /// key leaves encode to E(k); `None` when there is none. `path` is the caller's, for the lookup.
-    fn read_key<T, F>(&self, e: &[u8], path: &mut Path, f: F) -> Result<Option<T>, Fault>
+    /// `f` of the live row of E(k), opened once for all its reads, and its rid; `None` when there is none. With
+    /// `CHECK`, the row's key leaves are first checked to encode to E(k); a read leaves that out, since the lookup
+    /// compared every byte of E(k). `path` is the caller's, for the lookup.
+    fn read_key<const CHECK: bool, T, F>(&self, e: &[u8], path: &mut Path, f: F) -> Result<Option<T>, Fault>
     where
         F: FnOnce(u64, &read::Live) -> Result<T, Fault>,
     {
         let Some(p) = Primary::read(&*self.host, self.root)? else { return Ok(None) };
         let Some((rid, _, _)) = primary::lookup(&*self.host, &p, e, path)?.found else { return Ok(None) };
-        f(rid, self.live_key(&read::live(&*self.host, self.root, rid), rid, e)?).map(Some)
+        f(rid, self.live_key::<CHECK>(&read::live(&*self.host, self.root, rid), rid, e)?).map(Some)
     }
 
     /// Where the live row `rid` that the primary index holds for E(k) lies, after checking that its key leaves
     /// encode to E(k).
     fn row_of(&self, rid: u64, e: &[u8]) -> Result<read::Row, Fault> {
-        Ok(self.live_key(&read::live(&*self.host, self.root, rid), rid, e)?.row())
+        Ok(self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row())
     }
 
     /// The live row `read::live` found for `rid`, borrowed where it lies (the opened row is large, and moving it
-    /// out of the result copies it), after checking that its key leaves encode to E(k) `e`.
-    fn live_key<'f>(
+    /// out of the result copies it), after checking, with `CHECK`, that its key leaves encode to E(k) `e`.
+    fn live_key<'f, const CHECK: bool>(
         &self,
         found: &'f Result<Option<read::Live>, Fault>,
         rid: u64,
@@ -411,7 +412,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             Ok(None) => return Err(rt(Corruption::Link, rid)),
             Err(f) => return Err(*f),
         };
-        if !self.key_matches(row, e)? {
+        if CHECK && !self.key_matches(row, e)? {
             return Err(rt(Corruption::Encoding, rid));
         }
         Ok(row)
@@ -488,7 +489,7 @@ impl<'h, H: PageHost> Table<'h, H> {
     ) -> Result<bool, Fault> {
         let mut kb = [0u8; KEY_STACK];
         let e = self.key_in(key, &mut kb, scratch)?;
-        Ok(self.read_key(e, &mut Path::new(), |rid, row| self.emit(row, rid, out))?.is_some())
+        Ok(self.read_key::<false, _, _>(e, &mut Path::new(), |rid, row| self.emit(row, rid, out))?.is_some())
     }
 
     fn emit<S: RowSink>(&self, row: &read::Live, rid: u64, out: &mut S) -> Result<(), Fault> {
@@ -524,7 +525,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let mut kb = [0u8; KEY_STACK];
         let e = self.key_in(key, &mut kb, scratch)?;
         let read = |rid, row: &read::Live| filter::row_cells(&*self.host, &self.shape, leaves, row, rid, out);
-        Ok(self.read_key(e, &mut Path::new(), read)?.is_some())
+        Ok(self.read_key::<false, _, _>(e, &mut Path::new(), read)?.is_some())
     }
 
     /// The row with rid `rid`, handed to `out` as `get_leaves` hands it; `false` when no live row has it.
@@ -784,7 +785,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let look = primary::lookup(&*self.host, &p, e, &mut path)?;
         let Some((rid, node, i)) = look.found else { return Ok((None, self.wake()?)) };
         let found = read::live(&*self.host, self.root, rid);
-        let row = self.live_key(&found, rid, e)?;
+        let row = self.live_key::<true>(&found, rid, e)?;
         // The primary entry, then the indexes' entries, read from the row's cells, then the row.
         primary::remove(&mut *self.host, self.root, &mut p, node, i, &mut path)?;
         self.index_stored(row, u64::MAX, false, rid, &mut kb, scratch, &mut path)?;
