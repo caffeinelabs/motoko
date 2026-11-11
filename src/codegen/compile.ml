@@ -13097,14 +13097,33 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let scrut_code, fill_case =
       match tuple_switch_arity e cs with
       | Some n ->
-        let locals = Lib.List.table n (fun _ -> new_local env "switch_in") in
-        let set_locals = G.concat_map fst (List.rev locals) in (* last is on top *)
+        let prelude, getters = match e.it with
+          | PrimE (TupPrim, es) ->
+            (* A tuple literal: components that are pure reads (e.g. of
+               variables) need no local, as long as no component evaluated
+               after them could write their source. So the longest suffix
+               of pure reads is re-read at each use, the rest is evaluated
+               (in order) into locals. *)
+            let codes = List.map (compile_exp_vanilla env ae) es in
+            let first_deferred, _ = List.fold_left (fun (k, i) code ->
+              (if G.is_pure_read code then k else i + 1), i + 1) (0, 0) codes in
+            let binds = List.mapi (fun i code ->
+              if i < first_deferred then
+                let set_i, get_i = new_local env "switch_in" in
+                code ^^ set_i, get_i
+              else G.nop, code) codes in
+            G.concat_map fst binds, List.map snd binds
+          | _ ->
+            let locals = Lib.List.table n (fun _ -> new_local env "switch_in") in
+            compile_exp_as env ae (SR.UnboxedTuple n) e ^^
+            G.concat_map fst (List.rev locals), (* last is on top *)
+            List.map snd locals in
         let fill_case ae1 pat = match pat.it with
           | TupP ps ->
-            List.map2 (fun (_, get_i) p -> fill_pat env ae1 get_i p) locals ps
+            List.map2 (fun get_i p -> fill_pat env ae1 get_i p) getters ps
             |> List.fold_left (^^^) (CannotFail G.nop)
           | _ -> CannotFail G.nop (* wildcard *) in
-        compile_exp_as env ae (SR.UnboxedTuple n) e ^^ set_locals, fill_case
+        prelude, fill_case
       | None ->
         let scr_prelude, get_i =
           immut_local env "switch_in" (compile_exp_vanilla env ae e) in

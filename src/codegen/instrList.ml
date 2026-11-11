@@ -261,19 +261,27 @@ let setter_for (getter : t) =
    `branch_to_` escaping the value) raises [Inspecting], forcing the safe
    local-binding fallback.  Returns (prelude, getter): emit [prelude] once,
    then [getter] at each use. *)
-let immut_local ~(new_local : string -> t * t) name (init : t) : t * t =
+let inspect (init : t) =
   let exception Bail in
-  let inspect () =
-    let open Effect.Deep in
-    try_with
+  let open Effect.Deep in
+  try
+    Some (try_with
       (fun () -> init 0l no_region [])
       ()
       { effc = fun (type a) -> function
           | (Inspecting : a Effect.t) ->
               Some (fun (_ : (a, _) continuation) -> raise Bail)
-          | _ -> None }
-  in
-  match (try Some (inspect ()) with Bail -> None) with
+          | _ -> None })
+  with Bail -> None
+
+(* Does [code] materialise to a single pure-read instruction? *)
+let is_pure_read (code : t) =
+  match inspect code with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> true
+  | _ -> false
+
+let immut_local ~(new_local : string -> t * t) name (init : t) : t * t =
+  match inspect init with
   | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> nop, init
   | Some is ->
     let set_l, get_l = new_local name in
