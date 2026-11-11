@@ -63,7 +63,7 @@ pub fn patch_value<H: PageHost, R: RowSource + ?Sized>(
     src: &mut R,
 ) -> Result<(PVal, u64), Fault> {
     let n = {
-        let v = row::cell_of(src, l)?;
+        let v = row::checked_cell(src, l)?;
         match v {
             Val::Arg(n) => n,
             v => return value_of(h, tbl, shape, l, &v, None::<&mut R>),
@@ -439,8 +439,8 @@ impl Leaves for &[u32] {
 }
 
 /// Updates the leaves `leaves` gives of a sealed row (position `pos` of group page `pg`) to the source's
-/// values; returns whether anything changed and the bytes the host copied from the argument. Every refusal
-/// comes before the first write.
+/// values, whose cells the caller has checked; returns whether anything changed and the bytes the host copied
+/// from the argument. Every refusal comes before the first write.
 #[allow(clippy::too_many_arguments)]
 pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
     h: &mut H,
@@ -457,7 +457,7 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
     for i in 0..leaves.count(shape) {
         let l = leaves.leaf(&*h, shape, i)?;
         let cur = overlay::sealed_value(&*h, &s, &l, pos)?;
-        let v = row::cell_of(src, &l)?;
+        let v = row::checked_cell(src, &l)?;
         if cur::same(&*h, &l, &cur, &v)? {
             continue;
         }
@@ -475,7 +475,7 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
         let s = overlay::sealed(&*h, pg)?;
         let old = overlay::sealed_value(&*h, &s, &l, pos)?;
         {
-            let v = row::cell_of(src, &l)?;
+            let v = row::checked_cell(src, &l)?;
             if cur::same(&*h, &l, &old, &v)? {
                 continue;
             }
@@ -514,7 +514,7 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     let wrote = if patched {
         false
     } else {
-        let v = row::cell_of(src, l)?;
+        let v = row::checked_cell(src, l)?;
         if matches!(v, Val::Arg(_)) {
             false
         } else {

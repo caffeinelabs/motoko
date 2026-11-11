@@ -71,11 +71,17 @@ pub struct Plan {
 }
 
 pub fn cell_of<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> Result<Val<'a>, Fault> {
-    cell::check(l, src.cell(l.id)?)
+    cell::check::<true>(l, src.cell(l.id)?)
 }
 
-/// The first pass: checks every cell, encodes the key leaves into `key`, and sizes the image.
-pub fn plan<H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
+/// `cell_of` for a cell this write has checked already: a Text is not checked as UTF-8 again.
+pub fn checked_cell<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> Result<Val<'a>, Fault> {
+    cell::check::<false>(l, src.cell(l.id)?)
+}
+
+/// The first pass: checks every cell (a Text's bytes as UTF-8 only when `UTF8`), encodes the key leaves into
+/// `key`, and sizes the image.
+pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     shape: &Shape,
     h: &H,
     src: &mut R,
@@ -87,7 +93,7 @@ pub fn plan<H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
         let (big, item) = {
-            let v = cell_of(src, &l)?;
+            let v = if UTF8 { cell_of(src, &l)? } else { checked_cell(src, &l)? };
             if l.key {
                 cell::enc_key(key, &l, &v)?;
             }
@@ -233,7 +239,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
         for o in 0..shape.leaves {
             let l = shape.leaf(&*h, o)?;
             let set = {
-                let v = cell_of(src, &l)?;
+                let v = checked_cell(src, &l)?;
                 if big {
                     cell::is_big(&v)
                 } else {
@@ -260,7 +266,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
         if w == 0 {
             continue;
         }
-        let v = cell_of(src, &l)?;
+        let v = checked_cell(src, &l)?;
         if let (Ty::Fixed(_), Val::Bytes(b)) = (l.ty, v) {
             if w > 30 {
                 out.put(h, b)?;
@@ -289,7 +295,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
             continue;
         }
         let item = {
-            let v = cell_of(src, &l)?;
+            let v = checked_cell(src, &l)?;
             has_item(&l, &v).then(|| cell::var_len(&v, l.ty))
         };
         let mut off = 0u32;
@@ -312,7 +318,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
         let this = vi;
         vi = vi.wrapping_add(1);
         let (n, arg, text) = {
-            let v = cell_of(src, &l)?;
+            let v = checked_cell(src, &l)?;
             if !has_item(&l, &v) {
                 continue;
             }
@@ -333,7 +339,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
                         filled = filled.saturating_add(f);
                         img
                     } else {
-                        let v = cell_of(src, &l)?;
+                        let v = checked_cell(src, &l)?;
                         let b = match v {
                             Val::Bytes(b) | Val::Big(b) => b,
                             _ => return Err(rt(Corruption::Encoding, o)),
@@ -354,7 +360,7 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
             if arg {
                 out.fill(h, src, l.id, n, text)?;
             } else {
-                let v = cell_of(src, &l)?;
+                let v = checked_cell(src, &l)?;
                 match v {
                     Val::Bytes(b) | Val::Big(b) => out.put(h, b)?,
                     Val::U(_) | Val::I(_) | Val::Wide(_) => {
@@ -385,7 +391,7 @@ fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     if R::KEEPS && src.kept(l.id) {
         return Ok(Some(img));
     }
-    let v = cell_of(src, l)?;
+    let v = checked_cell(src, l)?;
     let b = match v {
         Val::Bytes(b) | Val::Big(b) => b,
         _ => return Ok(None),

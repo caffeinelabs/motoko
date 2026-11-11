@@ -206,14 +206,14 @@ impl<'a> Test<'a> {
         let l = shape.leaf(h, o)?;
         let end = |b: Bound<CellIn<'a>>| -> Result<Bound<Pt<'a>>, Fault> {
             Ok(match b {
-                Bound::Included(c) => Bound::Included(pt(&l, cell::check(&l, c)?)?),
-                Bound::Excluded(c) => Bound::Excluded(pt(&l, cell::check(&l, c)?)?),
+                Bound::Included(c) => Bound::Included(pt(&l, cell::check::<true>(&l, c)?)?),
+                Bound::Excluded(c) => Bound::Excluded(pt(&l, cell::check::<true>(&l, c)?)?),
                 Bound::Unbounded => Bound::Unbounded,
             })
         };
         let open = Bound::Unbounded;
         Ok(match f.cond {
-            Cond::Eq(c) => match cell::check(&l, c)? {
+            Cond::Eq(c) => match cell::check::<true>(&l, c)? {
                 Val::Null => Test { l, null: true, eq: false, lo: open, hi: open },
                 v => {
                     let p = pt(&l, v)?;

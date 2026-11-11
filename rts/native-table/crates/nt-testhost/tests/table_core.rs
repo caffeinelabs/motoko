@@ -493,6 +493,34 @@ fn seal_canonical() {
     });
 }
 
+/// A Text that is not UTF-8 is refused with nothing written: by an insert, and by a replace and an update of a
+/// packed row and of a row in the write buffer.
+#[test]
+fn text_not_utf8_refused() {
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 5, &small_schema()).unwrap();
+    let n = GROUP_SLOTS + 1;
+    let good = |k: u64| small_row(k, format!("text of {k}").into_bytes());
+    for k in 0..n {
+        tb.upsert(&mut key_scratch(), &mut Src::new(&good(k))).unwrap();
+    }
+    maintain_all(&mut tb);
+    let bad = b"text \xFF".to_vec();
+    let refused = Err(Fault::BadValue { leaf: id(2) });
+    assert_eq!(tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(n, bad.clone()))).map(|_| ()), refused);
+    // Row 0 is packed in group 0, row n - 1 is in the write buffer.
+    group_page(&tb, 0);
+    for k in [0, n - 1] {
+        assert_eq!(tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(k, bad.clone()))).map(|_| ()), refused);
+        let (key, cell) = ([(id(0), V::U(k))], [(id(2), V::Bytes(bad.clone()))]);
+        let r = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(2)], &mut Src::new(&cell));
+        assert_eq!(r.map(|_| ()), refused);
+        assert_eq!(get_row(&tb, &key).unwrap().1, good(k));
+    }
+    assert!(get_row(&tb, &[(id(0), V::U(n))]).is_none());
+    assert_eq!(tb.len().unwrap(), n);
+}
+
 fn nt_testhost_hash(b: &[u8]) -> u64 {
     native_table::hash::nt_hash64(b)
 }

@@ -152,9 +152,10 @@ pub fn small_leb(v: &Val<'_>, signed: bool, out: &mut [u8; 19]) -> usize {
     }
 }
 
-/// Checks a host cell against leaf `l` (its type and its nullability) and returns the value, or
-/// `BadValue { leaf: l.id }`. Values are never refused for their size.
-pub fn check<'a>(l: &LeafInfo, c: CellIn<'a>) -> Result<Val<'a>, Fault> {
+/// Checks a host cell against leaf `l` (its type, its nullability and, when `UTF8`, that a Text's bytes are UTF-8:
+/// a write checks them once) and returns the value, or `BadValue { leaf: l.id }`. Values are never refused for their
+/// size.
+pub fn check<'a, const UTF8: bool>(l: &LeafInfo, c: CellIn<'a>) -> Result<Val<'a>, Fault> {
     let bad = Fault::BadValue { leaf: l.id };
     let fits = |x: u64, w: u8| w >= 8 || x >> (u32::from(w).wrapping_mul(8)) == 0;
     let fits_i = |x: i64, w: u8| {
@@ -210,7 +211,7 @@ pub fn check<'a>(l: &LeafInfo, c: CellIn<'a>) -> Result<Val<'a>, Fault> {
         (Ty::U128, CellIn::U128(x)) => Val::U128(x),
         (Ty::I128, CellIn::I128(x)) => Val::I128(x),
         (Ty::Text, CellIn::Bytes(b)) => {
-            if core::str::from_utf8(b).is_err() {
+            if UTF8 && core::str::from_utf8(b).is_err() {
                 return Err(bad);
             }
             Val::Bytes(b)

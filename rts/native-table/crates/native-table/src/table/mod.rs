@@ -627,7 +627,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let mut kb = [0u8; KEY_STACK];
         let first = {
             let mut ks = SliceSink::new(&mut kb);
-            match row::plan(&self.shape, &*self.host, row, &mut ks) {
+            match row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut ks) {
                 Ok(plan) => Some((plan, ks.len)),
                 Err(Fault::Scratch { .. }) => None,
                 Err(e) => return Err(e),
@@ -641,7 +641,7 @@ impl<'h, H: PageHost> Table<'h, H> {
                 let need = usize::try_from(c.0).map_err(|_| Fault::Scratch { need: c.0 })?;
                 let buf = scratch.get(need)?.get_mut(..need).ok_or(Fault::Scratch { need: c.0 })?;
                 let mut ks = SliceSink::new(buf);
-                let plan = row::plan(&self.shape, &*self.host, row, &mut ks)?;
+                let plan = row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut ks)?;
                 let n = ks.len;
                 (plan, buf.get(..n).unwrap_or(&[]))
             }

@@ -283,8 +283,8 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
 
 // ---------------------------------------------------------------- update of a buffered row
 
-/// Updates a buffered row to the source's values: every live leaf whose value differs. Returns whether
-/// anything changed and the bytes the host copied from the argument.
+/// Updates a buffered row to the source's values, whose cells the caller has checked: every live leaf whose value
+/// differs. Returns whether anything changed and the bytes the host copied from the argument.
 pub fn update<H: PageHost, R: RowSource + ?Sized>(
     h: &mut H,
     tbl: u64,
@@ -295,7 +295,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
     let tail = root::u64_at(&*h, tbl, root::TAIL)?;
     let old = buffer::slot_row(&*h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?;
     let mut key = crate::key::LenSink(0);
-    let p = row::plan(shape, &*h, src, &mut key)?;
+    let p = row::plan::<false, _, _, _>(shape, &*h, src, &mut key)?;
     // Which leaves change; a key leaf never does: refused before anything is written.
     let mut changed = false;
     {
@@ -307,7 +307,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let st = walk.next(shape, &row, &l)?;
             let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
             let kept = R::KEEPS && src.kept(l.id);
-            let v = row::cell_of(src, &l)?;
+            let v = row::checked_cell(src, &l)?;
             if !kept && !cur::same(&*h, &l, &cur, &v)? {
                 if l.key {
                     return Err(Fault::BadValue { leaf: l.id });
@@ -339,7 +339,7 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
                 let row = RowRef::new(&*h, old)?;
                 let st = walk.next(shape, &row, &l)?;
                 let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
-                (cur, row::cell_of(src, &l)?)
+                (cur, row::checked_cell(src, &l)?)
             };
             if cur::same(&*h, &l, &olds, &v)? {
                 continue;
@@ -449,7 +449,7 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
         if R::KEEPS && src.kept(l.id) {
             continue;
         }
-        let keep = match row::cell_of(src, &l)? {
+        let keep = match row::checked_cell(src, &l)? {
             Val::Bytes(b) | Val::Big(b) => {
                 cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len)
             }
