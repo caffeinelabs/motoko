@@ -340,11 +340,16 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(self.len()? == 0)
     }
 
-    /// E(k) from a key's cells into `s`.
+    /// E(k) from a key's cells into `s`. The leaves after the last key leaf are not looked at.
     fn encode_key<K: RowSource + ?Sized, T: Sink>(&self, key: &mut K, s: &mut T) -> Result<(), Fault> {
+        let mut left = self.shape.key_leaves;
         for o in 0..self.shape.leaves {
+            if left == 0 {
+                break;
+            }
             let l = self.shape.leaf(&*self.host, o)?;
             if l.key {
+                left = left.wrapping_sub(1);
                 let v = row::cell_of(key, &l)?;
                 cell::enc_key(s, &l, &v)?;
             }
@@ -401,19 +406,22 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// Whether a stored row's key leaves encode to `e`. A long value is read and compared in pieces of
-    /// `PIECE` bytes, and a Nat's or Int's LEB128 bytes a window at a time, so no key is too long.
+    /// `PIECE` bytes, and a Nat's or Int's LEB128 bytes a window at a time, so no key is too long. The leaves
+    /// after the last key leaf are not looked at.
     fn key_matches(&self, row: &read::Live, e: &[u8]) -> Result<bool, Fault> {
         let h = &*self.host;
         let mut cmp = KeyCompare { want: e, at: 0, same: true };
         let mut piece = [0u8; PIECE];
+        let mut left = self.shape.key_leaves;
         for o in 0..self.shape.leaves {
-            if !cmp.same {
-                return Ok(false);
+            if !cmp.same || left == 0 {
+                break;
             }
             let l = self.shape.leaf(h, o)?;
             if !l.key {
                 continue;
             }
+            left = left.wrapping_sub(1);
             let v = match *row {
                 read::Live::Buffered(at) => {
                     let b = overlay::buffered(h, &at)?;
