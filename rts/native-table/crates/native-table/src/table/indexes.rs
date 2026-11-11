@@ -392,8 +392,10 @@ impl<H: PageHost> Table<'_, H> {
     }
 
     /// Drops the stored row `rid`, lying at `r`, from each secondary index whose declaration's bit `mask` sets
-    /// (`take`: takes it in each), under the key its stored cells give each.
+    /// (`take`: takes it in each), under the key its stored cells give each. Inlined into each caller, so a remove
+    /// keeps its mask and direction known in its own code.
     #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
     pub(super) fn index_stored<S: Scratch>(
         &mut self,
         r: &read::Live,

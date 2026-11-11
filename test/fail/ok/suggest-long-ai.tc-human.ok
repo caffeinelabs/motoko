@@ -290,6 +290,10 @@ error[M0072]: field region does not exist in type:
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              filter : ?(Text, NtFilter)) ->
         ?(Int, Nat);
+    ntUpdate :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
+                k : K, fields : P) ->
+        Bool;
     ntView :
       <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
         NtCodec<(K, P)>;

@@ -8,7 +8,11 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // and a view of a scalar row. Its scans and index walks give the same rows as the table's, with
 // the view's fields; its counts, sums, extremes, filters and cells name any field of the table;
 // delete on a view removes the whole row. A view of a field the row lacks or has with another
-// type, add and evolve on a view, and a view made before an evolve trap, and change nothing
+// type, add and evolve on a view, and a view made before an evolve trap, and change nothing.
+// update sets some fields of a row and keeps the others, in packed rows and rows of the open
+// group, with long values, and in a table whose row type changed; the index on a changed field
+// moves and the totals change by the difference; a Nat is taken for an Int. An update of a field
+// the row lacks or has with another type, and an update on a view, trap and change nothing
 actor {
   type Order = { customer : Text; city : Text; amount : Nat; paid : Bool; placed : Int; note : ?Text };
   type Name = { customer : Text; city : Text };
@@ -20,6 +24,8 @@ actor {
   let cities : NativeTable.NativeTable<Nat, { city : Text }> = names.view();
   let keys : NativeTable.NativeTable<Nat, {}> = orders.view();
   let all : NativeTable.NativeTable<Nat, Order> = orders.view();
+
+  let scores = NativeTable.empty<Nat, { score : Int; best : ?Int; tag : Text }>().createIndex(["score"]).build();
 
   let counts = NativeTable.empty<Text, Nat>().build();
   let sameCounts : NativeTable.NativeTable<Text, Nat> = counts.view();
@@ -59,6 +65,7 @@ actor {
     orders.add(4_150, { order(4_150) with customer = long(); amount = 2 ** 460_000 });
     counts.add("Basel", 3);
     counts.add("Bern", 2 ** 70);
+    scores.add(1, { score = -3; best = ?(-1); tag = "a" });
     people.add(1, { name = "Ana"; age = 40; town = "Basel" });
     people.add(2, { name = "Bo"; age = 30; town = "Bern" })
   };
@@ -194,6 +201,77 @@ actor {
     ignore v
   };
 
+  // The keys of the rows whose city is `city`, in the index's order
+  func inCity(city : Text) : [Nat] {
+    let ks = orders.indexEntries(["city"], ?[#text(city)], ?[#text(city)]);
+    let out = Prim.Array_init<Nat>(orders.count(["city"], [#text(city)]), 0);
+    var n = 0;
+    for (k, _) in ks { out[n] := k; n += 1 };
+    Prim.Array_tabulate<Nat>(n, func i = out[i])
+  };
+
+  public func updates() : async () {
+    let (sum, rows) = switch orders.sumCount("amount") { case ?s { s } case null { (0, 0) } };
+    Prim.debugPrint(
+      debug_show (
+        orders.update(9, { city = "Chur" }),
+        orders.update(8, { amount = 5; paid = false }),
+        orders.update(4_150, { note = ?"kept" }),
+        orders.update(4_160, { city = "Chur"; placed = 5 }),
+        orders.update(10, { placed = -10 }),
+        orders.update(99_999, { paid = true }),
+      )
+    );
+    Prim.debugPrint(debug_show (inCity("Chur"), orders.sumCount("amount") == ?(sum - 2 ** 20_000 + 5, rows), orders.max("placed"), orders.size()));
+    Prim.debugPrint(
+      debug_show (
+        scores.update(1, { score = 5 }),
+        scores.update(1, { best = ?7 }),
+        scores.get(1),
+        scores.update(1, { best = null : ?Int; tag = "b" }),
+        scores.get(1),
+        scores.count(["score"], [#int(5)]),
+      )
+    );
+    switch changed {
+      case ?t {
+        Prim.debugPrint(debug_show (t.update(1, { email = ?"ana@example.org" }), t.update(2, { age = 31 }), t.get(1), t.get(2)))
+      }
+      case null {}
+    }
+  };
+
+  // The updated rows read whole, each against the row it was given with the updated fields
+  public query func getUpdated() : async () {
+    Prim.debugPrint(
+      debug_show (
+        orders.get(9) == ?{ order(9) with city = "Chur" },
+        orders.get(8) == ?{ order(8) with customer = long(); amount = 5; paid = false },
+        orders.get(4_150) == ?{ order(4_150) with customer = long(); amount = 2 ** 460_000; note = ?"kept" },
+        orders.get(4_160) == ?{ order(4_160) with city = "Chur"; placed = 5 },
+        orders.get(10) == ?order(10),
+        orders.get(99_999),
+        names.get(9),
+      )
+    )
+  };
+
+  public func updateMissing() : async () {
+    ignore orders.update(9, { town = "Basel" })
+  };
+
+  public func updateOtherType() : async () {
+    ignore orders.update(9, { paid = 1 })
+  };
+
+  public func updateIntForNat() : async () {
+    ignore orders.update(9, { amount = -1 })
+  };
+
+  public func updateOnView() : async () {
+    ignore names.update(9, { city = "Basel" })
+  };
+
   public func addOnView() : async () {
     all.add(1, order(1))
   };
@@ -227,3 +305,10 @@ actor {
 //CALL ingress removeOnView "DIDL\x00\x00"
 //CALL ingress reads "DIDL\x00\x00"
 //CALL ingress named "DIDL\x00\x00"
+//CALL ingress updates "DIDL\x00\x00"
+//CALL ingress getUpdated "DIDL\x00\x00"
+//CALL ingress updateMissing "DIDL\x00\x00"
+//CALL ingress updateOtherType "DIDL\x00\x00"
+//CALL ingress updateIntForNat "DIDL\x00\x00"
+//CALL ingress updateOnView "DIDL\x00\x00"
+//CALL ingress getUpdated "DIDL\x00\x00"

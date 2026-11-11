@@ -125,8 +125,8 @@ module {
   /// fields of `R`, each with the same name and type, and `get` on the view reads only those
   /// fields of the row. `P` comes from the declared type, as for `evolve`; or give all three
   /// types: `view<K, R, P>()`. Traps when `P` has a field `R` lacks, or a field of another type.
-  /// `add`, `insert` and `evolve` on a view trap. After `evolve`, make views from the table it
-  /// returns.
+  /// `add`, `insert`, `update` and `evolve` on a view trap. After `evolve`, make views from the
+  /// table it returns.
   public func view<K, R, P>(self : NativeTable<K, R>, codec : (implicit : Prim.NtCodec<(K, P)>)) : NativeTable<K, P> {
     { id = self.id; codec = Prim.ntView(self.codec, codec); indexes = self.indexes }
   };
@@ -150,6 +150,16 @@ module {
   /// is new to the table.
   public func insert<K, R>(self : NativeTable<K, R>, key : K, row : R) : Bool {
     Prim.ntPut(self.id, self.codec, key, row)
+  };
+
+  /// Sets the fields of the record `fields` in the row the key has, and keeps the row's other
+  /// fields. Returns true when the key has a row; when not, writes nothing and returns false.
+  /// `fields` has some of the fields of `R`, each of the same name and type, or a `Nat` for an
+  /// `Int` field (`?Nat` for `?Int`), so `{ score = 5 }` needs no annotation; write `null` with
+  /// its type, `{ note = null : ?Text }`. Only the indexes on fields whose value changes move.
+  /// Traps when `fields` has a field `R` lacks, or a field of another type, and on a view.
+  public func update<K, R, P>(self : NativeTable<K, R>, key : K, fields : P, codec : (implicit : Prim.NtCodec<(K, P)>)) : Bool {
+    Prim.ntUpdate(self.id, self.codec, codec, key, fields)
   };
 
   /// The row the key has, or null.

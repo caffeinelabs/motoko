@@ -224,23 +224,19 @@ impl<'a> Picks<'a> {
     }
 }
 
-/// The layout of a view of the table whose codec layout is `codec`, a table's or a view's, with
-/// the row type of `view`, of the same key type, in a new Blob. Each field of the view's row is
-/// found among the fields of the table's row by label hash and name, both in label-hash order.
-/// Traps when the table's row has no field of a name, or has it with another type.
-pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -> Value {
-    let Some((layout, table)) = Layout::table(codec) else {
-        rts_trap_with("native table: malformed layout")
-    };
+/// Each field of the row of `named` found among the fields of the row of `layout`, a table's, by
+/// label hash and name, both in label-hash order: in `named`'s order, the field's position in
+/// `layout`, its entry there and its entry in `named`. Traps when the table's row has no field of a
+/// name, or has it with other type codes; with `widen`, a field of `named` may also be a Nat where
+/// the table's is an Int, or an option of a Nat where the table's is an option of an Int, since a
+/// Nat value is an Int value.
+pub fn merge<'l, 'n>(
+    layout: &Layout<'l>,
+    named: &Layout<'n>,
+    widen: bool,
+) -> impl Iterator<Item = (usize, Entry<'l>, Entry<'n>)> {
     let mut fields = layout.entries().enumerate().skip(1);
-    let start = table.len();
-    let size = start + 1 + PICK * (view.columns - 1) + 4;
-    let blob = alloc_blob(mem, TAG_BLOB_B, Bytes(size));
-    let out = core::slice::from_raw_parts_mut(blob.as_blob_mut().payload_addr(), size);
-    out[..start].copy_from_slice(table);
-    out[start..].fill(0);
-    out[start] = VIEW;
-    for (i, f) in view.entries().skip(1).enumerate() {
+    named.entries().skip(1).map(move |f| {
         let (p, e) = loop {
             match fields.next() {
                 Some((_, e)) if e.hash < f.hash => {}
@@ -248,9 +244,33 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
                 _ => rts_trap_with("native table: the row type has no field of that name"),
             }
         };
-        if e.codes != f.codes {
+        let wide = widen
+            && matches!(
+                (e.codes, f.codes),
+                ([ty::INT], [ty::NAT]) | ([ty::OPTION, ty::INT], [ty::OPTION, ty::NAT])
+            );
+        if e.codes != f.codes && !wide {
             rts_trap_with("native table: a field has another type than the table's");
         }
+        (p, e, f)
+    })
+}
+
+/// The layout of a view of the table whose codec layout is `codec`, a table's or a view's, with
+/// the row type of `view`, of the same key type, in a new Blob: each field of the view's row is
+/// found by `merge`, of the same type codes.
+pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -> Value {
+    let Some((layout, table)) = Layout::table(codec) else {
+        rts_trap_with("native table: malformed layout")
+    };
+    let start = table.len();
+    let size = start + 1 + PICK * (view.columns - 1) + 4;
+    let blob = alloc_blob(mem, TAG_BLOB_B, Bytes(size));
+    let out = core::slice::from_raw_parts_mut(blob.as_blob_mut().payload_addr(), size);
+    out[..start].copy_from_slice(table);
+    out[start..].fill(0);
+    out[start] = VIEW;
+    for (i, (p, e, _)) in merge(&layout, view, false).enumerate() {
         let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
         let at = start + 1 + PICK * i;
         out[at..at + 2].copy_from_slice(&p.to_le_bytes());

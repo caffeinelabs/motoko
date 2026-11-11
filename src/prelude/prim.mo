@@ -273,6 +273,13 @@ func ntView<K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) : NtCode
   (prim "nt_view" : (NtCodec<(K, R)>, NtCodec<(K, P)>) -> NtCodec<(K, P)>)(codec, viewed)
 };
 
+// Sets the fields of `fields`, a value of the row type of `named`, in the row `k` has: each field
+// of P is a field of R of the same name and type, or a Nat (an option of one) for an Int (an option
+// of one). False, writing nothing, when `k` has no row
+func ntUpdate<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>, k : K, fields : P) : Bool {
+  (prim "nt_update" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P)>, K, P) -> Bool)(id, codec, named, k, fields)
+};
+
 //TODO: just call this `weak`?
 func allocWeakRef<T>(obj : T) : weak T {
   (prim "alloc_weak_ref" : T -> weak T)(obj);

@@ -23,7 +23,7 @@ use ::native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use ::native_table::value::ty;
 use ::native_table::{Fault, ImageId, PageHost};
 
-use super::layout::{Entries, Layout, Picks, scratch};
+use super::layout::{Entries, Layout, Picks, merge, scratch};
 use crate::barriers::allocation_barrier;
 use crate::bigint::{
     bigint_leb128_decode, bigint_leb128_encode, bigint_leb128_size, bigint_of_word64,
@@ -397,6 +397,37 @@ pub unsafe fn cells<'a, M: Memory>(mem: &mut M, layout: &Layout, k: Value, r: Va
             (_, None) => r,
         };
         out.add(i).write(cell(mem, e.codes, v));
+    }
+    Cells {
+        cells: core::slice::from_raw_parts(out, n),
+    }
+}
+
+/// The cells of the fields of `r`, a value of the row type of `named`, at their positions in
+/// `layout`, null at the key's and the other fields', in a Blob that lives until the next
+/// collection; the leaf of each field of `named`, its position << 16, written at `leaves`. Each
+/// field is found by `merge`, which takes a Nat for an Int, and its cell is made for the table's
+/// type.
+pub unsafe fn update_cells<'a, M: Memory>(
+    mem: &mut M,
+    layout: &Layout,
+    named: &Layout,
+    r: Value,
+    leaves: *mut u32,
+) -> Cells<'a> {
+    let mut fields = named.record_row().then(|| Fields::of(r));
+    let n = layout.columns();
+    let out = scratch::<CellIn, M>(mem, n);
+    for i in 0..n {
+        out.add(i).write(CellIn::Null);
+    }
+    for (i, (p, e, f)) in merge(layout, named, true).enumerate() {
+        let v = match &mut fields {
+            Some(fields) => fields.field(f.hash),
+            None => r,
+        };
+        out.add(p).write(cell(mem, e.codes, v));
+        leaves.add(i).write((p as u32) << 16);
     }
     Cells {
         cells: core::slice::from_raw_parts(out, n),

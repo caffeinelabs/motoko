@@ -103,6 +103,8 @@ impl Live {
         }
     }
 
+    /// Row `r`, opened. Inlined into each caller, as `live` is.
+    #[inline(always)]
     pub fn open<H: PageHost + ?Sized>(h: &H, r: Row) -> Result<Live, Fault> {
         Ok(match r {
             Row::Buffered(at) => Live::Buffered(at),

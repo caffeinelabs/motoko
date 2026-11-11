@@ -34,7 +34,7 @@ use super::layout::{
 use super::row::{
     CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact,
     filter_cond, int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap,
-    pair, text_bytes,
+    pair, text_bytes, update_cells,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -301,6 +301,44 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     or_trap(table.write_step());
     let (done, _) = or_trap(table.upsert(&mut scratch, &mut row));
     matches!(done, Upsert::Inserted(_)) as u64
+}
+
+/// Sets the fields of `fields`, a value of the row type of the codec `named`, in the row key `k`
+/// has, and keeps the row's other fields; 1 when `k` has a row, else 0, writing nothing. Each field
+/// of `named` is a field of the table's row of the same name and type, or a Nat (an option of one)
+/// where the table's is an Int (an option of one) (`update_cells`); traps otherwise, and for a
+/// view's codec. Only the indexes with a part among the fields whose value changes move. A step of
+/// maintenance runs first when the table has work pending.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_update<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    named: Value,
+    k: Value,
+    fields: Value,
+) -> u64 {
+    let layout = layout_of(codec);
+    let named = layout_of(named);
+    let n = named.columns() - 1;
+    let leaves = scratch::<u32, M>(mem, n);
+    let mut row = update_cells(mem, &layout, &named, fields, leaves);
+    let k = [key(mem, &layout, k)];
+    let mut k = Cells::new(&k);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    if let Some(map) = root_block(&host, id, &layout) {
+        row = map.cells(&mut *mem, row);
+        for i in 0..n {
+            leaves.add(i).write(map.leaf(*leaves.add(i)));
+        }
+    }
+    let mut table = table_at(&mut host, id);
+    let mut scratch = BlobScratch { mem };
+    or_trap(table.write_step());
+    let leaves = core::slice::from_raw_parts(leaves, n);
+    let (rid, _) = or_trap(table.update(&mut scratch, &mut k, leaves, &mut row));
+    rid.is_some() as u64
 }
 
 /// The codec of a view of the table of `codec`, a table's codec or a view's, with the row type of
