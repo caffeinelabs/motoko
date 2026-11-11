@@ -1125,6 +1125,22 @@ fn update_of_one_leaf_keeps_long_values() {
     assert_eq!((check_ownership(&tb), tb.host().live_pages()), before, "the long values keep their images");
 }
 
+/// An update of one leaf of a buffered row whose key is a long Text: the key is read from the row's image, and
+/// the row reads back with the leaf changed.
+#[test]
+fn update_of_one_leaf_with_a_long_key() {
+    let img = schema(&[t::scalar(ty::TEXT), t::scalar(ty::NAT)]).0;
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    let key = [(id(0), V::Bytes(vec![b'k'; 70_000]))];
+    tb.upsert(&mut key_scratch(), &mut Src::new(&[key[0].clone(), (id(1), V::U(1))])).unwrap();
+    let rid = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(1)], &mut Src::new(&[(id(1), V::U(2))]));
+    let mut s = Sink::default();
+    assert!(tb.get(&mut key_scratch(), &mut Src::new(&key), &mut s).unwrap());
+    assert_eq!(rid.unwrap().0, s.rid);
+    assert_eq!(fetch_long(&tb, s.rid.unwrap(), s.cells), vec![key[0].clone(), (id(1), V::U(2))]);
+}
+
 /// A sealed row's u64 cell, in a group whose values all fit one byte, updated to one that does not: the cell
 /// cannot take it in place, a patch holds it, and the row reads it back, after maintenance too.
 #[test]

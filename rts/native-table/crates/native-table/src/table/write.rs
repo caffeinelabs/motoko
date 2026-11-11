@@ -485,7 +485,7 @@ const K_KEPT: u32 = 15;
 
 /// The cells of an update of some leaves of a buffered row: the leaves it names from its source, every other
 /// leaf as the row holds it, from a record per leaf (in ordinal order) made before the write (`merged`). A long
-/// Text or Blob the update does not name is kept as it is.
+/// Text or Blob the update does not name is kept as it is, unless it is a key leaf, which the write encodes.
 pub struct Merged<'a, R: ?Sized> {
     src: &'a mut R,
     buf: &'a [u8],
@@ -554,18 +554,20 @@ impl<R: RowSource + ?Sized> RowSource for Merged<'_, R> {
 }
 
 /// The scratch bytes `merged` takes for the buffered row `at`: a record per leaf, a copy of the row image, and
-/// the bytes of the long Nat and Int values it holds.
+/// the bytes of the long Nat and Int values and long key values it holds.
 pub fn merged_need<H: PageHost + ?Sized>(h: &H, shape: &Shape, at: &Located) -> Result<usize, Fault> {
     let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
     let mut n = shape.leaves.wrapping_mul(REC).wrapping_add(row.len);
     let mut f = [0u8; 2];
     row.read(4, &mut f)?;
-    if u16::from_le_bytes(f) & (row::ROW_BIG | row::ROW_LONG) == row::ROW_BIG | row::ROW_LONG {
+    if u16::from_le_bytes(f) & row::ROW_LONG != 0 {
         let mut walk = Walk::of(shape, &row)?;
         for o in 0..shape.leaves {
             let l = shape.leaf(h, o)?;
-            if let (Ty::Nat | Ty::Int, Stored::Item(Item::Long { len, .. })) = (l.ty, walk.next(shape, &row, &l)?) {
-                n = n.saturating_add(len);
+            if let Stored::Item(Item::Long { len, .. }) = walk.next(shape, &row, &l)? {
+                if l.key || matches!(l.ty, Ty::Nat | Ty::Int) {
+                    n = n.saturating_add(len);
+                }
             }
         }
     }
@@ -613,7 +615,7 @@ pub fn merged<'a, H: PageHost + ?Sized, R: RowSource + ?Sized>(
                 Stored::Bytes { at, len } | Stored::Item(Item::Inline { at, len }) => {
                     (bytes, u128::from(img.wrapping_add(at)) | u128::from(len) << 64)
                 }
-                Stored::Item(Item::Long { len, .. }) if bytes == K_BYTES => (K_KEPT, u128::from(len)),
+                Stored::Item(Item::Long { len, .. }) if bytes == K_BYTES && !l.key => (K_KEPT, u128::from(len)),
                 Stored::Item(Item::Long { img: li, len }) => {
                     long::read(h, li, 0, sub_mut(buf, more, len)?)?;
                     more = more.wrapping_add(len);
