@@ -7,7 +7,9 @@
 //! minimum and maximum both meet it when the leaf cannot be null: a passed group's live rows all match, and
 //! their values of the leaf are not read. A loose minimum or maximum still bounds the group's values, so it
 //! skips and passes as an exact one does. A group that a value beyond i128 joined, or whose block does not
-//! cover the leaf, is tested row by row, as are the groups of every other leaf and every buffered row.
+//! cover the leaf, is tested row by row, as are the groups of every other leaf and every buffered row; but one
+//! that lacks the leaf (added after the group was packed) and has no live patch entry of it holds null for it in
+//! every row, and a condition that asks for a value skips it.
 //!
 //! Four answers: the matching rows handed to a sink, at most a given number a call, with the rid to go on
 //! from (`scan`); the same with only the leaves asked for, every row when no filter is given (`cells`); how
@@ -248,15 +250,15 @@ impl<'a> Test<'a> {
     }
 
     /// What to do with the sealed group whose page is `pg`, from its extremes record for the leaf.
-    fn plan<H: PageHost + ?Sized>(&self, h: &H, pg: u64) -> Result<Plan, Fault> {
+    fn plan<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, pg: u64) -> Result<Plan, Fault> {
         if self.null || self.l.ty.running().is_none() {
             return Ok(Plan::Rows);
         }
         let blk = extremes::of_page(h, pg)?;
         if blk == 0 {
-            return Ok(Plan::Rows);
+            return self.unrecorded(h, shape, pg);
         }
-        let Some(r) = extremes::record(h, blk, &self.l)? else { return Ok(Plan::Rows) };
+        let Some(r) = extremes::record(h, blk, &self.l)? else { return self.unrecorded(h, shape, pg) };
         if r.flags & BIG != 0 {
             return Ok(Plan::Rows);
         }
@@ -271,6 +273,15 @@ impl<'a> Test<'a> {
             return Ok(Plan::Pass);
         }
         Ok(Plan::Rows)
+    }
+
+    /// What to do with the sealed group whose page is `pg`, which has no extremes record for the leaf: skip it when
+    /// every row holds null for the leaf (`overlay::all_null`). Kept out of line, off the path of a group with one.
+    #[cold]
+    #[inline(never)]
+    fn unrecorded<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, pg: u64) -> Result<Plan, Fault> {
+        let added = shape.added(h, u64::from(self.l.ordinal))?;
+        Ok(if overlay::all_null(h, pg, self.l.ordinal, added)? { Plan::Skip } else { Plan::Rows })
     }
 }
 
@@ -359,7 +370,7 @@ fn run<H: PageHost + ?Sized, V: Visit<H>>(
             continue;
         }
         let plan = match t {
-            Some(t) => t.plan(h, entry)?,
+            Some(t) => t.plan(h, shape, entry)?,
             None => Plan::Pass,
         };
         if plan == Plan::Skip {

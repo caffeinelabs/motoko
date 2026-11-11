@@ -407,6 +407,14 @@ impl Shape {
         })
     }
 
+    /// The schema version that added leaf `o`, read in place from its leaf record (`schema::Leaf`, @16).
+    pub fn added<H: PageHost + ?Sized>(&self, h: &H, o: u64) -> Result<u32, Fault> {
+        rd_u32(
+            h.get(Region::Page(self.page))?,
+            self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES)).wrapping_add(16),
+        )
+    }
+
     /// The running kind of leaf `o`, read in place from its leaf record in schema page bytes `b`.
     pub fn running_of(&self, b: &[u8], o: u64) -> Result<Option<RKind>, Fault> {
         let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));

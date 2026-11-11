@@ -17,7 +17,8 @@
 //! maximum it reaches is exact again. A value leaving the group (a delete, the old side of an update) that
 //! equals the minimum or the maximum makes it loose: it still bounds the group's values, but no row may hold
 //! it any more. A loose extreme, a group a value beyond i128 joined, and a leaf the block does not cover (an
-//! ordinal from `CAP` on) are read from the group's rows.
+//! ordinal from `CAP` on) are read from the group's rows, unless the group is sealed, lacks the leaf (added
+//! after it was packed) and no live patch entry names the leaf: then every row holds null for it.
 
 use core::cmp::Ordering;
 
@@ -238,7 +239,8 @@ impl Best {
 }
 
 /// Leaf `l`'s minimum (`largest`: maximum) over the live rows of group g, whose directory entry is `entry`,
-/// read from its rows into `best`.
+/// read from its rows into `best`; none read from a sealed group whose rows all hold null for the leaf
+/// (`overlay::all_null`).
 fn from_rows<H: PageHost + ?Sized>(
     h: &H,
     shape: &Shape,
@@ -249,6 +251,9 @@ fn from_rows<H: PageHost + ?Sized>(
     best: &mut Best,
 ) -> Result<(), Fault> {
     if entry & DESC_BIT == 0 {
+        if overlay::all_null(h, entry, l.ordinal, shape.added(h, u64::from(l.ordinal))?)? {
+            return Ok(());
+        }
         let s = overlay::sealed(h, entry)?;
         for pos in 0..s.meta.p {
             if overlay::sealed_live(h, &s, pos)? {

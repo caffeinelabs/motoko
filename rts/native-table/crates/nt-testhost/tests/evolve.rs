@@ -2,16 +2,21 @@
 //! was, a dropped field coming back included; an image equal to the stored one changes nothing, an open group
 //! whose rows are all deleted is sealed and the next insert works, an added integer field's total starts at
 //! zero beside the others, and its minimum and maximum over the groups packed before it was added come from
-//! their extremes records, without a row read; after a drop that shrinks the integer fields' totals, rows that
-//! fit a block only under the smaller totals area are stored in place and read back, and the sums hold.
+//! their extremes records, without a row read; on a table that had no integer field, whose groups have no
+//! extremes record, min, max and filters on an added one skip those groups; after a drop that shrinks the
+//! integer fields' totals, rows that fit a block only under the smaller totals area are stored in place and
+//! read back, and the sums hold.
 
-use native_table::consts::BLOCK;
+use std::ops::Bound;
+
+use native_table::consts::{BLOCK, PAGE};
 use native_table::mem::{rd_u32, PageHost, Region};
 use native_table::schema::IndexDecl;
 use native_table::table::buffer::{RowLoc, DESC_BIT, SLOT};
 use native_table::table::extremes::{self, Rec, HAS};
+use native_table::table::filter::{Cond, Filter};
 use native_table::table::totals::Total;
-use native_table::table::{buffer, root, write, Table, Upsert};
+use native_table::table::{buffer, root, write, CellIn, Table, Upsert};
 use native_table::value::ty;
 use native_table::{Fault, Progress, SchemaError, Wake};
 use nt_testhost::rows::{schema_indexed, schema_versioned, t, Sink, Src, VCol, V};
@@ -183,12 +188,20 @@ fn extremes_blocks(tb: &Table<'_, VecHost>) -> Vec<u64> {
         .collect()
 }
 
-/// Leaf `leaf`'s minimum (`largest`: maximum) over the table, and the host calls it took.
-fn extreme_calls(tb: &mut Table<'_, VecHost>, leaf: u32, largest: bool) -> (Option<Total>, usize) {
-    let mut buf = [0u8; 64];
-    tb.host_mut().take_log();
-    let got = tb.extreme(leaf, largest, &mut buf).unwrap();
-    (got, tb.host_mut().take_log().len())
+/// What `run` returns, and the reads of main memory it took, every page watched.
+fn reads<T>(tb: &mut Table<'_, VecHost>, run: impl FnOnce(&Table<'_, VecHost>) -> T) -> (T, u64) {
+    let h = tb.host_mut();
+    h.watched = (1..=h.memory().len() as u64 / PAGE).map(|k| k * PAGE).collect();
+    h.watched_reads.set(0);
+    let out = run(tb);
+    let n = tb.host().watched_reads.get();
+    tb.host_mut().watched.clear();
+    (out, n)
+}
+
+/// Leaf `leaf`'s minimum (`largest`: maximum) over the table, and the reads of main memory it took.
+fn extreme_reads(tb: &mut Table<'_, VecHost>, leaf: u32, largest: bool) -> (Option<Total>, u64) {
+    reads(tb, |tb| tb.extreme(leaf, largest, &mut [0u8; 64]).unwrap())
 }
 
 #[test]
@@ -218,11 +231,11 @@ fn an_added_integer_fields_extremes_come_from_the_records_of_groups_packed_befor
         // Before any value is written: no value, at the cost of the old Nat field's, whose records give its
         // extremes.
         for largest in [false, true] {
-            let (got, calls) = extreme_calls(&mut tb, id(3), largest);
-            let (kept, kept_calls) = extreme_calls(&mut tb, id(1), largest);
+            let (got, n) = extreme_reads(&mut tb, id(3), largest);
+            let (kept, kept_n) = extreme_reads(&mut tb, id(1), largest);
             assert_eq!(got, None);
             assert_eq!(kept, Some(Total::Small(if largest { 3 * 9_999 } else { 0 })));
-            assert_eq!(calls, kept_calls, "largest {largest}: no row read");
+            assert_eq!(n, kept_n, "largest {largest}: no row read");
         }
 
         // Values written: one old row of each group packed before (an update the patch path takes, as the old
@@ -239,14 +252,67 @@ fn an_added_integer_fields_extremes_come_from_the_records_of_groups_packed_befor
             assert_eq!(extremes::record(tb.host(), blk, &added).unwrap(), want[g], "group {g}");
         }
         for largest in [false, true] {
-            let (got, calls) = extreme_calls(&mut tb, id(3), largest);
-            let (_, kept_calls) = extreme_calls(&mut tb, id(1), largest);
+            let (got, n) = extreme_reads(&mut tb, id(3), largest);
+            let (_, kept_n) = extreme_reads(&mut tb, id(1), largest);
             assert_eq!(got, Some(Total::Small(if largest { 900_000 } else { 7 })));
-            assert_eq!(calls, kept_calls, "largest {largest}: no row read");
+            assert_eq!(n, kept_n, "largest {largest}: no row read");
         }
         let mut s = Sink::default();
         assert!(tb.get(&mut scratch(), &mut Src::new(&[(id(0), V::U(10))]), &mut s).unwrap());
         assert_eq!(s.cells, old(10, V::Null).to_vec());
+    }
+}
+
+#[test]
+fn an_integer_field_added_to_a_table_without_one_skips_the_groups_packed_before() {
+    for fill in FILLS {
+        // Key Text, Text, ?Text: no integer field, so no group has an extremes block. 10,000 rows: two full
+        // groups and an open group, which the change packs.
+        let v1 = [(t::scalar(ty::TEXT), 1), (t::scalar(ty::TEXT), 1), (t::opt(t::scalar(ty::TEXT)), 1)];
+        let mut h = VecHost::new(fill);
+        h.set_logging(false);
+        let (mut tb, _) = Table::create(&mut h, 1, &image(1, &v1, &[])).unwrap();
+        let row =
+            |k: u64, x: V| [(id(0), V::text(&format!("k{k}"))), (id(1), V::text("c")), (id(2), V::Null), (id(3), x)];
+        for k in 0..10_000u64 {
+            tb.upsert(&mut scratch(), &mut Src::new(&row(k, V::Null)[..3])).unwrap();
+        }
+        let mut v2 = v1.to_vec();
+        v2.push((t::opt(t::scalar(ty::NAT)), 2));
+        tb.evolve(&image(2, &v2, &[])).unwrap();
+        assert_eq!(open_group(&tb), 3);
+        // The groups packed before have no extremes block; the group the change opened has the new schema's.
+        let blocks = extremes_blocks(&tb);
+        assert_eq!(blocks[..3], [0; 3]);
+        let added = tb.shape().leaf(tb.host(), 3).unwrap();
+        assert_eq!(extremes::record(tb.host(), blocks[3], &added).unwrap(), Some(Rec::default()));
+
+        let ext = |tb: &Table<'_, VecHost>, largest: bool| tb.extreme(id(3), largest, &mut [0u8; 64]).unwrap();
+        let at_least_1 = Filter { leaf: id(3), cond: Cond::Range(Bound::Included(CellIn::U64(1)), Bound::Unbounded) };
+        let count = |tb: &Table<'_, VecHost>| tb.count_where(&at_least_1).unwrap();
+        // No value yet: no row read, a few reads a group.
+        let (got, n) = reads(&mut tb, |tb| (ext(tb, false), ext(tb, true), count(tb)));
+        assert_eq!(got, (None, None, 0));
+        assert!(n < 100, "{n} reads: a row was read");
+
+        // Values in new rows only: the open group's record gives them, the groups packed before are skipped.
+        for k in 10_000..10_100u64 {
+            tb.upsert(&mut scratch(), &mut Src::new(&row(k, V::U(500 + k % 37)))).unwrap();
+        }
+        let (got, n) = reads(&mut tb, |tb| (ext(tb, false), ext(tb, true)));
+        assert_eq!(got, (Some(Total::Small(500)), Some(Total::Small(536))));
+        assert!(n < 100, "{n} reads: a row was read");
+        assert_eq!(count(&tb), 100);
+
+        // Values in one old row of each group packed before (patches), then the answers again.
+        for (k, x) in [(5u64, 7u64), (4_100, 900_000), (9_000, 42)] {
+            tb.upsert(&mut scratch(), &mut Src::new(&row(k, V::U(x)))).unwrap();
+        }
+        assert_eq!((ext(&tb, false), ext(&tb, true)), (Some(Total::Small(7)), Some(Total::Small(900_000))));
+        assert_eq!(count(&tb), 103);
+        let mut s = Sink::default();
+        assert!(tb.get(&mut scratch(), &mut Src::new(&row(4_100, V::Null)[..1]), &mut s).unwrap());
+        assert_eq!(s.cells, row(4_100, V::U(900_000)).to_vec());
     }
 }
 

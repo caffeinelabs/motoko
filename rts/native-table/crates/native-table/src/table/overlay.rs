@@ -28,6 +28,16 @@ pub fn sealed<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<Sealed, Fault> {
     Ok(Sealed { page: pg, meta: gv.meta(), dir })
 }
 
+/// Whether every row of the sealed group whose page is `pg` holds null for leaf ordinal `o`, which schema version
+/// `added` added, known without reading a row: the group was packed under an earlier version, so the leaf lies
+/// past its leaf directory, and no live patch entry names the leaf.
+pub fn all_null<H: PageHost + ?Sized>(h: &H, pg: u64, o: u16, added: u32) -> Result<bool, Fault> {
+    let b = h.get(Region::Block(pg))?;
+    let dir = crate::mem::rd_u64(b, page::P_PATCH_DIR)?;
+    Ok(crate::mem::rd_u32(b, page::P_VERSION)? < added
+        && (dir == 0 || patch::unit(h, dir, u64::from(o))?.is_none_or(|u| u.live == 0)))
+}
+
 pub fn sealed_live<H: PageHost + ?Sized>(h: &H, s: &Sealed, pos: u64) -> Result<bool, Fault> {
     if pos >= s.meta.p {
         return Ok(false);

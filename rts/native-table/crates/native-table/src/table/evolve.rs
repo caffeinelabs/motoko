@@ -11,16 +11,17 @@
 //!
 //! Rows written before the change keep the old row layout, so the open group is sealed first (`write::freeze`,
 //! the seal a full group takes) whenever it has a position, dead ones included: the open group is then one
-//! empty block, the hot state's only block. The integer leaves' totals follow: the hot state's running records
-//! are laid out anew in that block by the rule of room the new schema gives (`Shape::open`), its first row byte
-//! the new shape's `hot_h`, which every later block copies; a new leaf's record starts at zero, as every row
-//! holds null for it; the records the hot state has no room for are written anew at the totals space's end
-//! when they change.
+//! empty block, the hot state's only block. An open group without an extremes block gets the new schema's (none
+//! when it has no integer leaf either). The integer leaves' totals follow: the hot state's running records are
+//! laid out anew in that block by the rule of room the new schema gives (`Shape::open`), its first row byte the
+//! new shape's `hot_h`, which every later block copies; a new leaf's record starts at zero, as every row holds
+//! null for it; the records the hot state has no room for are written anew at the totals space's end when they
+//! change.
 
 use crate::consts::{HOT_MAX, PAGE};
 use crate::fault::{rt, Corruption, Fault, SchemaError};
 use crate::index::secondary::Secondary;
-use crate::mem::{put, put_u16, put_u32, rd_u32, rd_u8, sub, PageHost, Region};
+use crate::mem::{put, put_u16, put_u32, put_u64, rd_u32, rd_u8, sub, PageHost, Region};
 use crate::schema::{node, SchemaView, LEAF_KEY, LEAF_NULLABLE};
 use crate::stats::running::LIST_AT;
 
@@ -174,10 +175,10 @@ fn check<H: PageHost + ?Sized>(h: &H, shape: &Shape, image: &[u8]) -> Result<u64
 }
 
 /// Adopts a new schema image: checked first (every refusal before the first write), then written to a new
-/// page; the open group sealed when it has a position; the running records laid out anew in its one empty
-/// block; the root's schema fields and the shape it holds set; the secondary indexes the image no longer
-/// declares cleared; the old schema page freed. An image of the table's schema hash and index declarations
-/// changes nothing. Returns the table's shape.
+/// page; the open group sealed when it has a position, and given an extremes block for the new schema when it
+/// has none; the running records laid out anew in its one empty block; the root's schema fields and the shape
+/// it holds set; the secondary indexes the image no longer declares cleared; the old schema page freed. An image
+/// of the table's schema hash and index declarations changes nothing. Returns the table's shape.
 pub fn change<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, image: &[u8]) -> Result<Shape, Fault> {
     let v = SchemaView::open(image)?;
     if v.hash == shape.hash && same_decls(&v, &SchemaView::open(h.get(Region::Page(shape.page))?)?)? {
@@ -214,7 +215,11 @@ pub fn change<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, image: &[u8]) -> 
     if pos > 0 {
         super::write::freeze(h, tbl, shape)?;
     }
-    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
+    let (g, desc, tail) = buffer::open_group(&*h, tbl)?;
+    if super::extremes::of_desc(&*h, desc)? == 0 {
+        let ext = super::extremes::create(h, tbl, &new_shape, g)?;
+        put_u64(h.get_mut(Region::Block(desc))?, buffer::D_EXT, ext)?;
+    }
     let mut buf = [0u8; 2_048];
     let r = build_hot(&*h, tail, shape, &new_shape, &mut buf)?;
     relay_totals(h, tbl, tail, shape, &new_shape, &buf, r)?;

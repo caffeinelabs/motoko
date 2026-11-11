@@ -405,8 +405,8 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         LeafDir::read(self.reader().bytes(HEADER.wrapping_add(o.wrapping_mul(LD_BYTES)), LD_BYTES)?)
     }
 
-    /// The entry of leaf `o`, added after the image was packed: no cells. Kept out of line, so that the
-    /// lookups of the image's own leaves compile as they would without it.
+    /// The entry of leaf `o`, added after the image was packed: no cells. Kept out of line; a lookup of the
+    /// image's own leaves still pays its bound check, about 2 instructions per field read from a packed group.
     #[cold]
     #[inline(never)]
     fn added(&self, o: u64) -> Result<LeafDir, Fault> {
