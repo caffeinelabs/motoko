@@ -391,10 +391,14 @@ impl<H: PageHost> Table<'_, H> {
         Ok(())
     }
 
-    /// Drops the stored row `rid`, lying at `r`, from every secondary index, under the key its cells give each.
-    pub(super) fn index_remove<S: Scratch>(
+    /// Drops the stored row `rid`, lying at `r`, from each secondary index whose declaration's bit `mask` sets
+    /// (`take`: takes it in each), under the key its stored cells give each.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn index_stored<S: Scratch>(
         &mut self,
         r: &read::Live,
+        mask: u64,
+        take: bool,
         rid: u64,
         buf: &mut [u8; KEY_STACK],
         scratch: &mut S,
@@ -403,12 +407,15 @@ impl<H: PageHost> Table<'_, H> {
         let (h, tbl, shape) = (&mut *self.host, self.root, &self.shape);
         let mut piece = [0u8; PIECE];
         for i in 0..shape.index_decls {
+            if mask >> i & 1 == 0 {
+                continue;
+            }
             let Some(d) = decl(shape, &*h, i)? else { continue };
             let key = match key_of_stored(shape, &*h, &d, r, &mut piece, buf)? {
                 Some(n) => buf.get(..n).unwrap_or(&[]),
                 None => stored_key(shape, &*h, &d, r, scratch)?,
             };
-            change(h, tbl, d.id, key, rid, false, path)?;
+            change(h, tbl, d.id, key, rid, take, path)?;
         }
         Ok(())
     }

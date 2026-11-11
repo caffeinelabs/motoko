@@ -14,7 +14,8 @@
 //! then as LEB128.
 //!
 //! The model is a map from key to row id and row. Writes are inserts of new keys, upserts of existing keys,
-//! updates of one field, deletes (of absent keys too) and maintenance (single steps, a write step, a
+//! updates of one field (the whole row written, or some fields named through `update` for a row in a sealed
+//! group), deletes (of absent keys too) and maintenance (single steps, a write step, a
 //! maintenance call with no budget, and full maintenance), each write preceded by the write step most of
 //! the time, as the runtime does. The table is opened again for every call. Enough rows are written that
 //! row groups of 4,096 rows are sealed, updated in place and in patches, compacted and dropped. A Float key
@@ -1552,6 +1553,8 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 existing(r, m)
             }
         };
+        // An update of a row in a sealed group names some fields, and half the time goes through `update`.
+        let mut named: Option<Vec<usize>> = None;
         let write: Option<(Key, Option<Vec<Mv>>)> = match op {
             Op::Insert => {
                 let k = if r.below(4) == 0 { value(&mut r, key_kind) } else { fresh(&mut r, key_kind) };
@@ -1563,17 +1566,23 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 Some((k, Some(row)))
             }
             Op::Update => {
-                // The row as it is, a dropped field null as every write gives it, one field drawn anew.
+                // The row as it is, one field drawn anew; written whole, a dropped field null as every write
+                // gives it; through `update`, some fields named, the key's now and then, the drawn one among
+                // them.
                 let k = existing(&mut r, &m);
                 let mut row = m[&k].1.clone();
+                if m[&k].0 / GROUP_SLOTS < nt_testhost::open_group(&h, tbl) && r.below(2) == 0 {
+                    named = Some(some_cols(&s, &mut r));
+                }
                 for (v, f) in row.iter_mut().zip(&s.cols) {
-                    if f.dropped != 0 {
+                    if f.dropped != 0 && named.is_none() {
                         *v = Mv::Null;
                     }
                 }
                 if r.below(10) != 0 {
                     let c = pick(&mut r, &s.fields());
                     row[c] = field_value(&mut r, &s.cols[c]);
+                    named.iter_mut().for_each(|n| n.push(c));
                 }
                 Some((k, Some(row)))
             }
@@ -1604,6 +1613,38 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             tb.write_step().unwrap();
         }
         match &write {
+            Some((key, Some(row))) if named.is_some() => {
+                let leaves: Vec<u32> = named.iter().flatten().map(|&c| leaf(c)).collect();
+                let mut cells = row_cells(&s, row, &mut r);
+                let kc = key_cells(&s, &key.1);
+                let rid = m[key].0;
+                assert_eq!(
+                    tb.update(&mut scratch, &mut Src::new(&kc), &leaves, &mut Src::new(&cells)).unwrap().0,
+                    Some(rid)
+                );
+                m.insert(key.clone(), (rid, row.clone()));
+                // A key leaf given another value is refused, and nothing is written; a key no row has writes
+                // nothing.
+                let other = Key(key_kind, value(&mut r, key_kind));
+                if other != *key {
+                    cells[0].1 = key_cells(&s, &other.1).remove(0).1;
+                    tb.host_mut().end_message();
+                    let got = tb.update(&mut scratch, &mut Src::new(&kc), &[leaf(0)], &mut Src::new(&cells));
+                    assert_eq!(got.map(|x| x.0), Err(Fault::BadValue { leaf: 0 }), "update {key:?}'s key");
+                    assert_eq!(tb.host().changed_blocks(), 0, "a refused update writes nothing");
+                }
+                if !m.contains_key(&other) {
+                    tb.host_mut().end_message();
+                    let got = tb.update(
+                        &mut scratch,
+                        &mut Src::new(&key_cells(&s, &other.1)),
+                        &leaves,
+                        &mut Src::new(&cells),
+                    );
+                    assert_eq!(got.unwrap().0, None, "update of {other:?}, which no row has");
+                    assert_eq!(tb.host().changed_blocks(), 0, "an update of a key no row has writes nothing");
+                }
+            }
             Some((key, Some(row))) => {
                 let cells = row_cells(&s, row, &mut r);
                 let got = tb.upsert(&mut scratch, &mut Src::new(&cells));

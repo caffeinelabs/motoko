@@ -639,7 +639,7 @@ impl<'h, H: PageHost> Table<'h, H> {
                     self.filled = filled;
                 }
                 read::Row::Sealed { page, pos } => {
-                    let (_, filled) = update::update_sealed(h, tbl, &self.shape, row, page, pos)?;
+                    let (_, filled) = update::update_sealed(h, tbl, &self.shape, row, page, pos, update::Every)?;
                     self.filled = filled;
                 }
             }
@@ -655,6 +655,49 @@ impl<'h, H: PageHost> Table<'h, H> {
         primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, &mut path)?;
         self.index_insert(row, rid, &mut kb, scratch, &mut path)?;
         Ok((rid, true))
+    }
+
+    /// Sets the leaves `leaves` names (by leaf id) of the row with key k to the cells of `src`, keeping its other
+    /// leaves: only those leaves are read and written, each changed one as an upsert writes it, and only the
+    /// secondary indexes with a part among the changed leaves move. Returns the row's rid, or `None`, with
+    /// nothing written, when no row has key k. `BadRef` for a leaf the table does not have, or a row still in the
+    /// open group; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value. Every
+    /// refusal comes before the first write.
+    pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
+        &mut self,
+        scratch: &mut S,
+        key: &mut K,
+        leaves: &[u32],
+        src: &mut R,
+    ) -> Result<(Option<u64>, Wake), Fault> {
+        self.filled = 0;
+        let mut kb = [0u8; KEY_STACK];
+        let e = self.key_in(key, &mut kb, scratch)?;
+        let mut path = Path::new();
+        let Some((rid, row)) = self.find_key(e, &mut path)? else { return Ok((None, self.wake()?)) };
+        let read::Row::Sealed { page, pos } = row else { return Err(Fault::BadRef) };
+        // The indexes whose key a changed leaf is part of; the cells checked before anything is written.
+        let mut moved = 0u64;
+        let (h, tbl, shape) = (&*self.host, self.root, &self.shape);
+        for &id in leaves {
+            let l = shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)?;
+            if cur::same(h, &l, &read::value_of(h, tbl, shape, rid, id)?, &row::cell_of(src, &l)?)? {
+                continue;
+            }
+            if l.key {
+                return Err(Fault::BadValue { leaf: id });
+            }
+            for i in 0..shape.index_decls {
+                if indexes::decl(shape, h, i)?.is_some_and(|d| d.ords().contains(&l.ordinal)) {
+                    moved |= 1u64.wrapping_shl(u32::try_from(i).unwrap_or(0));
+                }
+            }
+        }
+        // The entries leave under the stored row's keys, and come back under its new ones.
+        self.index_stored(&read::Live::open(&*self.host, row)?, moved, false, rid, &mut kb, scratch, &mut path)?;
+        (_, self.filled) = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
+        self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, &mut kb, scratch, &mut path)?;
+        Ok((Some(rid), self.settle()?))
     }
 
     /// Removes the row with key k; returns its rid.
@@ -676,7 +719,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         }
         // The primary entry, then the indexes' entries, read from the row's cells, then the row.
         primary::remove(&mut *self.host, self.root, &mut p, node, i, &mut path)?;
-        self.index_remove(row, rid, &mut kb, scratch, &mut path)?;
+        self.index_stored(row, u64::MAX, false, rid, &mut kb, scratch, &mut path)?;
         match *row {
             read::Live::Buffered(at) => write::delete_buffered(&mut *self.host, self.root, &self.shape, &at)?,
             read::Live::Sealed(ref s, pos) => update::delete_sealed(&mut *self.host, self.root, &self.shape, s, pos)?,

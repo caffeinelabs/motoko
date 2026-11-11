@@ -408,21 +408,54 @@ fn release_image_value<H: PageHost>(h: &mut H, tbl: u64, v: &SVal) -> Result<(),
     Ok(())
 }
 
-/// Updates a sealed row (position `pos` of group page `pg`) to the source's values; returns whether anything
-/// changed and the bytes the host copied from the argument. Every refusal comes before the first write.
-pub fn update_sealed<H: PageHost, R: RowSource + ?Sized>(
+/// The leaves an update of a sealed row writes: the i-th is `leaf(i)`, for i below `count`.
+pub trait Leaves: Copy {
+    fn count(self, shape: &Shape) -> u64;
+    fn leaf<H: PageHost + ?Sized>(self, h: &H, shape: &Shape, i: u64) -> Result<LeafInfo, Fault>;
+}
+
+/// Every leaf, in ordinal order.
+#[derive(Clone, Copy)]
+pub struct Every;
+
+impl Leaves for Every {
+    fn count(self, shape: &Shape) -> u64 {
+        shape.leaves
+    }
+    fn leaf<H: PageHost + ?Sized>(self, h: &H, shape: &Shape, i: u64) -> Result<LeafInfo, Fault> {
+        shape.leaf(h, i)
+    }
+}
+
+/// The leaves a list of leaf ids names; `BadRef` for one the table does not have.
+impl Leaves for &[u32] {
+    fn count(self, _: &Shape) -> u64 {
+        self.len() as u64
+    }
+    fn leaf<H: PageHost + ?Sized>(self, h: &H, shape: &Shape, i: u64) -> Result<LeafInfo, Fault> {
+        let id = self.get(usize::try_from(i).unwrap_or(usize::MAX)).ok_or(Fault::BadRef)?;
+        shape.leaf(h, shape.ordinal_of(h, *id)?.ok_or(Fault::BadRef)?)
+    }
+}
+
+/// Updates the leaves `leaves` gives of a sealed row (position `pos` of group page `pg`) to the source's
+/// values; returns whether anything changed and the bytes the host copied from the argument. Every refusal
+/// comes before the first write.
+#[allow(clippy::too_many_arguments)]
+pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
     h: &mut H,
     tbl: u64,
     shape: &Shape,
     src: &mut R,
     pg: u64,
     pos: u64,
+    leaves: L,
 ) -> Result<(bool, u64), Fault> {
     let s = overlay::sealed(&*h, pg)?;
     // Which leaves change; a key leaf never does.
     let mut any = false;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
+    for i in 0..leaves.count(shape) {
+        let l = leaves.leaf(&*h, shape, i)?;
         let cur = overlay::sealed_value(&*h, &s, &l, pos)?;
         let v = row::cell_of(src, &l)?;
         if cur::same(&*h, &l, &cur, &v)? {
@@ -437,8 +470,8 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized>(
         return Ok((false, 0));
     }
     let mut filled = 0u64;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
+    for i in 0..leaves.count(shape) {
+        let l = leaves.leaf(&*h, shape, i)?;
         let s = overlay::sealed(&*h, pg)?;
         let old = overlay::sealed_value(&*h, &s, &l, pos)?;
         {
