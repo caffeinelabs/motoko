@@ -477,6 +477,30 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(true)
     }
 
+    /// The row with key k, as `get` finds it, handed to `out` with only the leaves `leaves` names, in the order
+    /// named, as `scan_cells` hands a row out; `false` when there is none. Only those leaves are read. `BadRef`
+    /// for a leaf of `leaves` the table does not have live, when the row is there.
+    pub fn get_leaves<S: Scratch, K: RowSource + ?Sized, O: RowSink>(
+        &self,
+        scratch: &mut S,
+        key: &mut K,
+        leaves: &[u32],
+        out: &mut O,
+    ) -> Result<bool, Fault> {
+        let mut kb = [0u8; KEY_STACK];
+        let e = self.key_in(key, &mut kb, scratch)?;
+        let Some((rid, row)) = self.find_key(e, &mut Path::new())? else { return Ok(false) };
+        filter::row_cells(&*self.host, &self.shape, leaves, row, rid, out)?;
+        Ok(true)
+    }
+
+    /// The row with rid `rid`, handed to `out` as `get_leaves` hands it; `false` when no live row has it.
+    pub fn get_rid_leaves<S: RowSink>(&self, rid: u64, leaves: &[u32], out: &mut S) -> Result<bool, Fault> {
+        let Some(row) = read::find(&*self.host, self.root, rid)? else { return Ok(false) };
+        filter::row_cells(&*self.host, &self.shape, leaves, row, rid, out)?;
+        Ok(true)
+    }
+
     /// The rows whose cells of secondary index `index`'s parts encode to the key the cells of `key` give (by
     /// leaf id, as a row's): one descent of the index's tree. A key of any length: one longer than `KEY_STACK` is
     /// encoded into `scratch`. `BadRef` when the table has no secondary index `index`.

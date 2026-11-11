@@ -12,10 +12,10 @@
 //! every row, and a condition that asks for a value skips it.
 //!
 //! Four answers: the matching rows handed to a sink, at most a given number a call, with the rid to go on
-//! from (`scan`); the same with only the leaves asked for, every row when no filter is given (`cells`); how
-//! many rows match (`count`); and the exact sum and the non-null count of an integer leaf over the matching
-//! rows (`sum`). A count and a sum read no other cell of a row, and `cells` reads no leaf it does not hand out
-//! besides the filter's.
+//! from (`scan`); the same with only the leaves asked for, every row when no filter is given (`cells`), or of
+//! one row (`row_cells`); how many rows match (`count`); and the exact sum and the non-null count of an integer
+//! leaf over the matching rows (`sum`). A count and a sum read no other cell of a row, and `cells` reads no leaf
+//! it does not hand out besides the filter's.
 
 use core::cmp::Ordering;
 use core::ops::Bound;
@@ -33,6 +33,7 @@ use super::group::{GroupView, LeafDir};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay::{self, Buffered, Sealed};
 use super::read::{self, Live};
+use super::row::{RowRef, Walk};
 use super::totals::{self, Total};
 use super::{page, root, CellIn, RowSink};
 
@@ -562,6 +563,10 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
     }
 
     fn buffered(&mut self, h: &H, shape: &Shape, b: &Buffered, rid: u64, v: Option<&SVal>) -> Result<(), Fault> {
+        // One walk over the row for its leaves, started again when a leaf comes before its place (the walk's
+        // bit is the ordinal it stands at).
+        let row = RowRef::new(h, b.loc)?;
+        let mut walk = Walk::of(shape, &row)?;
         for i in 0..self.ids.len() {
             let l = match self.cols.get(i).copied().flatten() {
                 Some(c) => c.l,
@@ -569,7 +574,16 @@ impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
             };
             let x = match self.reuse(&l, v) {
                 Some(x) => x,
-                None => overlay::buffered_leaf(h, shape, b, &l)?,
+                None => {
+                    let o = u64::from(l.ordinal);
+                    if o < walk.bit {
+                        walk = Walk::of(shape, &row)?;
+                    }
+                    while walk.bit < o {
+                        walk.skip(&shape.leaf(h, walk.bit)?);
+                    }
+                    overlay::buffered_value(shape, &row, &mut walk, &l)?
+                }
             };
             read::emit_sval(h, self.out, &l, &x)?;
         }
@@ -849,6 +863,28 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     let t = test_of(h, shape, f)?;
     let mut c = Cells::new(h, shape, leaves, t.as_ref().map(|t| t.l.ordinal), out, limit)?;
     run(h, tbl, shape, t.as_ref(), next, &mut c)
+}
+
+/// The leaves `leaves` names of live row `rid`, which lies at `row`, handed to `out` in the order named, then
+/// `row_end`.
+pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
+    h: &H,
+    shape: &Shape,
+    leaves: &[u32],
+    row: read::Row,
+    rid: u64,
+    out: &mut S,
+) -> Result<(), Fault> {
+    let mut c = Cells::new(h, shape, leaves, None, out, 1)?;
+    match row {
+        read::Row::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
+        read::Row::Sealed { page, pos } => {
+            let s = overlay::sealed(h, page)?;
+            let gv = GroupView::from_meta(h, &s.meta);
+            c.open(&gv)?;
+            c.sealed(&gv, shape, &s, pos, gv.slot(pos)?, rid, None)
+        }
+    }
 }
 
 pub fn count<H: PageHost + ?Sized>(h: &H, tbl: u64, shape: &Shape, f: &Filter<'_>) -> Result<u64, Fault> {

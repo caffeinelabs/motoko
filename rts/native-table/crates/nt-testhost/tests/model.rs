@@ -23,7 +23,7 @@
 //!
 //! After every write, the row of the written key is read back. Before the first write, about every
 //! thousand writes (at most 25 times a table), after every seal, and once the table has been emptied at the
-//! end, every read the table offers is checked against the model: the row count; the scan of every row by row id and by cells; point reads by key and by row id;
+//! end, every read the table offers is checked against the model: the row count; the scan of every row by row id and by cells; point reads by key and by row id, whole and of some fields;
 //! filtered scans, counts and sums (equality, null, ranges with each kind of end); cell scans of some fields,
 //! with a filter and without; running sums and extremes of every integer field; and, for every index, the
 //! count of keys present and absent, group counts whole and in pieces, walks forward and backward whole, in
@@ -1112,6 +1112,17 @@ fn held(tb: &Table<'_, VecHost>) -> (u64, u64, u64) {
 // ---------------------------------------------------------------- the checker
 
 /// Every read of the table against the model.
+/// Some columns of the row or every one, dropped ones excepted, in any order, the key's now and then.
+fn some_cols(s: &Schema, r: &mut XorShift) -> Vec<usize> {
+    let every = r.below(4) == 0;
+    let mut cols: Vec<usize> =
+        (0..s.cols.len()).filter(|&c| s.cols[c].dropped == 0 && (every || r.below(3) == 0)).collect();
+    for i in (1..cols.len()).rev() {
+        cols.swap(i, r.below(i as u64 + 1) as usize);
+    }
+    cols
+}
+
 fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut XorShift) {
     let (h, tbl) = (tb.host(), tb.root());
     assert_eq!(tb.len().unwrap(), m.len() as u64, "the row count");
@@ -1144,26 +1155,32 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         let mut out = Rows::new(tb, s, r);
         assert!(tb.get(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &mut out).unwrap(), "get {k:?}");
         assert!(same(s, &out.out, &[(*rid, expected(row))]), "get {k:?}");
+        // Some of its fields, by key and by row id.
+        let cols = some_cols(s, r);
+        let leaves: Vec<u32> = cols.iter().map(|&c| leaf(c)).collect();
+        let want = (*rid, cols.iter().map(|&c| (leaf(c), row[c].clone())).collect());
+        let mut out = Rows::new(tb, s, r);
+        assert!(tb.get_leaves(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &leaves, &mut out).unwrap());
+        assert!(tb.get_rid_leaves(*rid, &leaves, &mut out).unwrap());
+        assert!(out.out == [want.clone(), want], "columns {cols:?} of {k:?}");
     }
     for _ in 0..5 {
         let k = Key(s.cols[0].kind, value(r, s.cols[0].kind));
         let mut out = Rows::new(tb, s, r);
         let found = tb.get(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &mut out).unwrap();
         assert_eq!(found, m.contains_key(&k), "get {k:?}");
+        let found = tb.get_leaves(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &[leaf(0)], &mut out).unwrap();
+        assert_eq!(found, m.contains_key(&k), "get_leaves {k:?}");
     }
     for &rid in dead.iter().rev().take(20) {
         let mut out = Rows::new(tb, s, r);
         assert!(!tb.get_rid(rid, &mut out).unwrap(), "row {rid} is deleted");
+        assert!(!tb.get_rid_leaves(rid, &[leaf(0)], &mut out).unwrap(), "row {rid} is deleted");
     }
 
     // Cell scans: some fields or every one, in any order, the key's included now and then, in pieces.
     let cell_scan = |f: Option<&Filter<'_>>, want: &dyn Fn(&Vec<Mv>) -> bool, r: &mut XorShift| {
-        let every = r.below(4) == 0;
-        let mut cols: Vec<usize> =
-            (0..s.cols.len()).filter(|&c| s.cols[c].dropped == 0 && (every || r.below(3) == 0)).collect();
-        for i in (1..cols.len()).rev() {
-            cols.swap(i, r.below(i as u64 + 1) as usize);
-        }
+        let cols = some_cols(s, r);
         let leaves: Vec<u32> = cols.iter().map(|&c| leaf(c)).collect();
         let limit = pick(r, &[1, 3, 64, 1_000, u64::MAX]);
         let mut out = Rows::new(tb, s, r);
