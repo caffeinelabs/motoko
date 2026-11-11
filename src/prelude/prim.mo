@@ -267,6 +267,12 @@ func ntEvolve<K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>, next : NtCodec<(K
   (prim "nt_evolve" : (Nat64, NtCodec<(K, R1)>, NtCodec<(K, R2)>) -> Bool)(id, codec, next)
 };
 
+// The codec of a view of the table of `codec` with the row type of `viewed`, whose fields are
+// fields of R of the same names and types: a read with it reads only those fields
+func ntView<K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) : NtCodec<(K, P)> {
+  (prim "nt_view" : (NtCodec<(K, R)>, NtCodec<(K, P)>) -> NtCodec<(K, P)>)(codec, viewed)
+};
+
 //TODO: just call this `weak`?
 func allocWeakRef<T>(obj : T) : weak T {
   (prim "alloc_weak_ref" : T -> weak T)(obj);

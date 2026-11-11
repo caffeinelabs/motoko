@@ -23,7 +23,7 @@ use ::native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use ::native_table::value::ty;
 use ::native_table::{Fault, ImageId, PageHost};
 
-use super::layout::{Entries, Layout, scratch};
+use super::layout::{Entries, Layout, Picks, scratch};
 use crate::barriers::allocation_barrier;
 use crate::bigint::{
     bigint_leb128_decode, bigint_leb128_encode, bigint_leb128_size, bigint_of_word64,
@@ -1041,12 +1041,11 @@ pub enum Out {
     Entry,
 }
 
-/// How a row builder finds the field of each cell the table hands over: the table hands a row's
-/// cells over in column order.
+/// How a row builder finds the field of each cell the table hands over.
 pub trait Places<'a> {
-    /// The type codes of the field of `column`, the column after the one handed over last; `None`
-    /// past the last column.
-    fn next(&mut self, column: usize) -> Option<&'a [u8]>;
+    /// The field position and the type codes of the field of `column`, whose cell comes after the
+    /// `at` cells of the row handed over already; `None` when that cell is not one of `column`.
+    fn next(&mut self, at: usize, column: usize) -> Option<(usize, &'a [u8])>;
     /// Whether the cell of the field at position `at` is built: a dropped field's is thrown away.
     fn kept(&self, at: usize) -> bool;
     /// The field position of `column`, one handed over already or the one `next` was given.
@@ -1055,8 +1054,8 @@ pub trait Places<'a> {
     fn reset(&mut self);
 }
 
-/// The fields of a table whose row type never changed: column i holds the field at position i,
-/// read from the layout in step with the cells.
+/// The fields of a table whose row type never changed: the table hands every column over in
+/// order, and column i holds the field at position i, read from the layout in step with the cells.
 pub struct InOrder<'a> {
     /// Every column of the layout.
     all: Entries<'a>,
@@ -1066,8 +1065,11 @@ pub struct InOrder<'a> {
 
 impl<'a> Places<'a> for InOrder<'a> {
     #[inline(always)]
-    fn next(&mut self, _: usize) -> Option<&'a [u8]> {
-        self.entries.next().map(|e| e.codes)
+    fn next(&mut self, at: usize, column: usize) -> Option<(usize, &'a [u8])> {
+        if column != at {
+            return None;
+        }
+        self.entries.next().map(|e| (column, e.codes))
     }
 
     #[inline(always)]
@@ -1086,16 +1088,19 @@ impl<'a> Places<'a> for InOrder<'a> {
     }
 }
 
-/// The fields of a table whose row type has changed: the field position and the type codes of
-/// each column's field, by column, found through the table's map once per call; position
-/// `DROPPED` and no codes for a dropped column.
+/// The fields of a table whose row type has changed: the table hands every column over in order,
+/// and the field position and the type codes of each column's field are found, by column, through
+/// the table's map once per call; position `DROPPED` and no codes for a dropped column.
 pub struct ByColumn<'a> {
     fields: &'a [(usize, &'a [u8])],
 }
 
 impl<'a> Places<'a> for ByColumn<'a> {
-    fn next(&mut self, column: usize) -> Option<&'a [u8]> {
-        self.fields.get(column).map(|f| f.1)
+    fn next(&mut self, at: usize, column: usize) -> Option<(usize, &'a [u8])> {
+        if column != at {
+            return None;
+        }
+        self.fields.get(column).copied()
     }
 
     fn kept(&self, at: usize) -> bool {
@@ -1109,18 +1114,52 @@ impl<'a> Places<'a> for ByColumn<'a> {
     fn reset(&mut self) {}
 }
 
+/// The fields of a view: the table hands over the cells of `leaves`, in order, the key's first
+/// when the key is built. Each other cell is the view's next field, in the order of the view's
+/// row type.
+pub struct Picked<'a> {
+    leaves: &'a [u32],
+    picks: Picks<'a>,
+    /// The key's type codes, when the key's cell comes first.
+    key: Option<&'a [u8]>,
+}
+
+impl<'a> Places<'a> for Picked<'a> {
+    fn next(&mut self, at: usize, column: usize) -> Option<(usize, &'a [u8])> {
+        if (*self.leaves.get(at)? >> 16) as usize != column {
+            return None;
+        }
+        match self.key {
+            Some(codes) if at == 0 => Some((0, codes)),
+            Some(_) => Some((at, self.picks.get(at - 1)?.1)),
+            None => Some((at + 1, self.picks.get(at)?.1)),
+        }
+    }
+
+    fn kept(&self, _: usize) -> bool {
+        true
+    }
+
+    fn position(&self, column: usize) -> usize {
+        let at = self.leaves.iter().position(|&l| (l >> 16) as usize == column);
+        at.map_or(DROPPED, |at| at + usize::from(self.key.is_none()))
+    }
+
+    fn reset(&mut self) {}
+}
+
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
 /// of the key type, the row as a record whose hash list is the codec's labels, or as the one
 /// scalar. Every value is built as compiled code builds it, and every new object goes through
 /// the allocation barrier. A value that does not lie in one piece of table memory gets its Blob
 /// when its cell comes, and its bytes in `finish`, once the row id is known. `F` finds the field
 /// of each column: `InOrder` for a table whose row type never changed, `ByColumn` for one whose
-/// row type has changed.
+/// row type has changed, `Picked` for a view.
 pub struct RowOut<'a, M: Memory, F: Places<'a> = InOrder<'a>> {
     mem: *mut M,
     out: Out,
     fields: F,
-    /// The column of the next cell.
+    /// The number of cells of the row handed over so far, and of all of them.
     next: usize,
     columns: usize,
     /// The record's hash list, `None` when the row is a scalar or is not built.
@@ -1202,6 +1241,63 @@ impl<'a, M: Memory> RowOut<'a, M> {
             pending_len: 0,
             _layout: core::marker::PhantomData,
         }
+    }
+
+    /// Rows of a view of a table of `layout` with the fields `picks` (`Layout::view`), the row a
+    /// record with `labels` as its hash list, or the one scalar, of which `out` is built; `map`
+    /// is the table's map when its row type has changed. With the leaves the table hands over,
+    /// the key's first when the key is built, then one per field of the view, in a Blob that
+    /// lives until the next collection. Traps when `labels` does not have one label per field of
+    /// the view, or none for a view of a scalar.
+    pub unsafe fn picked(
+        mem: *mut M,
+        layout: &Layout<'a>,
+        picks: Picks<'a>,
+        map: Option<Map>,
+        labels: Value,
+        out: Out,
+    ) -> (RowOut<'a, M, Picked<'a>>, &'a [u32]) {
+        let n = picks.len();
+        if tag_of(labels) != Some(TAG_BLOB_B) {
+            mismatch();
+        }
+        let record = labels.as_blob().len().as_usize() == n * size_of::<u64>();
+        if !record && (labels.as_blob().len().as_usize() != 0 || n != 1) {
+            mismatch();
+        }
+        let key = match (out, layout.entries().next()) {
+            (Out::Row, _) => None,
+            (_, Some(e)) => Some(e.codes),
+            (_, None) => rts_trap_with("native table: malformed layout"),
+        };
+        let first = usize::from(key.is_some());
+        let width = first + if out == Out::Key { 0 } else { n };
+        let leaves = scratch::<u32, M>(&mut *mem, width);
+        if first == 1 {
+            leaves.write(0);
+        }
+        for i in first..width {
+            let p = picks.get(i - first).map_or(0, |(p, _)| p);
+            let column = map.map_or(p, |map| map.column(p));
+            leaves.add(i).write((column as u32) << 16);
+        }
+        let leaves = core::slice::from_raw_parts(leaves, width);
+        let row = RowOut {
+            mem,
+            out,
+            fields: Picked { leaves, picks, key },
+            next: 0,
+            columns: width,
+            labels: (record && out != Out::Key).then_some(labels),
+            record: core::ptr::null_mut(),
+            value: Value::from_scalar(0),
+            key: Value::from_scalar(0),
+            rid: 0,
+            pending: core::ptr::null_mut(),
+            pending_len: 0,
+            _layout: core::marker::PhantomData,
+        };
+        (row, leaves)
     }
 }
 
@@ -1287,12 +1383,11 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
 impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
     fn cell(&mut self, leaf: u32, v: CellOut<'_>) -> Result<(), Fault> {
         let column = (leaf >> 16) as usize;
-        let codes = match self.fields.next(column) {
-            Some(codes) if leaf & 0xFFFF == 0 && column == self.next => codes,
+        let (at, codes) = match self.fields.next(self.next, column) {
+            Some(field) if leaf & 0xFFFF == 0 => field,
             _ => return Err(Fault::BadValue { leaf }),
         };
         self.next += 1;
-        let at = self.fields.position(column);
         let built = match self.out {
             Out::Row => at > 0,
             Out::Key => at == 0,

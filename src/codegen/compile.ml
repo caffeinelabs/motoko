@@ -1130,6 +1130,7 @@ let native_table_prims = [
   "nt_group_counts", ([`W; `V; `V; `V; `V; `W], `V);
   "nt_maintain", ([`W; `V; `W], `B);
   "nt_evolve", ([`W; `V; `V], `B);
+  "nt_view", ([`V; `V], `V);
 ]
 
 module RTS = struct

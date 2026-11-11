@@ -28,7 +28,9 @@ use ::native_table::value::ty;
 use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
 use motoko_rts_macros::ic_mem_fn;
 
-use super::layout::{Layout, SCHEMA_VERSION, evolved_image, schema_image, scratch};
+use super::layout::{
+    Layout, Picks, SCHEMA_VERSION, evolved_image, schema_image, scratch, view_layout,
+};
 use super::row::{
     CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact,
     filter_cond, int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap,
@@ -105,10 +107,28 @@ unsafe fn blob_bytes<'a>(v: Value) -> &'a [u8] {
 }
 
 /// The layout of the codec `codec`: a codec is a pair of the layout, a Blob, and the hash list of
-/// the row type.
+/// the row type. Traps for a view's codec (`nt_view`).
 unsafe fn layout_of<'a>(codec: Value) -> Layout<'a> {
     let layout = blob_bytes(codec.as_array().get(0));
-    Layout::parse(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
+    Layout::parse(layout).unwrap_or_else(|| not_a_table(codec))
+}
+
+/// Traps for a codec whose layout is not a table's: a view's layout names a table that a view
+/// only reads, and any other is malformed.
+#[cold]
+#[inline(never)]
+unsafe fn not_a_table(codec: Value) -> ! {
+    if Layout::view(blob_bytes(codec.as_array().get(0))).is_some() {
+        rts_trap_with("native table: not a table of this key and row type");
+    }
+    rts_trap_with("native table: malformed layout")
+}
+
+/// The layout of the table that the view's codec `codec` reads, its header alone checked, and the
+/// fields of the view; traps when `codec` is not a view's.
+unsafe fn view_of<'a>(codec: Value) -> (Layout<'a>, Picks<'a>) {
+    let layout = blob_bytes(codec.as_array().get(0));
+    Layout::view(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
 }
 
 /// The layout of the codec `codec`, its header alone checked (`Layout::header`).
@@ -258,10 +278,25 @@ pub unsafe fn nt_put<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value, r:
     matches!(done, Upsert::Inserted(_)) as u64
 }
 
+/// The codec of a view of the table of `codec`, a table's codec or a view's, with the row type of
+/// the codec `viewed`, a record whose fields are fields of the table's row, of the same names and
+/// types, or the table's scalar row: a pair, as every codec is, of the view's layout
+/// (`view_layout`) and the hash list of the view's row type. A read with it reads only the view's
+/// fields. Traps when the table's row has no field of a name of `viewed`'s, or has it with
+/// another type.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_view<M: Memory>(mem: &mut M, codec: Value, viewed: Value) -> Value {
+    let view = layout_of(viewed);
+    let layout = view_layout(mem, blob_bytes(codec.as_array().get(0)), &view);
+    pair(mem, layout, labels_of(viewed))
+}
+
 /// The row key `k` has, built as a value of the row type, or null.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
-    let layout = layout_of(codec);
+    let Some(layout) = Layout::parse(blob_bytes(codec.as_array().get(0))) else {
+        return get_view(mem, id, codec, k);
+    };
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
@@ -285,6 +320,27 @@ unsafe fn get<'a, M: Memory, F: Places<'a>>(
     let table = table_at(host, id);
     let mut scratch = BlobScratch { mem };
     if or_trap(table.get(&mut scratch, k, row)) {
+        row.finish(&table)
+    } else {
+        NULL_POINTER
+    }
+}
+
+/// `nt_get` with a view's codec: the row key `k` has, with only the view's fields read, or null.
+/// Out of line, so a call with a table's codec runs as before.
+#[cold]
+#[inline(never)]
+unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
+    let (layout, picks) = view_of(codec);
+    let k = [key(mem, &layout, k)];
+    let mut k = Cells::new(&k);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    let map = root_block(&host, id, &layout);
+    let (mut row, leaves) = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Row);
+    let table = table_at(&mut host, id);
+    let mut scratch = BlobScratch { mem };
+    if or_trap(table.get_leaves(&mut scratch, &mut k, leaves, &mut row)) {
         row.finish(&table)
     } else {
         NULL_POINTER

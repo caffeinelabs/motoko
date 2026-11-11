@@ -5,6 +5,12 @@
 //! u32 column count, then per column, the key first and then the fields of the row: the crate's
 //! type code of a scalar, after the option code when the column is optional; the u32 label hash;
 //! the u16 length of the column's name and the name (the key has none).
+//!
+//! The layout of a view (`view_layout`) is the layout of the table it reads with the version word
+//! `VIEW`, which no table's layout has, then 4 bytes per field of the view's row: the u16
+//! position of the field in the table's layout, then its type codes, padded to 2 bytes with 0;
+//! then the u32 offset of the first of those fields. So a call made with a view's codec finds the
+//! table's layout where a table's codec has it, and fails the version check every call makes.
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
@@ -15,12 +21,17 @@ use ::native_table::schema::{
 };
 use ::native_table::value::ty;
 
+use crate::barriers::allocation_barrier;
 use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
-use crate::types::{Bytes, TAG_BLOB_B};
+use crate::types::{Bytes, TAG_BLOB_B, Value};
 
 const MAGIC: &[u8] = b"NTCD";
 const VERSION: u32 = 1;
+/// The version word of the table layout in a view's layout.
+const VIEW: u32 = u32::from_le_bytes(*b"VIEW");
+/// The bytes of a field of a view.
+const PICK: usize = 4;
 /// Bytes before the first column.
 const HEADER: usize = 20;
 /// The schema version of a new table, which added every column.
@@ -76,14 +87,19 @@ fn entry(b: &[u8]) -> Option<(Entry<'_>, &[u8])> {
 impl<'a> Layout<'a> {
     /// The layout in `bytes`, or `None` when they do not hold one.
     pub fn parse(bytes: &'a [u8]) -> Option<Layout<'a>> {
-        let layout = Self::header(bytes)?;
-        let mut rest = layout.entries;
+        Self::header(bytes)?.checked()
+    }
+
+    /// The layout when every column entry is well formed and they are as many as it says.
+    #[inline(always)]
+    fn checked(self) -> Option<Layout<'a>> {
+        let mut rest = self.entries;
         let mut columns = 0;
         while !rest.is_empty() {
             rest = entry(rest)?.1;
             columns += 1;
         }
-        (columns == layout.columns && columns > 0).then_some(layout)
+        (columns == self.columns && columns > 0).then_some(self)
     }
 
     /// The layout in `bytes` with only its header checked, or `None` when they do not start as a
@@ -91,7 +107,13 @@ impl<'a> Layout<'a> {
     /// not: for a primitive that needs the codec hash, or one column found by name, and not every
     /// column.
     pub fn header(bytes: &'a [u8]) -> Option<Layout<'a>> {
-        if bytes.get(..4)? != MAGIC || u32_at(bytes, 4)? != VERSION {
+        Self::header_of(bytes, VERSION)
+    }
+
+    /// `header` for a layout of version word `version`.
+    #[inline(always)]
+    fn header_of(bytes: &'a [u8], version: u32) -> Option<Layout<'a>> {
+        if bytes.get(..4)? != MAGIC || u32_at(bytes, 4)? != version {
             return None;
         }
         Some(Layout {
@@ -99,6 +121,28 @@ impl<'a> Layout<'a> {
             columns: u32_at(bytes, 16)? as usize,
             entries: bytes.get(HEADER..)?,
         })
+    }
+
+    /// The layout of the table a view's layout `bytes` reads, its header alone checked (as
+    /// `header` checks one), and the view's fields (`Picks`); `None` when `bytes` is not a view's
+    /// layout.
+    pub fn view(bytes: &'a [u8]) -> Option<(Layout<'a>, Picks<'a>)> {
+        let start = u32_at(bytes, bytes.len().checked_sub(4)?)? as usize;
+        let picks = bytes.get(start..bytes.len() - 4)?;
+        let layout = Self::header_of(bytes.get(..start)?, VIEW)?;
+        (picks.len() % PICK == 0).then_some((layout, Picks { picks }))
+    }
+
+    /// The layout of the table the codec layout `bytes` is of, a table's or a view's, every column
+    /// checked as `parse` checks them, and its bytes, the version word `VIEW` in them when they are
+    /// a view's; `None` when `bytes` is neither.
+    fn table(bytes: &'a [u8]) -> Option<(Layout<'a>, &'a [u8])> {
+        if let Some(layout) = Self::parse(bytes) {
+            return Some((layout, bytes));
+        }
+        let start = u32_at(bytes, bytes.len().checked_sub(4)?)? as usize;
+        let table = bytes.get(..start)?;
+        Some((Self::header_of(table, VIEW)?.checked()?, table))
     }
 
     /// The number of columns, the key's included.
@@ -159,6 +203,61 @@ impl<'a> Layout<'a> {
             entries: core::slice::from_raw_parts(out, end),
         }
     }
+}
+
+/// The fields of a view (`Layout::view`), in the order of the view's row type.
+#[derive(Clone, Copy)]
+pub struct Picks<'a> {
+    picks: &'a [u8],
+}
+
+impl<'a> Picks<'a> {
+    pub fn len(&self) -> usize {
+        self.picks.len() / PICK
+    }
+
+    /// The position in the table's layout and the type codes of field `i` of the view.
+    pub fn get(&self, i: usize) -> Option<(usize, &'a [u8])> {
+        let p = self.picks.get(PICK * i..PICK * (i + 1))?;
+        let n = if p[2] == ty::OPTION { 2 } else { 1 };
+        Some((usize::from(u16::from_le_bytes([p[0], p[1]])), &p[2..2 + n]))
+    }
+}
+
+/// The layout of a view of the table whose codec layout is `codec`, a table's or a view's, with
+/// the row type of `view`, of the same key type, in a new Blob. Each field of the view's row is
+/// found among the fields of the table's row by label hash and name, both in label-hash order.
+/// Traps when the table's row has no field of a name, or has it with another type.
+pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -> Value {
+    let Some((layout, table)) = Layout::table(codec) else {
+        rts_trap_with("native table: malformed layout")
+    };
+    let mut fields = layout.entries().enumerate().skip(1);
+    let start = table.len();
+    let size = start + PICK * (view.columns - 1) + 4;
+    let blob = alloc_blob(mem, TAG_BLOB_B, Bytes(size));
+    let out = core::slice::from_raw_parts_mut(blob.as_blob_mut().payload_addr(), size);
+    out[..start].copy_from_slice(table);
+    out[4..8].copy_from_slice(&VIEW.to_le_bytes());
+    out[start..].fill(0);
+    for (i, f) in view.entries().skip(1).enumerate() {
+        let (p, e) = loop {
+            match fields.next() {
+                Some((_, e)) if e.hash < f.hash => {}
+                Some((p, e)) if e.hash == f.hash && e.name == f.name => break (p, e),
+                _ => rts_trap_with("native table: the row type has no field of that name"),
+            }
+        };
+        if e.codes != f.codes {
+            rts_trap_with("native table: a field has another type than the table's");
+        }
+        let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
+        let at = start + PICK * i;
+        out[at..at + 2].copy_from_slice(&p.to_le_bytes());
+        out[at + 2..at + 2 + e.codes.len()].copy_from_slice(e.codes);
+    }
+    out[size - 4..].copy_from_slice(&(start as u32).to_le_bytes());
+    allocation_barrier(blob)
 }
 
 /// The column entries of a layout, in order.

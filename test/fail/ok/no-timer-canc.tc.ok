@@ -289,6 +289,9 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
              filter : ?(Text, NtFilter)) ->
         ?(Int, Nat);
+    ntView :
+      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
+        NtCodec<(K, P)>;
     ntWalk :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
              fields : [Text], reverse : Bool, start : Nat64, from : [NtCell],
