@@ -6,11 +6,12 @@
 //! type code of a scalar, after the option code when the column is optional; the u32 label hash;
 //! the u16 length of the column's name and the name (the key has none).
 //!
-//! The layout of a view (`view_layout`) is the layout of the table it reads with the version word
-//! `VIEW`, which no table's layout has, then 4 bytes per field of the view's row: the u16
-//! position of the field in the table's layout, then its type codes, padded to 2 bytes with 0;
-//! then the u32 offset of the first of those fields. So a call made with a view's codec finds the
-//! table's layout where a table's codec has it, and fails the version check every call makes.
+//! The layout of a view (`view_layout`) is the layout of the table it reads, then the byte `VIEW`,
+//! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
+//! of the field in the table's layout, then its type codes, padded to 2 bytes with 0; then the u32
+//! offset of the `VIEW` byte. So a call made with a view's codec finds the table's layout where a
+//! table's codec has it: a call that checks only the layout's header reads the table's, and a call
+//! that checks every column entry fails at the `VIEW` byte.
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
@@ -28,8 +29,8 @@ use crate::types::{Bytes, TAG_BLOB_B, Value};
 
 const MAGIC: &[u8] = b"NTCD";
 const VERSION: u32 = 1;
-/// The version word of the table layout in a view's layout.
-const VIEW: u32 = u32::from_le_bytes(*b"VIEW");
+/// The byte after the table's layout in a view's layout.
+const VIEW: u8 = 0xFF;
 /// The bytes of a field of a view.
 const PICK: usize = 4;
 /// Bytes before the first column.
@@ -107,13 +108,7 @@ impl<'a> Layout<'a> {
     /// not: for a primitive that needs the codec hash, or one column found by name, and not every
     /// column.
     pub fn header(bytes: &'a [u8]) -> Option<Layout<'a>> {
-        Self::header_of(bytes, VERSION)
-    }
-
-    /// `header` for a layout of version word `version`.
-    #[inline(always)]
-    fn header_of(bytes: &'a [u8], version: u32) -> Option<Layout<'a>> {
-        if bytes.get(..4)? != MAGIC || u32_at(bytes, 4)? != version {
+        if bytes.get(..4)? != MAGIC || u32_at(bytes, 4)? != VERSION {
             return None;
         }
         Some(Layout {
@@ -127,22 +122,27 @@ impl<'a> Layout<'a> {
     /// `header` checks one), and the view's fields (`Picks`); `None` when `bytes` is not a view's
     /// layout.
     pub fn view(bytes: &'a [u8]) -> Option<(Layout<'a>, Picks<'a>)> {
-        let start = u32_at(bytes, bytes.len().checked_sub(4)?)? as usize;
-        let picks = bytes.get(start..bytes.len() - 4)?;
-        let layout = Self::header_of(bytes.get(..start)?, VIEW)?;
+        let table = Self::view_table(bytes)?;
+        let picks = &bytes[table.len() + 1..bytes.len() - 4];
+        let layout = Self::header(table)?;
         (picks.len() % PICK == 0).then_some((layout, Picks { picks }))
     }
 
-    /// The layout of the table the codec layout `bytes` is of, a table's or a view's, every column
-    /// checked as `parse` checks them, and its bytes, the version word `VIEW` in them when they are
-    /// a view's; `None` when `bytes` is neither.
-    fn table(bytes: &'a [u8]) -> Option<(Layout<'a>, &'a [u8])> {
-        if let Some(layout) = Self::parse(bytes) {
-            return Some((layout, bytes));
-        }
+    /// The bytes of the table's layout in a view's layout `bytes`, or `None` when `bytes` is not a
+    /// view's layout.
+    fn view_table(bytes: &'a [u8]) -> Option<&'a [u8]> {
         let start = u32_at(bytes, bytes.len().checked_sub(4)?)? as usize;
-        let table = bytes.get(..start)?;
-        Some((Self::header_of(table, VIEW)?.checked()?, table))
+        (*bytes.get(..bytes.len() - 4)?.get(start)? == VIEW).then(|| &bytes[..start])
+    }
+
+    /// The layout of the table the codec layout `bytes` is of, a table's or a view's, every column
+    /// checked as `parse` checks them, and its bytes; `None` when `bytes` is neither.
+    fn table(bytes: &'a [u8]) -> Option<(Layout<'a>, &'a [u8])> {
+        let table = match Self::parse(bytes) {
+            Some(layout) => return Some((layout, bytes)),
+            None => Self::view_table(bytes)?,
+        };
+        Some((Self::parse(table)?, table))
     }
 
     /// The number of columns, the key's included.
@@ -234,12 +234,12 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
     };
     let mut fields = layout.entries().enumerate().skip(1);
     let start = table.len();
-    let size = start + PICK * (view.columns - 1) + 4;
+    let size = start + 1 + PICK * (view.columns - 1) + 4;
     let blob = alloc_blob(mem, TAG_BLOB_B, Bytes(size));
     let out = core::slice::from_raw_parts_mut(blob.as_blob_mut().payload_addr(), size);
     out[..start].copy_from_slice(table);
-    out[4..8].copy_from_slice(&VIEW.to_le_bytes());
     out[start..].fill(0);
+    out[start] = VIEW;
     for (i, f) in view.entries().skip(1).enumerate() {
         let (p, e) = loop {
             match fields.next() {
@@ -252,7 +252,7 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
             rts_trap_with("native table: a field has another type than the table's");
         }
         let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
-        let at = start + PICK * i;
+        let at = start + 1 + PICK * i;
         out[at..at + 2].copy_from_slice(&p.to_le_bytes());
         out[at + 2..at + 2 + e.codes.len()].copy_from_slice(e.codes);
     }

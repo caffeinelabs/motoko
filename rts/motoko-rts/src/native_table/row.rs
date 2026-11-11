@@ -1052,6 +1052,11 @@ pub trait Places<'a> {
     fn position(&self, column: usize) -> usize;
     /// The next row's cells start from the first column again.
     fn reset(&mut self);
+    /// The leaves the table hands over, when not every column.
+    #[inline(always)]
+    fn leaves(&self) -> Option<&'a [u32]> {
+        None
+    }
 }
 
 /// The fields of a table whose row type never changed: the table hands every column over in
@@ -1146,6 +1151,10 @@ impl<'a> Places<'a> for Picked<'a> {
     }
 
     fn reset(&mut self) {}
+
+    fn leaves(&self) -> Option<&'a [u32]> {
+        Some(self.leaves)
+    }
 }
 
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
@@ -1245,10 +1254,10 @@ impl<'a, M: Memory> RowOut<'a, M> {
 
     /// Rows of a view of a table of `layout` with the fields `picks` (`Layout::view`), the row a
     /// record with `labels` as its hash list, or the one scalar, of which `out` is built; `map`
-    /// is the table's map when its row type has changed. With the leaves the table hands over,
-    /// the key's first when the key is built, then one per field of the view, in a Blob that
-    /// lives until the next collection. Traps when `labels` does not have one label per field of
-    /// the view, or none for a view of a scalar.
+    /// is the table's map when its row type has changed. The leaves the table hands over
+    /// (`leaves`) are the key's first when the key is built, then one per field of the view, in a
+    /// Blob that lives until the next collection. Traps when `labels` does not have one label per
+    /// field of the view, or none for a view of a scalar.
     pub unsafe fn picked(
         mem: *mut M,
         layout: &Layout<'a>,
@@ -1256,7 +1265,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
         map: Option<Map>,
         labels: Value,
         out: Out,
-    ) -> (RowOut<'a, M, Picked<'a>>, &'a [u32]) {
+    ) -> RowOut<'a, M, Picked<'a>> {
         let n = picks.len();
         if tag_of(labels) != Some(TAG_BLOB_B) {
             mismatch();
@@ -1282,7 +1291,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
             leaves.add(i).write((column as u32) << 16);
         }
         let leaves = core::slice::from_raw_parts(leaves, width);
-        let row = RowOut {
+        RowOut {
             mem,
             out,
             fields: Picked { leaves, picks, key },
@@ -1296,12 +1305,17 @@ impl<'a, M: Memory> RowOut<'a, M> {
             pending: core::ptr::null_mut(),
             pending_len: 0,
             _layout: core::marker::PhantomData,
-        };
-        (row, leaves)
+        }
     }
 }
 
 impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
+    /// The leaves of each row the table hands over, in order, when not every column: a view's.
+    #[inline(always)]
+    pub fn leaves(&self) -> Option<&'a [u32]> {
+        self.fields.leaves()
+    }
+
     /// The record, made on the first call.
     unsafe fn record(&mut self, labels: Value) -> *mut Object {
         if self.record.is_null() {

@@ -1,11 +1,14 @@
 import Prim "mo:⛔";
 import NativeTable "mo:native-table/NativeTable";
+import NativeTableCells "mo:native-table/NativeTableCells";
 
 // A view reads some fields of each row: its get gives the record of the view's fields, equal to
 // those fields of the row get gives, for rows still in the open group, packed rows and replaced
 // packed rows, long values, a table whose row type changed, a view of a view, a view of no field
-// and a view of a scalar row. A view of a field the row lacks or has with another type, add and
-// evolve on a view, and a view made before an evolve trap, and change nothing
+// and a view of a scalar row. Its scans and index walks give the same rows as the table's, with
+// the view's fields; its counts, sums, extremes, filters and cells name any field of the table;
+// delete on a view removes the whole row. A view of a field the row lacks or has with another
+// type, add and evolve on a view, and a view made before an evolve trap, and change nothing
 actor {
   type Order = { customer : Text; city : Text; amount : Nat; paid : Bool; placed : Int; note : ?Text };
   type Name = { customer : Text; city : Text };
@@ -81,6 +84,71 @@ actor {
     Prim.debugPrint(debug_show same)
   };
 
+  // The number of values two iterators give alike, in order; 0 when one gives more
+  func alike<A, B>(a : { next : () -> ?A }, b : { next : () -> ?B }, eq : (A, B) -> Bool) : Nat {
+    var n = 0;
+    loop {
+      switch (a.next(), b.next()) {
+        case (null, null) { return n }
+        case (?x, ?y) {
+          if not eq(x, y) { return 0 };
+          n += 1
+        }
+        case _ { return 0 }
+      }
+    }
+  };
+
+  func name(o : Order) : Name = { customer = o.customer; city = o.city };
+
+  func nameEntry((k, o) : (Nat, Order), (k2, n) : (Nat, Name)) : Bool = k == k2 and n == name(o);
+
+  // Every read of rows through a view gives the rows the table gives, with the view's fields
+  public query func reads() : async () {
+    let basel = ?[#text("Basel")];
+    let amounts = #range { low = ?#incl(#nat(700)); high = ?#excl(#nat(1_400)) };
+    Prim.debugPrint(
+      debug_show (
+        alike(orders.entries(), names.entries(), nameEntry),
+        alike(orders.keys(), names.keys(), func(a : Nat, b : Nat) : Bool = a == b),
+        alike(orders.keys(), keys.entries(), func(a : Nat, (b, _) : (Nat, {})) : Bool = a == b),
+        alike(orders.values(), money.values(), func(o : Order, m : Money) : Bool = m == ({ amount = o.amount; note = o.note })),
+        alike(orders.entries(), all.entries(), func(a : (Nat, Order), b : (Nat, Order)) : Bool = a == b),
+        alike(orders.indexEntries(["city"], basel, basel), names.indexEntries(["city"], basel, basel), nameEntry),
+        alike(orders.reverseIndexEntries(["city"], null, null), names.reverseIndexEntries(["city"], null, null), nameEntry),
+        alike(orders.entriesWhere("amount", amounts), names.entriesWhere("amount", amounts), nameEntry),
+      )
+    );
+    Prim.debugPrint(debug_show (names.minEntry(["city"]), cities.maxEntry(["city"])));
+    Prim.debugPrint(debug_show (sameCounts.entries().next(), sameCounts.values().next()))
+  };
+
+  // The calls that name fields name any field of the table on a view
+  public query func named() : async () {
+    let paid = ?("paid", #eq(#bool(true)));
+    Prim.debugPrint(
+      debug_show (
+        alike(orders.cells(true, ["placed", "city"], paid), names.cells(true, ["placed", "city"], paid), func(a : [NativeTable.Cell], b : [NativeTable.Cell]) : Bool = a == b),
+        alike(orders.groupCounts(["city"]), names.groupCounts(["city"]), func(a : ([NativeTable.Cell], Nat), b : ([NativeTable.Cell], Nat)) : Bool = a == b),
+        names.size() == orders.size(),
+        names.count(["city"], [#text("Bern")]) == orders.count(["city"], [#text("Bern")]),
+        names.countWhere("paid", #eq(#bool(true))) == orders.countWhere("paid", #eq(#bool(true))),
+        names.sumCount("amount") == orders.sumCount("amount"),
+        names.sumWhere("amount", "city", #eq(#text("Basel"))) == orders.sumWhere("amount", "city", #eq(#text("Basel"))),
+        (names.min("placed"), names.max("amount")) == (orders.min("placed"), orders.max("amount")),
+        names.fieldTypes() == orders.fieldTypes(),
+      )
+    );
+    Prim.debugPrint(debug_show (names.count(["city"], [#text("Bern")]), names.min("placed"), names.size()))
+  };
+
+  // Delete and remove on a view remove the whole row; maintain on a view runs the table's upkeep
+  public func removeOnView() : async () {
+    Prim.debugPrint(debug_show (names.delete(3), names.delete(3), orders.get(3), money.get(3)));
+    names.remove(4_199);
+    Prim.debugPrint(debug_show (orders.get(4_199), names.size(), names.maintain(1_000_000)))
+  };
+
   // A field is added and one dropped; the view of the changed table reads both kinds of rows
   public func change() : async () {
     let t : NativeTable.NativeTable<Nat, New> = people.evolve();
@@ -92,7 +160,10 @@ actor {
     switch changed {
       case ?t {
         let v : NativeTable.NativeTable<Nat, { email : ?Text; name : Text }> = t.view();
-        Prim.debugPrint(debug_show (v.get(1), v.get(3), v.get(4)))
+        Prim.debugPrint(debug_show (v.get(1), v.get(3), v.get(4)));
+        let rows = v.entries();
+        Prim.debugPrint(debug_show (rows.next(), rows.next(), rows.next(), rows.next()));
+        Prim.debugPrint(debug_show (v.cells(false, ["age"], null).next(), v.sum("age"), v.size()))
       }
       case null {}
     }
@@ -101,6 +172,11 @@ actor {
   // A view made before the row type changed
   public query func getOld() : async () {
     Prim.debugPrint(debug_show (oldNames.get(1)))
+  };
+
+  // A scan through a view made before the row type changed
+  public query func scanOld() : async () {
+    Prim.debugPrint(debug_show (oldNames.entries().next()))
   };
 
   public func missingField() : async () {
@@ -135,13 +211,19 @@ actor {
 //MOC-FLAG --package native-table ../../lib/native-table
 //CALL ingress put "DIDL\x00\x00"
 //CALL ingress get "DIDL\x00\x00"
+//CALL ingress reads "DIDL\x00\x00"
+//CALL ingress named "DIDL\x00\x00"
 //CALL ingress getOld "DIDL\x00\x00"
 //CALL ingress change "DIDL\x00\x00"
 //CALL ingress getChanged "DIDL\x00\x00"
 //CALL ingress getOld "DIDL\x00\x00"
+//CALL ingress scanOld "DIDL\x00\x00"
 //CALL ingress missingField "DIDL\x00\x00"
 //CALL ingress otherType "DIDL\x00\x00"
 //CALL ingress notOption "DIDL\x00\x00"
 //CALL ingress addOnView "DIDL\x00\x00"
 //CALL ingress evolveView "DIDL\x00\x00"
 //CALL ingress get "DIDL\x00\x00"
+//CALL ingress removeOnView "DIDL\x00\x00"
+//CALL ingress reads "DIDL\x00\x00"
+//CALL ingress named "DIDL\x00\x00"

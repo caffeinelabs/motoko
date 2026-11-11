@@ -131,7 +131,32 @@ unsafe fn view_of<'a>(codec: Value) -> (Layout<'a>, Picks<'a>) {
     Layout::view(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
 }
 
-/// The layout of the codec `codec`, its header alone checked (`Layout::header`).
+/// The layout of the codec `codec`, for a call that builds no row of its row type: for a view's
+/// codec, the layout of the table it reads.
+unsafe fn read_layout_of<'a>(codec: Value) -> Layout<'a> {
+    let layout = blob_bytes(codec.as_array().get(0));
+    Layout::parse(layout).unwrap_or_else(|| viewed(codec))
+}
+
+/// The layout of the table that the view's codec `codec` reads, its header alone checked: the
+/// view's layout was made from that table's layout with every column checked (`nt_view`). Traps
+/// when `codec` is not a view's. Out of line, so a call with a table's codec runs as before.
+#[cold]
+#[inline(never)]
+unsafe fn viewed<'a>(codec: Value) -> Layout<'a> {
+    view_of(codec).0
+}
+
+/// `viewed`, with the fields of the view.
+#[cold]
+#[inline(never)]
+unsafe fn viewed_picks<'a>(codec: Value) -> (Layout<'a>, Option<Picks<'a>>) {
+    let (layout, picks) = view_of(codec);
+    (layout, Some(picks))
+}
+
+/// The layout of the codec `codec`, its header alone checked (`Layout::header`): for a view's
+/// codec, the layout of the table it reads.
 unsafe fn header_of<'a>(codec: Value) -> Layout<'a> {
     let layout = blob_bytes(codec.as_array().get(0));
     Layout::header(layout).unwrap_or_else(|| rts_trap_with("native table: malformed layout"))
@@ -319,7 +344,11 @@ unsafe fn get<'a, M: Memory, F: Places<'a>>(
 ) -> Value {
     let table = table_at(host, id);
     let mut scratch = BlobScratch { mem };
-    if or_trap(table.get(&mut scratch, k, row)) {
+    let found = match row.leaves() {
+        None => table.get(&mut scratch, k, row),
+        Some(leaves) => table.get_leaves(&mut scratch, k, leaves, row),
+    };
+    if or_trap(found) {
         row.finish(&table)
     } else {
         NULL_POINTER
@@ -337,21 +366,15 @@ unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> V
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
-    let (mut row, leaves) = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Row);
-    let table = table_at(&mut host, id);
-    let mut scratch = BlobScratch { mem };
-    if or_trap(table.get_leaves(&mut scratch, &mut k, leaves, &mut row)) {
-        row.finish(&table)
-    } else {
-        NULL_POINTER
-    }
+    let mut row = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Row);
+    get(mem, &mut host, id, &mut k, &mut row)
 }
 
 /// Removes the row key `k` has; 1 when `k` had one, else 0. A step of maintenance runs first when
 /// the table has work pending.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> u64 {
-    let layout = layout_of(codec);
+    let layout = read_layout_of(codec);
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;
@@ -442,7 +465,7 @@ pub unsafe fn nt_count<M: Memory>(
     fields: Value,
     key: Value,
 ) -> u64 {
-    let mut layout = layout_of(codec);
+    let mut layout = read_layout_of(codec);
     let index = index_of(indexes, fields);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
@@ -501,7 +524,8 @@ unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
 /// handed back. A walk with an empty token starts, by `start`: 0 at the index's first key in its
 /// direction, 1 at its first key whose first part is not null, 2 at the key the cells of the array
 /// `from` give, or at the first key past it when no row has it. It stops before the first key past
-/// the key the cells of `to` give, when `to` is not null.
+/// the key the cells of `to` give, when `to` is not null. With a view's codec (`nt_view`), only
+/// the view's fields of each row are read.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_walk<M: Memory>(
     mem: &mut M,
@@ -516,7 +540,11 @@ pub unsafe fn nt_walk<M: Memory>(
     token: Value,
     limit: u64,
 ) -> Value {
-    let mut layout = layout_of(codec);
+    let bytes = blob_bytes(codec.as_array().get(0));
+    let (mut layout, view) = match Layout::parse(bytes) {
+        Some(layout) => (layout, None),
+        None => viewed_picks(codec),
+    };
     let index = index_of(indexes, fields);
     let dir = if reverse != 0 { Dir::Rev } else { Dir::Fwd };
     // A key past `to` in the walk's direction.
@@ -530,7 +558,9 @@ pub unsafe fn nt_walk<M: Memory>(
     let rows = scratch::<Value, M>(mem, limit);
     let token = blob_bytes(token);
     let mem: *mut M = mem;
-    let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Entry);
+    // With a view's codec, `row` builds only keys: the rows are built from the view's fields.
+    let out = if view.is_none() { Out::Entry } else { Out::Key };
+    let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
     if let Some(map) = map {
@@ -618,9 +648,13 @@ pub unsafe fn nt_walk<M: Memory>(
             }
         }
     }
-    match map {
-        None => rows_of(&table, rids, n, &mut row, rows),
-        Some(map) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
+    match (view, map) {
+        (None, None) => rows_of(&table, rids, n, &mut row, rows),
+        (None, Some(map)) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
+        (Some(picks), _) => {
+            let mut row = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Entry);
+            rows_of(&table, rids, n, &mut row, rows)
+        }
     }
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);
@@ -642,7 +676,11 @@ unsafe fn rows_of<'a, M: Memory, F: Places<'a>>(
     rows: *mut Value,
 ) {
     for i in 0..n {
-        if !or_trap(table.get_rid(*rids.add(i), row)) {
+        let found = match row.leaves() {
+            None => table.get_rid(*rids.add(i), row),
+            Some(leaves) => table.get_rid_leaves(*rids.add(i), leaves, row),
+        };
+        if !or_trap(found) {
             rts_trap_with("native table: an index names a row the table does not have");
         }
         rows.add(i).write(row.finish(table));
@@ -666,7 +704,7 @@ pub unsafe fn nt_group_counts<M: Memory>(
     after: Value,
     limit: u64,
 ) -> Value {
-    let mut layout = layout_of(codec);
+    let mut layout = read_layout_of(codec);
     let index = index_of(indexes, fields);
     let limit = limit.clamp(1, BATCH_LIMIT) as usize;
     let groups = scratch::<Value, M>(mem, limit);
@@ -914,13 +952,10 @@ pub unsafe fn nt_scan<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let mut layout = layout_of(codec);
-    let out = match what {
-        0 => Out::Entry,
-        1 => Out::Key,
-        2 => Out::Row,
-        _ => rts_trap_with("native table: unknown scan"),
+    let Some(mut layout) = Layout::parse(blob_bytes(codec.as_array().get(0))) else {
+        return scan_view(mem, id, codec, what, filter, next, limit);
     };
+    let out = scan_out(what);
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);
     let mem: *mut M = mem;
@@ -935,7 +970,53 @@ pub unsafe fn nt_scan<M: Memory>(
         None => scan(&mut host, id, filter.as_ref(), next, limit, rows, row),
         Some(map) => scan(&mut host, id, filter.as_ref(), next, limit, rows, row.mapped(map)),
     };
-    let mem = &mut *mem;
+    batch(&mut *mem, rows, n, rest)
+}
+
+/// `nt_scan` with a view's codec: the rows come with only the view's fields read. Out of line, so
+/// a call with a table's codec runs as before.
+#[cold]
+#[inline(never)]
+unsafe fn scan_view<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    what: u64,
+    filter: Value,
+    next: u64,
+    limit: u64,
+) -> Value {
+    let (mut layout, picks) = view_of(codec);
+    let out = scan_out(what);
+    let limit = limit.min(BATCH_LIMIT) as usize;
+    let rows = scratch::<Value, M>(mem, limit);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    let map = root_block(&host, id, &layout);
+    let row = RowOut::picked(mem, &layout, picks, map, labels_of(codec), out);
+    if let Some(map) = map {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let filter = filter_opt(&mut *mem, &layout, filter);
+    let (rest, n) = scan(&mut host, id, filter.as_ref(), next, limit, rows, row);
+    batch(&mut *mem, rows, n, rest)
+}
+
+/// What `nt_scan` builds of each row, by its `what`.
+#[inline(always)]
+fn scan_out(what: u64) -> Out {
+    match what {
+        0 => Out::Entry,
+        1 => Out::Key,
+        2 => Out::Row,
+        _ => rts_trap_with("native table: unknown scan"),
+    }
+}
+
+/// The values a scan hands back, the first `n` at `rows`, in an array, and the row id to go on
+/// from, or null: in a pair.
+#[inline(always)]
+unsafe fn batch<M: Memory>(mem: &mut M, rows: *const Value, n: usize, rest: Option<u64>) -> Value {
     let array = array_of(mem, rows, n);
     let rest = match rest {
         Some(rid) => nat64_of(mem, rid),
@@ -963,8 +1044,11 @@ unsafe fn scan<'a, M: Memory, F: Places<'a>>(
         rows,
         n: 0,
     };
-    let rest = or_trap(table.scan_where(filter, next, limit as u64, &mut out));
-    (rest, out.n)
+    let rest = match out.row.leaves() {
+        None => table.scan_where(filter, next, limit as u64, &mut out),
+        Some(leaves) => table.scan_cells(leaves, filter, next, limit as u64, &mut out),
+    };
+    (or_trap(rest), out.n)
 }
 
 /// Up to `limit` rows, at most 64, of the table whose root block is `id`, from row id `next` on
@@ -986,7 +1070,7 @@ pub unsafe fn nt_scan_cells<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let mut layout = layout_of(codec);
+    let mut layout = read_layout_of(codec);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     if let Some(map) = root_block(&host, id, &layout) {
@@ -1020,14 +1104,7 @@ pub unsafe fn nt_scan_cells<M: Memory>(
     let table = table_at(&mut host, id);
     let mut out = CellRows::new(mem, &table, leaves, types, rows);
     let rest = or_trap(table.scan_cells(leaves, filter.as_ref(), next, limit as u64, &mut out));
-    let n = out.len();
-    let mem = &mut *mem;
-    let array = array_of(mem, rows, n);
-    let rest = match rest {
-        Some(rid) => nat64_of(mem, rid),
-        None => NULL_POINTER,
-    };
-    pair(mem, array, rest)
+    batch(&mut *mem, rows, out.len(), rest)
 }
 
 /// The number of rows of the table whose root block is `id` whose field the Text `column` names
@@ -1040,7 +1117,7 @@ pub unsafe fn nt_count_where<M: Memory>(
     column: Value,
     filter: Value,
 ) -> u64 {
-    let mut layout = layout_of(codec);
+    let mut layout = read_layout_of(codec);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     if let Some(map) = root_block(&host, id, &layout) {
@@ -1058,7 +1135,7 @@ pub unsafe fn nt_count_where<M: Memory>(
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget: u64) -> u64 {
     let start = ic0_performance_counter(0);
-    let layout = layout_of(codec);
+    let layout = read_layout_of(codec);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, &layout);

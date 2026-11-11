@@ -6,11 +6,22 @@ debug.print: (?{amount = 35; note = null}, ?{amount = 49; note = ?"replaced"}, ?
 debug.print: (?1_180_591_620_717_411_303_424, null)
 debug.print: 4_200
 ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_200, 4_200, 4_200, 4_200, 4_200, 1_400, 4_200, 100)
+debug.print: (?(0, {city = "Basel"; customer = "c0"}), ?(7, {city = "Chur"}))
+debug.print: (?("Basel", 3), ?3)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2_100, 3, true, true, true, true, true, true, true)
+debug.print: (2_799, ?(-4_199), 4_200)
+ingress Completed: Reply: 0x4449444c0000
 debug.print: ?{name = "Ana"}
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
 debug.print: (?{email = null; name = "Ana"}, ?{email = ?"cy@example.org"; name = "Cy"}, null)
+debug.print: (?(1, {email = null; name = "Ana"}), ?(2, {email = null; name = "Bo"}), ?(3, {email = ?"cy@example.org"; name = "Cy"}), null)
+debug.print: (?[#nat(40)], ?(+90), 3)
 ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
@@ -27,4 +38,14 @@ debug.print: (?{city = "Basel"; customer = "c0"}, ?{city = "Chur"; customer = "c
 debug.print: (?{amount = 35; note = null}, ?{amount = 49; note = ?"replaced"}, ?{city = "Chur"}, ?{}, null)
 debug.print: (?1_180_591_620_717_411_303_424, null)
 debug.print: 4_200
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, false, null, null)
+debug.print: (null, 4_198, false)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_198, 4_198, 4_198, 4_198, 4_198, 1_399, 4_198, 100)
+debug.print: (?(0, {city = "Basel"; customer = "c0"}), ?(7, {city = "Chur"}))
+debug.print: (?("Basel", 3), ?3)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2_100, 3, true, true, true, true, true, true, true)
+debug.print: (2_798, ?(-4_198), 4_198)
 ingress Completed: Reply: 0x4449444c0000
