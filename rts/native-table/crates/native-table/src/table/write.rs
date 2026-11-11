@@ -57,7 +57,9 @@ fn total_leaf<H: PageHost>(
 }
 
 /// Applies a whole stored buffered row (every live integer leaf, under the overlay) to the totals and to the
-/// extremes of its group (block `ext`) with `sign`; the other leaves are passed without being read.
+/// extremes of its group (block `ext`) with `sign`; the other leaves are passed without being read. Kept out of
+/// line: inlined into a delete, it makes the delete dearer.
+#[inline(never)]
 fn totals_row<H: PageHost>(
     h: &mut H,
     tbl: u64,
@@ -86,6 +88,28 @@ fn totals_row<H: PageHost>(
             cur::from_stored(&row, shape, &l, &st, vi)?
         };
         total_leaf(h, tbl, tail, run_at, &l, TSrc::Cur(&s), sign, ext)?;
+    }
+    Ok(())
+}
+
+/// Adds a new row's integer leaves, read from the cells it is written from (which the caller has checked), to
+/// the totals and to the extremes of its group (block `ext`).
+fn totals_cells<H: PageHost, R: RowSource + ?Sized>(
+    h: &mut H,
+    tbl: u64,
+    shape: &Shape,
+    tail: u64,
+    src: &mut R,
+    ext: u64,
+) -> Result<(), Fault> {
+    let mut rc = RunCursor::open(&*h, tail)?;
+    for o in 0..shape.leaves {
+        let l = shape.leaf(&*h, o)?;
+        let run_at = rc.place(h.get(Region::Block(tail))?, &l)?;
+        if run_at != At::None {
+            let v = row::checked_cell(src, &l)?;
+            total_leaf(h, tbl, tail, run_at, &l, TSrc::Val(&v), Sign::Add, ext)?;
+        }
     }
     Ok(())
 }
@@ -274,10 +298,8 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
             put_u64(b, buffer::H_FLAGS, f | buffer::OPEN_LONG)?;
         }
     }
-    let loc = buffer::slot_row(&*h, tail, buffer::u16_of(&*h, tail, B_SLOTS)?.wrapping_sub(1))?
-        .ok_or(rt(Corruption::Link, tail))?;
     let ext = super::extremes::of_desc(&*h, desc)?;
-    totals_row(h, tbl, shape, tail, loc, Sign::Add, ext)?;
+    totals_cells(h, tbl, shape, tail, src, ext)?;
     Ok((rid, filled))
 }
 
