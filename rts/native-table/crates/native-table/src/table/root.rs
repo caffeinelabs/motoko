@@ -24,6 +24,10 @@ pub const COMPACT_TAIL: u64 = 120;
 /// not queued, recorded here in the root the write changes anyway instead of pushed onto the compaction queue,
 /// whose blocks the write would change besides; the next maintenance step pushes it first.
 pub const GROUP_TO_QUEUE: u64 = 128;
+/// The first and the last park block of the structures `clear` let go of whose memory is not all back yet
+/// (`clear`; 0: none).
+pub const PARK_FIRST: u64 = 136;
+pub const PARK_LAST: u64 = 144;
 /// Index directory block references 0–2.
 pub const INDEX_DIRS: u64 = 928;
 pub const FMT_IMAGE: u64 = 2_128;
@@ -31,6 +35,8 @@ pub const FMT_KEY: u64 = 2_130;
 pub const FMT_VALUE: u64 = 2_132;
 /// The maintenance state byte: bit 0 pending.
 pub const STATE: u64 = 2_449;
+/// The freeing byte (`host::FREEING`), read with the state byte as one u16.
+pub const FREEING: u64 = 2_450;
 /// The table's shape, what every call needs of the schema image, derived when the image is written
 /// (`layout::Shape::store`, `layout::STORED_BYTES` bytes).
 pub const SHAPE: u64 = 2_464;

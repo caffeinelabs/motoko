@@ -240,6 +240,7 @@ suggest-long-ai.mo:4.6-4.12: type error [M0072], field region does not exist in 
     natToNat32 : (n : Nat) -> Nat32;
     natToNat64 : (n : Nat) -> Nat64;
     natToNat8 : (n : Nat) -> Nat8;
+    ntClear : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Bool;
     ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
     ntCount :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

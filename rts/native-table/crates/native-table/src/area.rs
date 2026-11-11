@@ -93,7 +93,8 @@ impl AreaRecord {
         AreaRecord::take(h.get(Region::Block(tbl))?, a)
     }
 
-    fn write<H: PageHost>(&self, h: &mut H, tbl: u64, a: u32) -> Result<(), Fault> {
+    /// Writes area a's record in the table whose root block is `tbl`.
+    pub fn write<H: PageHost>(&self, h: &mut H, tbl: u64, a: u32) -> Result<(), Fault> {
         self.put(h.get_mut(Region::Block(tbl))?, a)
     }
 }

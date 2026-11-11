@@ -44,6 +44,10 @@
 //! and the writes that follow update, delete and compact rows of groups packed under every earlier version.
 //! The indexes kept are checked as before; a removed one is refused.
 //!
+//! Each run also empties the table with `clear` once or twice, at points drawn from a second generator seeded
+//! from the first: the model is emptied and row ids start again, every read is checked right after, and the
+//! writes and maintenance that follow give the old rows' memory back while the table fills again.
+//!
 //! `NT_MODEL_SEED` sets the seed (a default is fixed below), `NT_MODEL_TABLES` how many tables are drawn
 //! from it (one per key type unless set), and `NT_MODEL_OPS` the writes per table; `NT_MODEL_TABLE` runs only the table of that number,
 //! as the output names it.
@@ -1088,10 +1092,16 @@ fn index_key(tb: &Table<'_, VecHost>, ix: u8, cells: &[(u32, V)]) -> Vec<u8> {
     buf[..n].to_vec()
 }
 
-/// The pages the host lends equal those the table's areas hold.
+/// The pages the host lends equal those the table's areas hold, and those of the structures `clear` let go of
+/// while their memory is going back.
 fn check_pages(tb: &Table<'_, VecHost>) {
     let held: u64 = (0..AREAS as u32).map(|a| AreaRecord::read(tb.host(), tb.root(), a).unwrap().pages).sum();
-    assert_eq!(tb.host().live_pages() as u64, held, "the host's live pages are the table's");
+    let live = tb.host().live_pages() as u64;
+    if root::u64_at(tb.host(), tb.root(), root::PARK_FIRST).unwrap() == 0 {
+        assert_eq!(live, held, "the host's live pages are the table's");
+    } else {
+        assert!(live >= held, "the host's live pages {live} hold the table's {held}");
+    }
 }
 
 /// Blocks in use in areas 0 and 1 (their pages' blocks, less the never-used ones and the free ones), and the
@@ -1495,6 +1505,10 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
     let mut changes: Vec<u64> = (0..1 + r.below(3)).map(|_| r.below(ops.max(1))).collect();
     changes.sort_unstable();
     changes.dedup();
+    let mut rc = rng(seed ^ 0xC1EA);
+    let mut clears: Vec<u64> = (0..1 + rc.below(2)).map(|_| rc.below(ops.max(1))).collect();
+    clears.sort_unstable();
+    clears.dedup();
     let mut i = 0u64;
     let (mut burst, mut hot): (u64, Vec<Key>) = (0, Vec::new());
     // The writes, then deletes of every row left.
@@ -1510,6 +1524,18 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             let mut tb = Table::open(&mut h, tbl).unwrap();
             tb.evolve(&s.img).unwrap();
             assert_eq!(tb.shape().version, s.version);
+            sealed = nt_testhost::open_group(tb.host(), tbl);
+            check(&tb, &s, &m, &dead, &mut r);
+        }
+        // Every row removed at once: row ids start again, so the dead ones are forgotten, and a burst ends.
+        if !draining && clears.first() == Some(&i) {
+            clears.remove(0);
+            burst = 0;
+            let mut tb = Table::open(&mut h, tbl).unwrap();
+            assert_eq!(tb.clear().unwrap(), Wake::Later);
+            m.clear();
+            dead.clear();
+            last_rid = None;
             sealed = nt_testhost::open_group(tb.host(), tbl);
             check(&tb, &s, &m, &dead, &mut r);
         }

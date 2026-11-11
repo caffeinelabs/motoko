@@ -1,9 +1,10 @@
 //! Maintenance: the jobs a table's writes leave pending, their order, and the one step a write's first call
 //! runs.
 //!
-//! The one job is the compaction queue: compactions and group drops. A step runs its next piece: a compaction
-//! rewrites one whole group (`seal`), a drop frees one group. The seal of a full group is no job: the write that
-//! fills the group runs it (`write::freeze`).
+//! The jobs are the compaction queue (compactions and group drops) and, once it is empty, giving back the memory
+//! of the structures `clear` let go of (`clear::step`). A step runs the next piece of one: a compaction rewrites
+//! one whole group (`seal`), a drop frees one group. The seal of a full group is no job: the write that fills the
+//! group runs it (`write::freeze`).
 //!
 //! **Compaction queue** `NTQB` (area 0, zero-filled when allocated): {magic u32 @0; `FORMAT_TABLE` u16 @4;
 //! kind u8 @6 (1 compaction); head u16 @8 (the next entry to pop); entries written u16 @10; next block u64
@@ -192,12 +193,22 @@ pub enum Ran {
     Nothing,
     Compaction,
     Drop,
+    /// A piece of the memory of the structures `clear` let go of given back.
+    Free,
 }
 
-/// Runs one step: the compaction queue's next piece. Returns what ran (`Ran::Nothing` when no job is pending).
+/// Runs one step: the compaction queue's next piece, or else the next piece of the memory `clear` gives back.
+/// Returns what ran (`Ran::Nothing` when no job is pending).
 pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fault> {
     push_recorded(h, tbl)?;
-    let ran = if queued(&*h, tbl)? { compaction(h, tbl, shape)? } else { Ran::Nothing };
+    let ran = if queued(&*h, tbl)? {
+        compaction(h, tbl, shape)?
+    } else if root::u64_at(&*h, tbl, root::PARK_FIRST)? != 0 {
+        super::clear::step(h, tbl, shape)?;
+        Ran::Free
+    } else {
+        Ran::Nothing
+    };
     settle(h, tbl)?;
     Ok(ran)
 }
@@ -221,12 +232,12 @@ fn compaction<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fa
 }
 
 /// The maintenance state: pending while a compaction waits; the root's state byte is written only when it
-/// changes.
+/// changes. Its `Wake` leaves out the freeing byte, which `clear` and its last step set.
 pub fn settle<H: PageHost>(h: &mut H, tbl: u64) -> Result<Wake, Fault> {
     let s = if queued(&*h, tbl)? { STATE_PENDING } else { 0 };
     let old = root::u8_at(&*h, tbl, root::STATE)?;
     if s != old {
         root::set_u8(h, tbl, root::STATE, s)?;
     }
-    Ok(wake_from_state(s))
+    Ok(wake_from_state(u16::from(s)))
 }

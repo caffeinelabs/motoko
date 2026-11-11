@@ -13,7 +13,8 @@
     A view of a table reads only some fields of each row, and `update` sets
     some fields of a row and keeps the others. A field can hold an array of
     scalars, of options of scalars, or of records of those, read and written
-    whole. A key can be a tuple of 2 to 7 scalars. The compiler supplies a
+    whole. A key can be a tuple of 2 to 7 scalars. `clear` removes every row
+    at a cost that does not grow with the table. The compiler supplies a
     table's codec from its key and row types and rejects types a table
     cannot have with the new error M0279; `moc.js` rejects a program that
     uses native tables with the new error M0280 (#6492).

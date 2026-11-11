@@ -192,6 +192,14 @@ module {
     Prim.ntRemove(self.id, self.codec, key)
   };
 
+  /// Removes every row, with its index entries: `size` is 0, and sums, counts, `min` and `max`
+  /// start again from no rows. Its cost does not grow with the table. The memory the rows used
+  /// goes back in steps of the table's upkeep: each write runs one, and `maintain` runs more. The
+  /// indexes and the row type stay as they are.
+  public func clear<K, R>(self : NativeTable<K, R>) {
+    ignore Prim.ntClear(self.id, self.codec)
+  };
+
   /// The rows a scan or a walk hands back per call to the table.
   let batch : Nat64 = 64;
 
@@ -493,8 +501,8 @@ module {
   };
 
   /// Runs the table's upkeep in whole steps. A step compacts one group of 4,096 rows that removals
-  /// or replacements have left with many removed rows or changed fields, or drops a group with no
-  /// row left. Each write runs one step first when work is pending; this runs steps until the call
+  /// or replacements have left with many removed rows or changed fields, drops a group with no row
+  /// left, or gives back part of the memory of the rows `clear` removed. Each write runs one step first when work is pending; this runs steps until the call
   /// has used about `budget` instructions, and can go past that by the last step it starts.
   /// Returns true when work is still pending. Call it, from a timer for example, to get the work
   /// done on a table that receives no writes.

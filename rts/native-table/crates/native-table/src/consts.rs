@@ -188,6 +188,8 @@ pub mod magic {
     pub const NTTS: u32 = m(b"NTTS");
     /// Extremes block.
     pub const NTEX: u32 = m(b"NTEX");
+    /// Park block.
+    pub const NTPK: u32 = m(b"NTPK");
 }
 
 // ---- Compile-time checks of the stated relations ----

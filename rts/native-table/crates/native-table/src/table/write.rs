@@ -648,13 +648,8 @@ fn mark_long<H: PageHost>(h: &mut H, tail: u64) -> Result<(), Fault> {
 
 // ---------------------------------------------------------------- deletes
 
-/// Deletes a buffered row: its slot's dead flag, the totals and the live count; its long values are freed.
-pub fn delete_buffered<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, at: &Located) -> Result<(), Fault> {
-    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
-    let loc = buffer::slot_row(&*h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?;
-    let ext = super::extremes::of_desc(&*h, at.desc)?;
-    totals_row(h, tbl, shape, tail, loc, Sign::Remove, ext)?;
-    // Long values: the row's long items, and a long row image itself.
+/// Frees a buffered row's long values: its long items, and a long row image itself.
+pub fn free_longs<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, loc: RowLoc) -> Result<(), Fault> {
     let mut walk = {
         let row = RowRef::new(&*h, loc)?;
         Walk::of(shape, &row)?
@@ -675,6 +670,16 @@ pub fn delete_buffered<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, at: &Loc
     if let RowLoc::Long(img) = loc {
         drain::free_image(h, tbl, &img)?;
     }
+    Ok(())
+}
+
+/// Deletes a buffered row: its slot's dead flag, the totals and the live count; its long values are freed.
+pub fn delete_buffered<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, at: &Located) -> Result<(), Fault> {
+    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
+    let loc = buffer::slot_row(&*h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?;
+    let ext = super::extremes::of_desc(&*h, at.desc)?;
+    totals_row(h, tbl, shape, tail, loc, Sign::Remove, ext)?;
+    free_longs(h, tbl, shape, loc)?;
     let b = h.get_mut(Region::Block(at.block))?;
     let slot = buffer::read_slot(b, at.slot)?;
     buffer::write_slot(b, at.slot, &Slot { flags: slot.flags | SLOT_DEAD, ..slot })?;

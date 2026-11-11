@@ -21,8 +21,8 @@ import NativeTable "mo:native-table/NativeTable"
   error M0280.
 - Tables run in compiled code only. The interpreter, `moc -r`, traps on a table call with
   `native tables need compiled code`.
-- A table is never freed: it keeps its memory while the canister lives, also when nothing refers to
-  it any more. There is no call that drops a table.
+- A table is never freed: it keeps a few pages while the canister lives, also when nothing refers
+  to it any more, and there is no call that drops it. `clear()` gives back the memory its rows used.
 - Tables live in their own part of Wasm memory, taken in steps of 64 MiB: the first table takes
   64 MiB at once, and the tables grow by 64 MiB whenever they fill what they have.
 - Tables survive upgrades that keep main memory. An upgrade by graph copy traps while a table exists
@@ -71,6 +71,7 @@ let i = items.get(("doc-7", 3))
 | `t.update(k, fields) : Bool` | sets the fields of the record `fields` in the row `k` has; true when `k` had a row; when not, writes nothing and gives false |
 | `t.remove(k)` | removes the row `k` has, if any |
 | `t.delete(k) : Bool` | as `remove`; true when `k` had a row |
+| `t.clear()` | removes every row, with its index entries: `size` is 0, and sums, counts, `min` and `max` start again from no rows |
 
 Change one field:
 
@@ -84,6 +85,13 @@ ignore orders.update(7, { paid = true })
   `?Int`), so `{ placed = 0 }` needs no annotation. Write `null` with its type:
   `{ note = null : ?Text }`.
 - It traps when `fields` has a field `R` lacks, or a field of another type.
+
+`clear()`:
+
+- Its cost does not grow with the table. The memory the rows used goes back to the tables' memory in
+  steps of the table's upkeep: each write runs one step, and `maintain` runs more. A table that
+  receives no writes after `clear()` gives its memory back through `maintain`.
+- The indexes stay declared, and the row type stays as it is.
 
 ## Read by key
 
@@ -271,7 +279,8 @@ per field of the record, as `"history.amount"`, with that field's scalar type, a
 `array.optional` says whether that field is an option.
 
 A step of upkeep compacts one group of 4,096 rows that removals or replacements have left with
-many removed rows or changed fields, or drops a group with no row left; `maintain` can go past
+many removed rows or changed fields, drops a group with no row left, or gives back part of the
+memory of the rows `clear()` removed; `maintain` can go past
 `budget` by the step it started last. Each write already runs one step when work is pending. Call
 `maintain`, from a timer for example, for a table that receives no writes.
 

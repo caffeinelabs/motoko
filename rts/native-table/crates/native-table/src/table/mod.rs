@@ -14,6 +14,7 @@
 
 pub mod buffer;
 pub mod cell;
+pub mod clear;
 pub mod cur;
 pub mod drain;
 pub mod evolve;
@@ -44,7 +45,7 @@ use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::host::{wake_from_state, Budget, Progress, Scratch, Wake};
 use crate::index::secondary::Start;
 use crate::key::{LenSink, Sink, SliceSink};
-use crate::mem::{put, put_u16, PageHost, Region};
+use crate::mem::{put, put_u16, rd_u16, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::tree::{Dir, Path};
 
@@ -228,14 +229,34 @@ impl<'h, H: PageHost> Table<'h, H> {
         let sp = crate::area::image_page_alloc(&mut *host, tbl)?;
         put(host.get_mut(Region::Page(sp))?, 0, schema_image)?;
         let shape = Shape::open(&*host, sp)?;
-        let kind = if shape.set { root::KIND_SET } else { root::KIND_TABLE };
-        root::init(&mut *host, tbl, kind, uid, shape.hash, shape.version, sp)?;
-        shape.store(&mut *host, tbl)?;
-        indexes::declare(&mut *host, tbl, &shape)?;
         let mut t = Table { host, root: tbl, shape, filled: 0 };
-        t.open_first_group()?;
-        root::set_u64(&mut *t.host, tbl, root::NEXT_GROUP, 1)?;
+        t.init(uid)?;
         Ok((t, tbl))
+    }
+
+    /// The root's fields, the shape and the declared indexes of an empty table with table uid `uid`, and its
+    /// group 0: what `create` and `clear` write once the root holds its area records.
+    fn init(&mut self, uid: u64) -> Result<(), Fault> {
+        let (h, tbl, shape) = (&mut *self.host, self.root, &self.shape);
+        let kind = if shape.set { root::KIND_SET } else { root::KIND_TABLE };
+        root::init(h, tbl, kind, uid, shape.hash, shape.version, shape.page)?;
+        shape.store(h, tbl)?;
+        indexes::declare(h, tbl, shape)?;
+        self.open_first_group()?;
+        root::set_u64(&mut *self.host, tbl, root::NEXT_GROUP, 1)
+    }
+
+    /// Removes every row, with its index entries, at a cost that does not grow with the table: the table gets
+    /// the empty structures `create` gives it (its row type, declared indexes and table uid kept; sums, counts
+    /// and extremes start again from no rows), and the old ones are parked (`clear`). Their memory goes back in
+    /// the steps of the table's maintenance, after its compactions: each write runs one, `maintain` runs more.
+    /// Scans and walks resumed after it hand out only rows written after it; row ids start again.
+    pub fn clear(&mut self) -> Result<Wake, Fault> {
+        let uid = root::u64_at(&*self.host, self.root, root::UID)?;
+        let parked = clear::park(&mut *self.host, self.root)?;
+        self.init(uid)?;
+        clear::link(&mut *self.host, self.root, parked)?;
+        self.wake()
     }
 
     /// Group 0's descriptor and first tail block, with a fresh hot state whose running-record leaf list
@@ -760,9 +781,9 @@ impl<'h, H: PageHost> Table<'h, H> {
         jobs::settle(&mut *self.host, self.root)
     }
 
-    /// The maintenance state, O(1).
+    /// The maintenance state, the freeing byte included, O(1).
     pub fn wake(&self) -> Result<Wake, Fault> {
-        Ok(wake_from_state(root::u8_at(&*self.host, self.root, root::STATE)?))
+        Ok(wake_from_state(rd_u16(self.host.get(Region::Block(self.root))?, root::STATE)?))
     }
 
     /// One maintenance step; what it ran.

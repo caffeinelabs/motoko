@@ -1129,6 +1129,7 @@ let native_table_prims = [
   "nt_count_where", ([`W; `V; `V; `V], `N);
   "nt_group_counts", ([`W; `V; `V; `V; `V; `W], `V);
   "nt_maintain", ([`W; `V; `W], `B);
+  "nt_clear", ([`W; `V], `B);
   "nt_evolve", ([`W; `V; `V], `B);
   "nt_view", ([`V; `V], `V);
   "nt_update", ([`W; `V; `V; `V; `V], `B);

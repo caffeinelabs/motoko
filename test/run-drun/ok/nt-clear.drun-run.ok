@@ -1,0 +1,20 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (3_225, false, ?1, ?7, 1_075)
+debug.print: (?(+15_047), ?0, ?(+8), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (0, true, null, null, 0)
+debug.print: (?0, null, null, null, null)
+debug.print: (10, false, ?0, ?0, 0)
+debug.print: (?(+24), ?0, ?(+6), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (3_750, false, ?1, ?7, 1_250)
+debug.print: (?(+17_497), ?0, ?(+8), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+debug.print: true
+debug.print: (1, false, ?1, ?1, 0)
+debug.print: (?(+1), ?(+1), ?(+1), null, null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: false
+debug.print: (1, false, ?1, ?1, 0)
+debug.print: (?(+1), ?(+1), ?(+1), null, null)
+ingress Completed: Reply: 0x4449444c0000
