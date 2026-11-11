@@ -386,24 +386,26 @@ impl Shape {
         }))
     }
 
-    /// Leaf `o`.
+    /// Leaf `o`, from the first 16 bytes of its leaf record, read in one piece.
     pub fn leaf<H: PageHost + ?Sized>(&self, h: &H, o: u64) -> Result<LeafInfo, Fault> {
+        let bad = rt(Corruption::Leaf, o);
         if o >= self.leaves {
-            return Err(rt(Corruption::Leaf, o));
+            return Err(bad);
         }
-        let b = h.get(Region::Page(self.page))?;
-        let l = Leaf::read(b, self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES)))?;
-        let ty = Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?;
+        let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
+        let r: [u8; 16] = sub(h.get(Region::Page(self.page))?, at, 16)?.try_into().map_err(|_| bad)?;
+        let [i0, i1, i2, i3, kind, code, flags, _, w0, w1, _, _, p0, p1, p2, p3] = r;
+        let ty = Ty::of(&Leaf { kind, code, width: u16::from_le_bytes([w0, w1]), ..Leaf::default() }).ok_or(bad)?;
         // o < leaves ≤ 65,535.
         #[allow(clippy::cast_possible_truncation)]
         let ordinal = o as u16;
         Ok(LeafInfo {
             ordinal,
-            id: l.id,
+            id: u32::from_le_bytes([i0, i1, i2, i3]),
             ty,
-            nullable: l.flags & LEAF_NULLABLE != 0,
-            key: l.flags & LEAF_KEY != 0,
-            path: l.path,
+            nullable: flags & LEAF_NULLABLE != 0,
+            key: flags & LEAF_KEY != 0,
+            path: u32::from_le_bytes([p0, p1, p2, p3]),
         })
     }
 
