@@ -86,14 +86,6 @@ pub trait RowSource {
     /// For a cell given as `CellIn::Arg`: copies its bytes [at, at + dst.len()) into `dst`, a slice of the
     /// page that will hold them; called once per piece of at most one image block, in order.
     fn fill(&mut self, leaf: u32, at: u64, dst: &mut [u8]) -> Result<(), Fault>;
-    /// Whether `kept` can be true: the writes from any other source carry no test of it.
-    const KEEPS: bool = false;
-    /// Whether the cell of `leaf`, given as `CellIn::Arg`, is the long value the stored row holds, kept as it is:
-    /// an update neither reads nor frees it.
-    fn kept(&mut self, leaf: u32) -> bool {
-        let _ = leaf;
-        false
-    }
 }
 
 /// Receives a row's leaves in leaf order; values borrow table memory for the call only.
@@ -686,11 +678,11 @@ impl<'h, H: PageHost> Table<'h, H> {
 
     /// Sets the leaves `leaves` names (by leaf id) of the row with key k to the cells of `src`, keeping its other
     /// leaves: in a sealed group only those leaves are read and written, each changed one as an upsert writes it;
-    /// a row still in the open group is written again, its other leaves copied into the scratch first and a long
-    /// Text or Blob among them kept as it is. Only the secondary indexes with a part among the changed leaves
-    /// move. Returns the row's rid, or `None`, with nothing written, when no row has key k. `BadRef` for a leaf
-    /// the table does not have; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value.
-    /// Every refusal comes before the first write.
+    /// a row still in the open group gets a new image, its stored one with those leaves' cells and items replaced
+    /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. Returns the row's
+    /// rid, or `None`, with nothing written, when no row has key k. `BadRef` for a leaf the table does not have;
+    /// `BadValue` for a cell its leaf's type refuses, or a key leaf given another value. Every refusal comes
+    /// before the first write.
     pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -708,16 +700,19 @@ impl<'h, H: PageHost> Table<'h, H> {
         let (h, tbl, shape) = (&*self.host, self.root, &self.shape);
         for &id in leaves {
             let l = shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)?;
-            if cur::same(h, &l, &read::value_of(h, tbl, shape, rid, id)?, &row::cell_of(src, &l)?)? {
-                continue;
-            }
-            if l.key {
-                return Err(Fault::BadValue { leaf: id });
-            }
+            let v = row::cell_of(src, &l)?;
+            let mut parts = 0u64;
             for i in 0..shape.index_decls {
                 if indexes::decl(shape, h, i)?.is_some_and(|d| d.ords().contains(&l.ordinal)) {
-                    moved |= 1u64.wrapping_shl(u32::try_from(i).unwrap_or(0));
+                    parts |= 1u64.wrapping_shl(u32::try_from(i).unwrap_or(0));
                 }
+            }
+            // A leaf that is neither a key leaf nor part of an index is written as it comes, unread.
+            if (l.key || parts != 0) && !cur::same(h, &l, &read::value_of(h, tbl, shape, rid, id)?, &v)? {
+                if l.key {
+                    return Err(Fault::BadValue { leaf: id });
+                }
+                moved |= parts;
             }
         }
         // The entries leave under the stored row's keys, and come back under its new ones.
@@ -728,12 +723,13 @@ impl<'h, H: PageHost> Table<'h, H> {
                 (_, self.filled) = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
             }
             read::Row::Buffered(at) => {
-                // The scratch the row's copy takes: a refusal comes before the first write.
-                let need = write::merged_need(&*self.host, &self.shape, &at)?;
-                scratch.get(need)?;
+                // The scratch a new image past the stack takes: a refusal comes before the first write.
+                let sized = write::spliced(&*self.host, &self.shape, src, &at, leaves)?;
+                if sized.0 > row::STAGE as u64 {
+                    scratch.get(usize::try_from(sized.0).map_err(|_| Fault::Scratch { need: sized.0 })?)?;
+                }
                 self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
-                let m = &mut write::merged(&*self.host, &self.shape, &at, leaves, src, scratch.get(need)?)?;
-                (_, self.filled) = write::update(&mut *self.host, tbl, &self.shape, m, &at)?;
+                self.filled = write::splice(&mut *self.host, tbl, &self.shape, src, &at, leaves, sized, scratch)?;
             }
         }
         self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, &mut kb, scratch, &mut path)?;

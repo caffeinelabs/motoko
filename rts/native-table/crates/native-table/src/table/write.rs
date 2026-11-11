@@ -4,7 +4,10 @@
 
 use crate::consts::{BLOCK, BUFFER_BLOCKS_MAX, GROUP_BYTES, GROUP_LARGE, GROUP_OOL_BYTES, GROUP_SLOTS, ROW_INLINE_MAX};
 use crate::fault::{rt, Corruption, Fault};
-use crate::mem::{fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, sub, sub_mut, PageHost, Region};
+use crate::mem::{
+    copy_bytes, fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, sub, sub_mut, PageHost,
+    Region,
+};
 
 use super::buffer::{
     self, Located, RowLoc, Slot, B_ROWS_END, B_SLOTS, B_SLOTS_START, DESC_BIT, D_BLOCKS, D_RECORDS, H_LIVE,
@@ -21,7 +24,7 @@ use super::long::{self, LongOut, Meta};
 use super::root;
 use super::row::{self, Item, Plan, RowRef, Stored, Walk};
 use super::totals::{self, At, TSrc};
-use super::{CellIn, RowSource};
+use super::RowSource;
 
 /// Bytes a stored inline row image reserves in its block: 8-aligned and at least a long stub, so that its
 /// place can always hold the stub a later update leaves there.
@@ -29,10 +32,10 @@ pub fn reserve(len: u64) -> u64 {
     group::align8(len).max(LONG_STUB)
 }
 
-/// Whether a planned row image is stored as a long row image: longer than `ROW_INLINE_MAX`, or too long for
+/// Whether a row image of `len` bytes is stored as a long row image: longer than `ROW_INLINE_MAX`, or too long for
 /// an empty buffer block of this schema.
-pub fn long_row(shape: &Shape, p: &Plan) -> bool {
-    p.len > ROW_INLINE_MAX || reserve(p.len).wrapping_add(SLOT) > BLOCK.wrapping_sub(shape.hot_h)
+pub fn long_row(shape: &Shape, len: u64) -> bool {
+    len > ROW_INLINE_MAX || reserve(len).wrapping_add(SLOT) > BLOCK.wrapping_sub(shape.hot_h)
 }
 
 // ---------------------------------------------------------------- totals
@@ -211,7 +214,7 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
     src: &mut R,
     p: &Plan,
 ) -> Result<(u64, u64), Fault> {
-    let long = long_row(shape, p);
+    let long = long_row(shape, p.len);
     let place = if long { LONG_STUB } else { reserve(p.len) };
     let need = place.wrapping_add(SLOT);
     // What fills the group, tested before the row is placed.
@@ -328,9 +331,8 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let vi = walk.var;
             let st = walk.next(shape, &row, &l)?;
             let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
-            let kept = R::KEEPS && src.kept(l.id);
             let v = row::checked_cell(src, &l)?;
-            if !kept && !cur::same(&*h, &l, &cur, &v)? {
+            if !cur::same(&*h, &l, &cur, &v)? {
                 if l.key {
                     return Err(Fault::BadValue { leaf: l.id });
                 }
@@ -371,77 +373,97 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
         }
     }
     let uid = root::u64_at(&*h, tbl, root::UID)?;
-    let long = long_row(shape, &p);
     if p.long {
         mark_long(h, tail)?;
     }
-    let old_inline = match old {
-        RowLoc::Inline { block, off, len } => Some((block, off, len)),
-        RowLoc::Long(_) => None,
+    let filled = match inline_to(&*h, shape, tail, old, p.len)? {
+        Some(to) => row::staged(p.len, |so| {
+            let f = row::write(shape, h, tbl, uid, src, &p, so, Some(old))?.saturating_add(so.filled);
+            released(h, tbl, shape, src, old)?;
+            put_inline(h, at, to, so.bytes())?;
+            Ok::<_, Fault>(f)
+        })?,
+        None => {
+            let mut lo = long_out(h, tbl, shape, tail, p.len)?;
+            let f = row::write(shape, h, tbl, uid, src, &p, &mut lo, Some(old))?.saturating_add(lo.filled);
+            released(h, tbl, shape, src, old)?;
+            put_long(h, at, lo)?;
+            f
+        }
     };
-    let filled;
-    let slot = buffer::read_slot(h.get(Region::Block(at.block))?, at.slot)?;
-    let new_loc;
-    if !long && old_inline.is_some_and(|(_, _, len)| reserve(p.len) <= reserve(len)) {
-        // In place.
-        let (block, off, _) = old_inline.ok_or(rt(Corruption::Link, 0))?;
-        filled = row::staged(p.len, |so| {
-            let f = row::write(shape, h, tbl, uid, src, &p, so, Some(old))?.saturating_add(so.filled);
-            released(h, tbl, shape, src, old)?;
-            put(h.get_mut(Region::Block(block))?, off, so.bytes())?;
-            Ok::<_, Fault>(f)
-        })?;
-        let len16 = u16::try_from(p.len).map_err(|_| rt(Corruption::Range, p.len))?;
-        if slot.flags & SLOT_MOVED != 0 {
-            put_u16(h.get_mut(Region::Block(at.block))?, slot.off.wrapping_add(10), len16)?;
-        } else {
-            buffer::write_slot(h.get_mut(Region::Block(at.block))?, at.slot, &Slot { len: p.len, ..slot })?;
-        }
-        new_loc = RowLoc::Inline { block, off, len: p.len };
-    } else if !long && room(&*h, tail)? >= reserve(p.len) {
-        // Moved to the open group's tail block; the slot names it through a moved stub.
-        let end = buffer::u16_of(&*h, tail, B_ROWS_END)?;
-        filled = row::staged(p.len, |so| {
-            let f = row::write(shape, h, tbl, uid, src, &p, so, Some(old))?.saturating_add(so.filled);
-            released(h, tbl, shape, src, old)?;
-            put(h.get_mut(Region::Block(tail))?, end, so.bytes())?;
-            Ok::<_, Fault>(f)
-        })?;
-        {
-            let b = h.get_mut(Region::Block(tail))?;
-            fill(b, end.wrapping_add(p.len), reserve(p.len).wrapping_sub(p.len), 0)?;
-            put_u16(
-                b,
-                B_ROWS_END,
-                u16::try_from(end.wrapping_add(reserve(p.len))).map_err(|_| rt(Corruption::Range, end))?,
-            )?;
-        }
-        let mut stub = [0u8; 16];
-        put_u64(&mut stub, 0, tail)?;
-        put_u16(&mut stub, 8, u16::try_from(end).map_err(|_| rt(Corruption::Range, end))?)?;
-        put_u16(&mut stub, 10, u16::try_from(p.len).map_err(|_| rt(Corruption::Range, p.len))?)?;
-        let b = h.get_mut(Region::Block(at.block))?;
-        put(b, slot.off, &stub)?;
-        buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: MOVED_STUB, flags: SLOT_MOVED })?;
-        new_loc = RowLoc::Inline { block: tail, off: end, len: p.len };
-    } else {
-        // A long row image; the slot holds its long stub.
-        mark_long(h, tail)?;
-        let meta = Meta { uid, schema_hash: shape.hash, content: long::CONTENT_ROW, leaf: 0 };
-        let mut lo = LongOut::begin(h, tbl, &meta, p.len)?;
-        filled = row::write(shape, h, tbl, uid, src, &p, &mut lo, Some(old))?.saturating_add(lo.filled);
-        released(h, tbl, shape, src, old)?;
-        let img = lo.finish(h)?;
-        let mut stub = [0u8; 32];
-        put_u32(&mut stub, 0, 1)?;
-        img.put_ref(&mut stub, 8)?;
-        let b = h.get_mut(Region::Block(at.block))?;
-        put(b, slot.off, &stub)?;
-        buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: LONG_STUB, flags: SLOT_LONG })?;
-        new_loc = RowLoc::Long(img);
-    }
-    let _ = new_loc;
     Ok((true, filled))
+}
+
+/// Where an updated buffered row's new image of `len` bytes goes when it is inline: the old image's place when
+/// the old image is inline and its room holds the new one, else the end of the open group's tail block `tail`
+/// when it has room (block, offset, whether moved there). `None`: a long row image.
+#[inline(always)]
+fn inline_to<H: PageHost + ?Sized>(
+    h: &H,
+    shape: &Shape,
+    tail: u64,
+    old: RowLoc,
+    len: u64,
+) -> Result<Option<(u64, u64, bool)>, Fault> {
+    if long_row(shape, len) {
+        return Ok(None);
+    }
+    if let RowLoc::Inline { block, off, len: was } = old {
+        if reserve(len) <= reserve(was) {
+            return Ok(Some((block, off, false)));
+        }
+    }
+    Ok(if room(h, tail)? >= reserve(len) { Some((tail, buffer::u16_of(h, tail, B_ROWS_END)?, true)) } else { None })
+}
+
+/// Writes an updated buffered row's new inline image `img` where `inline_to` placed it, and points the row's slot
+/// `at` at it: in its old place, the image's new length; moved to the tail block, a moved stub.
+#[inline(always)]
+fn put_inline<H: PageHost>(h: &mut H, at: &Located, to: (u64, u64, bool), img: &[u8]) -> Result<(), Fault> {
+    let (block, off, moved) = to;
+    let len = img.len() as u64;
+    let w16 = |x: u64| u16::try_from(x).map_err(|_| rt(Corruption::Range, x));
+    let slot = buffer::read_slot(h.get(Region::Block(at.block))?, at.slot)?;
+    let b = h.get_mut(Region::Block(block))?;
+    put(b, off, img)?;
+    if !moved {
+        let b = h.get_mut(Region::Block(at.block))?;
+        return if slot.flags & SLOT_MOVED != 0 {
+            put_u16(b, slot.off.wrapping_add(10), w16(len)?)
+        } else {
+            buffer::write_slot(b, at.slot, &Slot { len, ..slot })
+        };
+    }
+    fill(b, off.wrapping_add(len), reserve(len).wrapping_sub(len), 0)?;
+    put_u16(b, B_ROWS_END, w16(off.wrapping_add(reserve(len)))?)?;
+    let mut stub = [0u8; 16];
+    put_u64(&mut stub, 0, block)?;
+    put_u16(&mut stub, 8, w16(off)?)?;
+    put_u16(&mut stub, 10, w16(len)?)?;
+    let b = h.get_mut(Region::Block(at.block))?;
+    put(b, slot.off, &stub)?;
+    buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: MOVED_STUB, flags: SLOT_MOVED })
+}
+
+/// A long row image of `len` content bytes being written for a buffered row of the open group (tail block
+/// `tail`), whose flag it sets.
+fn long_out<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, tail: u64, len: u64) -> Result<LongOut, Fault> {
+    mark_long(h, tail)?;
+    let uid = root::u64_at(&*h, tbl, root::UID)?;
+    let meta = Meta { uid, schema_hash: shape.hash, content: long::CONTENT_ROW, leaf: 0 };
+    LongOut::begin(h, tbl, &meta, len)
+}
+
+/// Ends an updated buffered row's long row image and points the row's slot `at` at it through a long stub.
+fn put_long<H: PageHost>(h: &mut H, at: &Located, lo: LongOut) -> Result<(), Fault> {
+    let img = lo.finish(h)?;
+    let mut stub = [0u8; 32];
+    put_u32(&mut stub, 0, 1)?;
+    img.put_ref(&mut stub, 8)?;
+    let b = h.get_mut(Region::Block(at.block))?;
+    let slot = buffer::read_slot(b, at.slot)?;
+    put(b, slot.off, &stub)?;
+    buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: LONG_STUB, flags: SLOT_LONG })
 }
 
 /// After an update's new row image is written, before the old one is overwritten: the old image's long values
@@ -468,9 +490,6 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
             }
         };
         let Some((img, len)) = st else { continue };
-        if R::KEEPS && src.kept(l.id) {
-            continue;
-        }
         let keep = match row::checked_cell(src, &l)? {
             Val::Bytes(b) | Val::Big(b) => {
                 cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len)
@@ -489,173 +508,248 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
 
 // ---------------------------------------------------------------- update of some leaves of a buffered row
 
-/// Bytes of a record of `Merged`: the leaf id u32, its kind u32, then its value (16 bytes) or the place of its
-/// bytes in the record buffer (offset u64, length u64).
-const REC: u64 = 24;
-const K_SOURCE: u32 = 0;
-const K_NULL: u32 = 1;
-const K_UNIT: u32 = 2;
-const K_BOOL: u32 = 3;
-const K_U64: u32 = 4;
-const K_I64: u32 = 5;
-const K_U128: u32 = 6;
-const K_I128: u32 = 7;
-const K_F32: u32 = 8;
-const K_F64: u32 = 9;
-const K_WIDE_NAT: u32 = 10;
-const K_WIDE_INT: u32 = 11;
-const K_BYTES: u32 = 12;
-const K_NAT: u32 = 13;
-const K_INT: u32 = 14;
-const K_KEPT: u32 = 15;
-
-/// The cells of an update of some leaves of a buffered row: the leaves it names from its source, every other
-/// leaf as the row holds it, from a record per leaf (in ordinal order) made before the write (`merged`). A long
-/// Text or Blob the update does not name is kept as it is, unless it is a key leaf, which the write encodes.
-pub struct Merged<'a, R: ?Sized> {
-    src: &'a mut R,
-    buf: &'a [u8],
-    n: u64,
-    /// The record last asked for: a write asks for the leaves in ordinal order.
-    at: u64,
-    leb: [u8; 19],
+/// Whether `leaves` names leaf `l` for a write of some leaves of a row: a key leaf, which keeps its value, never.
+fn named(leaves: &[u32], l: &LeafInfo) -> bool {
+    !l.key && leaves.contains(&l.id)
 }
 
-impl<R: ?Sized> Merged<'_, R> {
-    /// The offset of leaf `leaf`'s record.
-    fn find(&mut self, leaf: u32) -> Result<u64, Fault> {
-        for _ in 0..self.n {
-            if rd_u32(self.buf, self.at.wrapping_mul(REC))? == leaf {
-                return Ok(self.at.wrapping_mul(REC));
-            }
-            self.at = if self.at.wrapping_add(1) < self.n { self.at.wrapping_add(1) } else { 0 };
-        }
-        Err(Fault::BadRef)
-    }
-}
-
-impl<R: RowSource + ?Sized> RowSource for Merged<'_, R> {
-    fn cell(&mut self, leaf: u32) -> Result<CellIn<'_>, Fault> {
-        let r = self.find(leaf)?;
-        let b = self.buf;
-        let (lo, hi) = (rd_u64(b, r.wrapping_add(8))?, rd_u64(b, r.wrapping_add(16))?);
-        let x = u128::from(lo) | u128::from(hi) << 64;
-        let bytes = || sub(b, lo, hi);
-        Ok(match rd_u32(b, r.wrapping_add(4))? {
-            K_SOURCE => return self.src.cell(leaf),
-            K_NULL => CellIn::Null,
-            K_UNIT => CellIn::Unit,
-            K_BOOL => CellIn::Bool(lo != 0),
-            K_U64 => CellIn::U64(lo),
-            K_I64 => CellIn::I64(lo as i64),
-            K_U128 => CellIn::U128(x),
-            K_I128 => CellIn::I128(x as i128),
-            K_F32 => CellIn::F32(f32::from_bits(u32::try_from(lo).unwrap_or(0))),
-            K_F64 => CellIn::F64(f64::from_bits(lo)),
-            K_WIDE_NAT => {
-                let n = cell::put_uleb128(&mut self.leb, x);
-                CellIn::Nat(self.leb.get(..n).unwrap_or(&[]))
-            }
-            K_WIDE_INT => {
-                let n = cell::put_sleb128(&mut self.leb, x as i128);
-                CellIn::Int(self.leb.get(..n).unwrap_or(&[]))
-            }
-            K_BYTES => CellIn::Bytes(bytes()?),
-            K_NAT => CellIn::Nat(bytes()?),
-            K_INT => CellIn::Int(bytes()?),
-            K_KEPT => CellIn::Arg { len: lo },
-            k => return Err(rt(Corruption::Encoding, u64::from(k))),
-        })
-    }
-
-    fn fill(&mut self, leaf: u32, at: u64, dst: &mut [u8]) -> Result<(), Fault> {
-        self.src.fill(leaf, at, dst)
-    }
-
-    const KEEPS: bool = true;
-
-    fn kept(&mut self, leaf: u32) -> bool {
-        self.find(leaf).and_then(|r| rd_u32(self.buf, r.wrapping_add(4))).is_ok_and(|k| k == K_KEPT)
-    }
-}
-
-/// The scratch bytes `merged` takes for the buffered row `at`: a record per leaf, a copy of the row image, and
-/// the bytes of the long Nat and Int values and long key values it holds.
-pub fn merged_need<H: PageHost + ?Sized>(h: &H, shape: &Shape, at: &Located) -> Result<usize, Fault> {
-    let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
-    let mut n = shape.leaves.wrapping_mul(REC).wrapping_add(row.len);
-    let mut f = [0u8; 2];
-    row.read(4, &mut f)?;
-    if u16::from_le_bytes(f) & row::ROW_LONG != 0 {
-        let mut walk = Walk::of(shape, &row)?;
-        for o in 0..shape.leaves {
-            let l = shape.leaf(h, o)?;
-            if let Stored::Item(Item::Long { len, .. }) = walk.next(shape, &row, &l)? {
-                if l.key || matches!(l.ty, Ty::Nat | Ty::Int) {
-                    n = n.saturating_add(len);
-                }
-            }
-        }
-    }
-    usize::try_from(n).map_err(|_| Fault::Scratch { need: n })
-}
-
-/// The cells of an update of the leaves `leaves` names in the buffered row `at` to the cells of `src`
-/// (`Merged`), its records made in `buf`, `merged_need` bytes, from the row as it is stored.
-pub fn merged<'a, H: PageHost + ?Sized, R: RowSource + ?Sized>(
+/// The bytes of the new image of the buffered row `at` with the leaves `leaves` names set to the source's cells,
+/// which the caller has checked, and whether one of them has a total or an old or a new long value.
+pub fn spliced<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     h: &H,
     shape: &Shape,
+    src: &mut R,
     at: &Located,
     leaves: &[u32],
-    src: &'a mut R,
-    buf: &'a mut [u8],
-) -> Result<Merged<'a, R>, Fault> {
+) -> Result<(u64, bool), Fault> {
     let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
-    let img = shape.leaves.wrapping_mul(REC);
-    row.read(0, sub_mut(buf, img, row.len)?)?;
-    let mut more = img.wrapping_add(row.len);
     let mut walk = Walk::of(shape, &row)?;
+    let (mut len, mut more) = (row.len, false);
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        let bytes = match l.ty {
-            Ty::Nat => K_NAT,
-            Ty::Int => K_INT,
-            _ => K_BYTES,
-        };
-        let (k, x) = if leaves.contains(&l.id) {
-            walk.skip(&l);
-            (K_SOURCE, 0)
-        } else {
-            match walk.next(shape, &row, &l)? {
-                Stored::Null => (K_NULL, 0),
-                Stored::Unit => (K_UNIT, 0),
-                Stored::Val(Val::Bool(v)) => (K_BOOL, u128::from(v)),
-                Stored::Val(Val::U(v)) => (K_U64, u128::from(v)),
-                Stored::Val(Val::I(v)) => (K_I64, u128::from(v as u64)),
-                Stored::Val(Val::U128(v)) => (K_U128, v),
-                Stored::Val(Val::I128(v)) => (K_I128, v as u128),
-                Stored::Val(Val::F32(v)) => (K_F32, u128::from(v)),
-                Stored::Val(Val::F64(v)) => (K_F64, u128::from(v)),
-                Stored::Val(Val::Wide(v)) if bytes == K_NAT => (K_WIDE_NAT, v as u128),
-                Stored::Val(Val::Wide(v)) => (K_WIDE_INT, v as u128),
-                Stored::Bytes { at, len } | Stored::Item(Item::Inline { at, len }) => {
-                    (bytes, u128::from(img.wrapping_add(at)) | u128::from(len) << 64)
-                }
-                Stored::Item(Item::Long { len, .. }) if bytes == K_BYTES && !l.key => (K_KEPT, u128::from(len)),
-                Stored::Item(Item::Long { img: li, len }) => {
-                    long::read(h, li, 0, sub_mut(buf, more, len)?)?;
-                    more = more.wrapping_add(len);
-                    (bytes, u128::from(more.wrapping_sub(len)) | u128::from(len) << 64)
-                }
-                _ => return Err(rt(Corruption::Encoding, o)),
-            }
-        };
-        let r = o.wrapping_mul(REC);
-        put_u32(buf, r, l.id)?;
-        put_u32(buf, r.wrapping_add(4), k)?;
-        put(buf, r.wrapping_add(8), &x.to_le_bytes())?;
+        let vi = walk.var;
+        walk.skip(&l);
+        if !named(leaves, &l) {
+            continue;
+        }
+        more |= l.ty.running().is_some();
+        if l.ty.variable() {
+            let (_, was, long) = row.item_span(&walk.head, vi)?;
+            let v = row::checked_cell(src, &l)?;
+            let n = row::has_item(&l, &v).then(|| cell::var_len(&v, l.ty));
+            more |= long || n.is_some_and(row::is_long);
+            let new = n.map_or(0, |n| row::item_bytes(n, row::is_long(n)));
+            len = len.checked_sub(was).and_then(|x| x.checked_add(new)).ok_or(rt(Corruption::Range, len))?;
+        }
     }
-    Ok(Merged { src, buf, n: shape.leaves, at: 0, leb: [0; 19] })
+    Ok((len, more))
+}
+
+/// Updates the leaves `leaves` names of the buffered row `at` to the source's cells, which the caller has checked;
+/// `sized` is `spliced`'s answer. The new row image is the stored one with those leaves' bits, cells and items
+/// replaced and every other item copied as it is, built on the stack, or in the scratch when longer than an inline
+/// row image. Returns the bytes the host copied from the argument.
+#[allow(clippy::too_many_arguments)]
+pub fn splice<H: PageHost, R: RowSource + ?Sized, S: crate::host::Scratch>(
+    h: &mut H,
+    tbl: u64,
+    shape: &Shape,
+    src: &mut R,
+    at: &Located,
+    leaves: &[u32],
+    sized: (u64, bool),
+    scratch: &mut S,
+) -> Result<u64, Fault> {
+    let (len, more) = sized;
+    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
+    let old = buffer::slot_row(&*h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?;
+    let to = inline_to(&*h, shape, tail, old, len)?;
+    let mut go = |h: &mut H, buf: &mut [u8]| {
+        let mut filled = build(&*h, shape, src, old, leaves, buf)?;
+        if more {
+            filled = filled.saturating_add(after(h, tbl, shape, tail, at, src, old, leaves, buf)?);
+        }
+        if let RowLoc::Long(img) = old {
+            drain::free_image(h, tbl, &img)?;
+        }
+        match to {
+            Some(to) => put_inline(h, at, to, buf)?,
+            None => {
+                let mut lo = long_out(h, tbl, shape, tail, len)?;
+                lo.put(h, buf)?;
+                put_long(h, at, lo)?;
+            }
+        }
+        Ok::<_, Fault>(filled)
+    };
+    let n = usize::try_from(len).map_err(|_| rt(Corruption::Range, len))?;
+    if len <= row::STAGE as u64 {
+        row::staged(len, |so| go(h, so.buf.get_mut(..n).ok_or(rt(Corruption::Range, len))?))
+    } else {
+        go(h, scratch.get(n)?.get_mut(..n).ok_or(Fault::Scratch { need: len })?)
+    }
+}
+
+/// Builds `splice`'s image in `buf`, its bytes: the stored image's header, bitmaps and fixed region with the named
+/// leaves' bits and cells set, then the item table and the items, a named leaf's from its cell (the reference of a
+/// new long value left zero), every other one copied. Returns the bytes the host copied from the argument.
+fn build<H: PageHost + ?Sized, R: RowSource + ?Sized>(
+    h: &H,
+    shape: &Shape,
+    src: &mut R,
+    old: RowLoc,
+    leaves: &[u32],
+    buf: &mut [u8],
+) -> Result<u64, Fault> {
+    let row = RowRef::new(h, old)?;
+    let mut walk = Walk::of(shape, &row)?;
+    let head = walk.head;
+    let table = head.items_table_at();
+    row.read(0, sub_mut(buf, 0, table)?)?;
+    let at32 = |x: u64| u32::try_from(x).map_err(|_| rt(Corruption::Range, x));
+    let (mut end, mut long, mut filled) = (head.items_at(), false, 0u64);
+    for o in 0..shape.leaves {
+        let l = shape.leaf(h, o)?;
+        let (fixed, vi, bit) = (walk.fixed, walk.var, walk.bit);
+        walk.skip(&l);
+        let entry = table.wrapping_add(vi.wrapping_mul(4));
+        if !named(leaves, &l) {
+            if l.ty.variable() {
+                let (a, n, lg) = row.item_span(&head, vi)?;
+                row.read(a, sub_mut(buf, end, n)?)?;
+                put_u32(buf, entry, if a == 0 { 0 } else { at32(end)? })?;
+                long |= lg;
+                end = end.wrapping_add(n);
+            }
+            continue;
+        }
+        let v = row::checked_cell(src, &l)?;
+        put_bit(buf, 8, bit, v.is_null())?;
+        put_bit(buf, 8u64.wrapping_add(head.bitmap), bit, cell::is_big(&v))?;
+        let w = l.ty.fixed_width();
+        if w > 0 {
+            let d = sub_mut(buf, fixed, w)?;
+            match v {
+                Val::Bytes(b) if w > 30 => copy_bytes(d, b),
+                _ if w > 30 => d.fill(0),
+                _ => {
+                    let mut c = [0u8; 30];
+                    let k = cell::fixed_cell(&v, l.ty, &mut c);
+                    copy_bytes(d, c.get(..usize::try_from(k).unwrap_or(0)).unwrap_or(&[]));
+                }
+            }
+        }
+        if !l.ty.variable() {
+            continue;
+        }
+        let Some(n) = row::has_item(&l, &v).then(|| cell::var_len(&v, l.ty)) else {
+            put_u32(buf, entry, 0)?;
+            continue;
+        };
+        put_u32(buf, entry, at32(end)?)?;
+        if row::is_long(n) {
+            // Its reference is written once the long value is made.
+            fill(buf, end, row::LONG_ITEM, 0)?;
+            put_u8(buf, end, row::ITEM_LONG)?;
+            long = true;
+            end = end.wrapping_add(row::LONG_ITEM);
+            continue;
+        }
+        put_u8(buf, end, row::ITEM_INLINE)?;
+        let k = crate::bytes::put_uleb(buf, end.wrapping_add(1), n)?;
+        let d = sub_mut(buf, end.wrapping_add(1).wrapping_add(k), n)?;
+        match v {
+            Val::Bytes(b) | Val::Big(b) => copy_bytes(d, b),
+            Val::Arg(_) => {
+                for (i, piece) in d.chunks_mut(usize::try_from(BLOCK).unwrap_or(4_096)).enumerate() {
+                    src.fill(l.id, (i as u64).wrapping_mul(BLOCK), piece)?;
+                }
+                if matches!(l.ty, Ty::Text) && core::str::from_utf8(d).is_err() {
+                    return Err(Fault::BadValue { leaf: l.id });
+                }
+                filled = filled.saturating_add(n);
+            }
+            _ => {
+                let mut leb = [0u8; 19];
+                let k = cell::small_leb(&v, matches!(l.ty, Ty::Int), &mut leb);
+                copy_bytes(d, leb.get(..k).unwrap_or(&[]));
+            }
+        }
+        end = end.wrapping_add(1).wrapping_add(k).wrapping_add(n);
+    }
+    let big = sub(buf, 8u64.wrapping_add(head.bitmap), head.bitmap)?.iter().any(|&b| b != 0);
+    put_u16(buf, 4, (if big { row::ROW_BIG } else { 0 }) | (if long { row::ROW_LONG } else { 0 }))?;
+    if end != buf.len() as u64 {
+        return Err(rt(Corruption::Count, end));
+    }
+    Ok(filled)
+}
+
+/// Sets bit `bit` of the bitmap at `off` of `b` to `on`.
+fn put_bit(b: &mut [u8], off: u64, bit: u64, on: bool) -> Result<(), Fault> {
+    let at = off.wrapping_add(bit / 8);
+    let m = 1u8 << (bit % 8);
+    let x = rd_u8(b, at)?;
+    put_u8(b, at, if on { x | m } else { x & !m })
+}
+
+/// After `build`, while the stored image is as it was: the named integer leaves' totals and the group's extremes
+/// move from the stored values to the new ones, and a named leaf's new long value is made (its reference written
+/// into `buf`) and its old one freed. Returns the bytes the host copied from the argument.
+#[allow(clippy::too_many_arguments)]
+fn after<H: PageHost, R: RowSource + ?Sized>(
+    h: &mut H,
+    tbl: u64,
+    shape: &Shape,
+    tail: u64,
+    at: &Located,
+    src: &mut R,
+    old: RowLoc,
+    leaves: &[u32],
+    buf: &mut [u8],
+) -> Result<u64, Fault> {
+    let uid = root::u64_at(&*h, tbl, root::UID)?;
+    let ext = super::extremes::of_desc(&*h, at.desc)?;
+    let mut rc = RunCursor::open(&*h, tail)?;
+    let mut walk = Walk { fixed: shape.head.fixed_at, var: 0, bit: 0, head: shape.head };
+    let mut filled = 0u64;
+    for o in 0..shape.leaves {
+        let l = shape.leaf(&*h, o)?;
+        let run_at = rc.place(h.get(Region::Block(tail))?, &l)?;
+        if !named(leaves, &l) {
+            walk.skip(&l);
+            continue;
+        }
+        let vi = walk.var;
+        let (cur, was) = {
+            let row = RowRef::new(&*h, old)?;
+            let st = walk.next(shape, &row, &l)?;
+            let was = match st {
+                Stored::Item(Item::Long { img, .. }) => Some(img),
+                _ => None,
+            };
+            (if run_at == At::None { None } else { Some(cur::from_stored(&row, shape, &l, &st, vi)?) }, was)
+        };
+        if let Some(cur) = cur {
+            total_leaf(h, tbl, tail, run_at, &l, TSrc::Cur(&cur), Sign::Remove, ext)?;
+        }
+        let n = {
+            let v = row::checked_cell(src, &l)?;
+            total_leaf(h, tbl, tail, run_at, &l, TSrc::Val(&v), Sign::Add, ext)?;
+            row::has_item(&l, &v).then(|| cell::var_len(&v, l.ty)).filter(|&n| row::is_long(n))
+        };
+        if let Some(n) = n {
+            mark_long(h, tail)?;
+            let (img, f) = row::long_value(shape, h, tbl, uid, src, &l, n)?;
+            filled = filled.saturating_add(f);
+            let a = rd_u32(buf, shape.head.items_table_at().wrapping_add(vi.wrapping_mul(4)))?;
+            img.put_ref(buf, u64::from(a).wrapping_add(8))?;
+        }
+        if let Some(img) = was {
+            drain::free_image(h, tbl, &img)?;
+        }
+    }
+    Ok(filled)
 }
 
 /// A buffered row of the open group now holds a long value or is a long row image: the open group's flag in

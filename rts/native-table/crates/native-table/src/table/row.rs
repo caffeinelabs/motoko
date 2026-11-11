@@ -332,20 +332,9 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
             let img = match old {
                 Some(img) => img,
                 None => {
-                    let meta =
-                        Meta { uid, schema_hash: shape.hash, content: long::CONTENT_VALUE, leaf: u32::from(l.ordinal) };
-                    if arg {
-                        let (img, f) = long::from_arg(h, tbl, &meta, src, l.id, n, text)?;
-                        filled = filled.saturating_add(f);
-                        img
-                    } else {
-                        let v = checked_cell(src, &l)?;
-                        let b = match v {
-                            Val::Bytes(b) | Val::Big(b) => b,
-                            _ => return Err(rt(Corruption::Encoding, o)),
-                        };
-                        long::from_bytes(h, tbl, &meta, b)?
-                    }
+                    let (img, f) = long_value(shape, h, tbl, uid, src, &l, n)?;
+                    filled = filled.saturating_add(f);
+                    img
                 }
             };
             let mut item = [0u8; 32];
@@ -376,8 +365,29 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     Ok(filled)
 }
 
-/// The reference of the long item of variable leaf `vi` in the image at `loc`, when the source keeps it or it
-/// holds the same value as the source's cell; `None` otherwise.
+/// A new long value holding leaf `l`'s cell of `n` bytes; returns it and the bytes the host copied from the
+/// argument.
+#[allow(clippy::too_many_arguments)]
+pub fn long_value<H: PageHost, R: RowSource + ?Sized>(
+    shape: &Shape,
+    h: &mut H,
+    tbl: u64,
+    uid: u64,
+    src: &mut R,
+    l: &LeafInfo,
+    n: u64,
+) -> Result<(Image, u64), Fault> {
+    let meta = Meta { uid, schema_hash: shape.hash, content: long::CONTENT_VALUE, leaf: u32::from(l.ordinal) };
+    let b = match checked_cell(src, l)? {
+        Val::Bytes(b) | Val::Big(b) => b,
+        Val::Arg(_) => return long::from_arg(h, tbl, &meta, src, l.id, n, matches!(l.ty, Ty::Text)),
+        _ => return Err(rt(Corruption::Encoding, u64::from(l.ordinal))),
+    };
+    Ok((long::from_bytes(h, tbl, &meta, b)?, 0))
+}
+
+/// The reference of the long item of variable leaf `vi` in the image at `loc`, when it holds the same value as
+/// the source's cell; `None` otherwise.
 fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     shape: &Shape,
     h: &H,
@@ -388,9 +398,6 @@ fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
 ) -> Result<Option<Image>, Fault> {
     let row = RowRef::new(h, loc)?;
     let Item::Long { img, len } = row.item(shape, vi)? else { return Ok(None) };
-    if R::KEEPS && src.kept(l.id) {
-        return Ok(Some(img));
-    }
     let v = checked_cell(src, l)?;
     let b = match v {
         Val::Bytes(b) | Val::Big(b) => b,
@@ -556,6 +563,25 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
             }
             _ => Err(rt(Corruption::Encoding, at)),
         }
+    }
+
+    /// Variable leaf `vi`'s item in a row of layout `head`: its offset, its bytes, and whether it is a long item;
+    /// (0, 0, false) when it has none.
+    pub fn item_span(&self, head: &RowHead, vi: u64) -> Result<(u64, u64, bool), Fault> {
+        let mut b = [0u8; 4];
+        self.read(head.items_table_at().wrapping_add(vi.wrapping_mul(4)), &mut b)?;
+        let at = u64::from(u32::from_le_bytes(b));
+        if at == 0 {
+            return Ok((0, 0, false));
+        }
+        if self.byte(at)? == ITEM_LONG {
+            return Ok((at, LONG_ITEM, true));
+        }
+        let mut hd = [0u8; 10];
+        let n = self.len.saturating_sub(at.wrapping_add(1)).min(10);
+        self.read(at.wrapping_add(1), hd.get_mut(..usize::try_from(n).unwrap_or(0)).unwrap_or(&mut []))?;
+        let (len, k) = crate::bytes::rd_uleb(&hd, 0, ImageId::Runtime)?;
+        Ok((at, len.checked_add(k.wrapping_add(1)).ok_or(rt(Corruption::Range, at))?, false))
     }
 
     /// The row offset of the reference of variable leaf `vi`'s long item in a row of layout `head`, when it has

@@ -1125,6 +1125,64 @@ fn update_of_one_leaf_keeps_long_values() {
     assert_eq!((check_ownership(&tb), tb.host().live_pages()), before, "the long values keep their images");
 }
 
+/// Updates of some leaves of a buffered row, each giving the row a new image made from its stored one: a Text
+/// grown past the row's place (the image moves to the tail block), a Text made a long value beside a Nat whose
+/// total moves, that long value replaced by one from the message's argument, a Text that makes the image a long
+/// row image, then short values again. After each, every row reads back, the totals and extremes follow, and
+/// every long value has one owner; at the end the table holds the pages it held before.
+#[test]
+fn update_of_some_leaves_of_a_buffered_row() {
+    let cols =
+        [t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::TEXT), t::opt(t::scalar(ty::INT)), t::scalar(ty::BLOB)];
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema(&cols).0).unwrap();
+    let mut model = Rows::new();
+    for k in 0..3u64 {
+        let row = vec![
+            (id(0), V::U(k)),
+            (id(1), V::U(10 * k)),
+            (id(2), V::text("a")),
+            (id(3), V::I(-1)),
+            (id(4), V::Bytes(vec![7; 70_000])),
+        ];
+        put_row(&mut tb, &mut model, row);
+    }
+    let pages = tb.host().live_pages();
+    let steps: [&[(u32, V)]; 5] = [
+        &[(id(2), V::Bytes(vec![b'b'; 200]))],
+        &[(id(1), V::U(5)), (id(2), V::Bytes(vec![b'c'; 70_000]))],
+        &[(id(2), V::Arg(vec![b'd'; 80_000]))],
+        &[(id(3), V::Null), (id(2), V::Bytes(vec![b'e'; 3_000]))],
+        &[(id(2), V::text("a")), (id(1), V::U(10)), (id(3), V::I(-1))],
+    ];
+    let rid = model[&1].0;
+    let place = |tb: &Table<'_, VecHost>| {
+        let at = buffer::locate(tb.host(), tb.root(), rid).unwrap().unwrap();
+        match buffer::slot_row(tb.host(), at.block, at.slot).unwrap().unwrap() {
+            buffer::RowLoc::Inline { block, off, .. } => Some((block, off)),
+            buffer::RowLoc::Long(_) => None,
+        }
+    };
+    let mut places = vec![place(&tb)];
+    for cells in steps {
+        let leaves: Vec<u32> = cells.iter().map(|c| c.0).collect();
+        let key = [(id(0), V::U(1))];
+        tb.update(&mut key_scratch(), &mut Src::new(&key), &leaves, &mut Src::new(cells)).unwrap();
+        let row = &mut model.get_mut(&1).unwrap().1;
+        for (l, v) in cells {
+            row.iter_mut().find(|c| c.0 == *l).unwrap().1 = v.clone();
+        }
+        check_reads(&tb, &model);
+        check_running(&tb, &model);
+        check_ownership(&tb);
+        places.push(place(&tb));
+    }
+    assert!(places[1].is_some() && places[1] != places[0], "moved to the tail block");
+    assert!(places[2] == places[1] && places[3] == places[1], "then in place");
+    assert!(places[4].is_none() && places[5].is_some(), "a long row image, then inline");
+    assert_eq!(tb.host().live_pages(), pages, "the long values and the long row image are given back");
+}
+
 /// An update of one leaf of a buffered row whose key is a long Text: the key is read from the row's image, and
 /// the row reads back with the leaf changed.
 #[test]
