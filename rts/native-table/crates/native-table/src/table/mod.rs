@@ -609,7 +609,8 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// (rid, inserted) of an upsert. E(k) is built on the stack when it fits, else in the scratch (its length
-    /// counted from the key leaves alone, then the plan made again).
+    /// counted by a plan that only counts it). A row image longer than an inline one takes the scratch too, after
+    /// E(k) when E(k) is there, asked for before anything is written.
     fn write_row<S: Scratch, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -625,18 +626,24 @@ impl<'h, H: PageHost> Table<'h, H> {
                 Err(e) => return Err(e),
             }
         };
-        let (plan, e) = match first {
-            Some((plan, n)) => (plan, kb.get(..n).unwrap_or(&[])),
+        // E(k)'s length on the stack, or its bytes in the scratch and the bytes a new row's image takes after them.
+        let image = |plan: &row::Plan| if plan.len > row::STAGE as u64 { plan.len } else { 0 };
+        let (plan, key) = match first {
+            Some((plan, n)) => (plan, Ok(n)),
             None => {
                 let mut c = LenSink(0);
-                self.encode_key(row, &mut c)?;
-                let need = usize::try_from(c.0).map_err(|_| Fault::Scratch { need: c.0 })?;
-                let buf = scratch.get(need)?.get_mut(..need).ok_or(Fault::Scratch { need: c.0 })?;
-                let mut ks = SliceSink::new(buf);
-                let plan = row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut ks)?;
-                let n = ks.len;
-                (plan, buf.get(..n).unwrap_or(&[]))
+                let plan = row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut c)?;
+                let need = c.0.checked_add(image(&plan)).ok_or(Fault::Scratch { need: u64::MAX })?;
+                let buf = scratch.get(usize::try_from(need).map_err(|_| Fault::Scratch { need })?)?;
+                let at = usize::try_from(c.0).unwrap_or(usize::MAX);
+                let (k, big) = buf.split_at_mut_checked(at).ok_or(Fault::Scratch { need })?;
+                self.encode_key(row, &mut SliceSink::new(k))?;
+                (plan, Err((&*k, big)))
             }
+        };
+        let e = match &key {
+            Ok(n) => kb.get(..*n).unwrap_or(&[]),
+            Err((k, _)) => k,
         };
         // One lookup of E(k) in the primary index: a hit is the row the write finds, a miss the position its
         // new entry takes. A primary index not made yet is empty; it is made only when the row goes in.
@@ -648,14 +655,17 @@ impl<'h, H: PageHost> Table<'h, H> {
         };
         if let Some((rid, _, _)) = look.found {
             let found = self.row_of(rid, e)?;
-            // The indexes' entries move first, while the stored row still holds its old cells.
+            // The indexes' entries move first, while the stored row still holds its old cells; the scratch a new
+            // image past the stack takes is asked for before.
             indexes::check_source(&self.shape, &*self.host, row)?;
+            if plan.len > row::STAGE as u64 && matches!(found, read::Row::Buffered(_)) {
+                scratch.get(usize::try_from(plan.len).map_err(|_| Fault::Scratch { need: plan.len })?)?;
+            }
             self.index_update(found, row, rid, &mut kb, scratch, &mut path)?;
             let (h, tbl) = (&mut *self.host, self.root);
             match found {
                 read::Row::Buffered(at) => {
-                    let (_, filled) = write::update(h, tbl, &self.shape, row, &at)?;
-                    self.filled = filled;
+                    self.filled = write::splice(h, tbl, &self.shape, row, &at, None, plan.len, scratch)?;
                 }
                 read::Row::Sealed { page, pos } => {
                     let (_, filled) = update::update_sealed(h, tbl, &self.shape, row, page, pos, update::Every)?;
@@ -665,11 +675,21 @@ impl<'h, H: PageHost> Table<'h, H> {
             return Ok((rid, false));
         }
         indexes::check_source(&self.shape, &*self.host, row)?;
+        let (e, big): (_, &mut [u8]) = match key {
+            Ok(n) => (
+                kb.get(..n).unwrap_or(&[]),
+                match image(&plan) {
+                    0 => &mut [],
+                    need => scratch.get(usize::try_from(need).map_err(|_| Fault::Scratch { need })?)?,
+                },
+            ),
+            Err(k) => k,
+        };
         let mut p = match prim {
             Some(p) => p,
             None => Primary::create(&mut *self.host, self.root, self.shape.key_w, self.shape.key_hash)?,
         };
-        let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan)?;
+        let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan, big)?;
         self.filled = filled;
         primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, &mut path)?;
         self.index_insert(row, rid, &mut kb, scratch, &mut path)?;
@@ -724,12 +744,12 @@ impl<'h, H: PageHost> Table<'h, H> {
             }
             read::Row::Buffered(at) => {
                 // The scratch a new image past the stack takes: a refusal comes before the first write.
-                let sized = write::spliced(&*self.host, &self.shape, src, &at, leaves)?;
-                if sized.0 > row::STAGE as u64 {
-                    scratch.get(usize::try_from(sized.0).map_err(|_| Fault::Scratch { need: sized.0 })?)?;
+                let len = write::spliced(&*self.host, &self.shape, src, &at, leaves)?;
+                if len > row::STAGE as u64 {
+                    scratch.get(usize::try_from(len).map_err(|_| Fault::Scratch { need: len })?)?;
                 }
                 self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
-                self.filled = write::splice(&mut *self.host, tbl, &self.shape, src, &at, leaves, sized, scratch)?;
+                self.filled = write::splice(&mut *self.host, tbl, &self.shape, src, &at, Some(leaves), len, scratch)?;
             }
         }
         self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, &mut kb, scratch, &mut path)?;

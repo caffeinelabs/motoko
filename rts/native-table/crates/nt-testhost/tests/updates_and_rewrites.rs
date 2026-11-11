@@ -14,6 +14,7 @@ use native_table::schema::SchemaView;
 use native_table::table::group::GroupView;
 use native_table::table::jobs::Ran;
 use native_table::table::layout::Ty;
+use native_table::table::row::{Item, RowRef};
 use native_table::table::{buffer, page, patch, root, Table, Upsert};
 use native_table::value::ty;
 use native_table::{CorruptAt, Corruption, ImageId, PageHost, Progress, Region, Wake};
@@ -1181,6 +1182,59 @@ fn update_of_some_leaves_of_a_buffered_row() {
     assert!(places[2] == places[1] && places[3] == places[1], "then in place");
     assert!(places[4].is_none() && places[5].is_some(), "a long row image, then inline");
     assert_eq!(tb.host().live_pages(), pages, "the long values and the long row image are given back");
+}
+
+/// Scratch of a fixed size, refusing a longer request.
+struct Short(Vec<u8>);
+
+impl native_table::Scratch for Short {
+    fn get(&mut self, need: usize) -> Result<&mut [u8], Fault> {
+        self.0.get_mut(..need).ok_or(Fault::Scratch { need: need as u64 })
+    }
+}
+
+/// Whole-row writes of a buffered row whose key is longer than a point operation's stack and whose image is
+/// longer than an inline one: the insert asks the scratch once for both, and a scratch too short for the image
+/// refuses it with nothing written; a replace keeps a long value it gives again with the same bytes, and frees
+/// one it changes.
+#[test]
+fn whole_row_writes_with_a_long_key_and_image() {
+    let cols = [t::scalar(ty::TEXT), t::scalar(ty::NAT), t::scalar(ty::BLOB), t::scalar(ty::TEXT)];
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema(&cols).0).unwrap();
+    let key = (id(0), V::Bytes(vec![b'k'; 100]));
+    let row = |n: u64, b: u8| {
+        vec![key.clone(), (id(1), V::U(n)), (id(2), V::Bytes(vec![b; 70_000])), (id(3), V::Bytes(vec![b't'; 4_000]))]
+    };
+    tb.host_mut().end_message();
+    let got = tb.upsert(&mut Short(vec![0; 1_000]), &mut Src::new(&row(1, 7)));
+    assert!(matches!(got, Err(Fault::Scratch { .. })), "{got:?}");
+    assert_eq!(tb.host_mut().end_message(), 0, "nothing written");
+    let mut s = key_scratch();
+    tb.upsert(&mut s, &mut Src::new(&row(1, 7))).unwrap();
+    assert_eq!(s.grows, 1, "one request holds the key and the image");
+    let read = |tb: &Table<'_, VecHost>| {
+        let mut s = Sink::default();
+        assert!(tb.get(&mut key_scratch(), &mut Src::new(&[key.clone()]), &mut s).unwrap());
+        let rid = s.rid.unwrap();
+        let at = buffer::locate(tb.host(), tb.root(), rid).unwrap().unwrap();
+        let loc = buffer::slot_row(tb.host(), at.block, at.slot).unwrap().unwrap();
+        assert!(matches!(loc, buffer::RowLoc::Long(_)), "a long row image");
+        let item = RowRef::new(tb.host(), loc).unwrap().item(tb.shape(), 2).unwrap();
+        let Item::Long { img, .. } = item else { panic!("{item:?}") };
+        (fetch_long(tb, rid, s.cells), img)
+    };
+    let (cells, img) = read(&tb);
+    assert_eq!(cells, row(1, 7));
+    let pages = tb.host().live_pages();
+    tb.upsert(&mut key_scratch(), &mut Src::new(&row(2, 7))).unwrap();
+    assert_eq!(read(&tb), (row(2, 7), img), "the same bytes keep their long value");
+    tb.upsert(&mut key_scratch(), &mut Src::new(&row(3, 8))).unwrap();
+    let (cells, other) = read(&tb);
+    assert_eq!(cells, row(3, 8));
+    assert_ne!(other, img);
+    check_ownership(&tb);
+    assert_eq!(tb.host().live_pages(), pages, "the changed long value's pages are given back");
 }
 
 /// An update of one leaf of a buffered row whose key is a long Text: the key is read from the row's image, and

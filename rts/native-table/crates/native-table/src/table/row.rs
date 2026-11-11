@@ -6,7 +6,8 @@
 //! ULEB128 length ‖ bytes, or 7 zero bytes and a long value's image reference}.
 //!
 //! A write builds a row image in two passes over the host's cells: the first checks every cell and sizes the
-//! image, the second writes it in order into the tail block's staging buffer or into a long row image.
+//! image (`plan`), the second writes it into a buffer of its size (`write::build`), which then goes into a buffer
+//! block or into a long row image.
 
 use crate::bytes::uleb_len;
 use crate::consts::{HUGE_VALUE, LONG_VALUE, PAGE, ROW_INLINE_MAX};
@@ -17,7 +18,7 @@ use crate::mem::{copy_bytes, rd_u8, sub, PageHost, Region};
 use super::buffer::RowLoc;
 use super::cell::{self, Val};
 use super::layout::{LeafInfo, RowHead, Shape, Ty};
-use super::long::{self, LongOut, Meta};
+use super::long::{self, Meta};
 use super::RowSource;
 
 /// Header flags.
@@ -80,7 +81,8 @@ pub fn checked_cell<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> 
 }
 
 /// The first pass: checks every cell (a Text's bytes as UTF-8 only when `UTF8`), encodes the key leaves into
-/// `key`, and sizes the image.
+/// `key`, and sizes the image. Kept out of line: inlined into an upsert, it makes the upsert dearer.
+#[inline(never)]
 pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     shape: &Shape,
     h: &H,
@@ -122,247 +124,21 @@ pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: cr
     Ok(p)
 }
 
-/// Where the second pass writes.
-pub trait Out<H: PageHost> {
-    fn put(&mut self, h: &mut H, b: &[u8]) -> Result<(), Fault>;
-    fn fill<R: RowSource + ?Sized>(
-        &mut self,
-        h: &mut H,
-        src: &mut R,
-        leaf: u32,
-        len: u64,
-        text: bool,
-    ) -> Result<(), Fault>;
-}
-
-/// An inline row image staged on the stack, in the buffer `staged` gives.
-pub struct StackOut<'a> {
-    pub buf: &'a mut [u8],
-    pub len: usize,
-    /// Bytes the host copied from the argument.
-    pub filled: u64,
-}
-
-/// Runs `f` with a stage for an inline row image of `len` bytes: `SHORT_STAGE` bytes of stack when it fits
-/// them, else `STAGE`.
-pub fn staged<T>(len: u64, f: impl FnOnce(&mut StackOut<'_>) -> T) -> T {
+/// Runs `f` with `len` bytes for a row image: stack bytes when an inline row image of `len` fits them
+/// (`SHORT_STAGE` of them when it fits those), else the first `len` bytes of `big`.
+pub fn staged<T>(len: u64, big: &mut [u8], f: impl FnOnce(&mut [u8]) -> Result<T, Fault>) -> Result<T, Fault> {
+    let n = usize::try_from(len).map_err(|_| rt(Corruption::Range, len))?;
     let (mut short, mut whole);
-    let buf: &mut [u8] = if len <= SHORT_STAGE as u64 {
+    let buf: &mut [u8] = if n <= SHORT_STAGE {
         short = [0u8; SHORT_STAGE];
         &mut short
-    } else {
+    } else if n <= STAGE {
         whole = [0u8; STAGE];
         &mut whole
+    } else {
+        big
     };
-    f(&mut StackOut { buf, len: 0, filled: 0 })
-}
-
-impl StackOut<'_> {
-    pub fn bytes(&self) -> &[u8] {
-        self.buf.get(..self.len).unwrap_or(&[])
-    }
-
-    fn room(&mut self, n: usize) -> Result<&mut [u8], Fault> {
-        let end = self.len.checked_add(n).ok_or(rt(Corruption::Range, 0))?;
-        let d = self.buf.get_mut(self.len..end).ok_or(rt(Corruption::Count, end as u64))?;
-        self.len = end;
-        Ok(d)
-    }
-}
-
-impl<H: PageHost> Out<H> for StackOut<'_> {
-    fn put(&mut self, _h: &mut H, b: &[u8]) -> Result<(), Fault> {
-        copy_bytes(self.room(b.len())?, b);
-        Ok(())
-    }
-
-    fn fill<R: RowSource + ?Sized>(
-        &mut self,
-        _h: &mut H,
-        src: &mut R,
-        leaf: u32,
-        len: u64,
-        text: bool,
-    ) -> Result<(), Fault> {
-        let n = usize::try_from(len).map_err(|_| rt(Corruption::Range, len))?;
-        let d = self.room(n)?;
-        src.fill(leaf, 0, d)?;
-        if text && core::str::from_utf8(d).is_err() {
-            return Err(Fault::BadValue { leaf });
-        }
-        self.filled = self.filled.saturating_add(len);
-        Ok(())
-    }
-}
-
-impl<H: PageHost> Out<H> for LongOut {
-    fn put(&mut self, h: &mut H, b: &[u8]) -> Result<(), Fault> {
-        LongOut::put(self, h, b)
-    }
-
-    fn fill<R: RowSource + ?Sized>(
-        &mut self,
-        h: &mut H,
-        src: &mut R,
-        leaf: u32,
-        len: u64,
-        text: bool,
-    ) -> Result<(), Fault> {
-        LongOut::fill(self, h, src, leaf, len, text)
-    }
-}
-
-/// The second pass: writes the row image planned by `p` into `out`. Each item that is a long value is
-/// created here, or, when `reuse` names the row's previous image and that image holds the same value as a
-/// long item, its reference moves over. Returns the bytes the host copied from the argument into long values.
-#[allow(clippy::too_many_arguments)]
-pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
-    shape: &Shape,
-    h: &mut H,
-    tbl: u64,
-    uid: u64,
-    src: &mut R,
-    p: &Plan,
-    out: &mut O,
-    reuse: Option<RowLoc>,
-) -> Result<u64, Fault> {
-    let mut filled = 0u64;
-    let mut head = [0u8; 8];
-    crate::mem::put_u32(&mut head, 0, shape.version)?;
-    let flags = (if p.big { ROW_BIG } else { 0 }) | (if p.long { ROW_LONG } else { 0 });
-    crate::mem::put_u16(&mut head, 4, flags)?;
-    out.put(h, &head)?;
-    // The two bitmaps over the schema version's leaves, eight per byte.
-    for big in [false, true] {
-        let mut byte = 0u8;
-        let mut bit = 0u64;
-        for o in 0..shape.leaves {
-            let l = shape.leaf(&*h, o)?;
-            let set = {
-                let v = checked_cell(src, &l)?;
-                if big {
-                    cell::is_big(&v)
-                } else {
-                    v.is_null()
-                }
-            };
-            byte |= u8::from(set) << (bit % 8);
-            bit = bit.wrapping_add(1);
-            if bit % 8 == 0 {
-                out.put(h, &[byte])?;
-                byte = 0;
-            }
-        }
-        if bit % 8 != 0 {
-            out.put(h, &[byte])?;
-        }
-    }
-    let pad = shape.fixed_at.wrapping_sub(8u64.wrapping_add(shape.bitmap.wrapping_mul(2)));
-    out.put(h, long::ZEROS.get(..usize::try_from(pad).unwrap_or(0)).unwrap_or(&[]))?;
-    // The fixed region.
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        let w = l.ty.fixed_width();
-        if w == 0 {
-            continue;
-        }
-        let v = checked_cell(src, &l)?;
-        if let (Ty::Fixed(_), Val::Bytes(b)) = (l.ty, v) {
-            if w > 30 {
-                out.put(h, b)?;
-                continue;
-            }
-        }
-        if w > 30 {
-            // A null `[u8; N]` wider than a staging cell: zeros.
-            let mut left = w;
-            while left > 0 {
-                let n = left.min(long::ZEROS.len() as u64);
-                out.put(h, long::ZEROS.get(..usize::try_from(n).unwrap_or(0)).unwrap_or(&[]))?;
-                left = left.wrapping_sub(n);
-            }
-            continue;
-        }
-        let mut c = [0u8; 30];
-        let n = cell::fixed_cell(&v, l.ty, &mut c);
-        out.put(h, c.get(..usize::try_from(n).unwrap_or(0)).unwrap_or(&[]))?;
-    }
-    // The item table.
-    let mut at = shape.items_at();
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        if !l.ty.variable() {
-            continue;
-        }
-        let item = {
-            let v = checked_cell(src, &l)?;
-            has_item(&l, &v).then(|| cell::var_len(&v, l.ty))
-        };
-        let mut off = 0u32;
-        if let Some(n) = item {
-            off = u32::try_from(at).map_err(|_| rt(Corruption::Range, at))?;
-            at = at.checked_add(item_bytes(n, is_long(n))).ok_or(rt(Corruption::Range, at))?;
-        }
-        out.put(h, &off.to_le_bytes())?;
-    }
-    if at != p.len {
-        return Err(rt(Corruption::Count, at));
-    }
-    // The items.
-    let mut vi = 0u64;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
-        if !l.ty.variable() {
-            continue;
-        }
-        let this = vi;
-        vi = vi.wrapping_add(1);
-        let (n, arg, text) = {
-            let v = checked_cell(src, &l)?;
-            if !has_item(&l, &v) {
-                continue;
-            }
-            (cell::var_len(&v, l.ty), matches!(v, Val::Arg(_)), matches!(l.ty, Ty::Text))
-        };
-        if is_long(n) {
-            let old = match reuse {
-                Some(loc) => reusable(shape, &*h, loc, &l, this, src)?,
-                None => None,
-            };
-            let img = match old {
-                Some(img) => img,
-                None => {
-                    let (img, f) = long_value(shape, h, tbl, uid, src, &l, n)?;
-                    filled = filled.saturating_add(f);
-                    img
-                }
-            };
-            let mut item = [0u8; 32];
-            crate::mem::put_u8(&mut item, 0, ITEM_LONG)?;
-            img.put_ref(&mut item, 8)?;
-            out.put(h, &item)?;
-        } else {
-            let mut hd = [0u8; 11];
-            crate::mem::put_u8(&mut hd, 0, ITEM_INLINE)?;
-            let k = crate::bytes::put_uleb(&mut hd, 1, n)?;
-            out.put(h, hd.get(..usize::try_from(k.wrapping_add(1)).unwrap_or(0)).unwrap_or(&[]))?;
-            if arg {
-                out.fill(h, src, l.id, n, text)?;
-            } else {
-                let v = checked_cell(src, &l)?;
-                match v {
-                    Val::Bytes(b) | Val::Big(b) => out.put(h, b)?,
-                    Val::U(_) | Val::I(_) | Val::Wide(_) => {
-                        let mut leb = [0u8; 19];
-                        let k = cell::small_leb(&v, matches!(l.ty, Ty::Int), &mut leb);
-                        out.put(h, leb.get(..k).unwrap_or(&[]))?;
-                    }
-                    _ => return Err(rt(Corruption::Encoding, o)),
-                }
-            }
-        }
-    }
-    Ok(filled)
+    f(buf.get_mut(..n).ok_or(Fault::Scratch { need: len })?)
 }
 
 /// A new long value holding leaf `l`'s cell of `n` bytes; returns it and the bytes the host copied from the
@@ -384,39 +160,6 @@ pub fn long_value<H: PageHost, R: RowSource + ?Sized>(
         _ => return Err(rt(Corruption::Encoding, u64::from(l.ordinal))),
     };
     Ok((long::from_bytes(h, tbl, &meta, b)?, 0))
-}
-
-/// The reference of the long item of variable leaf `vi` in the image at `loc`, when it holds the same value as
-/// the source's cell; `None` otherwise.
-fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
-    shape: &Shape,
-    h: &H,
-    loc: RowLoc,
-    l: &LeafInfo,
-    vi: u64,
-    src: &mut R,
-) -> Result<Option<Image>, Fault> {
-    let row = RowRef::new(h, loc)?;
-    let Item::Long { img, len } = row.item(shape, vi)? else { return Ok(None) };
-    let v = checked_cell(src, l)?;
-    let b = match v {
-        Val::Bytes(b) | Val::Big(b) => b,
-        _ => return Ok(None),
-    };
-    if b.len() as u64 != len {
-        return Ok(None);
-    }
-    let mut piece = [0u8; 1_024];
-    let mut at = 0u64;
-    for chunk in b.chunks(piece.len()) {
-        let dst = piece.get_mut(..chunk.len()).ok_or(rt(Corruption::Range, at))?;
-        long::read(h, img, at, dst)?;
-        if dst != chunk {
-            return Ok(None);
-        }
-        at = at.wrapping_add(chunk.len() as u64);
-    }
-    Ok(Some(img))
 }
 
 /// An item of a stored row image.
