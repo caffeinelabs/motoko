@@ -54,17 +54,22 @@ let plain = NativeTable.empty<Text, Nat>().build() // no indexes
 |---|---|
 | `t.add(k, r)` | inserts `r` under `k`, or replaces the row `k` has |
 | `t.insert(k, r) : Bool` | as `add`; true when `k` was new |
+| `t.update(k, fields) : Bool` | sets the fields of the record `fields` in the row `k` has; true when `k` had a row; when not, writes nothing and gives false |
 | `t.remove(k)` | removes the row `k` has, if any |
 | `t.delete(k) : Bool` | as `remove`; true when `k` had a row |
 
 Change one field:
 
 ```motoko no-repl
-switch t.get(k) {
-  case ?r { t.add(k, { r with paid = true }) }
-  case null {}
-}
+ignore orders.update(7, { paid = true })
 ```
+
+- `fields` has some of the fields of `R`. Only those fields are written: the indexes on them move,
+  and their totals change by the difference.
+- A field of `fields` has the type of the row's field, or a `Nat` for an `Int` field (`?Nat` for
+  `?Int`), so `{ placed = 0 }` needs no annotation. Write `null` with its type:
+  `{ note = null : ?Text }`.
+- It traps when `fields` has a field `R` lacks, or a field of another type.
 
 ## Read by key
 
@@ -73,6 +78,31 @@ switch t.get(k) {
 | `t.get(k) : ?R` | the row `k` has, or null |
 | `t.containsKey(k) : Bool` | whether `k` has a row |
 | `t.size() : Nat`, `t.isEmpty() : Bool` | the number of rows |
+
+## Read some fields
+
+A view reads the rows of a table with only some of their fields. Its row type `P` has some of the
+fields of `R`, each with the same name and type, and a read of the view reads only those fields.
+
+```motoko no-repl
+type Name = { customer : Text; city : Text };
+
+let names : NativeTable.NativeTable<Nat, Name> = orders.view();
+
+let n = names.get(7); // ?{ customer; city }: only these two fields are read
+
+for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
+```
+
+- A view is a `NativeTable<K, P>` over the same rows and indexes. Every read works on it. Field
+  names in index field lists, filters and totals can be any field of the table, and `fieldTypes`
+  lists the table's fields.
+- `view` takes `P` from the declared type, as `evolve` does; or give all three types:
+  `orders.view<Nat, Order, Name>()`.
+- It traps when `P` has a field `R` lacks, or a field of another type.
+- `remove` and `delete` on a view remove the whole row; `add`, `insert`, `update` and `evolve` on a
+  view trap.
+- After `evolve`, make views from the table `evolve` returns.
 
 ## Scan
 
@@ -266,7 +296,8 @@ Each message starts with `native table: `.
 
 | Message | Raised by | When |
 |---|---|---|
-| `the row type has no field of that name` | `build`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, or given to the call |
+| `the row type has no field of that name` | `build`; `view`, `update`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
+| `a field has another type than the table's` | `view`, `update` | a field of the view's row type, or of `fields`, that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
 | `an index has 1 to 7 fields` | `build` | a field list given to `createIndex` that is empty or has more than 7 fields |
 | `a table has at most 63 indexes` | `build` | a 64th distinct field list given to `createIndex` |
 | `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
@@ -275,7 +306,7 @@ Each message starts with `native table: `.
 | `a field changes its type` | `evolve` | a field keeps its name but changes its type |
 | `a new field is not an option` | `evolve` | a field the old row type lacks is not of an option type |
 | `a row that is a scalar cannot change` | `evolve` | the old or the new row type is a scalar, and the two differ |
-| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value from before an `evolve` that changed its row type, unless a later `evolve` returned the table to that row type |
+| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value or a view from before an `evolve` that changed the table's row type, unless a later `evolve` returned the table to that row type; and `add`, `insert`, `update` or `evolve` on a view |
 | `graph-copy stabilization is not possible while a table exists` | `__motoko_stabilize_before_upgrade` | the start of an upgrade by graph copy, once the canister has made a table |
 
 ## With OQL
