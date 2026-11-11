@@ -31,6 +31,8 @@ pub const LONG_ITEM: u64 = 32;
 /// The stack buffer an inline row image is built in.
 pub const STAGE: usize = 3_072;
 const _: () = assert!(STAGE as u64 == ROW_INLINE_MAX);
+/// The smaller stack buffer a short inline row image is built in: a stage is zeroed at every write.
+const SHORT_STAGE: usize = 256;
 
 /// Whether a variable value of `n` bytes is a long value: past `HUGE_VALUE`.
 #[inline]
@@ -127,19 +129,29 @@ pub trait Out<H: PageHost> {
     ) -> Result<(), Fault>;
 }
 
-/// An inline row image staged on the stack.
-pub struct StackOut {
-    pub buf: [u8; STAGE],
+/// An inline row image staged on the stack, in the buffer `staged` gives.
+pub struct StackOut<'a> {
+    pub buf: &'a mut [u8],
     pub len: usize,
     /// Bytes the host copied from the argument.
     pub filled: u64,
 }
 
-impl StackOut {
-    pub fn new() -> Self {
-        StackOut { buf: [0; STAGE], len: 0, filled: 0 }
-    }
+/// Runs `f` with a stage for an inline row image of `len` bytes: `SHORT_STAGE` bytes of stack when it fits
+/// them, else `STAGE`.
+pub fn staged<T>(len: u64, f: impl FnOnce(&mut StackOut<'_>) -> T) -> T {
+    let (mut short, mut whole);
+    let buf: &mut [u8] = if len <= SHORT_STAGE as u64 {
+        short = [0u8; SHORT_STAGE];
+        &mut short
+    } else {
+        whole = [0u8; STAGE];
+        &mut whole
+    };
+    f(&mut StackOut { buf, len: 0, filled: 0 })
+}
 
+impl StackOut<'_> {
     pub fn bytes(&self) -> &[u8] {
         self.buf.get(..self.len).unwrap_or(&[])
     }
@@ -152,13 +164,7 @@ impl StackOut {
     }
 }
 
-impl Default for StackOut {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<H: PageHost> Out<H> for StackOut {
+impl<H: PageHost> Out<H> for StackOut<'_> {
     fn put(&mut self, _h: &mut H, b: &[u8]) -> Result<(), Fault> {
         copy_bytes(self.room(b.len())?, b);
         Ok(())

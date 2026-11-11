@@ -109,15 +109,13 @@ pub enum Upsert {
 }
 
 /// The most bytes of E(k) a point operation builds on the stack; a longer E(k) is built in the scratch. A
-/// secondary index's key may be longer: it is written into the index's key log instead (`indexes`).
-pub const KEY_STACK: usize = 4_096;
+/// secondary index's key may be longer: it is written into the index's key log instead (`indexes`). Small, as
+/// the stack buffer is zeroed at every call.
+pub const KEY_STACK: usize = 64;
 
-/// Bytes of a stored key value one comparison piece reads.
-const KEY_PIECE: usize = 4_096;
-
-/// Bytes of the stack buffer a stored key value is copied into when it does not lie in one piece: room for
-/// the longest value of a key of `KEY_STACK` bytes.
-const PIECE: usize = 4_800;
+/// Bytes of the stack buffer a stored key value is copied into when it does not lie in one piece, and of one
+/// piece a longer one is compared in: room for the longest value of a key of `KEY_STACK` bytes.
+const PIECE: usize = KEY_STACK + KEY_STACK / 4;
 
 /// Checks that a schema image's leaves are live scalars or `()`, and its index declarations, before anything
 /// is allocated.
@@ -180,7 +178,7 @@ fn long_key<H: PageHost + ?Sized>(
     l: &layout::LeafInfo,
     v: &cur::SVal,
     cmp: &mut KeyCompare<'_>,
-    piece: &mut [u8; KEY_PIECE],
+    piece: &mut [u8; PIECE],
 ) -> Result<(), Fault> {
     if l.nullable {
         crate::key::enc_opt_tag(cmp, true)?;
@@ -194,7 +192,7 @@ fn long_key<H: PageHost + ?Sized>(
             let escaped = matches!(l.ty, Ty::Text | Ty::Blob);
             let mut at = 0u64;
             while at < n && cmp.same {
-                let k = n.wrapping_sub(at).min(KEY_PIECE as u64);
+                let k = n.wrapping_sub(at).min(PIECE as u64);
                 let d = piece.get_mut(..usize::try_from(k).unwrap_or(0)).ok_or(rt(Corruption::Range, k))?;
                 cur::read(h, v, at, d)?;
                 if escaped {
@@ -390,11 +388,11 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// Whether a stored row's key leaves encode to `e`. A long value is read and compared in pieces of
-    /// `KEY_PIECE` bytes, and a Nat's or Int's LEB128 bytes a window at a time, so no key is too long.
+    /// `PIECE` bytes, and a Nat's or Int's LEB128 bytes a window at a time, so no key is too long.
     fn key_matches(&self, row: &read::Live, e: &[u8]) -> Result<bool, Fault> {
         let h = &*self.host;
         let mut cmp = KeyCompare { want: e, at: 0, same: true };
-        let mut piece = [0u8; KEY_PIECE];
+        let mut piece = [0u8; PIECE];
         for o in 0..self.shape.leaves {
             if !cmp.same {
                 return Ok(false);
@@ -597,8 +595,8 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok((u, self.settle()?))
     }
 
-    /// (rid, inserted) of an upsert. E(k) is built on the stack when it fits, else in the scratch (the plan
-    /// made again once its length is known).
+    /// (rid, inserted) of an upsert. E(k) is built on the stack when it fits, else in the scratch (its length
+    /// counted from the key leaves alone, then the plan made again).
     fn write_row<S: Scratch, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -618,7 +616,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             Some((plan, n)) => (plan, kb.get(..n).unwrap_or(&[])),
             None => {
                 let mut c = LenSink(0);
-                row::plan(&self.shape, &*self.host, row, &mut c)?;
+                self.encode_key(row, &mut c)?;
                 let need = usize::try_from(c.0).map_err(|_| Fault::Scratch { need: c.0 })?;
                 let buf = scratch.get(need)?.get_mut(..need).ok_or(Fault::Scratch { need: c.0 })?;
                 let mut ks = SliceSink::new(buf);

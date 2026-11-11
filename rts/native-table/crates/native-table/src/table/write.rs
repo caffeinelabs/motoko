@@ -19,7 +19,7 @@ use super::hot::{RunCursor, Sign};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::long::{self, LongOut, Meta};
 use super::root;
-use super::row::{self, Item, Plan, RowRef, StackOut, Stored, Walk};
+use super::row::{self, Item, Plan, RowRef, Stored, Walk};
 use super::totals::{self, At, TSrc};
 use super::{CellIn, RowSource};
 
@@ -227,11 +227,15 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
     } else {
         (None, p.len, 0, 0)
     };
-    let mut so = StackOut::new();
     let mut filled = filled;
     if stub.is_none() {
-        filled = row::write(shape, h, tbl, uid, src, p, &mut so, None)?;
-        filled = filled.saturating_add(so.filled);
+        // The image goes into the tail block's free space, which holds `need` bytes.
+        let end = buffer::u16_of(&*h, tail, B_ROWS_END)?;
+        filled = row::staged(p.len, |so| {
+            let f = row::write(shape, h, tbl, uid, src, p, so, None)?;
+            put(h.get_mut(Region::Block(tail))?, end, so.bytes())?;
+            Ok::<_, Fault>(f.saturating_add(so.filled))
+        })?;
     }
     let pos = buffer::u16_of(&*h, tail, H_OPEN_POS)?;
     let rid = g.checked_mul(GROUP_SLOTS).and_then(|x| x.checked_add(pos)).ok_or(rt(Corruption::Range, g))?;
@@ -241,10 +245,7 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
         let slots = u64::from(rd_u16(b, B_SLOTS)?);
         match stub {
             Some(s) => put(b, end, &s)?,
-            None => {
-                put(b, end, so.bytes())?;
-                fill(b, end.wrapping_add(len), reserve(len).wrapping_sub(len), 0)?;
-            }
+            None => fill(b, end.wrapping_add(len), reserve(len).wrapping_sub(len), 0)?,
         }
         let resv = if stub.is_some() { LONG_STUB } else { reserve(len) };
         buffer::write_slot(b, slots, &Slot { off: end, len, flags })?;
@@ -361,12 +362,13 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
     let new_loc;
     if !long && old_inline.is_some_and(|(_, _, len)| reserve(p.len) <= reserve(len)) {
         // In place.
-        let mut so = StackOut::new();
-        filled = row::write(shape, h, tbl, uid, src, &p, &mut so, Some(old))?.saturating_add(so.filled);
-        released(h, tbl, shape, src, old)?;
         let (block, off, _) = old_inline.ok_or(rt(Corruption::Link, 0))?;
-        let b = h.get_mut(Region::Block(block))?;
-        put(b, off, so.bytes())?;
+        filled = row::staged(p.len, |so| {
+            let f = row::write(shape, h, tbl, uid, src, &p, so, Some(old))?.saturating_add(so.filled);
+            released(h, tbl, shape, src, old)?;
+            put(h.get_mut(Region::Block(block))?, off, so.bytes())?;
+            Ok::<_, Fault>(f)
+        })?;
         let len16 = u16::try_from(p.len).map_err(|_| rt(Corruption::Range, p.len))?;
         if slot.flags & SLOT_MOVED != 0 {
             put_u16(h.get_mut(Region::Block(at.block))?, slot.off.wrapping_add(10), len16)?;
@@ -376,13 +378,15 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
         new_loc = RowLoc::Inline { block, off, len: p.len };
     } else if !long && room(&*h, tail)? >= reserve(p.len) {
         // Moved to the open group's tail block; the slot names it through a moved stub.
-        let mut so = StackOut::new();
-        filled = row::write(shape, h, tbl, uid, src, &p, &mut so, Some(old))?.saturating_add(so.filled);
-        released(h, tbl, shape, src, old)?;
         let end = buffer::u16_of(&*h, tail, B_ROWS_END)?;
+        filled = row::staged(p.len, |so| {
+            let f = row::write(shape, h, tbl, uid, src, &p, so, Some(old))?.saturating_add(so.filled);
+            released(h, tbl, shape, src, old)?;
+            put(h.get_mut(Region::Block(tail))?, end, so.bytes())?;
+            Ok::<_, Fault>(f)
+        })?;
         {
             let b = h.get_mut(Region::Block(tail))?;
-            put(b, end, so.bytes())?;
             fill(b, end.wrapping_add(p.len), reserve(p.len).wrapping_sub(p.len), 0)?;
             put_u16(
                 b,

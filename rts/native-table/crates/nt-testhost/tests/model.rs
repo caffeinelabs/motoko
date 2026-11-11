@@ -6,8 +6,8 @@
 //! Each table is drawn from the seed: its schema (1 to 8 fields, or 60 to 80 mostly integer ones; 0 to 4
 //! indexes of 1 to 7 fields; the key's type goes round the types by table number), each field's pool of
 //! values, and a mix of writes. Values lean to the sizes where the table's
-//! layout changes: Text and Blob lengths around 8, 16, 1,012, 1,024, 2,048, 3,072, 4,096 and 65,536 bytes
-//! (keys longer than 4,096 bytes among them), integers at the ends of every width, Nat and Int values past
+//! layout changes: Text and Blob lengths around 8, 16, 64, 80, 256, 1,012, 1,024, 2,048, 3,072, 4,096 and 65,536
+//! bytes (keys longer than 4,096 bytes among them), integers at the ends of every width, Nat and Int values past
 //! i128 (some of thousands of bytes), floats at their edges (−0.0, infinities, NaN), and option fields that
 //! are never, sometimes, mostly or always null. Text and Blob fields outside every index are given now and
 //! then as cells the table copies from the message argument, and Nat and Int values within 64 bits now and
@@ -410,9 +410,10 @@ fn weighted<T: Copy>(r: &mut XorShift, xs: &[(T, u64)]) -> T {
 
 /// Byte lengths where the layout changes: index key areas, inline and fixed limits, long values, blocks,
 /// key buffers and image blocks.
-const EDGES: [usize; 41] = [
-    0, 1, 2, 7, 8, 9, 15, 16, 17, 29, 30, 31, 32, 33, 63, 64, 65, 127, 128, 129, 1_011, 1_012, 1_013, 1_015, 1_016,
-    1_017, 1_023, 1_024, 1_025, 2_047, 2_048, 2_049, 3_071, 3_072, 3_073, 4_095, 4_096, 4_097, 4_799, 4_800, 4_801,
+const EDGES: [usize; 47] = [
+    0, 1, 2, 7, 8, 9, 15, 16, 17, 29, 30, 31, 32, 33, 63, 64, 65, 79, 80, 81, 127, 128, 129, 255, 256, 257, 1_011,
+    1_012, 1_013, 1_015, 1_016, 1_017, 1_023, 1_024, 1_025, 2_047, 2_048, 2_049, 3_071, 3_072, 3_073, 4_095, 4_096,
+    4_097, 4_799, 4_800, 4_801,
 ];
 const HUGE: [usize; 6] = [8_191, 8_192, 65_535, 65_536, 65_537, 70_000];
 

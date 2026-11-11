@@ -465,17 +465,17 @@ struct Col {
 }
 
 /// Hands the leaves `ids` names of each matching row to a sink, at most `left` more rows.
-struct Cells<'o, 'i, S: RowSink> {
+struct Cells<'o, 'i, S: RowSink, const N: usize> {
     ids: &'i [u32],
-    /// The first `COLS` leaves of `ids`, found.
-    cols: [Option<Col>; COLS],
+    /// The first `N` leaves of `ids`, found.
+    cols: [Option<Col>; N],
     /// The filter's leaf, whose value the test has read.
     tested: Option<u16>,
     out: &'o mut S,
     left: u64,
 }
 
-impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
+impl<'o, 'i, S: RowSink, const N: usize> Cells<'o, 'i, S, N> {
     /// `BadRef` for a leaf of `ids` the table does not have live.
     fn new<H: PageHost + ?Sized>(
         h: &H,
@@ -485,7 +485,7 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
         out: &'o mut S,
         left: u64,
     ) -> Result<Self, Fault> {
-        let mut cols = [None; COLS];
+        let mut cols = [None; N];
         for (i, &id) in ids.iter().enumerate() {
             let o = shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?;
             if let Some(x) = cols.get_mut(i) {
@@ -495,7 +495,7 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
         Ok(Cells { ids, cols, tested, out, left })
     }
 
-    /// Leaf i of `ids`, found again: one past the first `COLS`, kept out of the row loops.
+    /// Leaf i of `ids`, found again: one past the first `N`, kept out of the row loops.
     #[inline(never)]
     fn leaf<H: PageHost + ?Sized>(&self, h: &H, shape: &Shape, i: usize) -> Result<LeafInfo, Fault> {
         let id = *self.ids.get(i).ok_or(rt(Corruption::Range, i as u64))?;
@@ -503,7 +503,7 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
     }
 
     /// Leaf i of `ids` and its leaf directory entry in the group `gv` views, found again: one past the first
-    /// `COLS`, kept out of the row loops.
+    /// `N`, kept out of the row loops.
     #[inline(never)]
     fn col<H: PageHost + ?Sized>(&self, gv: &GroupView<'_, H>, shape: &Shape, i: usize) -> Result<Col, Fault> {
         let l = self.leaf(gv.h, shape, i)?;
@@ -522,7 +522,7 @@ impl<'o, 'i, S: RowSink> Cells<'o, 'i, S> {
     }
 }
 
-impl<H: PageHost + ?Sized, S: RowSink> Visit<H> for Cells<'_, '_, S> {
+impl<H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<H> for Cells<'_, '_, S, N> {
     fn full(&self) -> bool {
         self.left == 0
     }
@@ -861,12 +861,13 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     out: &mut S,
 ) -> Result<Option<u64>, Fault> {
     let t = test_of(h, shape, f)?;
-    let mut c = Cells::new(h, shape, leaves, t.as_ref().map(|t| t.l.ordinal), out, limit)?;
+    let mut c = Cells::<_, COLS>::new(h, shape, leaves, t.as_ref().map(|t| t.l.ordinal), out, limit)?;
     run(h, tbl, shape, t.as_ref(), next, &mut c)
 }
 
 /// The leaves `leaves` names of live row `rid`, which lies at `row`, handed to `out` in the order named, then
-/// `row_end`.
+/// `row_end`. Each leaf is found as it is read, with no cache to fill: one the table does not have live is
+/// `BadRef` there.
 pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     shape: &Shape,
@@ -875,7 +876,7 @@ pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
     rid: u64,
     out: &mut S,
 ) -> Result<(), Fault> {
-    let mut c = Cells::new(h, shape, leaves, None, out, 1)?;
+    let mut c = Cells { ids: leaves, cols: [], tested: None, out, left: 1 };
     match row {
         read::Row::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
         read::Row::Sealed { page, pos } => {
