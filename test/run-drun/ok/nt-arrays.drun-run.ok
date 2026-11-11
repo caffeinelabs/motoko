@@ -9,9 +9,35 @@ debug.print: ("history.note", {array = ?{optional = true}; optional = false; sca
 debug.print: ("history.amount", {array = ?{optional = false}; optional = false; scalar = #nat})
 debug.print: ("history.since", {array = ?{optional = false}; optional = false; scalar = #int})
 ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, true)
+debug.print: ?{blobs = ["", "\00\FF\7F"]; bools = [true, false]; chars = ['a', 'ü', '􏿿']; floats = [0.000000, -0.500000, 1250000000000000.000000, -0.003000]; i16 = [-32_768, +32_767]; i32 = [-2_147_483_648, +2_147_483_647]; i64 = [-9_223_372_036_854_775_808, +9_223_372_036_854_775_807]; i8 = [-128, +127]; ints = [0, -1, -64, +64, -65, -4_611_686_018_427_387_905, +9_223_372_036_854_775_808, -340_282_366_920_938_463_463_374_607_431_768_211_457]; maybe = ?[]; n16 = [0, 65_535]; n32 = [0, 4_294_967_295]; n64 = [0, 18_446_744_073_709_551_615]; n8 = [0, 255]; nats = [0, 127, 128, 4_611_686_018_427_387_903, 4_611_686_018_427_387_904, 18_446_744_073_709_551_616, 340_282_366_920_938_463_463_374_607_431_768_211_456]; options = [null, ?0, ?(-1), null]; principals = [aaaaa-aa, 2vxsx-fae, zy3kj-sybai-bqibi-ga4ea-scqlb-qgq4d-yqcej-bgfav-cylrq-gi2dm-ob2]; records = [{float = 2.500000; small = 1; text = null}, {float = -0.000000; small = 255; text = ?"x"}]; texts = ["", "Zürich", "ab"]}
+debug.print: ("ends", true)
+debug.print: ("empties", true)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_200, ?{codes = ["c1"]; history = [{amount = 1; note = null; since = -1}]; name = "p1"; scores = [?1, null, ?1_000_000_000_000_000_000_000]; tags = ?["t1"]}, ?{codes = ["c2", "c3"]; name = "p2"}, ?{codes = ["c4_199", "c4_200", "c4_201"]; history = [{amount = 4_199; note = null; since = -4_199}, {amount = 4_200; note = ?"raise"; since = -4_199}]; name = "p4_199"; scores = [?4_199, null, ?4_199_000_000_000_000_000_000_000]; tags = ?["t4_199"]})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, true, true, ?{codes = ["new"]; history = [{amount = 5; note = null; since = -5}, {amount = 6; note = ?"raise"; since = -5}]; name = "p5"; scores = []; tags = null}, ?{codes = ["new"]; name = "p5"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {cells = ?[#nat(0), #text("p0")]; got = 4_200; keys = 4_200; scanned = 8_400; viewed = 4_200; walked = (true, true)}
+ingress Completed: Reply: 0x4449444c0000
 debug.print: (2, ?(+71), [("age", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text}), ("codes", {array = ?{optional = false}; optional = true; scalar = #text}), ("history.amount", {array = ?{optional = false}; optional = true; scalar = #nat})])
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (1, {age = 30; codes = ?["a", "b"]; history = null; name = "Ana"})
+debug.print: (2, {age = 41; codes = null; history = null; name = "Bo"})
+debug.print: (3, {age = 7; codes = null; history = ?[{amount = 5}, {amount = 6}]; name = "Cy"})
+debug.print: (?{codes = ?["a", "b"]; history = null}, ?{codes = null; history = null}, ?{codes = null; history = ?[{amount = 5}, {amount = 6}]})
 ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field changes its type'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
-debug.print: (2, ?(+71))
+debug.print: (3, ?(+78))
 ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field of an array type has no index, filter or total'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field of an array type has no index, filter or total'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field of an array type has no index, filter or total'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field of an array type has no index, filter or total'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field of an array type has no index, filter or total'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

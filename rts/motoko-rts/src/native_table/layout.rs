@@ -50,6 +50,7 @@ pub struct Layout<'a> {
 }
 
 /// A column of a layout: its type codes, its label hash and its name, empty for none.
+#[derive(Clone, Copy)]
 pub struct Entry<'a> {
     pub codes: &'a [u8],
     pub hash: u32,
@@ -92,6 +93,32 @@ fn scalar(code: u8) -> bool {
 fn array_codes(b: &[u8]) -> usize {
     let at = u32::from(b.first() == Some(&ty::OPTION));
     list_end(b, at).map_or(usize::MAX, |end| end as usize)
+}
+
+/// Whether the type codes `codes` are an array's, an option of one when the first is the option
+/// code, and the codes of its element; `None` when they are not an array's.
+pub fn array_type(codes: &[u8]) -> Option<(bool, &[u8])> {
+    let optional = codes.first() == Some(&ty::OPTION);
+    let at = usize::from(optional);
+    let end = list_end(codes, at as u32).ok()? as usize;
+    (end == codes.len()).then(|| (optional, &codes[at + 1..]))
+}
+
+/// The parts of an array's element of the type codes `element`, each with its type codes: the
+/// fields of a record, as column entries, else the element itself; with whether it is a record.
+pub fn element_parts(element: &[u8]) -> (bool, impl Iterator<Item = Entry<'_>> + Clone) {
+    let record = element.first() == Some(&ty::RECORD);
+    let one = (!record).then_some(Entry {
+        codes: element,
+        hash: 0,
+        name: &[],
+    });
+    let rest = if record {
+        element.get(3..).unwrap_or(&[])
+    } else {
+        &[]
+    };
+    (record, one.into_iter().chain(Entries { rest }))
 }
 
 /// The column entry at the start of `b`, and the bytes after it.
