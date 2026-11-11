@@ -357,7 +357,8 @@ fn check_sorted(tb: &Table<'_, VecHost>, i: usize, m: &Model) {
     assert_eq!((min, max), (keys.first().cloned(), keys.last().cloned()), "index {ix}: the ends");
 }
 
-/// Every index against the model: every key's count, a key no row holds, the group walk, and the sorted walks.
+/// Every index against the model: every key's count, and by the first part, a key no row holds, the group walk,
+/// and the sorted walks.
 fn check(tb: &Table<'_, VecHost>, m: &Model) -> u64 {
     check_live(tb, m, &[1, 2, 3, 4, 5])
 }
@@ -385,6 +386,15 @@ fn check_live(tb: &Table<'_, VecHost>, m: &Model, live: &[u8]) -> u64 {
                 0,
                 "index {ix}: a key no row holds"
             );
+        }
+        // By the first part alone, on an index of two.
+        let mut firsts: HashMap<String, (Vec<(u32, V)>, i128)> = HashMap::new();
+        for (cells, c) in counts.values().filter(|(cells, _)| cells.len() > 1) {
+            firsts.entry(format!("{:?}", cells[0])).or_insert((cells[..1].to_vec(), 0)).1 += c;
+        }
+        for (cells, c) in firsts.values() {
+            let got = tb.count_prefix(&mut key_scratch(), ix, 1, &mut Src::new(cells)).unwrap();
+            assert_eq!(got, *c, "index {ix}: by the first part");
         }
         let mut want: Vec<i128> = counts.values().map(|x| x.1).collect();
         let mut got = walk(tb, i);
@@ -609,8 +619,9 @@ fn long_keys_hand_back_their_records() {
 
 /// Texts of 5,000, 20,000 and 100,000 bytes beside short ones (some sharing all but their last byte, some with
 /// a zero byte, which the key encoding escapes, one a prefix of another), under three indexes: the text alone;
-/// a nullable text then an i64; an i64 then the text. Inserts, updates, removes and seals against a model, with
-/// every key's count through each index; removing every row empties every tree and key log.
+/// a nullable text then an i64; an i64 (its largest value among them, a key of FF bytes) then the text. Inserts,
+/// updates, removes and seals against a model, with every key's count through each index, and by its first part;
+/// removing every row empties every tree and key log.
 #[test]
 fn long_keys_model() {
     let cols = vec![t::scalar(ty::NAT), t::scalar(ty::TEXT), t::opt(t::scalar(ty::TEXT)), t::scalar(ty::I64)];
@@ -646,6 +657,10 @@ fn long_keys_model() {
             for k in keys {
                 let want = m.values().filter(|(_, row)| cells(i, row) == k).count() as i128;
                 assert_eq!(tb.count(&mut key_scratch(), *ix, &mut Src::new(&k)).unwrap(), want, "index {ix}");
+                // By the first part alone.
+                let want = m.values().filter(|(_, row)| cells(i, row)[0] == k[0]).count() as i128;
+                let got = tb.count_prefix(&mut key_scratch(), *ix, 1, &mut Src::new(&k[..1])).unwrap();
+                assert_eq!(got, want, "index {ix}, first part");
             }
             // The sorted walks, whole and in pieces, and the ends, over keys of any length.
             let mut buf = vec![0u8; 200_000];
@@ -702,8 +717,12 @@ fn long_keys_model() {
             let k = r.below(48);
             let pick = |r: &mut XorShift| pool[r.below(pool.len() as u64) as usize].clone();
             let opt = if r.below(4) == 0 { V::Null } else { V::Bytes(pick(&mut r)) };
-            let row =
-                vec![(id(0), V::U(k)), (id(1), V::Bytes(pick(&mut r))), (id(2), opt), (id(3), V::I(r.below(3) as i64))];
+            let row = vec![
+                (id(0), V::U(k)),
+                (id(1), V::Bytes(pick(&mut r))),
+                (id(2), opt),
+                (id(3), V::I([0, 1, i64::MAX][r.below(3) as usize])),
+            ];
             upsert(&mut tb, &mut m, k, row);
         } else if op < 8 {
             let k = r.below(48);

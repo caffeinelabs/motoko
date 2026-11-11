@@ -7,7 +7,8 @@ import NativeTable "mo:native-table/NativeTable";
 // option Nat, an Int past 64 and 128 bits and a Text, a Nat8 and an Int16, a Nat64, an Int64 and an
 // Int8, a Blob and a Principal. For each index: its distinct keys with their numbers of rows; the
 // count of each key, and of the first also with Int cells for the fields of unsigned types and
-// Char, the index named by another list of the same fields; walks forward and backward from a
+// Char, the index named by another list of the same fields; the count by its first field, and by
+// its first two; walks forward and backward from a
 // key, to a key, between two keys and between values no row has, and over every key of the
 // indexes on a Text, on a Nat and on a field that is always null, each handing back the rows it
 // covers exactly once, in key order, across batches; and the rows with the smallest and the
@@ -16,8 +17,8 @@ import NativeTable "mo:native-table/NativeTable";
 // twice is one index. A walk of the groups resumed after writes goes on in order and hands back
 // the keys the writes added past it. maintain has no work on an empty table. Unique indexes refuse
 // a second row's value. A field the row does not have, an empty field list, fields the table has
-// no index on, and keys with a cell of the wrong kind, the wrong number of cells or a cell out of
-// range trap
+// no index on, and keys with a cell of the wrong kind, the wrong number of cells, no cell or a cell
+// out of range trap
 actor {
   type Cell = NativeTable.Cell;
   type Row = {
@@ -250,6 +251,17 @@ actor {
       }
     };
     for i in gs.keys() { if tally[i] != gs[i].1 { wrong += 1 } };
+    // The rows of each first field and of each first two, counted by them alone: the groups that
+    // start with them, which come together
+    for p in [1, 2].values() {
+      var i = 0;
+      while p < index.size() and i < gs.size() {
+        let first = Prim.Array_tabulate<Cell>(p, func j = gs[i].0[j]);
+        var sum = 0;
+        while i < gs.size() and order(first, gs[i].0) == 0 { sum += gs[i].1; i += 1 };
+        if rows.count(index, first) != sum { wrong += 1 }
+      }
+    };
     wrong
   };
 
@@ -510,6 +522,7 @@ actor {
   public func noIndex() : async () { ignore rows.count(["s", "c"], [#text("a"), #int(3)]) };
   public func wrongKind() : async () { ignore rows.count(["s"], [#nat(3)]) };
   public func wrongLength() : async () { ignore rows.reverseIndexEntries(["c", "s"], null, ?[#int(3)]) };
+  public func noCells() : async () { ignore rows.count(["c", "s"], []) };
   public func tooLarge() : async () { ignore rows.count(["n8", "i16"], [#nat(256), #int(0)]) };
   public func surrogate() : async () { ignore rows.count(["ch"], [#nat(0xD800)]) }
 }
@@ -542,5 +555,6 @@ actor {
 //CALL ingress noIndex "DIDL\x00\x00"
 //CALL ingress wrongKind "DIDL\x00\x00"
 //CALL ingress wrongLength "DIDL\x00\x00"
+//CALL ingress noCells "DIDL\x00\x00"
 //CALL ingress tooLarge "DIDL\x00\x00"
 //CALL ingress surrogate "DIDL\x00\x00"

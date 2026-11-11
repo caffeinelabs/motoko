@@ -548,6 +548,18 @@ impl<'h, H: PageHost> Table<'h, H> {
         indexes::count(&*self.host, self.root, &self.shape, index, key, scratch)
     }
 
+    /// `count` of the rows whose first `parts` parts under index `index` (all of them when it has no more) have
+    /// the cells of `key`: one descent, then a step per index entry of those rows.
+    pub fn count_prefix<S: Scratch, K: RowSource + ?Sized>(
+        &self,
+        scratch: &mut S,
+        index: u8,
+        parts: u8,
+        key: &mut K,
+    ) -> Result<i128, Fault> {
+        indexes::count_prefix(&*self.host, self.root, &self.shape, index, parts, key, scratch)
+    }
+
     /// The key the cells of `cells` give secondary index `index` (by leaf id, as a row's), its full encoding, at
     /// the start of `out`, for a walk to start at; its length. `BadRef` when the table has no secondary index
     /// `index`.

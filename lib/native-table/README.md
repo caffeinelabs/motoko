@@ -214,7 +214,9 @@ for (key, n) in orders.groupCounts(["city"]) { /* … */ }; // ([#text("Basel")]
 for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"), #int(now)], ?[#text("Zurich"), #int(now - week)]) { /* … */ }
 ```
 
-- `count` takes a full key: one cell for every field of the index.
+- `count` takes a cell for every field of the index, or for its first fields only:
+  `orders.count(["city", "placed"], [#text("Zurich")])` counts every Zurich order. A count by first
+  fields takes longer the more rows it counts; a count of a whole key does not.
 - Rows whose indexed field is null are in the index; null comes before every value.
 - Rows with equal keys come in the table's own order.
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.

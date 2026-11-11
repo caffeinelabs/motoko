@@ -381,7 +381,7 @@ fn source_key<'s, H: PageHost + ?Sized, R: RowSource + ?Sized, S: Scratch>(
     d: &Decl,
     src: &mut R,
     scratch: &'s mut S,
-) -> Result<&'s [u8], Fault> {
+) -> Result<&'s mut [u8], Fault> {
     let mut c = LenSink(0);
     enc_source(shape, h, d, src, &mut c)?;
     let need = usize::try_from(c.0).map_err(|_| Fault::Scratch { need: c.0 })?;
@@ -611,6 +611,29 @@ fn count_long<H: PageHost + ?Sized, K: RowSource + ?Sized, S: Scratch>(
 ) -> Result<i128, Fault> {
     let key = source_key(shape, h, d, key, scratch)?;
     Secondary::read(h, tbl, d.id)?.count(h, key)
+}
+
+/// The rows whose first `parts` parts under index `index` have the cells of `key` (`Secondary::count_prefix`). A
+/// key longer than `KEY_STACK` is encoded into `scratch`.
+#[inline(never)]
+pub fn count_prefix<H: PageHost + ?Sized, K: RowSource + ?Sized, S: Scratch>(
+    h: &H,
+    tbl: u64,
+    shape: &Shape,
+    index: u8,
+    parts: u8,
+    key: &mut K,
+    scratch: &mut S,
+) -> Result<i128, Fault> {
+    let mut d = find(shape, h, index)?;
+    d.parts = d.parts.min(parts);
+    let ix = Secondary::read(h, tbl, index)?;
+    let mut buf = [0u8; KEY_STACK];
+    match key_of_source(shape, h, &d, key, &mut buf) {
+        Ok(n) => ix.count_prefix(h, buf.get_mut(..n).unwrap_or(&mut [])),
+        Err(Fault::Scratch { .. }) => ix.count_prefix(h, source_key(shape, h, &d, key, scratch)?),
+        Err(e) => Err(e),
+    }
 }
 
 /// The key the cells of `cells` give index `index`, at the start of `out`; its length.

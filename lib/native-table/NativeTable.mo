@@ -390,7 +390,7 @@ module {
   };
 
   /// The number of rows whose fields under the index on `index` have the values of `key`, one
-  /// cell per field of the index, in its order.
+  /// cell per field of the index, in its order, or per each of its first fields only.
   public func count<K, R>(self : NativeTable<K, R>, index : [Text], key : [Cell]) : Nat {
     Prim.ntCount(self.id, self.codec, self.indexes, index, key)
   };

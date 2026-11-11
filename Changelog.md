@@ -17,7 +17,8 @@
     whole. A key can be a tuple of 2 to 7 scalars. `clear` removes every row
     at a cost that does not grow with the table. Scans go in the order keys
     were first added, and `reverseEntries` goes newest first. A unique index
-    refuses a second row with its value, and `tryAdd` returns false then. The compiler
+    refuses a second row with its value, and `tryAdd` returns false then.
+    `count` takes the values of an index's first fields too. The compiler
     supplies a table's codec from its key and row types and rejects types a
     table cannot have with the new error M0279; `moc.js` rejects a program
     that uses native tables with the new error M0280 (#6492).

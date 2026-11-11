@@ -531,16 +531,18 @@ unsafe fn index_of(indexes: Value, fields: Value) -> u8 {
 }
 
 /// The cells of the index key the array `key` gives secondary index `index` of `table`, one cell
-/// per part of the index in key order, in a Blob that lives until the next collection: a cell for
-/// every column, as a row's, null for the columns the index has no part of, which the crate does
-/// not read.
+/// per part of the index in key order (per one of its first parts, at least one, when `prefix`), in
+/// a Blob that lives until the next collection: a cell for every column, as a row's, null for the
+/// columns the key has no part of, which the crate does not read; and whether the key has fewer
+/// parts than the index.
 unsafe fn index_cells<'c, M: Memory, H: PageHost>(
     mem: *mut M,
     layout: &Layout,
     table: &Table<'_, H>,
     index: u8,
     key: Value,
-) -> Cells<'c> {
+    prefix: bool,
+) -> (Cells<'c>, bool) {
     let key = key.as_array();
     let columns = layout.columns();
     let cells = scratch::<CellIn, M>(&mut *mem, columns);
@@ -549,10 +551,11 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
     }
     let (shape, h) = (table.shape(), table.host());
     let d = or_trap(indexes::find(shape, h, index));
-    if key.len() != d.ords().len() {
+    let (n, short) = (key.len(), key.len() < d.ords().len());
+    if n == 0 || n > d.ords().len() || short && !prefix {
         rts_trap_with("native table: index key does not match the index's fields");
     }
-    for (i, &o) in d.ords().iter().enumerate() {
+    for (i, &o) in d.ords().iter().take(n).enumerate() {
         let column = (or_trap(shape.leaf(h, u64::from(o))).id >> 16) as usize;
         let codes = match layout.entries().nth(column) {
             Some(e) => e.codes,
@@ -562,12 +565,15 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
             .add(column)
             .write(key_cell(&mut *mem, codes, key.get(i)));
     }
-    Cells::new(core::slice::from_raw_parts(cells, columns))
+    (
+        Cells::new(core::slice::from_raw_parts(cells, columns)),
+        short,
+    )
 }
 
 /// The number of rows of the table whose root block is `id` whose key under the secondary index
-/// on `fields`, found in `indexes` (`index_of`), is the one the cells of the array `key` give, one
-/// per part of the index, in key order.
+/// on `fields`, found in `indexes` (`index_of`), starts with the one the cells of the array `key`
+/// give, one per part of the index in key order, for all its parts or its first ones.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_count<M: Memory>(
     mem: &mut M,
@@ -585,9 +591,13 @@ pub unsafe fn nt_count<M: Memory>(
         layout = map.layout(&mut *mem, &layout);
     }
     let table = table_at(&mut host, id);
-    let mut cells = index_cells(mem, &layout, &table, index, key);
+    let (mut cells, short) = index_cells(mem, &layout, &table, index, key, true);
     let mut scratch = BlobScratch { mem };
-    or_trap(table.count(&mut scratch, index, &mut cells)) as u64
+    or_trap(if short {
+        table.count_prefix(&mut scratch, index, key.as_array().len() as u8, &mut cells)
+    } else {
+        table.count(&mut scratch, index, &mut cells)
+    }) as u64
 }
 
 /// The key `f` writes at the start of the buffer it is given, of the length it returns, or `None`
@@ -697,7 +707,7 @@ pub unsafe fn nt_walk<M: Memory>(
                 Dir::Rev => table.max_key(index, out),
             }),
             2 => {
-                let mut cells = index_cells(mem, &layout, &table, index, from);
+                let (mut cells, _) = index_cells(mem, &layout, &table, index, from, false);
                 key_of(mem, |out| table.index_key(index, &mut cells, out).map(Some))
             }
             _ => rts_trap_with("native table: unknown walk start"),
@@ -712,7 +722,7 @@ pub unsafe fn nt_walk<M: Memory>(
     let to = if to == NULL_POINTER {
         None
     } else {
-        let mut cells = index_cells(mem, &layout, &table, index, to);
+        let (mut cells, _) = index_cells(mem, &layout, &table, index, to, false);
         or_trap(key_of(mem, |out| {
             table.index_key(index, &mut cells, out).map(Some)
         }))
