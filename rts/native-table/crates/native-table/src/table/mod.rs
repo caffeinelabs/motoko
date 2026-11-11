@@ -902,6 +902,20 @@ impl<'h, H: PageHost> Table<'h, H> {
         filter::cells(&*self.host, self.root, &self.shape, leaves, f, next, limit, out)
     }
 
+    /// The live rows below rid `before`, newest first, at most `limit` of them, each handed to `out` whole, as
+    /// `scan_where` hands it, or with only the leaves `leaves` names, as `scan_cells` does. Returns the rid to go
+    /// on from (the rows below it are left), or `None` when no row is left. Rids never move, so a scan resumed
+    /// after writes hands out every row that stays in the table exactly once.
+    pub fn scan_back<S: RowSink>(
+        &self,
+        leaves: Option<&[u32]>,
+        before: u64,
+        limit: u64,
+        out: &mut S,
+    ) -> Result<Option<u64>, Fault> {
+        filter::back(&*self.host, self.root, &self.shape, leaves, before, limit, out)
+    }
+
     /// How many live rows meet `f`, as `scan_where` finds them, reading no other cell of a row.
     pub fn count_where(&self, f: &filter::Filter<'_>) -> Result<u64, Fault> {
         filter::count(&*self.host, self.root, &self.shape, f)

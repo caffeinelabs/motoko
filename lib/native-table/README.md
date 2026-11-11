@@ -170,10 +170,12 @@ ignore people.update(1, { codes = ["CH", "DE", "FR"] })
 |---|---|
 | `t.entries()` | every `(K, R)` |
 | `t.keys()`, `t.values()` | every key, every row |
+| `t.reverseEntries()` | every `(K, R)`, newest first |
 
-Scans go in the table's own order, not key order. A row that stays in the table while a scan runs
-comes exactly once, even when other rows are added or removed in between. For key order, walk an
-index.
+Scans go in the table's own order: the order the keys were first added, not key order. `add` over
+a key the table has, `update` and `upsert` keep a row's place; a key removed and added again comes
+last; after `clear` the order starts again. A row that stays in the table while a scan runs comes
+exactly once, even when other rows are added or removed in between. For key order, walk an index.
 
 ## Read through an index
 

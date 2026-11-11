@@ -3,7 +3,8 @@ import NativeTable "mo:native-table/NativeTable";
 
 // entries, keys and values hand back every row exactly once, in batches: tables of 0 rows, of 1
 // row, and of 5,000 rows across more than one row group with 1,000 of them removed. keys and
-// values give the keys and rows of entries, in the same order
+// values give the keys and rows of entries, in the same order, and reverseEntries those of entries
+// in the reverse order. Rows come in the order their keys were first added
 actor {
   type Row = { name : Text; square : Nat };
 
@@ -62,7 +63,34 @@ actor {
       i += 1
     };
     Prim.debugPrint(debug_show { rows; wrong; twice; missing; disagree });
-    Prim.debugPrint(debug_show (keys.next(), values.next()))
+    Prim.debugPrint(debug_show (keys.next(), values.next()));
+
+    Prim.debugPrint(debug_show (none.reverseEntries().next(), one.reverseEntries().next()));
+    let added = Prim.Array_init<Nat>(rows, 0);
+    var n = 0;
+    for (k in many.keys()) { added[n] := k; n += 1 };
+    for ((k, r) in many.reverseEntries()) {
+      n -= 1;
+      if (k != added[n] or r != row(k)) { disagree += 1 }
+    };
+    Prim.debugPrint(debug_show { n; disagree })
+  };
+
+  // add over a key keeps its row's place, a key removed and added again comes last; a scan newest
+  // first hands out no row added or removed since it began, and every other row once
+  public func order() : async () {
+    many.add(3, row(3));
+    many.remove(4);
+    many.add(4, row(4));
+    let names : NativeTable.NativeTable<Nat, { name : Text }> = many.view();
+    let (old, back) = (many.keys(), names.reverseEntries());
+    Prim.debugPrint(debug_show (old.next(), old.next(), old.next(), back.next(), back.next()));
+    many.add(6_000, row(6_000));
+    many.remove(0);
+    var rows = 2;
+    var wrong = 0;
+    for ((k, _) in back) { rows += 1; if (k == 6_000 or k == 0) { wrong += 1 } };
+    Prim.debugPrint(debug_show (rows, wrong, many.size()))
   }
 }
 
@@ -73,3 +101,4 @@ actor {
 //MOC-FLAG --package native-table ../../lib/native-table
 //CALL ingress put "DIDL\x00\x00"
 //CALL ingress scan "DIDL\x00\x00"
+//CALL ingress order "DIDL\x00\x00"

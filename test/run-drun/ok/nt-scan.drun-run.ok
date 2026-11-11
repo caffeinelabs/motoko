@@ -7,4 +7,9 @@ debug.print: (?("only", 1), ?"only", ?1)
 debug.print: (null, null, null)
 debug.print: {disagree = 0; missing = 0; rows = 4_000; twice = 0; wrong = 0}
 debug.print: (null, null)
+debug.print: (null, ?("only", 1))
+debug.print: {disagree = 0; n = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (?0, ?1, ?3, ?(4, {name = "row 4"}), ?(4_999, {name = "row 4_999"}))
+debug.print: (3_999, 0, 4_000)
 ingress Completed: Reply: 0x4449444c0000

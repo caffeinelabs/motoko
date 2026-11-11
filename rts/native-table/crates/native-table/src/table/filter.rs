@@ -855,6 +855,60 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     run(h, tbl, shape, t.as_ref(), next, &mut c)
 }
 
+/// The live rows below rid `before`, newest first, at most `limit` of them, each handed to `out` whole, or as the
+/// values of the leaves `leaves` names in the order named; the rid to go on from (the rows below it are left), or
+/// `None` when no row is left.
+pub fn back<H: PageHost + ?Sized, S: RowSink>(
+    h: &H,
+    tbl: u64,
+    shape: &Shape,
+    leaves: Option<&[u32]>,
+    before: u64,
+    limit: u64,
+    out: &mut S,
+) -> Result<Option<u64>, Fault> {
+    let (ids, n) = leaves.map_or((&[][..], usize::try_from(shape.leaves).unwrap_or(0)), |l| (l, l.len()));
+    let mut c = Cells::<_, COLS>::new(ids, n, None, out, limit);
+    c.find(h, shape)?;
+    let (open, _, tail) = buffer::open_group(h, tbl)?;
+    let mut rid = before.min(open.wrapping_mul(GROUP_SLOTS).wrapping_add(buffer::u16_of(h, tail, buffer::H_OPEN_POS)?));
+    while rid > 0 {
+        let g = rid.wrapping_sub(1) / GROUP_SLOTS;
+        let base = g.wrapping_mul(GROUP_SLOTS);
+        let entry = root::group(h, tbl, g)?;
+        if entry == 0 {
+            rid = base;
+        } else if entry & DESC_BIT != 0 {
+            while rid > base {
+                if c.left == 0 {
+                    return Ok(Some(rid));
+                }
+                rid = rid.wrapping_sub(1);
+                if let Some(Live::Buffered(at)) = read::live(h, tbl, rid)? {
+                    c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None)?;
+                }
+            }
+        } else {
+            let s = overlay::sealed(h, entry)?;
+            let gv = GroupView::from_meta(h, &s.meta);
+            c.open(&gv)?;
+            let live = h.get(Region::Block(s.page))?;
+            rid = rid.min(base.wrapping_add(s.meta.p));
+            while rid > base {
+                if c.left == 0 {
+                    return Ok(Some(rid));
+                }
+                rid = rid.wrapping_sub(1);
+                let pos = rid.wrapping_sub(base);
+                if page::live_bit(live, pos)? {
+                    c.sealed(&gv, shape, &s, pos, gv.slot(pos)?, rid, None)?;
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
 /// The leaves `leaves` names of live row `rid`, which lies at `row`, handed to `out` in the order named, then
 /// `row_end`. Each leaf is found as it is read, with no cache to fill: one the table does not have live is
 /// `BadRef` there.

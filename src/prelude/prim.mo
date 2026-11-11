@@ -151,6 +151,12 @@ func ntScanValues<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit
   (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, null, next, limit)
 };
 
+// Every row newest first: up to `limit` rows (at most 64) below row id `before`; and the row id
+// to go on from, or null when no row is left
+func ntScanBack<K, R>(id : Nat64, codec : NtCodec<(K, R)>, before : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 4, null, before, limit)
+};
+
 // The value of one field of an index key
 type NtCell = {
   #null_;

@@ -1209,6 +1209,27 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
     };
     cell_scan(None, &|_| true, r);
 
+    // Newest first, whole rows or some fields, in pieces.
+    let cols = some_cols(s, r);
+    let leaves: Vec<u32> = cols.iter().map(|&c| leaf(c)).collect();
+    for some in [None, Some(&leaves[..])] {
+        let limit = pick(r, &[1, 3, 64, 1_000, u64::MAX]);
+        let mut out = Rows::new(tb, s, r);
+        let mut next = Some(u64::MAX);
+        while let Some(n) = next {
+            next = tb.scan_back(some, n, limit, &mut out).unwrap();
+        }
+        let want: Vec<(u64, Vec<(u32, Mv)>)> = match some {
+            None => all.iter().rev().cloned().collect(),
+            Some(_) => by_rid
+                .iter()
+                .rev()
+                .map(|(rid, e)| (*rid, cols.iter().map(|&c| (leaf(c), e.1[c].clone())).collect()))
+                .collect(),
+        };
+        assert!(same(s, &out.out, &want), "a scan newest first of {some:?}");
+    }
+
     // Misuse is refused: a field the table does not have, a null where the field holds none or as a range's
     // end, a value of another type, a sum of a field that is not an integer.
     let none = leaf(s.cols.len());

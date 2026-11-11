@@ -239,9 +239,10 @@ module {
     }
   };
 
-  /// The keys and rows of the table, in the table's own order, not in key order. Every row that
-  /// stays in the table while the iterator runs comes exactly once, also when other rows are
-  /// added or removed in between.
+  /// The keys and rows of the table, in the table's own order: the order their keys were first
+  /// added, not key order. `add` over a key the table has, `update` and `upsert` keep a row's
+  /// place; a key removed and added again comes last. Every row that stays in the table while the
+  /// iterator runs comes exactly once, also when other rows are added or removed in between.
   public func entries<K, R>(self : NativeTable<K, R>) : { next : () -> ?(K, R) } {
     batches<(K, R), Nat64>([], ?0, func from = Prim.ntScanEntries(self.id, self.codec, null, from, batch))
   };
@@ -254,6 +255,12 @@ module {
   /// The rows of the table, in the order of `entries`.
   public func values<K, R>(self : NativeTable<K, R>) : { next : () -> ?R } {
     batches<R, Nat64>([], ?0, func from = Prim.ntScanValues(self.id, self.codec, from, batch))
+  };
+
+  /// The keys and rows of the table newest first: the order of `entries` reversed. Every row that
+  /// stays in the table while the iterator runs comes exactly once.
+  public func reverseEntries<K, R>(self : NativeTable<K, R>) : { next : () -> ?(K, R) } {
+    batches<(K, R), Nat64>([], ?0xFFFF_FFFF_FFFF_FFFF, func from = Prim.ntScanBack(self.id, self.codec, from, batch))
   };
 
   /// The scalar type of a type code in the table's layout.

@@ -1019,9 +1019,10 @@ impl<'a, M: Memory, H: PageHost, F: Places<'a>> RowSink for Matches<'_, '_, 'a, 
 /// in row id order: every row when `filter` is null, else the rows whose field the Text
 /// `filter.0` names meets `filter.1`, a value of type `NtFilter`; and the row id to go on from, or
 /// null when no row is left: an array and an option in a pair. `what` says what is built of each
-/// row: 0 the pair of its key and its row, 1 its key, 2 its row. Row ids never move, so a scan
-/// resumed after writes hands back every row that stays in the table and meets the filter exactly
-/// once.
+/// row: 0 the pair of its key and its row, 1 its key, 2 its row; with `BACK` added, every row
+/// comes newest first, those below row id `next`, and `filter` is not read. Row ids never move, so
+/// a scan resumed after writes hands back every row that stays in the table and meets the filter
+/// exactly once.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_scan<M: Memory>(
     mem: &mut M,
@@ -1047,8 +1048,8 @@ pub unsafe fn nt_scan<M: Memory>(
     }
     let filter = filter_opt(&mut *mem, &layout, filter);
     let (rest, n) = match map {
-        None => scan(&mut host, id, filter.as_ref(), next, limit, rows, row),
-        Some(map) => scan(&mut host, id, filter.as_ref(), next, limit, rows, row.mapped(map)),
+        None => scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row),
+        Some(map) => scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row.mapped(map)),
     };
     batch(&mut *mem, rows, n, rest)
 }
@@ -1078,14 +1079,17 @@ unsafe fn scan_view<M: Memory>(
         layout = map.layout(&mut *mem, &layout);
     }
     let filter = filter_opt(&mut *mem, &layout, filter);
-    let (rest, n) = scan(&mut host, id, filter.as_ref(), next, limit, rows, row);
+    let (rest, n) = scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row);
     batch(&mut *mem, rows, n, rest)
 }
 
-/// What `nt_scan` builds of each row, by its `what`.
+/// Added to `nt_scan`'s `what`: the rows come newest first.
+const BACK: u64 = 4;
+
+/// What `nt_scan` builds of each row, by its `what` less `BACK`.
 #[inline(always)]
 fn scan_out(what: u64) -> Out {
-    match what {
+    match what & !BACK {
         0 => Out::Entry,
         1 => Out::Key,
         2 => Out::Row,
@@ -1112,6 +1116,7 @@ unsafe fn scan<'a, M: Memory, F: Places<'a>>(
     host: &mut StoreHost<'_, M>,
     id: u64,
     filter: Option<&Filter>,
+    what: u64,
     next: u64,
     limit: usize,
     rows: *mut Value,
@@ -1124,9 +1129,10 @@ unsafe fn scan<'a, M: Memory, F: Places<'a>>(
         rows,
         n: 0,
     };
-    let rest = match out.row.leaves() {
-        None => table.scan_where(filter, next, limit as u64, &mut out),
-        Some(leaves) => table.scan_cells(leaves, filter, next, limit as u64, &mut out),
+    let rest = match (what & BACK != 0, out.row.leaves()) {
+        (true, leaves) => table.scan_back(leaves, next, limit as u64, &mut out),
+        (false, None) => table.scan_where(filter, next, limit as u64, &mut out),
+        (false, Some(leaves)) => table.scan_cells(leaves, filter, next, limit as u64, &mut out),
     };
     (or_trap(rest), out.n)
 }
