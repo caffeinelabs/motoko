@@ -1,5 +1,5 @@
 // More static values than one root-array initialization chunk holds, each read back.
-func check(text : Text, n : Nat) { assert text == debug_show n };
+func check(text : Text, n : Nat) { assert text == debug_show(n) };
 let a0 = "0"; check(a0, 0);
 let a1 = "1"; check(a1, 1);
 let a2 = "2"; check(a2, 2);
@@ -299,7 +299,7 @@ let a295 = "295"; check(a295, 295);
 let a296 = "296"; check(a296, 296);
 let a297 = "297"; check(a297, 297);
 let a298 = "298"; check(a298, 298);
-let a299 = "299"; check(a299, 299);
+let a299 = "299"; check(a299, 299)
 
 // Each chunk has its own function, so `initialize_root_array` does not grow with every static value.
 // CHECK-LABEL: (func $initialize_root_array (type
