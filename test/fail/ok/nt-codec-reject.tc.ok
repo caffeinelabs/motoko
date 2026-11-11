@@ -1,5 +1,10 @@
-nt-codec-reject.mo:7.50-7.52: type error [M0279], native table field `tags` has type [Text], but a field must be a scalar or an option of a scalar
-nt-codec-reject.mo:10.62-10.64: type error [M0279], native table field `address` has type {city : Text}, but a field must be a scalar or an option of a scalar
-nt-codec-reject.mo:13.53-13.55: type error [M0279], native table field `visits` has type var Nat, but a field must be immutable
-nt-codec-reject.mo:16.36-16.38: type error [M0279], native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal
-nt-codec-reject.mo:19.57-19.59: type error [M0279], native table row has type R, but its type must not depend on a type parameter
+nt-codec-reject.mo:7.54-7.56: type error [M0279], native table field `tags` has type [var Text], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:10.51-10.53: type error [M0279], native table field `grid` has type [[Nat]], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:13.61-13.63: type error [M0279], native table field `states` has type [{#off; #on}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:16.66-16.68: type error [M0279], native table field `history` has type [?{amount : Nat}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:19.81-19.83: type error [M0279], native table field `history` has type [{amount : Nat; notes : [Text]}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:22.49-22.51: type error [M0279], native table field `marks` has type [{}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:25.62-25.64: type error [M0279], native table field `address` has type {city : Text}, but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+nt-codec-reject.mo:28.53-28.55: type error [M0279], native table field `visits` has type var Nat, but a field must be immutable
+nt-codec-reject.mo:31.36-31.38: type error [M0279], native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal
+nt-codec-reject.mo:34.57-34.59: type error [M0279], native table row has type R, but its type must not depend on a type parameter

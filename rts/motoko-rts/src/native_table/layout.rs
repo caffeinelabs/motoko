@@ -3,12 +3,14 @@
 //!
 //! A layout, numbers little-endian: the magic "NTCD", the u32 version 1, the u64 codec hash, the
 //! u32 column count, then per column, the key first and then the fields of the row: the crate's
-//! type code of a scalar, after the option code when the column is optional; the u32 label hash;
-//! the u16 length of the column's name and the name (the key has none).
+//! type code of a scalar, or the crate's list type of an array (`ty::LIST`, then the element's
+//! codes: a scalar's, an option of one's, or a record's, each field an entry as a column's), after
+//! the option code when the column is optional; the u32 label hash; the u16 length of the column's
+//! name and the name (the key has none).
 //!
 //! The layout of a view (`view_layout`) is the layout of the table it reads, then the byte `VIEW`,
 //! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
-//! of the field in the table's layout, then its type codes, padded to 2 bytes with 0; then the u32
+//! of the field in the table's layout, then its first two type codes, padded with 0; then the u32
 //! offset of the `VIEW` byte. So a call made with a view's codec finds the table's layout where a
 //! table's codec has it: a call that checks only the layout's header reads the table's, and a call
 //! that checks every column entry fails at the `VIEW` byte.
@@ -18,7 +20,7 @@ use ::native_table::fault::bounds;
 use ::native_table::mem::{rd_u8, rd_u16, rd_u32, rd_u64};
 use ::native_table::schema::{
     self, Column, ColumnType, DECL_BYTES, IndexDecl, LEAF_NULLABLE, Leaf, LeafSink, SchemaParts,
-    SchemaView, flatten, node, write_schema,
+    SchemaView, flatten, list_end, node, write_schema,
 };
 use ::native_table::value::ty;
 
@@ -66,18 +68,47 @@ fn u64_at(b: &[u8], at: usize) -> Option<u64> {
     Some(u64::from_le_bytes(b.get(at..at + 8)?.try_into().ok()?))
 }
 
+/// Whether each type code is that of a scalar the codec accepts: `ty::BOOL` to `ty::INT` and
+/// `ty::F64` to `ty::PRINCIPAL`.
+static SCALARS: [bool; 256] = {
+    let mut s = [false; 256];
+    let mut code = ty::BOOL;
+    while code <= ty::PRINCIPAL {
+        s[code as usize] = code != ty::F32;
+        code += 1;
+    }
+    s
+};
+
 /// Whether `code` is the type code of a scalar the codec accepts.
 fn scalar(code: u8) -> bool {
-    matches!(code, ty::BOOL..=ty::INT | ty::F64..=ty::PRINCIPAL)
+    SCALARS[code as usize]
+}
+
+/// The number of type codes at the start of `b` when they are an array's (the crate's list type,
+/// after the option code when the array is an option), else `usize::MAX`.
+#[cold]
+#[inline(never)]
+fn array_codes(b: &[u8]) -> usize {
+    let at = u32::from(b.first() == Some(&ty::OPTION));
+    list_end(b, at).map_or(usize::MAX, |end| end as usize)
 }
 
 /// The column entry at the start of `b`, and the bytes after it.
 fn entry(b: &[u8]) -> Option<(Entry<'_>, &[u8])> {
     let n = if *b.first()? == ty::OPTION { 2 } else { 1 };
     let codes = b.get(..n)?;
-    if !scalar(codes[n - 1]) {
-        return None;
+    if scalar(codes[n - 1]) {
+        named(b, codes)
+    } else {
+        named(b, b.get(..array_codes(b))?)
     }
+}
+
+/// The column entry at the start of `b` whose type codes are `codes`, and the bytes after it.
+#[inline(always)]
+fn named<'a>(b: &'a [u8], codes: &'a [u8]) -> Option<(Entry<'a>, &'a [u8])> {
+    let n = codes.len();
     let hash = u32_at(b, n)?;
     let name_at = n + 6;
     let name_end = name_at + u16_at(b, n + 4)? as usize;
@@ -87,6 +118,7 @@ fn entry(b: &[u8]) -> Option<(Entry<'_>, &[u8])> {
 
 impl<'a> Layout<'a> {
     /// The layout in `bytes`, or `None` when they do not hold one.
+    #[inline(always)]
     pub fn parse(bytes: &'a [u8]) -> Option<Layout<'a>> {
         Self::header(bytes)?.checked()
     }
@@ -152,6 +184,7 @@ impl<'a> Layout<'a> {
 
     /// Whether the row is a record. A row that is a scalar is the one column after the key, and
     /// it has no name, while every field of a record has one.
+    #[inline(always)]
     pub fn record_row(&self) -> bool {
         !(self.columns == 2 && self.entries().nth(1).is_some_and(|e| e.name.is_empty()))
     }
@@ -274,7 +307,8 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
         let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
         let at = start + 1 + PICK * i;
         out[at..at + 2].copy_from_slice(&p.to_le_bytes());
-        out[at + 2..at + 2 + e.codes.len()].copy_from_slice(e.codes);
+        let codes = &e.codes[..e.codes.len().min(2)];
+        out[at + 2..at + 2 + codes.len()].copy_from_slice(codes);
     }
     out[size - 4..].copy_from_slice(&(start as u32).to_le_bytes());
     allocation_barrier(blob)
@@ -414,12 +448,16 @@ fn name_at(names: &[u8], at: u32) -> &[u8] {
     }
 }
 
-/// The type codes at `at` in the type pool `pool`: a scalar's, after the option code when the
-/// type is an option.
+/// The type codes at `at` in the type pool `pool`: a scalar's or an array's, after the option code
+/// when the type is an option.
 fn codes_at(pool: &[u8], at: u32) -> &[u8] {
-    let at = at as usize;
-    let n = if pool.get(at) == Some(&ty::OPTION) { 2 } else { 1 };
-    pool.get(at..at + n).unwrap_or(&[])
+    let b = pool.get(at as usize..).unwrap_or(&[]);
+    let n = match array_codes(b) {
+        usize::MAX if b.first() == Some(&ty::OPTION) => 2,
+        usize::MAX => 1,
+        n => n,
+    };
+    b.get(..n).unwrap_or(&[])
 }
 
 /// The schema image of the next schema version of the table whose schema image is `stored`, for

@@ -28,6 +28,11 @@ pub mod ty {
     pub const UNIT: u8 = 0x15;
     /// Option(T).
     pub const OPTION: u8 = 0x20;
+    /// Record(u16 n, n × {T, u32 label hash, u16 name length, the name's bytes}): a list's element, each field
+    /// a scalar or an option of one.
+    pub const RECORD: u8 = 0x21;
+    /// List(T): an array of T, a scalar, an option of one or a record, held as one byte string.
+    pub const LIST: u8 = 0x24;
 }
 
 // ---------------------------------------------------------------- incremental UTF-8

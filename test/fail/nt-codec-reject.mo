@@ -3,8 +3,23 @@ import Prim "mo:⛔";
 // The compiler supplies a native-table codec only for the key and row types it accepts
 func codec<K, R>(c : (implicit : Prim.NtCodec<(K, R)>)) : Prim.NtCodec<(K, R)> = c;
 
-// An array field
-ignore codec<Nat, { name : Text; tags : [Text] }>();
+// A mutable array field
+ignore codec<Nat, { name : Text; tags : [var Text] }>();
+
+// An array of arrays
+ignore codec<Nat, { name : Text; grid : [[Nat]] }>();
+
+// An array of variants
+ignore codec<Nat, { name : Text; states : [{ #on; #off }] }>();
+
+// An array of options of records
+ignore codec<Nat, { name : Text; history : [?{ amount : Nat }] }>();
+
+// An array of records with an array field
+ignore codec<Nat, { name : Text; history : [{ amount : Nat; notes : [Text] }] }>();
+
+// An array of records with no field
+ignore codec<Nat, { name : Text; marks : [{}] }>();
 
 // A nested record
 ignore codec<Nat, { name : Text; address : { city : Text } }>();

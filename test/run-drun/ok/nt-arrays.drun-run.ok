@@ -1,0 +1,17 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (0, true, 0, [(["name"], 1)])
+debug.print: ("scores", {array = ?{optional = true}; optional = false; scalar = #nat})
+debug.print: ("name", {array = null; optional = false; scalar = #text})
+debug.print: ("codes", {array = ?{optional = false}; optional = false; scalar = #text})
+debug.print: ("tags", {array = ?{optional = false}; optional = true; scalar = #text})
+debug.print: ("history.note", {array = ?{optional = true}; optional = false; scalar = #text})
+debug.print: ("history.amount", {array = ?{optional = false}; optional = false; scalar = #nat})
+debug.print: ("history.since", {array = ?{optional = false}; optional = false; scalar = #int})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2, ?(+71), [("age", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text}), ("codes", {array = ?{optional = false}; optional = true; scalar = #text}), ("history.amount", {array = ?{optional = false}; optional = true; scalar = #nat})])
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field changes its type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: (2, ?(+71))
+ingress Completed: Reply: 0x4449444c0000

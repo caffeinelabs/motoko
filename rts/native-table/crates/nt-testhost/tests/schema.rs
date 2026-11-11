@@ -56,6 +56,18 @@ fn flattening_rules_and_the_schema_image() {
     // 5: ().
     cols.push(p.at());
     p.p(ty::UNIT);
+    // 6: [Text].
+    cols.push(p.at());
+    p.p(ty::LIST).p(ty::TEXT);
+    // 7: ?[?Nat].
+    cols.push(p.at());
+    p.p(ty::OPTION).p(ty::LIST).p(ty::OPTION).p(ty::NAT);
+    // 8: [{a : Nat; b : ?Text}]: each field its type, u32 label hash, u16 name length and name.
+    cols.push(p.at());
+    p.p(ty::LIST).p(ty::RECORD).u16(2);
+    p.p(ty::NAT).u16(7).u16(0).u16(1).p(b'a');
+    p.p(ty::OPTION).p(ty::TEXT).u16(9).u16(0).u16(1).p(b'b');
+    let list = cols[8] as usize;
 
     let mut out = Leaves(Vec::new());
     let mut columns = Vec::new();
@@ -81,7 +93,12 @@ fn flattening_rules_and_the_schema_image() {
     assert_eq!(k(3), (node::SCALAR, ty::CHAR, 0));
     assert_eq!((l[4].kind, l[4].code, l[4].flags, l[4].width), (node::SCALAR, ty::BYTES, LEAF_NULLABLE, 5));
     assert_eq!(k(5), (node::UNIT, 0, 0));
-    assert_eq!(l.len(), 6);
+    // A list is one byte-string leaf.
+    assert_eq!(k(6), (node::SCALAR, ty::BLOB, 0));
+    assert_eq!(k(7), (node::SCALAR, ty::BLOB, LEAF_NULLABLE));
+    assert_eq!(k(8), (node::SCALAR, ty::BLOB, 0));
+    assert_eq!((l[7].path, l[8].path), (cols[7] + 1, cols[8]));
+    assert_eq!(l.len(), 9);
     // Leaf ids: column · 65,536.
     assert_eq!(l[4].id, 4 * 65_536);
 
@@ -101,7 +118,7 @@ fn flattening_rules_and_the_schema_image() {
     let mut img = vec![0xA5u8; 8_192];
     let (bytes, hash) = write_schema(&parts, 77, &mut img).unwrap();
     let v = SchemaView::open(&img[..bytes as usize]).unwrap();
-    assert_eq!((v.columns, v.leaves, v.indexes, v.hash), (6, 6, 1, hash));
+    assert_eq!((v.columns, v.leaves, v.indexes, v.hash), (9, 9, 1, hash));
     for (i, lf) in l.iter().enumerate() {
         assert_eq!(&v.leaf(i as u16).unwrap(), lf);
     }
@@ -109,7 +126,7 @@ fn flattening_rules_and_the_schema_image() {
     // The type pool, then zeros up to the next section's 8-byte alignment.
     assert_eq!(&v.types()[..p.0.len()], &p.0[..]);
     assert!(v.types()[p.0.len()..].iter().all(|&x| x == 0) && v.types().len() < p.0.len() + 8);
-    assert!(v.leaf(6).is_err());
+    assert!(v.leaf(9).is_err());
     // Same parts, same bytes; a changed byte breaks the hash.
     let mut img2 = vec![0x5Au8; 8_192];
     assert_eq!(write_schema(&parts, 77, &mut img2).unwrap(), (bytes, hash));
@@ -118,21 +135,33 @@ fn flattening_rules_and_the_schema_image() {
     assert!(matches!(SchemaView::open(&img[..bytes as usize]), Err(Fault::Corrupt(c)) if c.kind == Corruption::Header));
     // Too small an output asks for more.
     assert!(matches!(write_schema(&parts, 77, &mut [0u8; 64]), Err(Fault::Scratch { .. })));
+    // The hash covers a list's element: another name of a record's field gives another hash.
+    let mut renamed = p.0.clone();
+    renamed[list + 11] = b'c';
+    let parts = SchemaParts { type_pool: &renamed, ..parts };
+    assert_ne!(write_schema(&parts, 77, &mut img2).unwrap().1, hash);
 }
 
-/// Records, tuples, variants, lists, recursive references, tables and sets (type codes 0x21 to 0x27), and
-/// options of anything but a scalar, are refused by flattening and by the schema image's canonical form.
+/// Records outside a list, tuples, variants, recursive references, tables and sets (type codes 0x21 to 0x27),
+/// lists of anything but a scalar, an option of one or a record of them, and options of anything but a scalar
+/// or a list, are refused by flattening and by the schema image's canonical form.
 #[test]
 fn types_the_schema_does_not_hold_are_refused() {
     let pools: Vec<Vec<u8>> = vec![
-        vec![0x21, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ty::U8],
+        vec![0x21, 1, 0, ty::U8, 0, 0, 0, 0, 0, 0],
         vec![0x22, 1, 0, ty::U8],
         vec![0x23, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, ty::UNIT],
-        vec![0x24, ty::TEXT],
+        vec![ty::LIST, ty::LIST, ty::TEXT],
         vec![ty::OPTION, 0x25, 0, 0, 0, 0],
         vec![0x26, ty::NAT, ty::TEXT],
         vec![0x27, ty::NAT],
         vec![ty::OPTION, ty::OPTION, ty::TEXT],
+        vec![ty::LIST, ty::UNIT],
+        vec![ty::LIST, ty::OPTION, ty::OPTION, ty::TEXT],
+        vec![ty::LIST, ty::OPTION, ty::RECORD, 1, 0, ty::U8, 0, 0, 0, 0, 0, 0],
+        vec![ty::LIST, ty::RECORD, 1, 0, ty::LIST, ty::U8, 0, 0, 0, 0, 0, 0],
+        // A field's name past the pool's end.
+        vec![ty::LIST, ty::RECORD, 1, 0, ty::U8, 0, 0, 0, 0, 0, 1, b'a'],
         vec![ty::OPTION, ty::UNIT],
     ];
     for pool in &pools {
@@ -143,7 +172,7 @@ fn types_the_schema_does_not_hold_are_refused() {
     }
     // A column of one of the removed types in an image: its canonical form, and so the image, is refused.
     let leaf = Leaf { id: 0, kind: node::SCALAR, code: ty::NAT, flags: LEAF_KEY, path: 0, added: 1, ..Leaf::default() };
-    for pool in &pools[..8] {
+    for pool in &pools[..pools.len() - 1] {
         let column = Column { id: 0, flags: 0, first_leaf: 0, ty: 0, default_off: 0, default_len: 0, name: 0 };
         let parts = SchemaParts {
             version: 1,

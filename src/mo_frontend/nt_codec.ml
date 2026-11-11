@@ -2,8 +2,11 @@
    of a table with key type K and row type R.
 
    K is a scalar. R is a scalar, or a record of immutable fields where each
-   field is a scalar or an option of one. The scalars are Nat, Int, Nat8 to
-   Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob and Principal.
+   field is a scalar, an option of one, an immutable array, or an option of
+   such an array. An array's elements are scalars, options of scalars, or
+   records of immutable fields that are each a scalar or an option of one,
+   with at least one field. The scalars are Nat, Int, Nat8 to Nat64, Int8 to
+   Int64, Float, Bool, Char, Text, Blob and Principal.
 
    `layout`, all numbers little-endian:
      4 bytes  magic "NTCD"
@@ -11,8 +14,12 @@
      u64      codec hash: the native-table crate's nt_hash64 of all bytes after it
      u32      column count
      then per column, the key first, then the fields of R in label-hash order:
-       1 or 2 bytes  the crate's type code of the scalar, after the option
-                     code 0x20 when the field is optional
+       type codes    the crate's type code of the scalar; for an array, the
+                     list code 0x24, then the element's codes: a scalar's, an
+                     option of one's, or a record's: the record code 0x21,
+                     the u16 number of its fields, then each field in
+                     label-hash order as a column is written here; all after
+                     the option code 0x20 when the field is optional
        u32           the field's label hash; 0 for the key and for a scalar R
        u16           the length of the field's name, then its bytes; the key
                      and a scalar R have no name
@@ -32,6 +39,8 @@ module T = Type
 let magic = "NTCD"
 let version = 1l
 let option_code = 0x20
+let record_code = 0x21
+let list_code = 0x24
 
 (* The native-table crate's type codes *)
 let scalar_code : T.prim -> int option = function
@@ -58,10 +67,47 @@ let scalar t =
   | T.Prim p -> Option.map (fun c -> [c]) (scalar_code p)
   | _ -> None
 
-let field_type t =
+let option_of f t =
   match T.normalize t with
-  | T.Opt t1 -> Option.map (fun cs -> option_code :: cs) (scalar t1)
-  | _ -> scalar t
+  | T.Opt t1 -> Option.map (fun cs -> option_code :: cs) (f t1)
+  | _ -> f t
+
+(* A column: its type codes, label hash and name *)
+type column = { codes : int list; hash : int32; name : string }
+
+(* A column's entry in the layout *)
+let entry c =
+  let b = Buffer.create 16 in
+  List.iter (Buffer.add_uint8 b) c.codes;
+  Buffer.add_int32_le b c.hash;
+  Buffer.add_uint16_le b (String.length c.name);
+  Buffer.add_string b c.name;
+  Buffer.contents b
+
+let by_hash cs = List.sort (fun c1 c2 -> Int32.compare c1.hash c2.hash) cs
+
+(* The codes of an array's element: a scalar, an option of one, or a record
+   of them *)
+let element t =
+  match T.normalize t with
+  | T.Obj (T.Object, (_ :: _ as fs), []) ->
+    let field (f : T.field) =
+      if T.is_mut f.T.typ || String.length f.T.lab > 0xFFFF then None else
+      Option.map (fun codes -> { codes; hash = Hash.hash f.T.lab; name = f.T.lab })
+        (option_of scalar f.T.typ) in
+    let cs = List.filter_map field fs in
+    if List.length cs < List.length fs then None else
+    let n = List.length cs in
+    let entries = String.concat "" (List.map entry (by_hash cs)) in
+    Some (record_code :: n land 0xFF :: n lsr 8 :: List.of_seq (Seq.map Char.code (String.to_seq entries)))
+  | _ -> option_of scalar t
+
+let field_type =
+  option_of (fun t ->
+    match scalar t, T.normalize t with
+    | Some cs, _ -> Some cs
+    | None, T.Array t1 when not (T.is_mut t1) -> Option.map (fun cs -> list_code :: cs) (element t1)
+    | None, _ -> None)
 
 let is_param t =
   match T.normalize t with
@@ -76,10 +122,7 @@ let reject what t rule =
 
 let key_rule = "a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal"
 let row_rule = "a row must be a scalar or a record"
-let field_rule = "a field must be a scalar or an option of a scalar"
-
-(* A column: its type codes, label hash and name *)
-type column = { codes : int list; hash : int32; name : string }
+let field_rule = "a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them"
 
 let unnamed codes = { codes; hash = 0l; name = "" }
 
@@ -103,7 +146,7 @@ let row_columns r =
         let* cs = fields fs in
         Ok (c :: cs) in
     let* cs = fields fs in
-    Ok (List.sort (fun c1 c2 -> Int32.compare c1.hash c2.hash) cs, true)
+    Ok (by_hash cs, true)
   | _ ->
     match scalar r with
     | None -> reject "row" r row_rule
@@ -140,12 +183,7 @@ let blobs k r : (string * string, string) result =
   let columns = unnamed key :: row in
   let body = Buffer.create 64 in
   Buffer.add_int32_le body (Int32.of_int (List.length columns));
-  List.iter (fun c ->
-    List.iter (Buffer.add_uint8 body) c.codes;
-    Buffer.add_int32_le body c.hash;
-    Buffer.add_uint16_le body (String.length c.name);
-    Buffer.add_string body c.name
-  ) columns;
+  List.iter (fun c -> Buffer.add_string body (entry c)) columns;
   let body = Buffer.contents body in
   let layout = Buffer.create (16 + String.length body) in
   Buffer.add_string layout magic;

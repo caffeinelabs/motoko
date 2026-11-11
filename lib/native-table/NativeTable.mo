@@ -2,7 +2,9 @@
 ///
 /// A table maps keys of type K to rows of type R. K is a scalar (Nat, Int, Nat8 to Nat64,
 /// Int8 to Int64, Float, Bool, Char, Text, Blob or Principal). R is a scalar, or a record of
-/// immutable fields where each field is a scalar or an option of one.
+/// immutable fields where each field is a scalar, an immutable array, or an option of either. An
+/// array's elements are scalars, options of scalars, or records whose fields are scalars or options
+/// of scalars.
 
 import Prim "mo:⛔";
 
@@ -52,8 +54,12 @@ module {
     #principal
   };
 
-  /// The type of a field of the row: its scalar type, and whether the field is an option of it.
-  public type FieldType = { scalar : Scalar; optional : Bool };
+  /// The type of a field of the row: its scalar type, whether the field is an option, and for an
+  /// array, whether its elements are options. `array` is null for a field that is not an array.
+  /// For an array, `scalar` is its elements' scalar type; for an array of records, each field of
+  /// the record is listed as `"field.sub"`, with that field's scalar type, and `array` says
+  /// whether that field is an option.
+  public type FieldType = { scalar : Scalar; optional : Bool; array : ?{ optional : Bool } };
 
   /// A builder of a new, empty table with no indexes: add indexes with `createIndex`, then
   /// create the table with `build`.
@@ -260,32 +266,72 @@ module {
   /// The fields of the row of `codec` and their types, in the order the table keeps them.
   func fieldsOf<T>(codec : Prim.NtCodec<T>) : [(Text, FieldType)] {
     // The layout, numbers little-endian: a 20-byte header that ends with the u32 number of
-    // columns, then per column, the key first: the option code 0x20 when the column is an option,
-    // the type code of its scalar, its u32 label hash, the u16 length of its name and the name,
-    // which is empty for the key and for a row that is a scalar
+    // columns, then per column, the key first: its type codes, its u32 label hash, the u16 length
+    // of its name and the name, which is empty for the key and for a row that is a scalar. The type
+    // codes are a scalar's, or an array's: 0x24, then its element's, a scalar's or a record's:
+    // 0x21, the u16 number of its fields, then each field as a column; each after the option code
+    // 0x20 when it is an option
     let layout = Prim.blobToArray(Prim.ntCodecLayout(codec));
     func byte(at : Nat) : Nat = Prim.nat8ToNat(layout[at]);
-    let columns = byte(16) + byte(17) * 0x100 + byte(18) * 0x1_0000 + byte(19) * 0x100_0000;
-    let fields = Prim.Array_init<(Text, FieldType)>(columns, ("", { scalar = #bool; optional = false }));
+    func u16(at : Nat) : Nat = byte(at) + byte(at + 1) * 0x100;
+    // The scalar of the codes at `at`, whether it is an option, and the place after the codes
+    func scalar(at : Nat) : (Scalar, Bool, Nat) {
+      let optional = layout[at] == 0x20;
+      let code = if optional { at + 1 } else { at };
+      (scalarOf(layout[code]), optional, code + 1)
+    };
+    // The name after the label hash at `at`, and the place after the name
+    func name(at : Nat) : (Text, Nat) {
+      let length = u16(at + 4);
+      let bytes = Prim.Array_tabulate<Nat8>(length, func i = layout[at + 6 + i]);
+      switch Prim.decodeUtf8(Prim.arrayToBlob(bytes)) {
+        case ?name { (name, at + 6 + length) }
+        case null { Prim.trap("native table: the layout has a name that is not text") }
+      }
+    };
+    let fields = Prim.Array_init<(Text, FieldType)>(layout.size(), ("", { scalar = #bool; optional = false; array = null }));
     var n = 0;
+    func add(name : Text, type_ : FieldType) {
+      fields[n] := (name, type_);
+      n += 1
+    };
+    let columns = u16(16) + u16(18) * 0x1_0000;
     var at = 20;
     var c = 0;
     while c < columns {
       let optional = layout[at] == 0x20;
-      if optional { at += 1 };
-      let scalar = scalarOf(layout[at]);
-      let length = byte(at + 5) + byte(at + 6) * 0x100;
-      let start = at + 7;
-      let bytes = Prim.Array_tabulate<Nat8>(length, func i = layout[start + i]);
-      let name = switch Prim.decodeUtf8(Prim.arrayToBlob(bytes)) {
-        case ?name { name }
-        case null { Prim.trap("native table: the layout has a name that is not text") }
+      let list = if optional { at + 1 } else { at };
+      if layout[list] != 0x24 {
+        let (scalar_, optional, after) = scalar(at);
+        let (field, next) = name(after);
+        if field != "" { add(field, { scalar = scalar_; optional; array = null }) };
+        at := next
+      } else if layout[list + 1] != 0x21 {
+        let (scalar_, elements, after) = scalar(list + 1);
+        let (field, next) = name(after);
+        add(field, { scalar = scalar_; optional; array = ?{ optional = elements } });
+        at := next
+      } else {
+        // A field of an array of records: each of the record's fields, as "field.sub"
+        let count = u16(list + 2);
+        var sub = list + 4;
+        var i = 0;
+        while i < count {
+          sub := name(scalar(sub).2).1;
+          i += 1
+        };
+        let (field, next) = name(sub);
+        sub := list + 4;
+        i := 0;
+        while i < count {
+          let (scalar_, elements, after) = scalar(sub);
+          let (subName, nextSub) = name(after);
+          add(field # "." # subName, { scalar = scalar_; optional; array = ?{ optional = elements } });
+          sub := nextSub;
+          i += 1
+        };
+        at := next
       };
-      if length > 0 {
-        fields[n] := (name, { scalar; optional });
-        n += 1
-      };
-      at := start + length;
       c += 1
     };
     Prim.Array_tabulate<(Text, FieldType)>(n, func i = fields[i])
@@ -293,7 +339,8 @@ module {
 
   /// The fields of the row and their types, in the order the table keeps them: every field of a
   /// record row, none when the row is a scalar. Their names are the ones `createIndex`, `sum`,
-  /// `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere` and `sumWhere` take.
+  /// `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere` and `sumWhere` take. A field of
+  /// an array of records is listed once per field of the record, as `"field.sub"`.
   public func fieldTypes<K, R>(self : NativeTable<K, R>) : [(Text, FieldType)] {
     fieldsOf(self.codec)
   };

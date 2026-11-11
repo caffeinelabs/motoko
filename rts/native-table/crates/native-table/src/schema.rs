@@ -1,8 +1,8 @@
 //! The shared schema: a column's type as its leaf, the 28-byte leaf records, and the schema image.
 //!
-//! Types are expressions in a type pool (`value::ty`): every column is a scalar, `()` or an option of a
-//! scalar, one leaf; a record, a tuple, an option of anything but a scalar, and any other type code are refused
-//! as corrupt. Leaf ordinals are table-wide and append-only.
+//! Types are expressions in a type pool (`value::ty`): every column is a scalar, `()`, a list, or an option of a
+//! scalar or of a list, one leaf; a record outside a list, a tuple, an option of anything else, and any other
+//! type code are refused as corrupt. Leaf ordinals are table-wide and append-only.
 
 use crate::consts::{magic, FORMAT_IMAGE, IMAGE_V1};
 use crate::fault::{bounds, corrupt, Corruption, Fault, ImageId};
@@ -97,8 +97,38 @@ pub struct ColumnType<'p> {
     pub key: bool,
 }
 
+/// The offset just past the list type at `at` in `pool`: `ty::LIST`, then its element, a scalar, an option of
+/// one, or a record (`ty::RECORD`) whose fields are each a scalar or an option of one.
+pub fn list_end(pool: &[u8], at: u32) -> Result<u32, Fault> {
+    // The offset past the scalar or the option of a scalar at `p`.
+    let scalar = |p: u32| {
+        let s = if rd_u8(pool, u64::from(p))? == ty::OPTION { p.checked_add(1).ok_or(rt(p))? } else { p };
+        match rd_u8(pool, u64::from(s))? {
+            ty::BOOL..=ty::I128 => s.checked_add(1).ok_or(rt(s)),
+            _ => Err(rt(s)),
+        }
+    };
+    if rd_u8(pool, u64::from(at))? != ty::LIST {
+        return Err(rt(at));
+    }
+    let e = at.checked_add(1).ok_or(rt(at))?;
+    if rd_u8(pool, u64::from(e))? != ty::RECORD {
+        return scalar(e);
+    }
+    let mut p = e.checked_add(3).ok_or(rt(e))?;
+    for _ in 0..rd_u16(pool, u64::from(e).wrapping_add(1))? {
+        p = scalar(p)?;
+        let name = rd_u16(pool, u64::from(p).wrapping_add(4))?;
+        p = p.checked_add(6).and_then(|x| x.checked_add(u32::from(name))).ok_or(rt(p))?;
+    }
+    if u64::from(p) > pool.len() as u64 {
+        return Err(rt(p));
+    }
+    Ok(p)
+}
+
 /// Flattens a column's type into its leaf, appended to `out` with the column's first ordinal; returns the
-/// number of leaves, 1.
+/// number of leaves, 1. A list's leaf is a byte string (`ty::BLOB`).
 pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fault> {
     let ColumnType { pool, column, ty: t, version, first_ordinal: _, key } = col;
     let mut at = t;
@@ -113,6 +143,10 @@ pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fau
         ty::BOOL..=ty::I128 => (node::SCALAR, code, 0),
         ty::BYTES => (node::SCALAR, code, rd_u16(pool, u64::from(at).wrapping_add(1))?),
         ty::UNIT if !nullable => (node::UNIT, 0, 0),
+        ty::LIST => {
+            list_end(pool, at)?;
+            (node::SCALAR, ty::BLOB, 0)
+        }
         _ => return Err(rt(at)),
     };
     let id = column.checked_mul(65_536).ok_or(rt(at))?;
@@ -305,7 +339,7 @@ impl Canon<'_, '_> {
         Ok(())
     }
 
-    /// The canonical form of the type at `at`, a scalar, `()` or an option of a scalar.
+    /// The canonical form of the type at `at`, a scalar, `()`, a list, or an option of a scalar or of a list.
     fn ty(&mut self, at: u32) -> Result<(), Fault> {
         let code = rd_u8(self.pool, u64::from(at))?;
         (self.out)(&[code]);
@@ -314,6 +348,12 @@ impl Canon<'_, '_> {
             ty::BOOL..=ty::I128 | ty::UNIT => Ok(()),
             ty::BYTES => {
                 (self.out)(&rd_u16(self.pool, u64::from(p))?.to_le_bytes());
+                Ok(())
+            }
+            // A list names nothing in another pool: its operand is its bytes.
+            ty::LIST => {
+                let end = list_end(self.pool, at)?;
+                (self.out)(crate::mem::sub(self.pool, u64::from(p), u64::from(end.wrapping_sub(p)))?);
                 Ok(())
             }
             ty::OPTION if rd_u8(self.pool, u64::from(p))? != ty::OPTION => self.ty(p),
