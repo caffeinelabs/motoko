@@ -30,5 +30,11 @@ ignore codec<Nat, { name : Text; var visits : Nat }>();
 // An optional key
 ignore codec<?Nat, { name : Text }>();
 
+// A key that is a tuple with an optional part
+ignore codec<(Text, ?Nat), { name : Text }>();
+
+// A key that is a tuple of 8 parts
+ignore codec<(Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), { name : Text }>();
+
 // A generic row type
 func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>()

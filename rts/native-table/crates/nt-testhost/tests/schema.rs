@@ -142,14 +142,15 @@ fn flattening_rules_and_the_schema_image() {
     assert_ne!(write_schema(&parts, 77, &mut img2).unwrap().1, hash);
 }
 
-/// Records outside a list, tuples, variants, recursive references, tables and sets (type codes 0x21 to 0x27),
-/// lists of anything but a scalar, an option of one or a record of them, and options of anything but a scalar
-/// or a list, are refused by flattening and by the schema image's canonical form.
+/// Records outside a list, tuples of anything but scalars, variants, recursive references, tables and sets (type
+/// codes 0x21 to 0x27), lists of anything but a scalar, an option of one or a record of them, and options of
+/// anything but a scalar or a list, are refused by flattening and by the schema image's canonical form. A tuple of
+/// scalars is the key's only: a key leaf per part, refused in any other column.
 #[test]
 fn types_the_schema_does_not_hold_are_refused() {
     let pools: Vec<Vec<u8>> = vec![
         vec![0x21, 1, 0, ty::U8, 0, 0, 0, 0, 0, 0],
-        vec![0x22, 1, 0, ty::U8],
+        vec![ty::TUPLE, 2, 0, ty::U8, ty::OPTION, ty::U8],
         vec![0x23, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, ty::UNIT],
         vec![ty::LIST, ty::LIST, ty::TEXT],
         vec![ty::OPTION, 0x25, 0, 0, 0, 0],
@@ -185,5 +186,17 @@ fn types_the_schema_does_not_hold_are_refused() {
         };
         let r = write_schema(&parts, 1, &mut vec![0u8; 4_096]);
         assert!(matches!(r, Err(Fault::Corrupt(c)) if c.kind == Corruption::Encoding), "{pool:x?}: {r:?}");
+    }
+    let pool = [ty::TUPLE, 2, 0, ty::TEXT, ty::NAT];
+    for key in [false, true] {
+        let mut out = Leaves(Vec::new());
+        let r = flatten(ColumnType { pool: &pool, column: 0, ty: 0, version: 1, first_ordinal: 0, key }, &mut out);
+        if !key {
+            assert!(matches!(r, Err(Fault::Corrupt(c)) if c.kind == Corruption::Encoding), "{r:?}");
+            continue;
+        }
+        assert_eq!(r.unwrap(), 2);
+        let parts: Vec<_> = out.0.iter().map(|l| (l.id, l.kind, l.code, l.flags, l.path)).collect();
+        assert_eq!(parts, [(0, node::SCALAR, ty::TEXT, LEAF_KEY, 3), (1, node::SCALAR, ty::NAT, LEAF_KEY, 4)]);
     }
 }

@@ -16,6 +16,10 @@
 //! A field may also be an immutable array, or an option of one, of scalars, options of scalars or
 //! records of them. The table holds an array as one byte string, its elements in the crate's value
 //! encoding (`array_cell`), and a read builds the array again (`array_of_ve`).
+//!
+//! The key may also be a tuple of scalars. The table holds each part as a leaf of the key's column,
+//! part j as leaf j, and every path for such a key starts on a failure edge of a scalar key's path:
+//! a write's cells (`tuple_cells`), a read's tuple (`RowOut::tuple`, `RowOut::part`).
 
 use core::ops::Bound;
 
@@ -29,7 +33,9 @@ use ::native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use ::native_table::value::ty;
 use ::native_table::{Fault, ImageId, PageHost};
 
-use super::layout::{Entries, Layout, Picks, array_type, element_parts, merge, scratch};
+use super::layout::{
+    Entries, Layout, MAX_KEY_PARTS, Picks, array_type, element_parts, key_parts, merge, scratch,
+};
 use crate::barriers::allocation_barrier;
 use crate::bigint::{
     bigint_leb128_decode, bigint_leb128_encode, bigint_leb128_size, bigint_of_word64,
@@ -61,7 +67,8 @@ const WORD64_MASK: usize = 0b1111;
 const WORD64_SHIFT: u32 = 4;
 
 /// The cells of one row, one per column, the key first: every column is one leaf, the first of
-/// its column.
+/// its column. A key that is a tuple has its first part's cell in column 0, and the cells of its
+/// other parts in `PART_CELLS`.
 pub struct Cells<'a> {
     cells: &'a [CellIn<'a>],
 }
@@ -178,11 +185,33 @@ impl Map {
     }
 }
 
+/// The cells of the parts after the first of the key that is a tuple whose cells were made last
+/// (`tuple_cells`), part j at j − 1, and their number. A call makes a key's cells before it asks the
+/// table for any of them, and a table asks for these only of a key that is a tuple.
+static mut PART_CELLS: (*const CellIn<'static>, usize) = (core::ptr::null(), 0);
+
+/// The cell of part j > 0 of the key that is a tuple, the table's leaf j (`PART_CELLS`), or null
+/// when there is none.
+#[cold]
+#[inline(never)]
+fn part_cell(leaf: u32) -> *const CellIn<'static> {
+    let (parts, n) = unsafe { PART_CELLS };
+    match (leaf as usize).checked_sub(1) {
+        Some(j) if j < n => unsafe { parts.add(j) },
+        _ => core::ptr::null(),
+    }
+}
+
 impl RowSource for Cells<'_> {
     fn cell(&mut self, leaf: u32) -> Result<CellIn<'_>, Fault> {
-        match self.cells.get((leaf >> 16) as usize) {
-            Some(c) if leaf & 0xFFFF == 0 => Ok(*c),
-            _ => Err(Fault::BadValue { leaf }),
+        // Leaf c << 16 | j, rotated: column c when j is 0, else past every column (a table has
+        // fewer than 65,536).
+        match self.cells.get(leaf.rotate_left(16) as usize) {
+            Some(c) => Ok(*c),
+            None => match part_cell(leaf) {
+                part if part.is_null() => Err(Fault::BadValue { leaf }),
+                part => Ok(unsafe { *part }),
+            },
         }
     }
 
@@ -218,6 +247,9 @@ pub(super) fn column_type(codes: &[u8]) -> (u8, bool) {
 fn no_scalar(codes: &[u8]) -> ! {
     if array_type(codes).is_some() {
         rts_trap_with("native table: a field of an array type has no index, filter or total");
+    }
+    if key_parts(codes).is_some() {
+        rts_trap_with("native table: a key that is a tuple is not one cell");
     }
     rts_trap_with("native table: malformed layout")
 }
@@ -376,7 +408,7 @@ unsafe fn cell<'a, M: Memory>(mem: &mut M, codes: &[u8], v: Value) -> CellIn<'a>
 #[inline(never)]
 unsafe fn array_cell<'a, M: Memory>(mem: &mut M, codes: &[u8], v: Value) -> CellIn<'a> {
     let Some((optional, element)) = array_type(codes) else {
-        rts_trap_with("native table: malformed layout")
+        return tuple_cells(mem, codes, v);
     };
     if optional && v == NULL_POINTER {
         return CellIn::Null;
@@ -415,6 +447,26 @@ unsafe fn array_cell<'a, M: Memory>(mem: &mut M, codes: &[u8], v: Value) -> Cell
         }
     }
     CellIn::Bytes(out)
+}
+
+/// The cell of the first part of key `v`, a tuple of parts of the type codes `codes` (`key_parts`),
+/// the cells of its other parts in a Blob that lives until the next collection, kept in
+/// `PART_CELLS` for the table to ask for. Traps when `codes` are not a key's tuple's.
+#[cold]
+#[inline(never)]
+unsafe fn tuple_cells<'a, M: Memory>(mem: &mut M, codes: &[u8], v: Value) -> CellIn<'a> {
+    let Some(parts) = key_parts(codes).filter(|p| (1..=MAX_KEY_PARTS).contains(&p.len())) else {
+        rts_trap_with("native table: malformed layout")
+    };
+    if tag_of(v) != Some(TAG_ARRAY_T) || v.as_array().len() != parts.len() {
+        mismatch();
+    }
+    let cells = scratch::<CellIn, M>(mem, parts.len());
+    for (j, &code) in parts.iter().enumerate() {
+        cells.add(j).write(scalar(mem, code, v.as_array().get(j)));
+    }
+    PART_CELLS = (cells.add(1) as *const CellIn<'static>, parts.len() - 1);
+    *cells
 }
 
 /// The bytes of a fixed-size value of scalar type `code`.
@@ -562,7 +614,8 @@ pub unsafe fn update_cells<'a, M: Memory>(
     }
 }
 
-/// The cell of key `k`, the first column of `layout`.
+/// The cell of key `k`, the first column of `layout`; of its first part when the key is a tuple
+/// (`tuple_cells`).
 pub unsafe fn key<'a, M: Memory>(mem: &mut M, layout: &Layout, k: Value) -> CellIn<'a> {
     match layout.entries().next() {
         Some(e) => cell(mem, e.codes, k),
@@ -1367,6 +1420,10 @@ pub trait Places<'a> {
     fn leaves(&self) -> Option<&'a [u32]> {
         None
     }
+    /// The type codes of the key.
+    fn key_codes(&self) -> &'a [u8] {
+        self.codes(0)
+    }
 }
 
 /// The fields of a table whose row type never changed: the table hands every column over in
@@ -1439,7 +1496,7 @@ impl<'a> Places<'a> for ByColumn<'a> {
 
 /// The fields of a view: the table hands over the cells of `leaves`, in order, the key's first
 /// when the key is built. Each other cell is the view's next field, in the order of the view's
-/// row type.
+/// row type, and the cells of the parts after the first of a key that is a tuple come last.
 pub struct Picked<'a> {
     leaves: &'a [u32],
     picks: Picks<'a>,
@@ -1481,6 +1538,10 @@ impl<'a> Places<'a> for Picked<'a> {
     fn leaves(&self) -> Option<&'a [u32]> {
         Some(self.leaves)
     }
+
+    fn key_codes(&self) -> &'a [u8] {
+        self.key.unwrap_or(&[])
+    }
 }
 
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
@@ -1505,8 +1566,8 @@ pub struct RowOut<'a, M: Memory, F: Places<'a> = InOrder<'a>> {
     value: Value,
     key: Value,
     rid: u64,
-    /// Columns whose bytes `finish` reads, each as column << 8 | its scalar type code; in a Blob
-    /// made on the first.
+    /// Leaves whose bytes `finish` reads, each as leaf << 8 | its type code; in a Blob made on the
+    /// first.
     pending: *mut usize,
     pending_len: usize,
     _layout: core::marker::PhantomData<&'a ()>,
@@ -1581,9 +1642,10 @@ impl<'a, M: Memory> RowOut<'a, M> {
     /// Rows of a view of a table of `layout` with the fields `picks` (`Layout::view`), the row a
     /// record with `labels` as its hash list, or the one scalar, of which `out` is built; `map`
     /// is the table's map when its row type has changed. The leaves the table hands over
-    /// (`leaves`) are the key's first when the key is built, then one per field of the view, in a
-    /// Blob that lives until the next collection. Traps when `labels` does not have one label per
-    /// field of the view, or none for a view of a scalar.
+    /// (`leaves`) are the key's first when the key is built, then one per field of the view, then
+    /// those of the parts after the first of a key that is a tuple, in a Blob that lives until the
+    /// next collection. Traps when `labels` does not have one label per field of the view, or none
+    /// for a view of a scalar.
     pub unsafe fn picked(
         mem: *mut M,
         layout: &Layout<'a>,
@@ -1607,16 +1669,23 @@ impl<'a, M: Memory> RowOut<'a, M> {
         };
         let first = usize::from(key.is_some());
         let width = first + if out == Out::Key { 0 } else { n };
-        let leaves = scratch::<u32, M>(&mut *mem, width);
-        if first == 1 {
+        // Room for the leaves of the parts after the first of a key that is a tuple, after the
+        // view's fields.
+        let leaves = scratch::<u32, M>(&mut *mem, width + MAX_KEY_PARTS - 1);
+        let mut all = width;
+        if let Some(codes) = key {
             leaves.write(0);
+            for j in 1..key_parts(codes).map_or(0, <[u8]>::len) {
+                leaves.add(all).write(j as u32);
+                all += 1;
+            }
         }
         for i in first..width {
             let p = picks.get(i - first).map_or(0, |(p, _)| p);
             let column = map.map_or(p, |map| map.column(p));
             leaves.add(i).write((column as u32) << 16);
         }
-        let leaves = core::slice::from_raw_parts(leaves, width);
+        let leaves = core::slice::from_raw_parts(leaves, all);
         RowOut {
             mem,
             out,
@@ -1666,13 +1735,13 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
         }
     }
 
-    /// A Blob of `len` bytes for `column` of scalar type `code`, filled by `finish`.
-    unsafe fn later(&mut self, column: usize, code: u8, len: u64) -> Value {
+    /// A Blob of `len` bytes for `leaf` of scalar type `code`, filled by `finish`.
+    unsafe fn later(&mut self, leaf: u32, code: u8, len: u64) -> Value {
         let mem = &mut *self.mem;
         if self.pending.is_null() {
-            self.pending = scratch::<usize, M>(mem, self.columns);
+            self.pending = scratch::<usize, M>(mem, self.columns + MAX_KEY_PARTS);
         }
-        *self.pending.add(self.pending_len) = column << 8 | code as usize;
+        *self.pending.add(self.pending_len) = (leaf as usize) << 8 | code as usize;
         self.pending_len += 1;
         let tag = if code == ty::TEXT {
             TAG_BLOB_T
@@ -1690,14 +1759,84 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
     unsafe fn array(&mut self, column: usize, codes: &[u8], v: CellOut) -> Option<Value> {
         let (optional, element) = match array_type(codes) {
             Some(t) => t,
-            None => array_type(self.fields.codes(column))?,
+            None => match array_type(self.fields.codes(column)) {
+                Some(t) => t,
+                None => return self.tuple(codes, v),
+            },
         };
         match v {
             CellOut::Null if optional => Some(NULL_POINTER),
             CellOut::Bytes(b) => Some(array_of_ve(&mut *self.mem, element, b)),
-            CellOut::Arg { len } => Some(self.later(column, ty::LIST, len)),
+            CellOut::Arg { len } => Some(self.later((column as u32) << 16, ty::LIST, len)),
             _ => None,
         }
+    }
+
+    /// The key, when `codes` are those of a key that is a tuple and `v` is the cell of its first
+    /// part: a new tuple with that part's value, its other parts set as their cells come (`part`);
+    /// `None` when they are not, or `v` is not of the part's type.
+    #[cold]
+    #[inline(never)]
+    unsafe fn tuple(&mut self, codes: &[u8], v: CellOut) -> Option<Value> {
+        let parts = key_parts(codes).filter(|p| (1..=MAX_KEY_PARTS).contains(&p.len()))?;
+        let first = self.part_value(0, parts[0], v)?;
+        let mem = &mut *self.mem;
+        let tuple = alloc_array(mem, TAG_ARRAY_T, parts.len());
+        tuple.as_array().initialize(0, first, mem);
+        for j in 1..parts.len() {
+            tuple.as_array().initialize(j, Value::from_scalar(0), mem);
+        }
+        Some(allocation_barrier(tuple))
+    }
+
+    /// The value of cell `v` of part `leaf` of a key that is a tuple, of scalar type `code`; a value
+    /// that does not lie in one piece gets its Blob, filled by `finish`.
+    unsafe fn part_value(&mut self, leaf: u32, code: u8, v: CellOut) -> Option<Value> {
+        match v {
+            CellOut::Arg { len } if matches!(code, ty::NAT | ty::INT | ty::TEXT | ty::BLOB) => {
+                Some(self.later(leaf, code, len))
+            }
+            _ => value_of(&mut *self.mem, code, false, v),
+        }
+    }
+
+    /// Part j > 0 of a key that is a tuple, the table's leaf j: its value goes into the key's tuple
+    /// (`tuple`) when the key is built, and is passed over when it is not. Any other leaf is not one
+    /// a row builder takes.
+    #[cold]
+    #[inline(never)]
+    fn part(&mut self, leaf: u32, v: CellOut) -> Result<(), Fault> {
+        let bad = Err(Fault::BadValue { leaf });
+        if leaf == 0 || leaf >> 16 != 0 {
+            return bad;
+        }
+        if self.out == Out::Row {
+            return Ok(());
+        }
+        let j = leaf as usize;
+        let Some(&code) = key_parts(self.fields.key_codes()).and_then(|parts| parts.get(j)) else {
+            return bad;
+        };
+        unsafe {
+            if tag_of(self.key) != Some(TAG_ARRAY_T) {
+                return bad;
+            }
+            let Some(x) = self.part_value(leaf, code, v) else {
+                return bad;
+            };
+            self.key.as_array().set_raw(j, x);
+        }
+        Ok(())
+    }
+
+    /// Where the value of `leaf` goes: its field's place (`slot`), or its part's place in the key
+    /// when the key is a tuple.
+    #[inline(never)]
+    unsafe fn slot_of(&mut self, leaf: u32) -> *mut Value {
+        if leaf >> 16 == 0 && tag_of(self.key) == Some(TAG_ARRAY_T) {
+            return self.key.as_array().payload_addr().add(leaf as usize);
+        }
+        self.slot(self.fields.position((leaf >> 16) as usize))
     }
 
     /// The array of `column`, of an array type, whose bytes are `bytes`.
@@ -1719,14 +1858,14 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
         }
         for i in 0..self.pending_len {
             let p = *self.pending.add(i);
-            let (column, code) = (p >> 8, p as u8);
-            let slot = self.slot(self.fields.position(column));
-            let bytes = or_trap(read_later(table, self.rid, (column as u32) << 16, *slot));
+            let (leaf, code) = ((p >> 8) as u32, p as u8);
+            let slot = self.slot_of(leaf);
+            let bytes = or_trap(read_later(table, self.rid, leaf, *slot));
             match code {
                 ty::NAT => *slot = nat_of_leb(bytes),
                 ty::INT => *slot = int_of_sleb(bytes),
                 ty::TEXT => check_utf8(bytes),
-                ty::LIST => *slot = self.long_array(column, bytes),
+                ty::LIST => *slot = self.long_array((leaf >> 16) as usize, bytes),
                 _ => {}
             }
         }
@@ -1750,10 +1889,10 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
 
 impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
     fn cell(&mut self, leaf: u32, v: CellOut<'_>) -> Result<(), Fault> {
-        let column = (leaf >> 16) as usize;
-        let (at, codes) = match self.fields.next(self.next, column) {
-            Some(field) if leaf & 0xFFFF == 0 => field,
-            _ => return Err(Fault::BadValue { leaf }),
+        // Leaf c << 16 | j, rotated: column c when j is 0, else past every column.
+        let column = leaf.rotate_left(16) as usize;
+        let Some((at, codes)) = self.fields.next(self.next, column) else {
+            return self.part(leaf, v);
         };
         self.next += 1;
         let built = match self.out {
@@ -1791,7 +1930,7 @@ impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
                 (ty::BLOB, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_B, b),
                 (ty::PRINCIPAL, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_P, b),
                 (ty::NAT | ty::INT | ty::TEXT | ty::BLOB, CellOut::Arg { len }) => {
-                    self.later(column, code, len)
+                    self.later(leaf, code, len)
                 }
                 _ => match self.array(column, codes, v) {
                     Some(x) => x,

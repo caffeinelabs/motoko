@@ -30,11 +30,19 @@ error[M0279]: native table field `visits` has type var Nat, but a field must be 
     ┌─ nt-codec-reject.mo:28:53
  28 │  ignore codec<Nat, { name : Text; var visits : Nat }>();
     │                                                      ^^ 
-error[M0279]: native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal
+error[M0279]: native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
     ┌─ nt-codec-reject.mo:31:36
  31 │  ignore codec<?Nat, { name : Text }>();
     │                                     ^^ 
+error[M0279]: native table key has type (Text, ?Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+    ┌─ nt-codec-reject.mo:34:44
+ 34 │  ignore codec<(Text, ?Nat), { name : Text }>();
+    │                                             ^^ 
+error[M0279]: native table key has type (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+    ┌─ nt-codec-reject.mo:37:72
+ 37 │  ignore codec<(Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), { name : Text }>();
+    │                                                                         ^^ 
 error[M0279]: native table row has type R, but its type must not depend on a type parameter
-    ┌─ nt-codec-reject.mo:34:57
- 34 │  func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>()
+    ┌─ nt-codec-reject.mo:40:57
+ 40 │  func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>()
     │                                                          ^^ 

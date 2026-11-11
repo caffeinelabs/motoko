@@ -3,10 +3,11 @@
 //!
 //! A layout, numbers little-endian: the magic "NTCD", the u32 version 1, the u64 codec hash, the
 //! u32 column count, then per column, the key first and then the fields of the row: the crate's
-//! type code of a scalar, or the crate's list type of an array (`ty::LIST`, then the element's
-//! codes: a scalar's, an option of one's, or a record's, each field an entry as a column's), after
-//! the option code when the column is optional; the u32 label hash; the u16 length of the column's
-//! name and the name (the key has none).
+//! type code of a scalar, or the crate's tuple type of a key of several parts (`ty::TUPLE`, the u16
+//! number of parts, then each part's code), or the crate's list type of an array (`ty::LIST`, then
+//! the element's codes: a scalar's, an option of one's, or a record's, each field an entry as a
+//! column's), after the option code when the column is optional; the u32 label hash; the u16 length
+//! of the column's name and the name (the key has none).
 //!
 //! The layout of a view (`view_layout`) is the layout of the table it reads, then the byte `VIEW`,
 //! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
@@ -20,7 +21,7 @@ use ::native_table::fault::bounds;
 use ::native_table::mem::{rd_u8, rd_u16, rd_u32, rd_u64};
 use ::native_table::schema::{
     self, Column, ColumnType, DECL_BYTES, IndexDecl, LEAF_NULLABLE, Leaf, LeafSink, SchemaParts,
-    SchemaView, flatten, list_end, node, write_schema,
+    SchemaView, flatten, list_end, node, tuple_end, write_schema,
 };
 use ::native_table::value::ty;
 
@@ -87,13 +88,32 @@ fn scalar(code: u8) -> bool {
 }
 
 /// The number of type codes at the start of `b` when they are an array's (the crate's list type,
-/// after the option code when the array is an option), else `usize::MAX`.
+/// after the option code when the array is an option) or a key's tuple's, else `usize::MAX`.
 #[cold]
 #[inline(never)]
 fn array_codes(b: &[u8]) -> usize {
     let at = u32::from(b.first() == Some(&ty::OPTION));
-    list_end(b, at).map_or(usize::MAX, |end| end as usize)
+    match list_end(b, at) {
+        Ok(end) => end as usize,
+        Err(_) if b.first() == Some(&ty::TUPLE) => tuple_codes(b),
+        Err(_) => usize::MAX,
+    }
 }
+
+/// The number of type codes at the start of `b` when they are a key's tuple's, else `usize::MAX`.
+#[cold]
+#[inline(never)]
+fn tuple_codes(b: &[u8]) -> usize {
+    tuple_end(b, 0).map_or(usize::MAX, |end| end as usize)
+}
+
+/// The type code of each part of a key of the type codes `codes` when it is a tuple, else `None`.
+pub fn key_parts(codes: &[u8]) -> Option<&[u8]> {
+    (codes.first() == Some(&ty::TUPLE)).then(|| codes.get(3..).unwrap_or(&[]))
+}
+
+/// The most parts of a key that is a tuple.
+pub const MAX_KEY_PARTS: usize = 7;
 
 /// Whether the type codes `codes` are an array's, an option of one when the first is the option
 /// code, and the codes of its element; `None` when they are not an array's.
@@ -276,9 +296,10 @@ impl<'a> Picks<'a> {
         self.picks.len() / PICK
     }
 
-    /// The position in the table's layout and the type codes of field `i` of the view.
+    /// The position in the table's layout and the type codes of field `i` of the view; none for an
+    /// `i` past the last field, `usize::MAX` included.
     pub fn get(&self, i: usize) -> Option<(usize, &'a [u8])> {
-        let p = self.picks.get(PICK * i..PICK * (i + 1))?;
+        let p = self.picks.get(PICK.wrapping_mul(i)..PICK.wrapping_mul(i.wrapping_add(1)))?;
         let n = if p[2] == ty::OPTION { 2 } else { 1 };
         Some((usize::from(u16::from_le_bytes([p[0], p[1]])), &p[2..2 + n]))
     }
@@ -384,8 +405,9 @@ pub(super) unsafe fn scratch<T, M: Memory>(mem: &mut M, n: usize) -> *mut T {
 
 /// The schema image of `layout` for the table with uid `uid`, of schema version `version` and with
 /// the index declarations `indexes`, in a Blob that lives until the next collection: column 0 is
-/// the key, flagged as such, and every field of the row is one more column whose name is in the
-/// name pool. Every column was added by the first schema version.
+/// the key, flagged as such, a leaf per part when the key is a tuple, and every field of the row is
+/// one more column whose name is in the name pool. Every column was added by the first schema
+/// version.
 pub unsafe fn schema_image<'b, M: Memory>(
     mem: &mut M,
     layout: &Layout,
@@ -394,9 +416,10 @@ pub unsafe fn schema_image<'b, M: Memory>(
     indexes: &[IndexDecl],
 ) -> Result<&'b [u8], Fault> {
     let n = layout.columns;
-    let (mut type_bytes, mut name_bytes) = (0, 0);
+    let (mut type_bytes, mut name_bytes, mut leaf_count) = (0, 0, 0);
     for e in layout.entries() {
         type_bytes += e.codes.len();
+        leaf_count += key_parts(e.codes).map_or(1, <[u8]>::len);
         if !e.name.is_empty() {
             name_bytes += 2 + e.name.len();
         }
@@ -405,9 +428,9 @@ pub unsafe fn schema_image<'b, M: Memory>(
     let types = core::slice::from_raw_parts_mut(scratch::<u8, M>(mem, type_bytes), type_bytes);
     let names = core::slice::from_raw_parts_mut(scratch::<u8, M>(mem, name_bytes), name_bytes);
     let mut leaves = Leaves {
-        at: scratch::<Leaf, M>(mem, n),
+        at: scratch::<Leaf, M>(mem, leaf_count),
         len: 0,
-        cap: n,
+        cap: leaf_count,
     };
     // The pools: a name's u16 length comes just before its bytes, and a column names the bytes.
     let (mut type_at, mut name_at) = (0, 0);

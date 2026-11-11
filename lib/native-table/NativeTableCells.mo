@@ -17,7 +17,8 @@ module {
   /// for an option that holds none. Every row that stays in the table while the iterator runs,
   /// and meets the filter, comes exactly once, also when other rows are written in between. The
   /// iterator fetches 64 rows per call to the table, the first of them at this call. Traps on a
-  /// name the row does not have, and on a filter as `NativeTable.entriesWhere` does.
+  /// name the row does not have, on a filter as `NativeTable.entriesWhere` does, and when `key` is
+  /// true and the table's key is a tuple.
   public func cells<K, R>(self : NativeTable.NativeTable<K, R>, key : Bool, fields : [Text], filter : ?(Text, NativeTable.Filter)) : {
     next : () -> ?[NativeTable.Cell]
   } {

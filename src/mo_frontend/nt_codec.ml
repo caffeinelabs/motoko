@@ -1,7 +1,7 @@
 (* The codec of a native table: two Blobs that describe to the runtime the rows
    of a table with key type K and row type R.
 
-   K is a scalar. R is a scalar, or a record of immutable fields where each
+   K is a scalar, or a tuple of 2 to 7 scalars. R is a scalar, or a record of immutable fields where each
    field is a scalar, an option of one, an immutable array, or an option of
    such an array. An array's elements are scalars, options of scalars, or
    records of immutable fields that are each a scalar or an option of one,
@@ -14,7 +14,9 @@
      u64      codec hash: the native-table crate's nt_hash64 of all bytes after it
      u32      column count
      then per column, the key first, then the fields of R in label-hash order:
-       type codes    the crate's type code of the scalar; for an array, the
+       type codes    the crate's type code of the scalar; for a key that is a
+                     tuple, the tuple code 0x22, the u16 number of its parts,
+                     then each part's code; for an array, the
                      list code 0x24, then the element's codes: a scalar's, an
                      option of one's, or a record's: the record code 0x21,
                      the u16 number of its fields, then each field in
@@ -40,6 +42,7 @@ let magic = "NTCD"
 let version = 1l
 let option_code = 0x20
 let record_code = 0x21
+let tuple_code = 0x22
 let list_code = 0x24
 
 (* The native-table crate's type codes *)
@@ -102,6 +105,15 @@ let element t =
     Some (record_code :: n land 0xFF :: n lsr 8 :: List.of_seq (Seq.map Char.code (String.to_seq entries)))
   | _ -> option_of scalar t
 
+(* The codes of a key: a scalar's, or a tuple's of 2 to 7 scalars *)
+let key_type k =
+  match T.normalize k with
+  | T.Tup ts when List.length ts >= 2 && List.length ts <= 7 ->
+    let parts = List.filter_map scalar ts in
+    if List.length parts < List.length ts then None else
+    Some (tuple_code :: List.length ts :: 0 :: List.concat parts)
+  | _ -> scalar k
+
 let field_type =
   option_of (fun t ->
     match scalar t, T.normalize t with
@@ -120,7 +132,7 @@ let reject what t rule =
   Error (Printf.sprintf "native table %s has type %s, but %s" what (T.string_of_typ t)
     (if param then "its type must not depend on a type parameter" else rule))
 
-let key_rule = "a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal"
+let key_rule = "a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them"
 let row_rule = "a row must be a scalar or a record"
 let field_rule = "a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them"
 
@@ -176,7 +188,7 @@ let hash64 s =
    types are not accepted *)
 let blobs k r : (string * string, string) result =
   let open Lib.Result.Syntax in
-  let* key = match scalar k with
+  let* key = match key_type k with
     | None -> reject "key" k key_rule
     | Some codes -> Ok codes in
   let* (row, is_record) = row_columns r in

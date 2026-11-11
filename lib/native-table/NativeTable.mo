@@ -1,10 +1,10 @@
 /// Tables whose rows the native-table runtime keeps outside the garbage-collected heap.
 ///
 /// A table maps keys of type K to rows of type R. K is a scalar (Nat, Int, Nat8 to Nat64,
-/// Int8 to Int64, Float, Bool, Char, Text, Blob or Principal). R is a scalar, or a record of
-/// immutable fields where each field is a scalar, an immutable array, or an option of either. An
-/// array's elements are scalars, options of scalars, or records whose fields are scalars or options
-/// of scalars.
+/// Int8 to Int64, Float, Bool, Char, Text, Blob or Principal), or a tuple of 2 to 7 of them. R is
+/// a scalar, or a record of immutable fields where each field is a scalar, an immutable array, or
+/// an option of either. An array's elements are scalars, options of scalars, or records whose
+/// fields are scalars or options of scalars.
 
 import Prim "mo:⛔";
 
@@ -268,9 +268,10 @@ module {
     // The layout, numbers little-endian: a 20-byte header that ends with the u32 number of
     // columns, then per column, the key first: its type codes, its u32 label hash, the u16 length
     // of its name and the name, which is empty for the key and for a row that is a scalar. The type
-    // codes are a scalar's, or an array's: 0x24, then its element's, a scalar's or a record's:
-    // 0x21, the u16 number of its fields, then each field as a column; each after the option code
-    // 0x20 when it is an option
+    // codes are a scalar's; a key's that is a tuple: 0x22, the u16 number of its parts, then each
+    // part's; or an array's: 0x24, then its element's, a scalar's or a record's: 0x21, the u16
+    // number of its fields, then each field as a column; each after the option code 0x20 when it
+    // is an option
     let layout = Prim.blobToArray(Prim.ntCodecLayout(codec));
     func byte(at : Nat) : Nat = Prim.nat8ToNat(layout[at]);
     func u16(at : Nat) : Nat = byte(at) + byte(at + 1) * 0x100;
@@ -296,8 +297,9 @@ module {
       n += 1
     };
     let columns = u16(16) + u16(18) * 0x1_0000;
-    var at = 20;
-    var c = 0;
+    // The key, a scalar or a tuple, has no name
+    var at = name(if layout[20] == 0x22 { 23 + u16(21) } else { 21 }).1;
+    var c = 1;
     while c < columns {
       let optional = layout[at] == 0x20;
       let list = if optional { at + 1 } else { at };

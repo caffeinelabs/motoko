@@ -127,8 +127,25 @@ pub fn list_end(pool: &[u8], at: u32) -> Result<u32, Fault> {
     Ok(p)
 }
 
-/// Flattens a column's type into its leaf, appended to `out` with the column's first ordinal; returns the
-/// number of leaves, 1. A list's leaf is a byte string (`ty::BLOB`).
+/// The offset just past the tuple type at `at` in `pool`: `ty::TUPLE`, the u16 number of its parts, then each
+/// part's scalar.
+pub fn tuple_end(pool: &[u8], at: u32) -> Result<u32, Fault> {
+    if rd_u8(pool, u64::from(at))? != ty::TUPLE {
+        return Err(rt(at));
+    }
+    let first = at.checked_add(3).ok_or(rt(at))?;
+    let end = first.checked_add(u32::from(rd_u16(pool, u64::from(at).wrapping_add(1))?)).ok_or(rt(at))?;
+    for p in first..end {
+        if !matches!(rd_u8(pool, u64::from(p))?, ty::BOOL..=ty::I128) {
+            return Err(rt(p));
+        }
+    }
+    Ok(end)
+}
+
+/// Flattens a column's type into its leaves, appended to `out` from the column's first ordinal on; returns their
+/// number. A list's leaf is a byte string (`ty::BLOB`). A key that is a tuple has a key leaf per part, in order,
+/// part j's id `column << 16 | j`; any other column has one leaf.
 pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fault> {
     let ColumnType { pool, column, ty: t, version, first_ordinal: _, key } = col;
     let mut at = t;
@@ -139,16 +156,6 @@ pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fau
         at = at.checked_add(1).ok_or(rt(at))?;
         code = rd_u8(pool, u64::from(at))?;
     }
-    let (kind, code, width) = match code {
-        ty::BOOL..=ty::I128 => (node::SCALAR, code, 0),
-        ty::BYTES => (node::SCALAR, code, rd_u16(pool, u64::from(at).wrapping_add(1))?),
-        ty::UNIT if !nullable => (node::UNIT, 0, 0),
-        ty::LIST => {
-            list_end(pool, at)?;
-            (node::SCALAR, ty::BLOB, 0)
-        }
-        _ => return Err(rt(at)),
-    };
     let id = column.checked_mul(65_536).ok_or(rt(at))?;
     let mut flags = 0u8;
     if nullable {
@@ -157,6 +164,36 @@ pub fn flatten<S: LeafSink>(col: ColumnType<'_>, out: &mut S) -> Result<u16, Fau
     if key {
         flags |= LEAF_KEY;
     }
+    let (kind, code, width) = match code {
+        ty::BOOL..=ty::I128 => (node::SCALAR, code, 0),
+        ty::BYTES => (node::SCALAR, code, rd_u16(pool, u64::from(at).wrapping_add(1))?),
+        ty::UNIT if !nullable => (node::UNIT, 0, 0),
+        ty::LIST => {
+            list_end(pool, at)?;
+            (node::SCALAR, ty::BLOB, 0)
+        }
+        ty::TUPLE if key && !nullable => {
+            let first = at.wrapping_add(3);
+            let end = tuple_end(pool, at)?;
+            for p in first..end {
+                let code = rd_u8(pool, u64::from(p))?;
+                let id = id.wrapping_add(p.wrapping_sub(first));
+                out.leaf(&Leaf {
+                    id,
+                    kind: node::SCALAR,
+                    code,
+                    flags,
+                    width: 0,
+                    path: p,
+                    added: version,
+                    dropped: 0,
+                    name: 0,
+                })?;
+            }
+            return u16::try_from(end.wrapping_sub(first)).map_err(|_| rt(at));
+        }
+        _ => return Err(rt(at)),
+    };
     out.leaf(&Leaf { id, kind, code, flags, width, path: at, added: version, dropped: 0, name: 0 })?;
     Ok(1)
 }
@@ -339,7 +376,8 @@ impl Canon<'_, '_> {
         Ok(())
     }
 
-    /// The canonical form of the type at `at`, a scalar, `()`, a list, or an option of a scalar or of a list.
+    /// The canonical form of the type at `at`, a scalar, `()`, a list, a key's tuple, or an option of a scalar or
+    /// of a list.
     fn ty(&mut self, at: u32) -> Result<(), Fault> {
         let code = rd_u8(self.pool, u64::from(at))?;
         (self.out)(&[code]);
@@ -350,9 +388,9 @@ impl Canon<'_, '_> {
                 (self.out)(&rd_u16(self.pool, u64::from(p))?.to_le_bytes());
                 Ok(())
             }
-            // A list names nothing in another pool: its operand is its bytes.
-            ty::LIST => {
-                let end = list_end(self.pool, at)?;
+            // A list or a tuple names nothing in another pool: its operand is its bytes.
+            ty::LIST | ty::TUPLE => {
+                let end = if code == ty::LIST { list_end(self.pool, at)? } else { tuple_end(self.pool, at)? };
                 (self.out)(crate::mem::sub(self.pool, u64::from(p), u64::from(end.wrapping_sub(p)))?);
                 Ok(())
             }

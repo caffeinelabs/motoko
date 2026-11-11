@@ -6,5 +6,7 @@ nt-codec-reject.mo:19.81-19.83: type error [M0279], native table field `history`
 nt-codec-reject.mo:22.49-22.51: type error [M0279], native table field `marks` has type [{}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
 nt-codec-reject.mo:25.62-25.64: type error [M0279], native table field `address` has type {city : Text}, but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
 nt-codec-reject.mo:28.53-28.55: type error [M0279], native table field `visits` has type var Nat, but a field must be immutable
-nt-codec-reject.mo:31.36-31.38: type error [M0279], native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal
-nt-codec-reject.mo:34.57-34.59: type error [M0279], native table row has type R, but its type must not depend on a type parameter
+nt-codec-reject.mo:31.36-31.38: type error [M0279], native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+nt-codec-reject.mo:34.44-34.46: type error [M0279], native table key has type (Text, ?Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+nt-codec-reject.mo:37.72-37.74: type error [M0279], native table key has type (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+nt-codec-reject.mo:40.57-40.59: type error [M0279], native table row has type R, but its type must not depend on a type parameter

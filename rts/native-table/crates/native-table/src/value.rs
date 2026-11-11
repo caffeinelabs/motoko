@@ -31,6 +31,8 @@ pub mod ty {
     /// Record(u16 n, n × {T, u32 label hash, u16 name length, the name's bytes}): a list's element, each field
     /// a scalar or an option of one.
     pub const RECORD: u8 = 0x21;
+    /// Tuple(u16 n, n scalars): a key of n parts, a key leaf per part.
+    pub const TUPLE: u8 = 0x22;
     /// List(T): an array of T, a scalar, an option of one or a record, held as one byte string.
     pub const LIST: u8 = 0x24;
 }
