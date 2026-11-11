@@ -85,6 +85,14 @@ pub trait RowSource {
     /// For a cell given as `CellIn::Arg`: copies its bytes [at, at + dst.len()) into `dst`, a slice of the
     /// page that will hold them; called once per piece of at most one image block, in order.
     fn fill(&mut self, leaf: u32, at: u64, dst: &mut [u8]) -> Result<(), Fault>;
+    /// Whether `kept` can be true: the writes from any other source carry no test of it.
+    const KEEPS: bool = false;
+    /// Whether the cell of `leaf`, given as `CellIn::Arg`, is the long value the stored row holds, kept as it is:
+    /// an update neither reads nor frees it.
+    fn kept(&mut self, leaf: u32) -> bool {
+        let _ = leaf;
+        false
+    }
 }
 
 /// Receives a row's leaves in leaf order; values borrow table memory for the call only.
@@ -658,11 +666,12 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// Sets the leaves `leaves` names (by leaf id) of the row with key k to the cells of `src`, keeping its other
-    /// leaves: only those leaves are read and written, each changed one as an upsert writes it, and only the
-    /// secondary indexes with a part among the changed leaves move. Returns the row's rid, or `None`, with
-    /// nothing written, when no row has key k. `BadRef` for a leaf the table does not have, or a row still in the
-    /// open group; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value. Every
-    /// refusal comes before the first write.
+    /// leaves: in a sealed group only those leaves are read and written, each changed one as an upsert writes it;
+    /// a row still in the open group is written again, its other leaves copied into the scratch first and a long
+    /// Text or Blob among them kept as it is. Only the secondary indexes with a part among the changed leaves
+    /// move. Returns the row's rid, or `None`, with nothing written, when no row has key k. `BadRef` for a leaf
+    /// the table does not have; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value.
+    /// Every refusal comes before the first write.
     pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -675,7 +684,6 @@ impl<'h, H: PageHost> Table<'h, H> {
         let e = self.key_in(key, &mut kb, scratch)?;
         let mut path = Path::new();
         let Some((rid, row)) = self.find_key(e, &mut path)? else { return Ok((None, self.wake()?)) };
-        let read::Row::Sealed { page, pos } = row else { return Err(Fault::BadRef) };
         // The indexes whose key a changed leaf is part of; the cells checked before anything is written.
         let mut moved = 0u64;
         let (h, tbl, shape) = (&*self.host, self.root, &self.shape);
@@ -694,8 +702,21 @@ impl<'h, H: PageHost> Table<'h, H> {
             }
         }
         // The entries leave under the stored row's keys, and come back under its new ones.
-        self.index_stored(&read::Live::open(&*self.host, row)?, moved, false, rid, &mut kb, scratch, &mut path)?;
-        (_, self.filled) = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
+        let live = read::Live::open(&*self.host, row)?;
+        match row {
+            read::Row::Sealed { page, pos } => {
+                self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
+                (_, self.filled) = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
+            }
+            read::Row::Buffered(at) => {
+                // The scratch the row's copy takes: a refusal comes before the first write.
+                let need = write::merged_need(&*self.host, &self.shape, &at)?;
+                scratch.get(need)?;
+                self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
+                let m = &mut write::merged(&*self.host, &self.shape, &at, leaves, src, scratch.get(need)?)?;
+                (_, self.filled) = write::update(&mut *self.host, tbl, &self.shape, m, &at)?;
+            }
+        }
         self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, &mut kb, scratch, &mut path)?;
         Ok((Some(rid), self.settle()?))
     }

@@ -364,8 +364,8 @@ pub fn write<H: PageHost, R: RowSource + ?Sized, O: Out<H>>(
     Ok(filled)
 }
 
-/// The reference of the long item of variable leaf `vi` in the image at `loc`, when it holds the same value as
-/// the source's cell; `None` otherwise.
+/// The reference of the long item of variable leaf `vi` in the image at `loc`, when the source keeps it or it
+/// holds the same value as the source's cell; `None` otherwise.
 fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     shape: &Shape,
     h: &H,
@@ -376,6 +376,9 @@ fn reusable<H: PageHost + ?Sized, R: RowSource + ?Sized>(
 ) -> Result<Option<Image>, Fault> {
     let row = RowRef::new(h, loc)?;
     let Item::Long { img, len } = row.item(shape, vi)? else { return Ok(None) };
+    if R::KEEPS && src.kept(l.id) {
+        return Ok(Some(img));
+    }
     let v = cell_of(src, l)?;
     let b = match v {
         Val::Bytes(b) | Val::Big(b) => b,

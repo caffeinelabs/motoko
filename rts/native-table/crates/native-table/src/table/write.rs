@@ -4,24 +4,24 @@
 
 use crate::consts::{BLOCK, BUFFER_BLOCKS_MAX, GROUP_BYTES, GROUP_LARGE, GROUP_OOL_BYTES, GROUP_SLOTS, ROW_INLINE_MAX};
 use crate::fault::{rt, Corruption, Fault};
-use crate::mem::{fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, PageHost, Region};
+use crate::mem::{fill, put, put_u16, put_u32, put_u64, rd_u16, rd_u32, rd_u64, sub, sub_mut, PageHost, Region};
 
 use super::buffer::{
     self, Located, RowLoc, Slot, B_ROWS_END, B_SLOTS, B_SLOTS_START, DESC_BIT, D_BLOCKS, D_RECORDS, H_LIVE,
     H_OPEN_INLINE, H_OPEN_LARGE, H_OPEN_MEDIUM, H_OPEN_POS, LONG_STUB, MOVED_STUB, SLOT, SLOT_DEAD, SLOT_LONG,
     SLOT_MOVED,
 };
-use super::cell::Val;
+use super::cell::{self, Val};
 use super::cur;
 use super::drain;
 use super::group;
 use super::hot::{RunCursor, Sign};
-use super::layout::{LeafInfo, Shape};
+use super::layout::{LeafInfo, Shape, Ty};
 use super::long::{self, LongOut, Meta};
 use super::root;
 use super::row::{self, Item, Plan, RowRef, StackOut, Stored, Walk};
 use super::totals::{self, At, TSrc};
-use super::RowSource;
+use super::{CellIn, RowSource};
 
 /// Bytes a stored inline row image reserves in its block: 8-aligned and at least a long stub, so that its
 /// place can always hold the stub a later update leaves there.
@@ -305,8 +305,9 @@ pub fn update<H: PageHost, R: RowSource + ?Sized>(
             let vi = walk.var;
             let st = walk.next(shape, &row, &l)?;
             let cur = cur::from_stored(&row, shape, &l, &st, vi)?;
+            let kept = R::KEEPS && src.kept(l.id);
             let v = row::cell_of(src, &l)?;
-            if !cur::same(&*h, &l, &cur, &v)? {
+            if !kept && !cur::same(&*h, &l, &cur, &v)? {
                 if l.key {
                     return Err(Fault::BadValue { leaf: l.id });
                 }
@@ -441,6 +442,9 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
             }
         };
         let Some((img, len)) = st else { continue };
+        if R::KEEPS && src.kept(l.id) {
+            continue;
+        }
         let keep = match row::cell_of(src, &l)? {
             Val::Bytes(b) | Val::Big(b) => {
                 cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))? && row::is_long(len)
@@ -455,6 +459,175 @@ fn released<H: PageHost, R: RowSource + ?Sized>(
         drain::free_image(h, tbl, &img)?;
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------- update of some leaves of a buffered row
+
+/// Bytes of a record of `Merged`: the leaf id u32, its kind u32, then its value (16 bytes) or the place of its
+/// bytes in the record buffer (offset u64, length u64).
+const REC: u64 = 24;
+const K_SOURCE: u32 = 0;
+const K_NULL: u32 = 1;
+const K_UNIT: u32 = 2;
+const K_BOOL: u32 = 3;
+const K_U64: u32 = 4;
+const K_I64: u32 = 5;
+const K_U128: u32 = 6;
+const K_I128: u32 = 7;
+const K_F32: u32 = 8;
+const K_F64: u32 = 9;
+const K_WIDE_NAT: u32 = 10;
+const K_WIDE_INT: u32 = 11;
+const K_BYTES: u32 = 12;
+const K_NAT: u32 = 13;
+const K_INT: u32 = 14;
+const K_KEPT: u32 = 15;
+
+/// The cells of an update of some leaves of a buffered row: the leaves it names from its source, every other
+/// leaf as the row holds it, from a record per leaf (in ordinal order) made before the write (`merged`). A long
+/// Text or Blob the update does not name is kept as it is.
+pub struct Merged<'a, R: ?Sized> {
+    src: &'a mut R,
+    buf: &'a [u8],
+    n: u64,
+    /// The record last asked for: a write asks for the leaves in ordinal order.
+    at: u64,
+    leb: [u8; 19],
+}
+
+impl<R: ?Sized> Merged<'_, R> {
+    /// The offset of leaf `leaf`'s record.
+    fn find(&mut self, leaf: u32) -> Result<u64, Fault> {
+        for _ in 0..self.n {
+            if rd_u32(self.buf, self.at.wrapping_mul(REC))? == leaf {
+                return Ok(self.at.wrapping_mul(REC));
+            }
+            self.at = if self.at.wrapping_add(1) < self.n { self.at.wrapping_add(1) } else { 0 };
+        }
+        Err(Fault::BadRef)
+    }
+}
+
+impl<R: RowSource + ?Sized> RowSource for Merged<'_, R> {
+    fn cell(&mut self, leaf: u32) -> Result<CellIn<'_>, Fault> {
+        let r = self.find(leaf)?;
+        let b = self.buf;
+        let (lo, hi) = (rd_u64(b, r.wrapping_add(8))?, rd_u64(b, r.wrapping_add(16))?);
+        let x = u128::from(lo) | u128::from(hi) << 64;
+        let bytes = || sub(b, lo, hi);
+        Ok(match rd_u32(b, r.wrapping_add(4))? {
+            K_SOURCE => return self.src.cell(leaf),
+            K_NULL => CellIn::Null,
+            K_UNIT => CellIn::Unit,
+            K_BOOL => CellIn::Bool(lo != 0),
+            K_U64 => CellIn::U64(lo),
+            K_I64 => CellIn::I64(lo as i64),
+            K_U128 => CellIn::U128(x),
+            K_I128 => CellIn::I128(x as i128),
+            K_F32 => CellIn::F32(f32::from_bits(u32::try_from(lo).unwrap_or(0))),
+            K_F64 => CellIn::F64(f64::from_bits(lo)),
+            K_WIDE_NAT => {
+                let n = cell::put_uleb128(&mut self.leb, x);
+                CellIn::Nat(self.leb.get(..n).unwrap_or(&[]))
+            }
+            K_WIDE_INT => {
+                let n = cell::put_sleb128(&mut self.leb, x as i128);
+                CellIn::Int(self.leb.get(..n).unwrap_or(&[]))
+            }
+            K_BYTES => CellIn::Bytes(bytes()?),
+            K_NAT => CellIn::Nat(bytes()?),
+            K_INT => CellIn::Int(bytes()?),
+            K_KEPT => CellIn::Arg { len: lo },
+            k => return Err(rt(Corruption::Encoding, u64::from(k))),
+        })
+    }
+
+    fn fill(&mut self, leaf: u32, at: u64, dst: &mut [u8]) -> Result<(), Fault> {
+        self.src.fill(leaf, at, dst)
+    }
+
+    const KEEPS: bool = true;
+
+    fn kept(&mut self, leaf: u32) -> bool {
+        self.find(leaf).and_then(|r| rd_u32(self.buf, r.wrapping_add(4))).is_ok_and(|k| k == K_KEPT)
+    }
+}
+
+/// The scratch bytes `merged` takes for the buffered row `at`: a record per leaf, a copy of the row image, and
+/// the bytes of the long Nat and Int values it holds.
+pub fn merged_need<H: PageHost + ?Sized>(h: &H, shape: &Shape, at: &Located) -> Result<usize, Fault> {
+    let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
+    let mut n = shape.leaves.wrapping_mul(REC).wrapping_add(row.len);
+    let mut f = [0u8; 2];
+    row.read(4, &mut f)?;
+    if u16::from_le_bytes(f) & (row::ROW_BIG | row::ROW_LONG) == row::ROW_BIG | row::ROW_LONG {
+        let mut walk = Walk::of(shape, &row)?;
+        for o in 0..shape.leaves {
+            let l = shape.leaf(h, o)?;
+            if let (Ty::Nat | Ty::Int, Stored::Item(Item::Long { len, .. })) = (l.ty, walk.next(shape, &row, &l)?) {
+                n = n.saturating_add(len);
+            }
+        }
+    }
+    usize::try_from(n).map_err(|_| Fault::Scratch { need: n })
+}
+
+/// The cells of an update of the leaves `leaves` names in the buffered row `at` to the cells of `src`
+/// (`Merged`), its records made in `buf`, `merged_need` bytes, from the row as it is stored.
+pub fn merged<'a, H: PageHost + ?Sized, R: RowSource + ?Sized>(
+    h: &H,
+    shape: &Shape,
+    at: &Located,
+    leaves: &[u32],
+    src: &'a mut R,
+    buf: &'a mut [u8],
+) -> Result<Merged<'a, R>, Fault> {
+    let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
+    let img = shape.leaves.wrapping_mul(REC);
+    row.read(0, sub_mut(buf, img, row.len)?)?;
+    let mut more = img.wrapping_add(row.len);
+    let mut walk = Walk::of(shape, &row)?;
+    for o in 0..shape.leaves {
+        let l = shape.leaf(h, o)?;
+        let bytes = match l.ty {
+            Ty::Nat => K_NAT,
+            Ty::Int => K_INT,
+            _ => K_BYTES,
+        };
+        let (k, x) = if leaves.contains(&l.id) {
+            walk.skip(&l);
+            (K_SOURCE, 0)
+        } else {
+            match walk.next(shape, &row, &l)? {
+                Stored::Null => (K_NULL, 0),
+                Stored::Unit => (K_UNIT, 0),
+                Stored::Val(Val::Bool(v)) => (K_BOOL, u128::from(v)),
+                Stored::Val(Val::U(v)) => (K_U64, u128::from(v)),
+                Stored::Val(Val::I(v)) => (K_I64, u128::from(v as u64)),
+                Stored::Val(Val::U128(v)) => (K_U128, v),
+                Stored::Val(Val::I128(v)) => (K_I128, v as u128),
+                Stored::Val(Val::F32(v)) => (K_F32, u128::from(v)),
+                Stored::Val(Val::F64(v)) => (K_F64, u128::from(v)),
+                Stored::Val(Val::Wide(v)) if bytes == K_NAT => (K_WIDE_NAT, v as u128),
+                Stored::Val(Val::Wide(v)) => (K_WIDE_INT, v as u128),
+                Stored::Bytes { at, len } | Stored::Item(Item::Inline { at, len }) => {
+                    (bytes, u128::from(img.wrapping_add(at)) | u128::from(len) << 64)
+                }
+                Stored::Item(Item::Long { len, .. }) if bytes == K_BYTES => (K_KEPT, u128::from(len)),
+                Stored::Item(Item::Long { img: li, len }) => {
+                    long::read(h, li, 0, sub_mut(buf, more, len)?)?;
+                    more = more.wrapping_add(len);
+                    (bytes, u128::from(more.wrapping_sub(len)) | u128::from(len) << 64)
+                }
+                _ => return Err(rt(Corruption::Encoding, o)),
+            }
+        };
+        let r = o.wrapping_mul(REC);
+        put_u32(buf, r, l.id)?;
+        put_u32(buf, r.wrapping_add(4), k)?;
+        put(buf, r.wrapping_add(8), &x.to_le_bytes())?;
+    }
+    Ok(Merged { src, buf, n: shape.leaves, at: 0, leb: [0; 19] })
 }
 
 /// A buffered row of the open group now holds a long value or is a long row image: the open group's flag in

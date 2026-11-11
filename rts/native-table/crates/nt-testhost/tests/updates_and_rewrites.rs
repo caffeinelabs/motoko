@@ -1101,6 +1101,30 @@ fn big_values_sealed_and_compacted() {
     eprintln!("big_values_sealed_and_compacted: {digest:?}");
 }
 
+/// An update of one leaf of a buffered row that holds a long Nat, a long Int and a long Text: the other leaves
+/// read back as they were, and the long values keep their images.
+#[test]
+fn update_of_one_leaf_keeps_long_values() {
+    let cols = [t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::INT), t::scalar(ty::TEXT), t::scalar(ty::NAT)];
+    let img = schema(&cols).0;
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    let mut row = vec![
+        (id(0), V::U(1)),
+        (id(1), V::Nat(big_nat(3, 100_000))),
+        (id(2), V::Int(low_zero_int(5, 100_000))),
+        (id(3), V::Bytes(vec![b'x'; 70_000])),
+        (id(4), V::Nat(big_nat(7, 40))),
+    ];
+    tb.upsert(&mut key_scratch(), &mut Src::new(&row)).unwrap();
+    let before = (check_ownership(&tb), tb.host().live_pages());
+    row[4] = (id(4), V::U(9));
+    let key = [(id(0), V::U(1))];
+    tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(4)], &mut Src::new(&row[4..])).unwrap();
+    assert_eq!(get_row(&tb, 1).unwrap().1, row);
+    assert_eq!((check_ownership(&tb), tb.host().live_pages()), before, "the long values keep their images");
+}
+
 /// A sealed row's u64 cell, in a group whose values all fit one byte, updated to one that does not: the cell
 /// cannot take it in place, a patch holds it, and the row reads it back, after maintenance too.
 #[test]

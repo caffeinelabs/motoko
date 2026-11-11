@@ -14,8 +14,8 @@
 //! then as LEB128.
 //!
 //! The model is a map from key to row id and row. Writes are inserts of new keys, upserts of existing keys,
-//! updates of one field (the whole row written, or some fields named through `update` for a row in a sealed
-//! group), deletes (of absent keys too) and maintenance (single steps, a write step, a
+//! updates of one field (the whole row written, or some fields named through `update`, the source holding
+//! only those), deletes (of absent keys too) and maintenance (single steps, a write step, a
 //! maintenance call with no budget, and full maintenance), each write preceded by the write step most of
 //! the time, as the runtime does. The table is opened again for every call. Enough rows are written that
 //! row groups of 4,096 rows are sealed, updated in place and in patches, compacted and dropped. A Float key
@@ -1553,7 +1553,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 existing(r, m)
             }
         };
-        // An update of a row in a sealed group names some fields, and half the time goes through `update`.
+        // Half the updates name some fields and go through `update`.
         let mut named: Option<Vec<usize>> = None;
         let write: Option<(Key, Option<Vec<Mv>>)> = match op {
             Op::Insert => {
@@ -1571,7 +1571,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 // them.
                 let k = existing(&mut r, &m);
                 let mut row = m[&k].1.clone();
-                if m[&k].0 / GROUP_SLOTS < nt_testhost::open_group(&h, tbl) && r.below(2) == 0 {
+                if r.below(2) == 0 {
                     named = Some(some_cols(&s, &mut r));
                 }
                 for (v, f) in row.iter_mut().zip(&s.cols) {
@@ -1616,10 +1616,11 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             Some((key, Some(row))) if named.is_some() => {
                 let leaves: Vec<u32> = named.iter().flatten().map(|&c| leaf(c)).collect();
                 let mut cells = row_cells(&s, row, &mut r);
+                let only: Vec<(u32, V)> = cells.iter().filter(|(l, _)| leaves.contains(l)).cloned().collect();
                 let kc = key_cells(&s, &key.1);
                 let rid = m[key].0;
                 assert_eq!(
-                    tb.update(&mut scratch, &mut Src::new(&kc), &leaves, &mut Src::new(&cells)).unwrap().0,
+                    tb.update(&mut scratch, &mut Src::new(&kc), &leaves, &mut Src::new(&only)).unwrap().0,
                     Some(rid)
                 );
                 m.insert(key.clone(), (rid, row.clone()));
