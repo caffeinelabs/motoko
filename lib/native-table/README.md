@@ -5,7 +5,9 @@ pages, outside the garbage-collected heap, and survive upgrades with the actor.
 
 - `K`: a scalar: `Nat`, `Int`, `Nat8`–`Nat64`, `Int8`–`Int64`, `Float`, `Bool`, `Char`, `Text`,
   `Blob` or `Principal`.
-- `R`: a scalar, or a record of immutable fields, each a scalar or an option of one.
+- `R`: a scalar, or a record of immutable fields, each a scalar, an immutable array, or an option of
+  either. An array's elements are scalars, options of scalars, or records whose fields are those
+  (see Arrays in rows).
 
 The library is not part of the compiler's releases: it comes from a checkout of the Motoko
 repository, in the folder `lib/native-table`. Give that folder to the compiler as the package
@@ -103,6 +105,42 @@ for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
 - `remove` and `delete` on a view remove the whole row; `add`, `insert`, `update` and `evolve` on a
   view trap.
 - After `evolve`, make views from the table `evolve` returns.
+
+## Arrays in rows
+
+A field can hold an array, whose elements are scalars, options of scalars, or records of fields of
+those, or an option of such an array:
+
+```motoko no-repl
+type Person = {
+  name : Text;
+  codes : [Text];
+  scores : [?Nat];
+  tags : ?[Text];
+  history : [{ amount : Nat; since : Int; note : ?Text }]
+};
+
+let people = NativeTable.empty<Nat, Person>().createIndex(["name"]).build();
+
+people.add(1, {
+  name = "Ada";
+  codes = ["CH", "DE"];
+  scores = [?3, null];
+  tags = null;
+  history = [{ amount = 100; since = 0; note = null }]
+});
+
+ignore people.update(1, { codes = ["CH", "DE", "FR"] })
+```
+
+- An array field is read and written whole, by every read and write, `update` and views included.
+- An array field cannot be in an index, a filter or a total: those calls trap with
+  `a field of an array type has no index, filter or total`.
+- `evolve` adds an array field as it adds any field, as an option: `tags : ?[Text]`.
+- `update` takes a `Nat` for an `Int` field, but not a `[Nat]` for an `[Int]` field: write such an
+  array with its type, `[1, 2] : [Int]`.
+- Any other array, a mutable one included, is not a row field: such a table does not compile
+  (error M0279).
 
 ## Scan
 
@@ -203,16 +241,22 @@ so `min` and `max` read one value per group of 4,096 rows.
 | `t.min(field) : ?Int` | the smallest non-null value; null when there is none |
 | `t.max(field) : ?Int` | the largest non-null value; null when there is none |
 
-Each is null for a field of any other type. After a removal or a replacement takes away a group's
-smallest or largest value, `min` or `max` reads that group's rows until a write brings the group
-an exact one again.
+Each is null for a field of any other type, and traps for an array field. After a removal or a
+replacement takes away a group's smallest or largest value, `min` or `max` reads that group's rows
+until a write brings the group an exact one again.
 
 ## Other
 
 | Call | Does |
 |---|---|
-| `t.fieldTypes() : [(Text, FieldType)]` | the row's fields and their types: `{ scalar; optional }` |
+| `t.fieldTypes() : [(Text, FieldType)]` | the row's fields and their types: `{ scalar; optional; array }` |
 | `t.maintain(budget) : Bool` | runs whole steps of the table's upkeep until about `budget` instructions are used; true while work is pending |
+
+A `FieldType` gives the field's scalar type and whether the field is an option. `array` is null for
+a field that is not an array. For an array field it is `?{ optional }`, whether the elements are
+options, and `scalar` is the elements' scalar type. A field of an array of records is listed once
+per field of the record, as `"history.amount"`, with that field's scalar type, and
+`array.optional` says whether that field is an option.
 
 A step of upkeep compacts one group of 4,096 rows that removals or replacements have left with
 many removed rows or changed fields, or drops a group with no row left; `maintain` can go past
@@ -298,6 +342,7 @@ Each message starts with `native table: `.
 |---|---|---|
 | `the row type has no field of that name` | `build`; `view`, `update`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
 | `a field has another type than the table's` | `view`, `update` | a field of the view's row type, or of `fields`, that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
+| `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |
 | `an index has 1 to 7 fields` | `build` | a field list given to `createIndex` that is empty or has more than 7 fields |
 | `a table has at most 63 indexes` | `build` | a 64th distinct field list given to `createIndex` |
 | `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
