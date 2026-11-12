@@ -218,6 +218,7 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.
 - `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
   costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
+- `removeIndexRange` costs less than removing the walk's rows one by one.
 
 ## Filters
 
