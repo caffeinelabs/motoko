@@ -2,12 +2,12 @@
 
 use crate::consts::{GROUP_SLOTS, PAGE};
 use crate::fault::Fault;
-use crate::mem::{rd_u8, PageHost};
+use crate::mem::{rd_u8, PageHost, Region};
 
 use super::buffer::{self, DESC_BIT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
-use super::group::{Cur, GCell, GroupView, LeafDir};
+use super::group::{Cur, GCell, GroupView, LeafDir, Tables};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay;
 use super::row::{RowRef, Walk};
@@ -249,19 +249,23 @@ pub fn emit_sealed<H: PageHost + ?Sized, S: RowSink>(
     slot: Option<u64>,
     out: &mut S,
 ) -> Result<(), Fault> {
+    let sb = gv.h.get(Region::Page(shape.page))?;
+    let t = gv.tables();
     for o in 0..shape.leaves {
-        emit_leaf(gv, s, &shape.leaf(gv.h, o)?, &gv.leaf(o)?, None, slot, pos, out)?;
+        emit_leaf(gv, Some(&t), s, &shape.leaf_in(sb, o)?, &gv.leaf_in(&t, o)?, None, slot, pos, out)?;
     }
     Ok(())
 }
 
 /// Hands leaf `l`'s current value at position `pos` of sealed group `s` (viewed by `gv`, the leaf's directory
-/// entry `ld`, its segments read through `c` when given, the position's stored slot `slot`) to `out`: straight
-/// from its image cell when the group has no patches and the value lies in one piece of the image.
+/// entry `ld`, its segments read through `c` when given, else found in the group's tables `t` when given, the
+/// position's stored slot `slot`) to `out`: straight from its image cell when the group has no patches and the
+/// value lies in one piece of the image.
 #[allow(clippy::too_many_arguments)]
 #[inline(always)]
 pub fn emit_leaf<'h, H: PageHost + ?Sized, S: RowSink>(
     gv: &GroupView<'h, H>,
+    t: Option<&Tables<'h>>,
     s: &overlay::Sealed,
     l: &LeafInfo,
     ld: &LeafDir,
@@ -271,7 +275,7 @@ pub fn emit_leaf<'h, H: PageHost + ?Sized, S: RowSink>(
     out: &mut S,
 ) -> Result<(), Fault> {
     if let (Some(slot), 0) = (slot, s.dir) {
-        if emit_cell(gv, out, l, ld, c, slot, pos)? {
+        if emit_cell(gv, t, out, l, ld, c, slot, pos)? {
             return Ok(());
         }
     }
@@ -282,9 +286,11 @@ pub fn emit_leaf<'h, H: PageHost + ?Sized, S: RowSink>(
 
 /// Leaf `l`'s image cell (directory entry `ld`) at stored slot `slot` of position `pos` handed to `out` straight
 /// from the image; `false`, with nothing handed out, for a value that does not lie in one piece of it.
+#[allow(clippy::too_many_arguments)]
 #[inline(always)]
 fn emit_cell<'h, H: PageHost + ?Sized, S: RowSink>(
     gv: &GroupView<'h, H>,
+    t: Option<&Tables<'h>>,
     out: &mut S,
     l: &LeafInfo,
     ld: &LeafDir,
@@ -292,9 +298,10 @@ fn emit_cell<'h, H: PageHost + ?Sized, S: RowSink>(
     slot: u64,
     pos: u64,
 ) -> Result<bool, Fault> {
-    let x = match c {
-        Some(c) => gv.cell_at(ld, c, slot, pos)?,
-        None => gv.cell(ld, slot, pos)?,
+    let x = match (c, t) {
+        (Some(c), _) => gv.cell_at(ld, c, slot, pos)?,
+        (None, Some(t)) => gv.cell_in::<true>(t, ld, &mut Cur::default(), slot, pos)?,
+        (None, None) => gv.cell(ld, slot, pos)?,
     };
     match x {
         GCell::Bytes { off, len } if (off % PAGE).saturating_add(len) <= PAGE => {

@@ -377,7 +377,7 @@ impl Shape {
 
     /// `leaf` for a leaf `o` below `leaves`, from schema page bytes `b`.
     #[inline(always)]
-    fn leaf_in(&self, b: &[u8], o: u64) -> Result<LeafInfo, Fault> {
+    pub fn leaf_in(&self, b: &[u8], o: u64) -> Result<LeafInfo, Fault> {
         let bad = rt(Corruption::Leaf, o);
         let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
         let r: [u8; 16] = sub(b, at, 16)?.try_into().map_err(|_| bad)?;

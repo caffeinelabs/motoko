@@ -296,6 +296,20 @@ pub struct Cur<'h> {
     run: Seg,
 }
 
+/// A group's leaf directory and segment table, each read in one piece (`GroupView::tables`) unless it does not lie
+/// in one image block: a read of many leaves of one row finds their entries and segments in them with no further
+/// image read. `Tables::default()` holds neither.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Tables<'h> {
+    dir: &'h [u8],
+    segs: &'h [u8],
+}
+
+/// Entry `i` of `n` bytes of a table `t` read in one piece, when `t` holds it.
+fn entry(t: &[u8], i: u64, n: u64) -> Option<&[u8]> {
+    t.get(usize::try_from(i.wrapping_mul(n)).ok()?..).filter(|b| !b.is_empty())
+}
+
 /// A sealed group, read through its group page and the checked image reader.
 pub struct GroupView<'h, H: PageHost + ?Sized> {
     pub h: &'h H,
@@ -379,6 +393,15 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         }
     }
 
+    /// The leaf directory and the segment table, each read in one piece when it lies in one image block.
+    pub fn tables(&self) -> Tables<'h> {
+        let r = self.reader();
+        Tables {
+            dir: r.bytes(HEADER, self.l.wrapping_mul(LD_BYTES)).unwrap_or(&[]),
+            segs: r.bytes(self.segs_at, self.s.wrapping_mul(SEG_BYTES)).unwrap_or(&[]),
+        }
+    }
+
     pub fn reader(&self) -> ImageReader<'h, '_, H> {
         ImageReader::new(self.h, ImageId::Group(self.g), &self.img)
     }
@@ -417,6 +440,16 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         LeafDir::read(self.reader().bytes(HEADER.wrapping_add(o.wrapping_mul(LD_BYTES)), LD_BYTES)?)
     }
 
+    /// `leaf`, from `t` when it holds the entry.
+    pub fn leaf_in(&self, t: &Tables<'h>, o: u64) -> Result<LeafDir, Fault> {
+        if o < self.l {
+            if let Some(b) = entry(t.dir, o, LD_BYTES) {
+                return LeafDir::read(b);
+            }
+        }
+        self.leaf(o)
+    }
+
     /// The entry of leaf `o`, added after the image was packed: no cells. Kept out of line; a lookup of the
     /// image's own leaves still pays its bound check, about 2 instructions per field read from a packed group.
     #[cold]
@@ -433,11 +466,22 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Seg::read(self.reader().bytes(self.segs_at.wrapping_add(i.wrapping_mul(SEG_BYTES)), SEG_BYTES)?)
     }
 
-    /// The leaf's segment of `kind` after its cells (`Seq` part, directory or run).
-    fn tail_seg(&self, ld: &LeafDir, kind: u8) -> Result<Seg, Fault> {
+    /// `seg`, from `t` when `T` and `t` holds the entry.
+    #[inline(always)]
+    fn seg_in<const T: bool>(&self, t: &Tables<'h>, i: u64) -> Result<Seg, Fault> {
+        if T && i < self.s {
+            if let Some(b) = entry(t.segs, i, SEG_BYTES) {
+                return Seg::read(b);
+            }
+        }
+        self.seg(i)
+    }
+
+    /// The leaf's segment of `kind` after its cells (`Seq` part, directory or run), from `t` as `seg_in` reads.
+    fn tail_seg<const T: bool>(&self, t: &Tables<'h>, ld: &LeafDir, kind: u8) -> Result<Seg, Fault> {
         let first = u64::from(ld.first_seg).wrapping_add(ld.cell_segs());
         for i in first..u64::from(ld.first_seg).wrapping_add(u64::from(ld.segs)) {
-            let s = self.seg(i)?;
+            let s = self.seg_in::<T>(t, i)?;
             if s.kind == kind {
                 return Ok(s);
             }
@@ -445,22 +489,22 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         Err(self.bad(Corruption::Link, u64::from(ld.ordinal)))
     }
 
-    /// The cell segment holding slot s, and s's index in it.
+    /// The cell segment holding slot s, and s's index in it, from `t` as `seg_in` reads.
     #[inline(always)]
-    fn cell_seg(&self, ld: &LeafDir, s: u64) -> Result<(Seg, u64), Fault> {
+    fn cell_seg<const T: bool>(&self, t: &Tables<'h>, ld: &LeafDir, s: u64) -> Result<(Seg, u64), Fault> {
         let (mut lo, mut hi) = (0u64, ld.cell_segs());
         if hi == 0 {
             return Err(self.bad(Corruption::Link, u64::from(ld.ordinal)));
         }
         while hi.wrapping_sub(lo) > 1 {
             let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-            if u64::from(self.seg(u64::from(ld.first_seg).wrapping_add(mid))?.first) <= s {
+            if u64::from(self.seg_in::<T>(t, u64::from(ld.first_seg).wrapping_add(mid))?.first) <= s {
                 lo = mid;
             } else {
                 hi = mid;
             }
         }
-        let sg = self.seg(u64::from(ld.first_seg).wrapping_add(lo))?;
+        let sg = self.seg_in::<T>(t, u64::from(ld.first_seg).wrapping_add(lo))?;
         let i = s.checked_sub(u64::from(sg.first)).ok_or(self.bad(Corruption::Range, s))?;
         if i >= u64::from(sg.positions) {
             return Err(self.bad(Corruption::Range, s));
@@ -477,10 +521,23 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
     /// in it, so a reader of many positions of the group finds each segment once.
     #[inline(always)]
     pub fn cell_at(&self, ld: &LeafDir, c: &mut Cur<'h>, s: u64, p: u64) -> Result<GCell, Fault> {
+        self.cell_in::<false>(&Tables::default(), ld, c, s, p)
+    }
+
+    /// `cell_at`, finding the leaf's segments in `t` when `T`.
+    #[inline(always)]
+    pub fn cell_in<const T: bool>(
+        &self,
+        t: &Tables<'h>,
+        ld: &LeafDir,
+        c: &mut Cur<'h>,
+        s: u64,
+        p: u64,
+    ) -> Result<GCell, Fault> {
         let r = self.reader();
         if ld.form == form::SEQ {
             if c.cells.is_empty() {
-                c.cells = r.bytes(self.tail_seg(ld, seg::SEQ)?.off, 16)?;
+                c.cells = r.bytes(self.tail_seg::<T>(t, ld, seg::SEQ)?.off, 16)?;
             }
             // base + step · p in the leaf's 64-bit range, as the seal checked.
             return Ok(GCell::U(rd_u64(c.cells, 0)?.wrapping_add(rd_u64(c.cells, 8)?.wrapping_mul(p))));
@@ -491,7 +548,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
         }
         let mut i = s.wrapping_sub(c.first);
         if i >= c.n {
-            let (sg, j) = self.cell_seg(ld, s)?;
+            let (sg, j) = self.cell_seg::<T>(t, ld, s)?;
             let cells = r.bytes(sg.off, u64::from(sg.bytes))?;
             *c = Cur { cells, off: sg.off, first: u64::from(sg.first), n: u64::from(sg.positions), ..*c };
             i = j;
@@ -537,7 +594,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
                 let o = body.wrapping_add(i.wrapping_mul(4));
                 let (a, e) = (u64::from(rd_u32(b, o)?), u64::from(rd_u32(b, o.wrapping_add(4))?));
                 if c.run.kind != seg::RUN {
-                    c.run = self.tail_seg(ld, seg::RUN)?;
+                    c.run = self.tail_seg::<T>(t, ld, seg::RUN)?;
                 }
                 let o = c.off.wrapping_add(o);
                 let len = e.checked_sub(a).ok_or(self.bad(Corruption::Order, o))?;
@@ -573,7 +630,7 @@ impl<'h, H: PageHost + ?Sized> GroupView<'h, H> {
     /// The image offset and length of slot s's out-of-line entry, when the leaf's directory marks it.
     fn ool_entry(&self, ld: &LeafDir, s: u64) -> Result<Option<(u64, u64)>, Fault> {
         let r = self.reader();
-        let dir = self.tail_seg(ld, seg::OOL)?;
+        let dir = self.tail_seg::<false>(&Tables::default(), ld, seg::OOL)?;
         let n = u64::from(dir.positions);
         let word = r.u64_at(dir.off.wrapping_add((s / 64).wrapping_mul(8)))?;
         if word >> (s % 64) & 1 == 0 {

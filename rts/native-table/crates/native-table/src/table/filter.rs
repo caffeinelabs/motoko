@@ -536,7 +536,7 @@ impl<'h, H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<'h, H> for Cell
             };
             match (v.filter(|_| self.tested == Some(l.ordinal)), ld) {
                 (Some(x), _) => read::emit_sval(gv.h, self.out, l, x)?,
-                (None, Some(ld)) => read::emit_leaf(gv, s, l, ld, c, slot, pos, self.out)?,
+                (None, Some(ld)) => read::emit_leaf(gv, None, s, l, ld, c, slot, pos, self.out)?,
                 (None, None) => return Err(rt(Corruption::Leaf, pos)),
             }
         }
@@ -911,7 +911,7 @@ pub fn back<H: PageHost + ?Sized, S: RowSink>(
 
 /// The leaves `leaves` names of live row `rid`, which lies at `row`, handed to `out` in the order named, then
 /// `row_end`. Each leaf is found as it is read, with no cache to fill: one the table does not have live is
-/// `BadRef` there.
+/// `BadRef` there. A sealed row's leaves are found in its group's tables, read once.
 pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
     shape: &Shape,
@@ -925,8 +925,12 @@ pub fn row_cells<H: PageHost + ?Sized, S: RowSink>(
         Live::Buffered(at) => c.buffered(h, shape, &overlay::buffered(h, &at)?, rid, None),
         Live::Sealed(ref s, pos) => {
             let gv = GroupView::from_meta(h, &s.meta);
-            c.open(&gv)?;
-            c.sealed(&gv, shape, s, pos, gv.slot(pos)?, rid, None)
+            let (t, slot) = (gv.tables(), gv.slot(pos)?);
+            for i in 0..leaves.len() {
+                let l = Cells::<S, 0>::leaf(leaves, h, shape, i)?;
+                read::emit_leaf(&gv, Some(&t), s, &l, &gv.leaf_in(&t, u64::from(l.ordinal))?, None, slot, pos, c.out)?;
+            }
+            c.row_end(rid)
         }
     }
 }
