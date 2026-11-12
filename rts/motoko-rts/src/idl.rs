@@ -1274,43 +1274,32 @@ pub(crate) unsafe fn sub(
                 }
             }
             (IDL_CON_record, IDL_CON_record) => {
+                // Merge the two field lists (both sorted by tag). Fields only in
+                // `t1` are dropped; fields only in `t2` must be null/opt/reserved.
                 let mut n1 = leb128_decode(&mut tb1);
                 let n2 = leb128_decode(&mut tb2);
                 let mut tag1 = 0;
                 let mut t11 = 0;
-                let mut advance = true;
+                let mut pending = false; // `(tag1, t11)` read but not yet matched
                 for _ in 0..n2 {
                     let tag2 = leb128_decode(&mut tb2);
                     let t21 = sleb128_decode(&mut tb2);
-                    if n1 == 0 {
-                        // check all remaining fields optional
-                        if !is_null_opt_reserved(typtbl2, end2, t21) {
+                    // skip `t1` fields that sort before `tag2`
+                    while !(pending && tag1 >= tag2) && n1 > 0 {
+                        tag1 = leb128_decode(&mut tb1);
+                        t11 = sleb128_decode(&mut tb1);
+                        n1 -= 1;
+                        pending = true;
+                    }
+                    if pending && tag1 == tag2 {
+                        if !sub(rel, p, typtbl1, typtbl2, end1, end2, t11, t21) {
                             break 'return_false;
                         }
-                        continue;
-                    };
-                    if advance {
-                        loop {
-                            tag1 = leb128_decode(&mut tb1);
-                            t11 = sleb128_decode(&mut tb1);
-                            n1 -= 1;
-                            if !(tag1 < tag2 && n1 > 0) {
-                                break;
-                            }
-                        }
-                    };
-                    if tag1 > tag2 {
-                        if !is_null_opt_reserved(typtbl2, end2, t21) {
-                            // missing, non_opt field
-                            break 'return_false;
-                        }
-                        advance = false; // reconsider this field in next round
-                        continue;
-                    };
-                    if !sub(rel, p, typtbl1, typtbl2, end1, end2, t11, t21) {
+                        pending = false;
+                    } else if !is_null_opt_reserved(typtbl2, end2, t21) {
+                        // missing, non-opt field
                         break 'return_false;
                     }
-                    advance = true;
                 }
                 return true;
             }
