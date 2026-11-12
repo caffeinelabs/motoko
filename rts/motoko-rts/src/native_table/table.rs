@@ -179,10 +179,9 @@ unsafe fn labels_of(codec: Value) -> Value {
 /// takes a table whose row type never changed on the path it took before tables could change.
 #[inline(always)]
 unsafe fn root_block<M: Memory>(host: &StoreHost<'_, M>, id: u64, layout: &Layout) -> Option<Map> {
-    if !host.is_root(id) {
+    let Some(block) = host.root(id) else {
         rts_trap_with("native table: not a table of this key and row type");
-    }
-    let block = or_trap(host.get(Region::Block(id)));
+    };
     if rd_u64(block, CODEC_HASH) != Ok(layout.hash) {
         return Some(changed(host, block, layout.hash));
     }

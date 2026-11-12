@@ -334,46 +334,36 @@ impl Shape {
     /// changed is taken as it is.
     pub fn stored<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<Option<Shape>, Fault> {
         let r = h.get(Region::Block(tbl))?;
-        let b = sub(r, root::SHAPE, STORED_BYTES)?;
-        // The 24 words in `words`' order, six at a time.
-        let mut w = [[0u64; 6]; 4];
-        let mut at = 0u64;
-        for x in w.iter_mut().flatten() {
-            *x = rd_u64(b, at)?;
-            at = at.wrapping_add(8);
-        }
-        let [w0, w1, w2, w3] = w;
-        let [format, page, hash, version, leaves, rows_r] = w0;
-        let [leaves_at, bitmap, fixed_at, fixed, vars, run_r] = w1;
-        let [run_list, run_bytes, tot_bytes, hot_h, key_leaves, key_w] = w2;
-        let [key_hash, set, index_at, index_decls, unique, _] = w3;
-        let Ok(version) = u32::try_from(version) else { return Ok(None) };
-        if format != u64::from(FORMAT_TABLE)
-            || page != rd_u64(r, root::SCHEMA_PAGE)?
-            || hash != rd_u64(r, root::SCHEMA_HASH)?
+        // Word i in `words`' order, from the shape's bytes bounds-checked once.
+        let b = sub(r, root::SHAPE, STORED_BYTES)?.first_chunk::<STORED>().ok_or(rt(Corruption::Header, tbl))?;
+        let w = |i: u64| rd_u64(b, i.wrapping_mul(8)).unwrap_or(0);
+        let Ok(version) = u32::try_from(w(3)) else { return Ok(None) };
+        if w(0) != u64::from(FORMAT_TABLE)
+            || w(1) != rd_u64(r, root::SCHEMA_PAGE)?
+            || w(2) != rd_u64(r, root::SCHEMA_HASH)?
             || version != rd_u32(r, root::SCHEMA_VERSION)?
         {
             return Ok(None);
         }
         Ok(Some(Shape {
-            page,
-            hash,
+            page: w(1),
+            hash: w(2),
             version,
-            leaves,
-            head: RowHead { version, r: rows_r, bitmap, fixed_at, fixed, vars },
-            leaves_at,
-            run_r,
-            run_list,
-            run_bytes,
-            tot_bytes,
-            hot_h,
-            key_leaves,
-            key_w,
-            key_hash,
-            set: set != 0,
-            index_at,
-            index_decls,
-            unique,
+            leaves: w(4),
+            head: RowHead { version, r: w(5), bitmap: w(7), fixed_at: w(8), fixed: w(9), vars: w(10) },
+            leaves_at: w(6),
+            run_r: w(11),
+            run_list: w(12),
+            run_bytes: w(13),
+            tot_bytes: w(14),
+            hot_h: w(15),
+            key_leaves: w(16),
+            key_w: w(17),
+            key_hash: w(18),
+            set: w(19) != 0,
+            index_at: w(20),
+            index_decls: w(21),
+            unique: w(22),
         }))
     }
 

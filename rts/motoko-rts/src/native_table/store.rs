@@ -163,16 +163,16 @@ impl<'a, M: Memory> StoreHost<'a, M> {
         Ok(())
     }
 
-    /// Whether `id` is the root block of a table the store has created.
-    pub fn is_root(&self, id: u64) -> bool {
+    /// The root block `id` of a table the store has created, or `None` when `id` is not one. The
+    /// store records only blocks of its own pages, so the block is not checked again.
+    pub fn root(&self, id: u64) -> Option<&[u8]> {
         if id % BLOCK != 0 {
-            return false;
+            return None;
         }
-        let Some((slot, bit)) = self.map_bit(id) else {
-            return false;
-        };
+        let (slot, bit) = self.map_bit(id)?;
         let map = unsafe { (*self.state()).roots[slot] };
-        map != 0 && (unsafe { *((map + bit / 8) as *const u8) } >> (bit % 8)) & 1 == 1
+        let set = map != 0 && (unsafe { *((map + bit / 8) as *const u8) } >> (bit % 8)) & 1 == 1;
+        set.then(|| unsafe { core::slice::from_raw_parts(id as *const u8, BLOCK as usize) })
     }
 }
 
