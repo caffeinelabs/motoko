@@ -1,7 +1,8 @@
 //! A key of several parts: a table whose key is a tuple of a Text, a Nat and an Int has a key leaf per part,
 //! the ids of column 0. Rows are inserted, replaced, removed and read back by their keys, and a key that differs
 //! from a row's in one part finds no row; a scan and an index walk hand each row out with its key parts first; a
-//! compaction and a change of the row type keep every row under its key.
+//! compaction and a change of the row type keep every row under its key; rows removed by a range of the index
+//! are found by the keys read from them.
 
 use native_table::consts::GROUP_SLOTS;
 use native_table::index::secondary::Start;
@@ -103,5 +104,18 @@ fn tuple_keys() {
             assert_eq!(tb.wake().unwrap(), Wake::Idle);
             tb.evolve(&image(2)).unwrap();
         }
+    }
+    let enc = |tb: &Table<'_, VecHost>, x: u64| {
+        let mut b = [0u8; 32];
+        let n = tb.index_key(1, &mut Src::new(&[(1 << 16, V::U(x))]), &mut b).unwrap();
+        b[..n].to_vec()
+    };
+    let (from, to) = (enc(&tb, 1_000), enc(&tb, 3_000));
+    let gone = |k: u64| k % 3 != 0 && (1_000..=3_000).contains(&(2 * k + u64::from(k % 5 == 0)));
+    let (removed, _) = tb.remove_range(&mut scratch(), 1, Some(&from), Some(&to)).unwrap();
+    assert_eq!(removed, (0..n).filter(|&k| gone(k)).count() as u64);
+    for k in 0..n {
+        let extra = [(3 << 16, V::Null)];
+        assert_eq!(get(&tb, &key(k)), (k % 3 != 0 && !gone(k)).then(|| want(k, &extra)), "row {k} after the range");
     }
 }

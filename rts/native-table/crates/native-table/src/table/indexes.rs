@@ -419,6 +419,33 @@ fn stored_key<'s, H: PageHost + ?Sized, O: Over + ?Sized, S: Scratch>(
     Ok(key)
 }
 
+/// E(k) of the stored row `r`, its key leaves encoded as an index's parts are: at the start of `buf`, or in
+/// `scratch` when longer than `KEY_STACK`.
+pub(super) fn primary_key<'b, H: PageHost + ?Sized, S: Scratch>(
+    shape: &Shape,
+    h: &H,
+    r: &read::Live,
+    buf: &'b mut [u8; KEY_STACK],
+    scratch: &'b mut S,
+) -> Result<&'b [u8], Fault> {
+    let mut d = Decl { id: 0, w: shape.key_w, parts: 0, ords: [0; PARTS_MAX] };
+    for o in 0..shape.leaves {
+        if u64::from(d.parts) == shape.key_leaves {
+            break;
+        }
+        if shape.leaf(h, o)?.key {
+            let ord = d.ords.get_mut(usize::from(d.parts)).ok_or(rt(Corruption::Count, o))?;
+            *ord = u16::try_from(o).map_err(|_| rt(Corruption::Leaf, o))?;
+            d.parts = d.parts.wrapping_add(1);
+        }
+    }
+    let mut piece = [0u8; PIECE];
+    match key_of_stored(shape, h, &d, r, &mut (), &mut piece, buf)? {
+        Some(n) => Ok(buf.get(..n).unwrap_or(&[])),
+        None => stored_key(shape, h, &d, r, &mut (), scratch),
+    }
+}
+
 impl<H: PageHost> Table<'_, H> {
     /// The unique indexes among the declarations `mask` sets (bit i: declaration i) whose key, with no null part,
     /// a row other than `own` holds: the key the cells of `src` give, or with `set` = (r, leaves), the key the

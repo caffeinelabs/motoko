@@ -15,10 +15,11 @@ import NativeTable "mo:native-table/NativeTable";
 // largest key whose first field is not null. The table goes through inserts, upkeep,
 // replacements and removals, inserts again and the removal of every row. A field list declared
 // twice is one index. A walk of the groups resumed after writes goes on in order and hands back
-// the keys the writes added past it. maintain has no work on an empty table. Unique indexes refuse
-// a second row's value. A field the row does not have, an empty field list, fields the table has
-// no index on, and keys with a cell of the wrong kind, the wrong number of cells, no cell or a cell
-// out of range trap
+// the keys the writes added past it. Rows are removed by ranges of an index's keys, each call
+// giving the number of rows the walk of its range gives. maintain has no work on an empty table.
+// Unique indexes refuse a second row's value. A field the row does not have, an empty field list,
+// fields the table has no index on, and keys with a cell of the wrong kind, the wrong number of
+// cells, no cell or a cell out of range trap
 actor {
   type Cell = NativeTable.Cell;
   type Row = {
@@ -505,6 +506,27 @@ actor {
     check("resumed")
   };
 
+  // Rows removed by ranges of an index's keys: from a key to a key on the index on a (rows of many
+  // batches) and on the long Texts of s, from the first key of the index on c and s, to the last
+  // of the index on on, between values no row has, and with the ends reversed
+  public func ranges() : async () {
+    var wrong = 0;
+    func cut(index : [Text], from : ?[Cell], to : ?[Cell]) {
+      var n = 0;
+      for (k, _) in rows.indexEntries(index, from, to) { model[k] := null; n += 1 };
+      if rows.removeIndexRange(index, from, to) != n { wrong += 1 }
+    };
+    let a = groups(["a"]);
+    cut(["a"], ?a[10].0, ?a[200].0);
+    cut(["s"], ?[#text(repeat("x", 300))], ?[#text(repeat("y", 700))]);
+    cut(["c", "s"], null, ?groups(["c", "s"])[3].0);
+    cut(["on"], ?[#nat(38)], null);
+    cut(["a"], ?[#nat(5_000_000)], ?[#nat(5_000_001)]);
+    cut(["a"], ?a[300].0, ?a[250].0);
+    Prim.debugPrint("ranges " # debug_show { wrong });
+    check("ranges")
+  };
+
   public func clear() : async () {
     var k = 0;
     while k < m {
@@ -570,6 +592,8 @@ actor {
 //CALL ingress refill "DIDL\x00\x00"
 //CALL ingress walks "DIDL\x00\x00"
 //CALL ingress resume "DIDL\x00\x00"
+//CALL ingress ranges "DIDL\x00\x00"
+//CALL ingress walks "DIDL\x00\x00"
 //CALL ingress clear "DIDL\x00\x00"
 //CALL ingress walks "DIDL\x00\x00"
 //CALL ingress unique "DIDL\x00\x00"

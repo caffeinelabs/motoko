@@ -199,6 +199,7 @@ its order:
 | `t.reverseIndexEntries(index, from, to)` | the same, largest first: from `from` down to `to` |
 | `t.indexEntriesAt(index, from, to, offset)` | `indexEntries` from its `offset`-th row on, 0 the first |
 | `t.reverseIndexEntriesAt(index, from, to, offset)` | `reverseIndexEntries` from its `offset`-th row on |
+| `t.removeIndexRange(index, from, to) : Nat` | removes the rows `indexEntries(index, from, to)` gives, in one call; how many |
 | `t.minEntry(index) : ?(K, R)` | the row with the smallest key whose first field is not null |
 | `t.maxEntry(index) : ?(K, R)` | the row with the largest such key |
 | `t.groupCounts(index)` | each distinct key with its number of rows, as `([Cell], Nat)`, smallest key first |
@@ -224,6 +225,8 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.
 - `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
   costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
+- `removeIndexRange` costs less than removing the walk's rows one by one:
+  `orders.removeIndexRange(["city"], ?[#text("Basel")], ?[#text("Basel")])` removes every Basel order.
 
 ## Filters
 

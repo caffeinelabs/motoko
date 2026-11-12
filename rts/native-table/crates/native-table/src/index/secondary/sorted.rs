@@ -109,6 +109,41 @@ impl Secondary {
         }
     }
 
+    /// The rows from the first of key `from` (the tree's first row when `None`) to the last of key `to` (its last
+    /// when `None`), both full encodings: how many rows come before them in the tree's order, and how many there
+    /// are. Two descents of the counted tree.
+    pub fn range<H: PageHost + ?Sized>(
+        &self,
+        h: &H,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+    ) -> Result<(u64, u64), Fault> {
+        if self.root == 0 {
+            return Ok((0, 0));
+        }
+        let (s, v) = (self.shape, self.view(h));
+        let rank = |key: &[u8], kind| tree::rank(s, &v, self.root, &KeyProbe { key, kind });
+        let lo = match from {
+            Some(k) => rank(k, Kind::Low)?,
+            None => 0,
+        };
+        let hi = match to {
+            Some(k) => rank(k, Kind::Count)?,
+            None => node_rows(s, &v, self.root)?,
+        };
+        Ok((lo, hi.saturating_sub(lo)))
+    }
+
+    /// The rid of the row with `t` rows before it in the tree's order; `None` when there is none. One descent.
+    pub fn rid_at<H: PageHost + ?Sized>(&self, h: &H, t: u64) -> Result<Option<u64>, Fault> {
+        let v = self.view(h);
+        let Some((n, i)) = (if self.root == 0 { None } else { tree::select(self.shape, &v, self.root, t)? }) else {
+            return Ok(None);
+        };
+        let (_, field) = field_at(self.shape, &v, n, i)?;
+        Ok(Some(if is_ovf(field) { v.record(field)?.0 } else { payload(field) }))
+    }
+
     /// Where the walk from `from` (`None`: from the index's end) in direction `dir` hands out its n-th row, 0 its
     /// first, for `walk` to start: a key, whole at the start of `key`, its length, and the rid of the key's row to
     /// go on after, `None` to start at the key's first row; `None` when the walk has no n-th row. Two descents of

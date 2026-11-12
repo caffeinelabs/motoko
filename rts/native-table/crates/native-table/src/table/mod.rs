@@ -43,7 +43,7 @@ pub mod write;
 use crate::consts::PAGE;
 use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::host::{wake_from_state, Budget, Progress, Scratch, Wake};
-use crate::index::secondary::Start;
+use crate::index::secondary::{Secondary, Start};
 use crate::key::{LenSink, Sink, SliceSink};
 use crate::mem::{put, put_u16, rd_u16, PageHost, Region};
 use crate::schema::SchemaView;
@@ -806,14 +806,63 @@ impl<'h, H: PageHost> Table<'h, H> {
         let Some((rid, node, i)) = look.found else { return Ok((None, self.wake()?)) };
         let found = read::live(&*self.host, self.root, rid);
         let row = self.live_key::<true>(&found, rid, e)?;
-        // The primary entry, then the indexes' entries, read from the row's cells, then the row.
-        primary::remove(&mut *self.host, self.root, &mut p, node, i, &mut path)?;
-        self.index_stored(row, u64::MAX, false, rid, &mut kb, scratch, &mut path)?;
-        match *row {
-            read::Live::Buffered(at) => write::delete_buffered(&mut *self.host, self.root, &self.shape, &at)?,
-            read::Live::Sealed(ref s, pos) => update::delete_sealed(&mut *self.host, self.root, &self.shape, s, pos)?,
-        }
+        self.drop_row(row, rid, &mut p, (node, i), &mut path, &mut kb, scratch)?;
         Ok((Some(rid), self.settle()?))
+    }
+
+    /// Takes the live row `rid`, lying at `row`, out of the primary index `p` (its entry at `(node, i)`, which
+    /// `path` reached), then out of every secondary index, read from the row's cells, then out of the table. Out
+    /// of line: `remove` and `remove_range` share one copy.
+    #[allow(clippy::too_many_arguments)]
+    #[inline(never)]
+    fn drop_row<S: Scratch>(
+        &mut self,
+        row: &read::Live,
+        rid: u64,
+        p: &mut Primary,
+        (node, i): (u64, u64),
+        path: &mut Path,
+        kb: &mut [u8; KEY_STACK],
+        scratch: &mut S,
+    ) -> Result<(), Fault> {
+        primary::remove(&mut *self.host, self.root, p, node, i, path)?;
+        self.index_stored(row, u64::MAX, false, rid, kb, scratch, path)?;
+        match *row {
+            read::Live::Buffered(at) => write::delete_buffered(&mut *self.host, self.root, &self.shape, &at),
+            read::Live::Sealed(ref s, pos) => update::delete_sealed(&mut *self.host, self.root, &self.shape, s, pos),
+        }
+    }
+
+    /// Removes the rows of secondary index `index` from the first of key `from` (the index's first row when `None`)
+    /// to the last of key `to` (its last when `None`), both full encodings, as `remove` removes a row: returns how
+    /// many, with the maintenance state. Each row is found by its place in the index's counted tree (one descent),
+    /// and its E(k) read from it. `BadRef` when the table has no secondary index `index`.
+    pub fn remove_range<S: Scratch>(
+        &mut self,
+        scratch: &mut S,
+        index: u8,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+    ) -> Result<(u64, Wake), Fault> {
+        indexes::find(&self.shape, &*self.host, index)?;
+        let (lo, n) = Secondary::read(&*self.host, self.root, index)?.range(&*self.host, from, to)?;
+        for _ in 0..n {
+            let ix = Secondary::read(&*self.host, self.root, index)?;
+            let rid = ix.rid_at(&*self.host, lo)?.ok_or(rt(Corruption::Count, lo))?;
+            let found = read::live(&*self.host, self.root, rid);
+            let row = self.live_key::<false>(&found, rid, &[])?;
+            let mut kb = [0u8; KEY_STACK];
+            let e = indexes::primary_key(&self.shape, &*self.host, row, &mut kb, scratch)?;
+            let mut p = Primary::read(&*self.host, self.root)?.ok_or(rt(Corruption::Link, rid))?;
+            let mut path = Path::new();
+            match primary::lookup(&*self.host, &p, e, &mut path)?.found {
+                Some((r, node, i)) if r == rid => {
+                    self.drop_row(row, rid, &mut p, (node, i), &mut path, &mut kb, scratch)?
+                }
+                _ => return Err(rt(Corruption::Link, rid)),
+            }
+        }
+        Ok((n, self.settle()?))
     }
 
     /// Changes the table's row type to the one schema image `image` gives (`evolve::change`): the same rows

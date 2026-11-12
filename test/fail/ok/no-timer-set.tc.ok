@@ -269,6 +269,10 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) -> Bool;
     ntPut : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
     ntRemove : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) -> Bool;
+    ntRemoveRange :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], from : ?[NtCell], to : ?[NtCell]) ->
+        Nat;
     ntScanBack :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, before : Nat64,
              limit : Nat64) ->

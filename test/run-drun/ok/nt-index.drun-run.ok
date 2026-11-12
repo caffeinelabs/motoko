@@ -26,6 +26,11 @@ ingress Completed: Reply: 0x4449444c0000
 debug.print: resume {added = 2; wrong = 0}
 debug.print: resumed {keys = [13, 41, 951, 82, 88, 1_456, 41, 27, 6, 100, 12, 1]; size = 3_000; wrong = 0}
 ingress Completed: Reply: 0x4449444c0000
+debug.print: ranges {wrong = 0}
+debug.print: ranges {keys = [10, 39, 682, 78, 66, 1_093, 41, 27, 6, 100, 12, 1]; size = 1_684; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 17_504; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
 debug.print: clear {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong = 0}
 ingress Completed: Reply: 0x4449444c0000
 debug.print: walks {walked = 0; wrong = 0}

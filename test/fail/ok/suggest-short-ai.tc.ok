@@ -270,6 +270,10 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) -> Bool;
     ntPut : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
     ntRemove : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) -> Bool;
+    ntRemoveRange :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], from : ?[NtCell], to : ?[NtCell]) ->
+        Nat;
     ntScanBack :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, before : Nat64,
              limit : Nat64) ->

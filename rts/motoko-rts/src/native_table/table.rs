@@ -498,6 +498,35 @@ pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value)
     removed.is_some() as u64
 }
 
+/// Removes the rows of the table whose root block is `id` that the walk of the secondary index on
+/// `fields`, found in `indexes` (`index_of`), hands out from the key the cells of the array `from`
+/// give, or from the index's first key when `from` is null, to the last row of the key the cells of
+/// `to` give, or to its last key when `to` is null; returns how many. A step of maintenance runs
+/// first when the table has work pending.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_remove_range<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    indexes: Value,
+    fields: Value,
+    from: Value,
+    to: Value,
+) -> u64 {
+    let mut layout = read_layout_of(codec);
+    let index = index_of(indexes, fields);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    if let Some(map) = root_block(&host, id, &layout) {
+        layout = map.layout(&mut *mem, &layout);
+    }
+    let mut table = table_at(&mut host, id);
+    or_trap(table.write_step());
+    let from = index_key_of(mem, &layout, &table, index, from);
+    let to = index_key_of(mem, &layout, &table, index, to);
+    or_trap(table.remove_range(&mut BlobScratch { mem }, index, from, to)).0
+}
+
 /// The secondary index id of the index on the field list `fields`, an array of Texts, as the
 /// array `indexes` gives it: a table keeps its indexes as pairs of a field list and an index id.
 /// The pair is the one whose list is `fields` itself, or else holds the same Texts in the same
@@ -618,6 +647,24 @@ unsafe fn key_of<'k, M: Memory>(
     }
 }
 
+/// The key the cells of the array `key` give secondary index `index` of `table`, its full encoding,
+/// in a Blob that lives until the next collection; `None` when `key` is null.
+unsafe fn index_key_of<'k, M: Memory, H: PageHost>(
+    mem: *mut M,
+    layout: &Layout,
+    table: &Table<'_, H>,
+    index: u8,
+    key: Value,
+) -> Option<&'k [u8]> {
+    if key == NULL_POINTER {
+        return None;
+    }
+    let (mut cells, _) = index_cells(mem, layout, table, index, key, false);
+    or_trap(key_of(mem, |out| {
+        table.index_key(index, &mut cells, out).map(Some)
+    }))
+}
+
 /// A new array of the first `n` values at `values`.
 #[inline(always)]
 unsafe fn array_of<M: Memory>(mem: &mut M, values: *const Value, n: usize) -> Value {
@@ -708,10 +755,7 @@ pub unsafe fn nt_walk<M: Memory>(
                 Dir::Fwd => table.min_key(index, out),
                 Dir::Rev => table.max_key(index, out),
             }),
-            2 => {
-                let (mut cells, _) = index_cells(mem, &layout, &table, index, from, false);
-                key_of(mem, |out| table.index_key(index, &mut cells, out).map(Some))
-            }
+            2 => Ok(index_key_of(mem, &layout, &table, index, from)),
             _ => rts_trap_with("native table: unknown walk start"),
         };
         match (start, key) {
@@ -723,14 +767,7 @@ pub unsafe fn nt_walk<M: Memory>(
             (_, Err(fault)) => rts_trap_with(fault.text()),
         }
     };
-    let to = if to == NULL_POINTER {
-        None
-    } else {
-        let (mut cells, _) = index_cells(mem, &layout, &table, index, to, false);
-        or_trap(key_of(mem, |out| {
-            table.index_key(index, &mut cells, out).map(Some)
-        }))
-    };
+    let to = index_key_of(mem, &layout, &table, index, to);
     // The row ids, from a walk that resumes after the last row it handed out each time a key does
     // not fit its buffer, with a buffer of the bytes the key needs.
     let (mut n, mut size) = (0, WALK_BUFFER);

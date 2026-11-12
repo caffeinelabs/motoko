@@ -219,6 +219,12 @@ func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)]
   )
 };
 
+// Removes the rows the walk of the index on `fields` gives from the key `from`, or from its first
+// key when null, to the key `to`, or to its last when null; how many
+func ntRemoveRange<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], from : ?[NtCell], to : ?[NtCell]) : Nat {
+  (prim "nt_remove_range" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], ?[NtCell], ?[NtCell]) -> Nat)(id, codec, indexes, fields, from, to)
+};
+
 // The sum and the number of the non-null values of the field `column` of R over every row, or
 // with `filter` = ?(field, f) over the rows whose field `field` meets `f`; null when `column` is
 // not of an integer type

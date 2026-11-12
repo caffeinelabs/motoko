@@ -455,6 +455,12 @@ module {
     walk(self, index, true, from, to, offset)
   };
 
+  /// Removes the rows `indexEntries(index, from, to)` gives, with their index entries, in one call;
+  /// returns how many.
+  public func removeIndexRange<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell]) : Nat {
+    Prim.ntRemoveRange(self.id, self.codec, self.indexes, index, from, to)
+  };
+
   /// The first key and row in the order of the index on `index`, or backward, whose key's first
   /// field is not null; null when no row has one.
   func end<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool) : ?(K, R) {

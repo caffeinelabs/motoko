@@ -1545,6 +1545,10 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
     let mut clears: Vec<u64> = (0..1 + rc.below(2)).map(|_| rc.below(ops.max(1))).collect();
     clears.sort_unstable();
     clears.dedup();
+    let mut rg = rng(seed ^ 0x8A4E);
+    let mut ranges: Vec<u64> = (0..2 + rg.below(4)).map(|_| rg.below(ops.max(1))).collect();
+    ranges.sort_unstable();
+    ranges.dedup();
     let mut i = 0u64;
     let (mut burst, mut hot): (u64, Vec<Key>) = (0, Vec::new());
     // The writes, then deletes of every row left.
@@ -1574,6 +1578,36 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             last_rid = None;
             sealed = nt_testhost::open_group(tb.host(), tbl);
             check(&tb, &s, &m, &dead, &mut r);
+        }
+        // The rows of a range of a secondary index's keys removed at once; each end a row's key, a fresh one, or
+        // open. A burst ends, its rows may be gone.
+        if !draining && ranges.first() == Some(&i) {
+            ranges.remove(0);
+            if let Some((ix, on)) = s.indexes.get(rg.below(s.indexes.len() as u64 + 1) as usize).cloned() {
+                burst = 0;
+                let mut tb = Table::open(&mut h, tbl).unwrap();
+                let enc = |tb: &Table<'_, VecHost>, row: &[Mv]| {
+                    let cells: Vec<(u32, V)> =
+                        on.iter().map(|&c| (leaf(c), cell_of(s.cols[c].kind, &row[c], false))).collect();
+                    index_key(tb, ix, &cells)
+                };
+                let end = |rg: &mut XorShift| {
+                    let row = m.values().nth(rg.below(m.len() as u64 + 1) as usize);
+                    match (rg.below(5), row) {
+                        (0, _) => None,
+                        (1, _) | (_, None) => Some(enc(&tb, &row_of(&s, rg, Mv::Null))),
+                        (_, Some(e)) => Some(enc(&tb, &e.1)),
+                    }
+                };
+                let (from, to) = (end(&mut rg), end(&mut rg));
+                let within = |k: &Vec<u8>| from.as_ref().is_none_or(|f| k >= f) && to.as_ref().is_none_or(|t| k <= t);
+                let gone: Vec<Key> =
+                    m.iter().filter(|(_, e)| within(&enc(&tb, &e.1))).map(|(k, _)| k.clone()).collect();
+                let (n, _) = tb.remove_range(&mut scratch, ix, from.as_deref(), to.as_deref()).unwrap();
+                assert_eq!(n, gone.len() as u64, "index {ix}: the rows from {from:?} to {to:?}");
+                dead.extend(gone.iter().map(|k| m.remove(k).unwrap().0));
+                check(&tb, &s, &m, &dead, &mut r);
+            }
         }
         let existing = |r: &mut XorShift, m: &Model| m.keys().nth(r.below(m.len() as u64) as usize).cloned().unwrap();
         // Now and then a burst of updates of a few rows with no maintenance, so that patches pile up.
