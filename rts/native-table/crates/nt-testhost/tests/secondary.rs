@@ -3,8 +3,9 @@
 //! with rising rids, older rids and rows taken or dropped twice. Each case runs under both fill patterns and
 //! must leave the same entries and give the same answers. Every few operations and at the end the tree is
 //! checked whole: each key's row entries in rid order, then its one count entry holding their number, no
-//! count entry for a key without rows, every reachable node of the tree's form and counted; every key's count
-//! and the group walk equal the model's; deleting every row empties the tree and its key log.
+//! count entry for a key without rows, every reachable node of the tree's form and counted, and each internal
+//! node's rows under each child those of the child's subtree; every key's count, the rows by every first part of
+//! a key's bytes and the group walk equal the model's; deleting every row empties the tree and its key log.
 //!
 //! The key log against the tree: its free chunks listed by size class and linked both ways, its blocks runs of
 //! chunks holding exactly the records the tree's entries name and the free ones, under churn of one row's key
@@ -17,7 +18,7 @@ use native_table::index::area_nodes::{AreaView, KeyLog};
 use native_table::index::secondary::Secondary;
 use native_table::key::probe::{is_count, is_ovf, payload, payload_to_count, KeyProbe, ResolveKey};
 use native_table::key::{enc_bytes, KeyKind, KeyPart, KeySpec};
-use native_table::tree::node::{child, count, is_leaf, ko};
+use native_table::tree::node::{child, count, is_leaf, ko, rows};
 use native_table::tree::{Cursor, Fwd, Path, Shape};
 use native_table::{ImageId, NodeRead, PageHost};
 use nt_testhost::{VecHost, VecSink, XorShift, FILLS};
@@ -127,8 +128,34 @@ fn reachable<H: PageHost>(h: &H, ix: &Secondary) -> (u64, u64) {
     (n, levels)
 }
 
-/// The tree whole against the model: each key's rows in rid order, then its count entry; the node count.
-/// Returns the tree's levels.
+/// The row entries of node x's subtree, each internal node's rows under each child checked against them.
+fn subtree_rows<H: PageHost>(v: &AreaView<'_, H>, x: u64) -> u64 {
+    let s = v.shape;
+    let (c, leaf) = (count(s, v, x).unwrap(), is_leaf(v, x).unwrap());
+    let field = |i| u64::from_be_bytes(v.bytes(x, ko(s, &s.shape(leaf), i) + s.w, 8).unwrap().try_into().unwrap());
+    let mut r = (0..c).filter(|&i| !is_count(field(i))).count() as u64;
+    if !leaf {
+        for j in 0..=c {
+            let under = subtree_rows(v, child(s, v, x, j).unwrap());
+            assert_eq!(rows(s, v, x, j).unwrap(), under, "node {x}: the rows under child {j}");
+            r += under;
+        }
+    }
+    r
+}
+
+/// The rows the tree holds, its internal nodes' rows checked.
+fn tree_rows(side: &Side) -> u64 {
+    let v = AreaView::new(&side.h, side.ix.shape, side.ix.log);
+    if side.ix.root == 0 {
+        0
+    } else {
+        subtree_rows(&v, side.ix.root)
+    }
+}
+
+/// The tree whole against the model: each key's rows in rid order, then its count entry; the node count; the
+/// rows under each child of each internal node. Returns the tree's levels.
 fn check_tree(side: &Side, m: &Model, what: &str) -> u64 {
     let got = entries(&side.h, &side.ix);
     let mut want = Vec::new();
@@ -145,6 +172,7 @@ fn check_tree(side: &Side, m: &Model, what: &str) -> u64 {
     assert!(got == want, "{what}: the tree's entries differ from the model's");
     let (nodes, levels) = reachable(&side.h, &side.ix);
     assert_eq!(nodes, side.ix.nodes, "{what}: node count");
+    assert_eq!(tree_rows(side), m.values().map(|r| r.len() as u64).sum::<u64>(), "{what}: rows");
     levels
 }
 
@@ -159,6 +187,13 @@ fn check_counts(side: &Side, m: &Model, probes: &[Vec<u8>], what: &str) {
     for k in probes {
         let got = side.ix.count(&side.h, k).unwrap();
         assert_eq!(got, want.get(k).copied().unwrap_or(0), "{what}: count of {}", nt_testhost::hex(k));
+    }
+    // Rows by the first bytes of their keys: some keys cut at every length, and bytes FF, which no key starts with.
+    let cuts = probes.iter().step_by(probes.len() / 40 + 1).flat_map(|k| (0..=k.len()).map(|n| k[..n].to_vec()));
+    for p in cuts.chain([vec![0xFF], vec![0xFF, 0xFF]]) {
+        let rows: usize = m.range(p.clone()..).take_while(|(k, _)| k.starts_with(&p)).map(|(_, r)| r.len()).sum();
+        let got = side.ix.count_prefix(&side.h, &mut p.clone()).unwrap();
+        assert_eq!(got, rows as i128, "{what}: rows by {}", nt_testhost::hex(&p));
     }
     let mut groups = Vec::new();
     let mut out = vec![0u8; 4_096];
@@ -253,6 +288,9 @@ fn case(fill: u8, w: u64, keys: &[Vec<u8>], ops: u64, seed: u64) -> Outcome {
         assert!(side.delete(&k, rid));
         m.get_mut(&k).unwrap().remove(&rid);
         assert_eq!(side.ix.count(&side.h, &k).unwrap(), m[&k].len() as i128);
+        if rows.len() % 101 == 0 {
+            assert_eq!(tree_rows(&side), rows.len() as u64, "{}: rows while emptying", what(ops));
+        }
     }
     assert_eq!((side.ix.root, side.ix.nodes), (0, 0), "{}: the emptied tree", what(ops));
     assert_eq!(side.ix.log, KeyLog::default(), "{}: the emptied tree's key log", what(ops));

@@ -4,7 +4,7 @@
 //! every offset lies inside the node by construction.
 
 use super::shape::{NodeShape, Shape};
-use crate::consts::FLAG_LEAF;
+use crate::consts::{FLAG_LEAF, F_COUNT};
 use crate::fault::Fault;
 use crate::host::{NodeMem, NodeRead};
 
@@ -73,6 +73,77 @@ pub fn set_child<S: Shape, M: NodeMem + ?Sized>(s: S, m: &mut M, n: u64, j: u64,
     m.set_word(n, co(s, j), c)
 }
 
+// ---- counted trees: row entries are the entries whose field has no `F_COUNT`
+
+/// The count flag in the first byte of an entry's big-endian field, the last 8 bytes of its key part.
+const COUNT_BYTE: u8 = 0x40;
+const _: () = assert!(F_COUNT == (COUNT_BYTE as u64) << 56);
+
+/// Offset of the rows under child j of a counted internal node, after its children: coff + 8·(c + 1) + 8j.
+#[inline(always)]
+fn to<S: Shape>(s: S, j: u64) -> u64 {
+    let internal = s.shape(false);
+    internal.coff.wrapping_add(internal.cap.wrapping_add(1).wrapping_add(j.min(internal.cap)).wrapping_mul(8))
+}
+
+/// The rows under child j of internal node n.
+#[inline(always)]
+pub fn rows<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64, j: u64) -> Result<u64, Fault> {
+    m.word(n, to(s, j))
+}
+
+#[inline(always)]
+pub fn set_rows<S: Shape, M: NodeMem + ?Sized>(s: S, m: &mut M, n: u64, j: u64, r: u64) -> Result<(), Fault> {
+    m.set_word(n, to(s, j), r)
+}
+
+/// Adds `d` to the rows under the child each frame (n, j) of `frames` took; `d` = `u64::MAX` takes one away.
+#[inline(always)]
+pub fn add_rows<S: Shape, M: NodeMem + ?Sized>(s: S, m: &mut M, frames: &[(u64, u64)], d: u64) -> Result<(), Fault> {
+    for &(n, j) in frames {
+        m.add_word(n, to(s, j), d)?;
+    }
+    Ok(())
+}
+
+/// The row entries among the key parts of `ks` bytes that `run` holds.
+#[inline(always)]
+pub fn rows_in(run: &[u8], ks: u64) -> u64 {
+    let (Ok(mut at), Ok(ks)) = (usize::try_from(ks.wrapping_sub(8)), usize::try_from(ks.max(8))) else { return 0 };
+    let mut r = 0u64;
+    while let Some(&b) = run.get(at) {
+        r = r.wrapping_add(u64::from(b & COUNT_BYTE == 0));
+        at = at.wrapping_add(ks);
+    }
+    r
+}
+
+/// The row entries among entries [i, k) of node n.
+pub fn entry_rows<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64, i: u64, k: u64) -> Result<u64, Fault> {
+    if k <= i {
+        return Ok(0);
+    }
+    let (_, sh) = shape_of(s, m, n)?;
+    let ks = s.ks();
+    Ok(rows_in(m.bytes(n, ko(s, &sh, i), clamp_run(sh.cap, i, k.wrapping_sub(i)).wrapping_mul(ks))?, ks))
+}
+
+/// The rows under children [0, j) of counted internal node n.
+pub fn child_rows<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64, j: u64) -> Result<u64, Fault> {
+    let run = m.bytes(n, to(s, 0), j.min(s.shape(false).cap.wrapping_add(1)).wrapping_mul(8))?;
+    Ok(run.chunks_exact(8).fold(0, |t, w| t.wrapping_add(w.first_chunk().map_or(0, |w| u64::from_le_bytes(*w)))))
+}
+
+/// The rows of node n's subtree in a counted tree: its row entries and, internal, the rows under its children.
+pub fn node_rows<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64) -> Result<u64, Fault> {
+    let c = count(s, m, n)?;
+    let r = entry_rows(s, m, n, 0, c)?;
+    if is_leaf(m, n)? {
+        return Ok(r);
+    }
+    Ok(r.wrapping_add(child_rows(s, m, n, c.wrapping_add(1))?))
+}
+
 /// Clamps a run length to what fits from index i of a node of capacity c.
 #[inline(always)]
 fn clamp_run(cap: u64, i: u64, k: u64) -> u64 {
@@ -101,7 +172,8 @@ pub fn move_entries<S: Shape, M: NodeMem + ?Sized>(
     m.copy(src, vo(s, &ss, si), dst, vo(s, &ds, di), k.wrapping_mul(s.vs()))
 }
 
-/// Moves k children from child sj of internal node s to child dj of internal node d.
+/// Moves k children from child sj of internal node s to child dj of internal node d, and in a counted tree the
+/// rows under them.
 #[inline(always)]
 pub fn move_children<S: Shape, M: NodeMem + ?Sized>(
     s: S,
@@ -117,7 +189,11 @@ pub fn move_children<S: Shape, M: NodeMem + ?Sized>(
     }
     let slots = s.shape(false).cap.wrapping_add(1);
     let k = clamp_run(slots, dj, clamp_run(slots, sj, k));
-    m.copy(src, co(s, sj), dst, co(s, dj), k.wrapping_mul(8))
+    m.copy(src, co(s, sj), dst, co(s, dj), k.wrapping_mul(8))?;
+    if M::COUNTED {
+        m.copy(src, to(s, sj), dst, to(s, dj), k.wrapping_mul(8))?;
+    }
+    Ok(())
 }
 
 /// Writes the pending entry's parts as entry i of node n.

@@ -22,6 +22,7 @@ use crate::index::area_nodes::AreaNodes;
 use crate::key::probe::IndexPending;
 use crate::key::words::KeyWords;
 use crate::mem::{copy_bytes, shift, sub, sub_mut, PageHost, Region};
+use crate::tree::node::rows_in;
 use crate::tree::{self, IndexShape, Path};
 
 /// The widest key area inserted in place: four words.
@@ -150,8 +151,8 @@ fn write_entry<const N: usize>(
 /// nothing written otherwise. The same bytes as `insert_at` with the path to n.
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
-fn put<H: PageHost, const N: usize, const KS: usize>(
-    m: &mut AreaNodes<'_, H>,
+fn put<H: PageHost, const C: bool, const N: usize, const KS: usize>(
+    m: &mut AreaNodes<'_, H, C>,
     g: &Geo,
     n: u64,
     j: u64,
@@ -186,6 +187,8 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
     let h = c.wrapping_sub(c / 2);
     let i = j;
     let mut up = [0u8; UP];
+    // In a counted tree, the rows of the two leaves.
+    let mut rows = (0u64, 0u64);
     {
         let (ln, rn) = m.host.pair_mut(Region::Block(n), Region::Block(r))?;
         // The entry at x of the left leaf moves up.
@@ -225,6 +228,12 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
         }
         set_count(ln, h)?;
         set_count(rn, right)?;
+        if C {
+            rows = (
+                rows_in(sub(ln, ko(0), h.wrapping_mul(ks))?, ks),
+                rows_in(sub(rn, ko(0), right.wrapping_mul(ks))?, ks),
+            );
+        }
     }
     // The parent: entries pj..pc up by one, their value parts, children pj + 1..=pc up by one; the entry
     // that moved up at pj, the new leaf as child pj + 1.
@@ -237,6 +246,13 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
     open(b, k0, ks, moved.wrapping_mul(ks))?;
     open(b, v0, vs, moved.wrapping_mul(vs))?;
     open(b, c0, 8, moved.wrapping_mul(8))?;
+    if C {
+        // The rows under children pj + 1..=pc up by one, after the children; then the two leaves' rows.
+        let t0 = g.coff_i.wrapping_add(g.cap_i.wrapping_add(1).wrapping_add(pj).wrapping_mul(8));
+        open(b, t0.wrapping_add(8), 8, moved.wrapping_mul(8))?;
+        *word_at(b, t0)? = rows.0.to_le_bytes();
+        *word_at(b, t0.wrapping_add(8))? = rows.1.to_le_bytes();
+    }
     cross(&up, 0, b, k0, ks)?;
     cross(&up, ks, b, v0, vs)?;
     *word_at(b, c0)? = r.to_le_bytes();
@@ -250,8 +266,8 @@ fn put<H: PageHost, const N: usize, const KS: usize>(
 /// bytes. In place when the key fits W ≤ 32 and V ≤ 8 and the leaf, or the path's last parent, has room; else
 /// `insert_at` with the path. The same bytes as `insert_at`.
 #[allow(clippy::too_many_arguments)]
-pub fn insert_vacant<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
+pub fn insert_vacant<H: PageHost, const C: bool>(
+    m: &mut AreaNodes<'_, H, C>,
     root: &mut u64,
     n: u64,
     j: u64,
@@ -262,10 +278,10 @@ pub fn insert_vacant<H: PageHost>(
 ) -> Result<(), Fault> {
     if let Some(nw) = words_in_place(m.shape, key, value) {
         let done = match nw {
-            1 => vacant_put::<H, 1, 16>(m, n, j, key, field, value, path)?,
-            2 => vacant_put::<H, 2, 24>(m, n, j, key, field, value, path)?,
-            3 => vacant_put::<H, 3, 32>(m, n, j, key, field, value, path)?,
-            _ => vacant_put::<H, 4, 40>(m, n, j, key, field, value, path)?,
+            1 => vacant_put::<H, C, 1, 16>(m, n, j, key, field, value, path)?,
+            2 => vacant_put::<H, C, 2, 24>(m, n, j, key, field, value, path)?,
+            3 => vacant_put::<H, C, 3, 32>(m, n, j, key, field, value, path)?,
+            _ => vacant_put::<H, C, 4, 40>(m, n, j, key, field, value, path)?,
         };
         if done {
             return Ok(());
@@ -279,8 +295,8 @@ pub fn insert_vacant<H: PageHost>(
 
 /// `insert_vacant` in place at key width W = 8N: `Ok(false)` with nothing written when `insert_at` must do it.
 #[inline(always)]
-fn vacant_put<H: PageHost, const N: usize, const KS: usize>(
-    m: &mut AreaNodes<'_, H>,
+fn vacant_put<H: PageHost, const C: bool, const N: usize, const KS: usize>(
+    m: &mut AreaNodes<'_, H, C>,
     n: u64,
     j: u64,
     key: &[u8],
@@ -305,5 +321,5 @@ fn vacant_put<H: PageHost, const N: usize, const KS: usize>(
         }
         parent = Some(Parent { n: pn, j: pj.min(pc), cnt: pc });
     }
-    put::<H, N, KS>(m, &g, n, j, cnt, parent, &KeyWords::first(key, N), field, value)
+    put::<H, C, N, KS>(m, &g, n, j, cnt, parent, &KeyWords::first(key, N), field, value)
 }

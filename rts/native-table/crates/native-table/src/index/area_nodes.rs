@@ -73,8 +73,9 @@ fn key_len(word: u64) -> u64 {
     word & LEN_MASK
 }
 
-/// The nodes of one index tree: blocks of area `area` of table `tbl`, of shape `shape`, with key log `log`.
-pub struct AreaNodes<'h, H: PageHost> {
+/// The nodes of one index tree: blocks of area `area` of table `tbl`, of shape `shape`, with key log `log`; a
+/// counted tree (`NodeMem::COUNTED`) when `C`.
+pub struct AreaNodes<'h, H: PageHost, const C: bool = false> {
     pub host: &'h mut H,
     pub tbl: u64,
     pub area: u32,
@@ -89,7 +90,16 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     pub fn new(host: &'h mut H, tbl: u64, area: u32, shape: IndexShape, log: KeyLog) -> Self {
         AreaNodes { host, tbl, area, shape, log, nodes: 0 }
     }
+}
 
+impl<'h, H: PageHost> AreaNodes<'h, H, true> {
+    /// A counted tree's nodes, of shape `IndexShape::counted`'s.
+    pub fn counted(host: &'h mut H, tbl: u64, area: u32, shape: IndexShape, log: KeyLog) -> Self {
+        AreaNodes { host, tbl, area, shape, log, nodes: 0 }
+    }
+}
+
+impl<H: PageHost, const C: bool> AreaNodes<'_, H, C> {
     fn block(&self, n: u64) -> Result<&[u8], Fault> {
         self.host.get(Region::Block(n))
     }
@@ -374,7 +384,7 @@ impl<'h, H: PageHost> AreaNodes<'h, H> {
     }
 }
 
-impl<H: PageHost> NodeRead for AreaNodes<'_, H> {
+impl<H: PageHost, const C: bool> NodeRead for AreaNodes<'_, H, C> {
     #[inline(always)]
     fn count(&self, n: u64) -> Result<u16, Fault> {
         rd_u16(self.block(n)?, 0)
@@ -393,13 +403,18 @@ impl<H: PageHost> NodeRead for AreaNodes<'_, H> {
     }
 }
 
-impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
+impl<H: PageHost, const C: bool> NodeMem for AreaNodes<'_, H, C> {
+    const COUNTED: bool = C;
     type Entry<'k> = IndexPending<'k>;
     fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault> {
         put_u16(self.block_mut(n)?, 0, c)
     }
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault> {
         put_u64(self.block_mut(n)?, off, w)
+    }
+    fn add_word(&mut self, n: u64, off: u64, d: u64) -> Result<(), Fault> {
+        let b = self.block_mut(n)?;
+        put_u64(b, off, rd_u64(b, off)?.wrapping_add(d))
     }
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault> {
         if s == d {
@@ -463,7 +478,7 @@ impl<H: PageHost> NodeMem for AreaNodes<'_, H> {
     }
 }
 
-impl<H: PageHost> ResolveKey for AreaNodes<'_, H> {
+impl<H: PageHost, const C: bool> ResolveKey for AreaNodes<'_, H, C> {
     fn width(&self) -> u64 {
         self.shape.w
     }

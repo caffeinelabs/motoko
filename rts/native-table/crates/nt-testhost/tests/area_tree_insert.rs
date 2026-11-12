@@ -1,9 +1,9 @@
 //! Area-tree inserts in place (`area_insert::insert_vacant`, at the position a descent with a path found, as
 //! the secondary and the primary index insert) against the tree's own `descend` and `insert_at`: after the same
 //! sequence of inserts the whole main memory is the same, byte for byte, every insert has the same outcome and
-//! changes the same blocks, and the trees have the same root, node count and key log. 252 cases: seven shapes
-//! with W ≤ 32 and V ≤ 8, twelve seeds, three workloads (many equal key areas from 2- and 3-letter alphabets,
-//! and 256 letters). The sequences hold row entries, count entries, keys shorter than W, keys
+//! changes the same blocks, and the trees have the same root, node count and key log. 360 cases: ten shapes
+//! with W ≤ 32 and V ≤ 8, three of them counted (each internal node keeping the rows under its children),
+//! twelve seeds, three workloads (many equal key areas from 2- and 3-letter alphabets, and 256 letters). The sequences hold row entries, count entries, keys shorter than W, keys
 //! longer than W through the key log, entries already there, leaf splits, full parents (checked: trees of
 //! height 3 or more) and root splits.
 
@@ -52,10 +52,10 @@ struct Entry {
     value: Vec<u8>,
 }
 
-/// The tree's own way: `descend` with a new path, then `insert_at`.
-fn reference(s: &mut Side, shape: IndexShape, e: &Entry) -> Outcome {
-    let mut m = AreaNodes::new(&mut s.host, s.tbl, 1, shape, s.log);
-    m.nodes = s.nodes;
+/// The tree's own way: `descend` with a new path, then `insert_at`; a counted tree when `C`.
+fn reference<const C: bool>(s: &mut Side, shape: IndexShape, e: &Entry) -> Outcome {
+    let mut m: AreaNodes<'_, _, C> =
+        AreaNodes { host: &mut s.host, tbl: s.tbl, area: 1, shape, log: s.log, nodes: s.nodes };
     let field = if e.key.len() as u64 > shape.w {
         let payload = if matches!(e.kind, Kind::Count) { payload(e.base) } else { e.rid };
         ovf_field(e.base, m.new_record(payload, &e.key).unwrap())
@@ -84,9 +84,9 @@ fn reference(s: &mut Side, shape: IndexShape, e: &Entry) -> Outcome {
 }
 
 /// The side under test: a descent with a path, then `insert_vacant` at the position found.
-fn in_place(s: &mut Side, shape: IndexShape, e: &Entry) -> Outcome {
-    let mut m = AreaNodes::new(&mut s.host, s.tbl, 1, shape, s.log);
-    m.nodes = s.nodes;
+fn in_place<const C: bool>(s: &mut Side, shape: IndexShape, e: &Entry) -> Outcome {
+    let mut m: AreaNodes<'_, _, C> =
+        AreaNodes { host: &mut s.host, tbl: s.tbl, area: 1, shape, log: s.log, nodes: s.nodes };
     let field = if e.key.len() as u64 > shape.w {
         let payload = if matches!(e.kind, Kind::Count) { payload(e.base) } else { e.rid };
         ovf_field(e.base, m.new_record(payload, &e.key).unwrap())
@@ -130,8 +130,8 @@ fn height(s: &Side, shape: IndexShape) -> u64 {
 
 /// One random sequence of `n` inserts into a tree of shape (w, v), keys of letters below `alphabet`, rids below
 /// `rids`; returns how many inserted, found and failed, and the tree's height after them.
-fn run(seed: u64, w: u64, v: u64, n: u64, alphabet: u64, rids: u64) -> ([u64; 3], u64) {
-    let shape = IndexShape::new(w, v).unwrap();
+fn run<const C: bool>(seed: u64, shape: IndexShape, n: u64, alphabet: u64, rids: u64) -> ([u64; 3], u64) {
+    let (w, v) = (shape.w, shape.v);
     let fill = FILLS[(seed % 2) as usize];
     let (mut a, mut b) = (Side::new(fill), Side::new(fill));
     let mut g = XorShift(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
@@ -149,8 +149,8 @@ fn run(seed: u64, w: u64, v: u64, n: u64, alphabet: u64, rids: u64) -> ([u64; 3]
             _ => (Kind::Row(rid), row_field(rid)),
         };
         let e = Entry { key, kind, base, rid, value };
-        let x = reference(&mut a, shape, &e);
-        let y = in_place(&mut b, shape, &e);
+        let x = reference::<C>(&mut a, shape, &e);
+        let y = in_place::<C>(&mut b, shape, &e);
         assert_eq!(x, y, "outcome, seed {seed} W {w} V {v} step {step}");
         assert_eq!(a.host.changed_set(), b.host.changed_set(), "changed blocks, seed {seed} W {w} V {v} step {step}");
         a.host.end_message();
@@ -172,10 +172,16 @@ fn inserts_in_place_write_the_trees_own_bytes() {
     let mut tally = [0u64; 3];
     // Cases whose tree grew to a height of 3 or more: leaf splits that reached a full parent.
     let mut deep = 0u64;
-    for (w, v) in [(8u64, 0u64), (8, 8), (16, 0), (16, 8), (24, 0), (32, 0), (32, 8)] {
+    let plain = [(8u64, 0u64), (8, 8), (16, 0), (16, 8), (24, 0), (32, 0), (32, 8)].map(|(w, v)| (w, v, false));
+    for (w, v, counted) in plain.into_iter().chain([8, 16, 32].map(|w| (w, 0, true))) {
         for seed in 1..=12u64 {
             for (n, alphabet, rids) in [(3_000u64, 3u64, 50u64), (20_000, 256, 1u64 << 40), (6_000, 2, 8)] {
-                let (t, h) = run(seed * 7_919 + w + v, w, v, n, alphabet, rids);
+                let seed = seed * 7_919 + w + v;
+                let (t, h) = if counted {
+                    run::<true>(seed, IndexShape::counted(w).unwrap(), n, alphabet, rids)
+                } else {
+                    run::<false>(seed, IndexShape::new(w, v).unwrap(), n, alphabet, rids)
+                };
                 for (x, y) in tally.iter_mut().zip(t) {
                     *x += y;
                 }
@@ -186,7 +192,7 @@ fn inserts_in_place_write_the_trees_own_bytes() {
             }
         }
     }
-    assert_eq!(cases, 252);
+    assert_eq!(cases, 360);
     // Every outcome occurs: inserts, entries already there (repeated keys and rids of the small alphabets).
     assert!(tally[0] > 0 && tally[1] > 0, "{tally:?}");
     // Leaves split whose parent is full.

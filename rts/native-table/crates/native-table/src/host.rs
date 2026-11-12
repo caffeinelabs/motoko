@@ -26,10 +26,18 @@ pub trait NodeRead {
 
 /// How the one B-tree writes nodes. A read-only view of a tree implements `NodeRead` alone.
 pub trait NodeMem: NodeRead {
+    /// Whether the tree is counted: its internal nodes keep the row entries under each child, at the offsets
+    /// `tree::node` gives, and its shape is `IndexShape::counted`'s.
+    const COUNTED: bool = false;
     /// The pending entry of this tree's entry form: an index entry that borrows its key and value part for 'k.
     type Entry<'k>: Pending;
     fn set_count(&mut self, n: u64, c: u16) -> Result<(), Fault>;
     fn set_word(&mut self, n: u64, off: u64, w: u64) -> Result<(), Fault>;
+    /// Adds `d` to the word at node offset `off`, wrapping.
+    fn add_word(&mut self, n: u64, off: u64, d: u64) -> Result<(), Fault> {
+        let w = self.word(n, off)?;
+        self.set_word(n, off, w.wrapping_add(d))
+    }
     /// Moves `len` bytes from offset `so` of node `s` to offset `doff` of node `d`; s = d is allowed,
     /// overlapping ranges included (memmove).
     fn copy(&mut self, s: u64, so: u64, d: u64, doff: u64, len: u64) -> Result<(), Fault>;

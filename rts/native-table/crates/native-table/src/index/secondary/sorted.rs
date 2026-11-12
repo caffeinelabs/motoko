@@ -16,19 +16,13 @@ use core::cmp::Ordering;
 use core::ops::Bound;
 
 use super::{entry_key, exact, field_at, rt, take, Secondary};
-use crate::consts::F_COUNT;
 use crate::fault::{Corruption, Fault};
-use crate::host::NodeRead;
 use crate::index::area_nodes::AreaView;
 use crate::key::probe::{is_count, is_ovf, payload, KeyProbe, Kind, ResolveKey};
 use crate::key::KeySpec;
 use crate::mem::PageHost;
-use crate::tree::node::{count, is_leaf, ko, shape_of};
-use crate::tree::{Cursor, Dir, Fwd, IndexShape, Probe, Rev, Shape};
-
-/// The count entry's flag `F_COUNT` in the first byte of an entry's big-endian field.
-const COUNT_BYTE: u8 = 0x40;
-const _: () = assert!(F_COUNT == (COUNT_BYTE as u64) << 56);
+use crate::tree::node::{is_leaf, ko, node_rows};
+use crate::tree::{self, Cursor, Dir, Fwd, IndexShape, Probe, Rev, Shape};
 
 /// Where a walk starts, in its direction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -108,55 +102,28 @@ impl Secondary {
         }
     }
 
-    /// The rows whose key starts with `prefix`, the encoding of the first parts of a key, not all of them: one
-    /// descent to the first entry of such a key, then their row entries counted, a leaf's in one piece up to the
-    /// first entry past them, found by halving. `prefix` is left changed.
+    /// The rows whose key starts with `prefix`, the encoding of the first parts of a key, not all of them: the rows
+    /// before the first key past them less the rows before the first key with them, two descents of the counted
+    /// tree. `prefix` is left changed.
     pub fn count_prefix<H: PageHost + ?Sized>(&self, h: &H, prefix: &mut [u8]) -> Result<i128, Fault> {
         if self.root == 0 {
             return Ok(0);
         }
         let (s, v) = (self.shape, self.view(h));
-        let mut c = Cursor::<Fwd>::seek(s, &v, self.root, Bound::Included(&KeyProbe { key: prefix, kind: Kind::Low }))?;
+        let lo = tree::rank(s, &v, self.root, &KeyProbe { key: prefix, kind: Kind::Low })?;
         // The keys that start with `prefix` lie below `prefix` cut after its last byte below FF, that byte raised
         // by one, and every key past them at or above it; with every byte FF, they run to the tree's end.
-        let mut end = prefix.iter().rposition(|&b| b != 0xFF).and_then(|j| prefix.get_mut(..=j));
-        if let Some(b) = end.as_mut().and_then(|e| e.last_mut()) {
-            *b = b.wrapping_add(1);
-        }
-        let mut total = 0u64;
-        while let Some((n, i)) = c.peek(s, &v)? {
-            let (leaf, sh) = shape_of(s, &v, n)?;
-            // Whether entry j of node n lies past the keys that start with `prefix`.
-            let past = |j: u64| match end.as_deref() {
-                Some(key) => Ok((KeyProbe { key, kind: Kind::Low }).cmp_at(&v, n, ko(s, &sh, j))? != Ordering::Less),
-                None => Ok::<bool, Fault>(false),
-            };
-            // A leaf's entries from i on, up to the first past them, found by halving when its last one is.
-            let last = if leaf { count(s, &v, n)?.saturating_sub(1).max(i) } else { i };
-            let stop = past(last)?;
-            let (mut lo, mut hi) = if stop { (i, last) } else { (last.wrapping_add(1), 0) };
-            while lo < hi {
-                let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-                if past(mid)? {
-                    hi = mid
-                } else {
-                    lo = mid.wrapping_add(1)
+        let end = prefix.iter().rposition(|&b| b != 0xFF).and_then(|j| prefix.get_mut(..=j));
+        let hi = match end {
+            Some(key) => {
+                if let Some(b) = key.last_mut() {
+                    *b = b.wrapping_add(1);
                 }
+                tree::rank(s, &v, self.root, &KeyProbe { key, kind: Kind::Low })?
             }
-            // Each row has one row entry: the entries that are not count entries.
-            let run = v.bytes(n, ko(s, &sh, i), lo.wrapping_sub(i).wrapping_mul(s.ks()))?;
-            let (ks, w) = (usize::try_from(s.ks()).unwrap_or(usize::MAX), usize::try_from(s.w).unwrap_or(0));
-            for e in run.chunks_exact(ks) {
-                if e.get(w).is_some_and(|&b| b & COUNT_BYTE == 0) {
-                    total = total.wrapping_add(1);
-                }
-            }
-            if stop {
-                break;
-            }
-            c.advance(s, &v, n, last)?;
-        }
-        Ok(i128::from(total))
+            None => node_rows(s, &v, self.root)?,
+        };
+        Ok(i128::from(hi.wrapping_sub(lo)))
     }
 
     /// The index's smallest key whose first part is not null, whole at the start of `out`; its length. `None`

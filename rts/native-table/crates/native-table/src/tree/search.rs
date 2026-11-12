@@ -1,6 +1,6 @@
 //! Search, find and descend.
 
-use super::node::{child, count, is_leaf, ko};
+use super::node::{child, child_rows, count, entry_rows, is_leaf, ko};
 use super::shape::Shape;
 use super::{Path, Probe};
 use crate::consts::{NODE_SIZE, PATH_STACK};
@@ -120,6 +120,23 @@ fn find_body<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(
             }
         }
     }
+}
+
+/// In a counted tree whose root is `root` (not 0): the row entries before the probe's place, which no entry
+/// equals. One descent, adding at each node the row entries before the place and, internal, the rows under the
+/// children before it. It fails with `PathOverflow` past `PATH_STACK` levels.
+pub fn rank<S: Shape, M: NodeRead + ?Sized, P: Probe<M>>(s: S, m: &M, root: u64, p: &P) -> Result<u64, Fault> {
+    let (mut n, mut sh, mut r) = (root, Shared::default(), 0u64);
+    for _ in 0..PATH_STACK {
+        let (Ok(j) | Err(j)) = search(s, m, n, p, &mut sh)?;
+        r = r.wrapping_add(entry_rows(s, m, n, 0, j)?);
+        if is_leaf(m, n)? {
+            return Ok(r);
+        }
+        r = r.wrapping_add(child_rows(s, m, n, j)?);
+        n = child(s, m, n, j)?;
+    }
+    Err(Fault::PathOverflow)
 }
 
 /// Searches the non-empty tree from the root, recording each internal node passed and the child index

@@ -115,8 +115,10 @@ pub const IMAGE_V1: u16 = 1;
 /// frozen and no rewrite spans calls: the root's frozen queue (64–83) and job slots 2–7, a buffer descriptor's
 /// bytes 24–31 and 56–63 and a group page's bytes 640–655 are zero, no rewrite state block exists, and the drain
 /// holds only removed indexes' trees and key logs. An index directory of another version is refused with a
-/// header fault, so no count reads a record at another layout's offsets or meaning.
-pub const FORMAT_TABLE: u16 = 12;
+/// header fault, so no count reads a record at another layout's offsets or meaning. Version 13: a secondary index's
+/// tree is counted, each internal node keeping the row entries under each child after its children, so it holds
+/// fewer entries.
+pub const FORMAT_TABLE: u16 = 13;
 
 // ---- Indexes ----
 

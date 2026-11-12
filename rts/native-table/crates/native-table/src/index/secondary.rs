@@ -8,6 +8,11 @@
 //! its count entry, its last row removes it. So a key's count in the tree is one descent, and the keys and
 //! their counts are the count entries in order.
 //!
+//! The tree is counted (`IndexShape::counted`): each internal node also keeps the row entries under each of its
+//! children, so the rows of a range of keys are two descents (`tree::rank`) whatever their number. An insert of
+//! a row adds one to each of its descent's frames before it goes in, and a removal takes one away
+//! (`tree::remove_found`); a split, a merge or a rotation counts its nodes again.
+//!
 //! Rows arrive in rising rid order, so an insert's row lands just before its key's count entry, usually in
 //! the same leaf: the count is then raised where the insert's own descent ends, and only a key's first row, or
 //! a count entry beyond the leaf, takes a second descent. A delete lowers a count of two or more found next to
@@ -48,6 +53,9 @@ pub use sorted::Start;
 /// The area the tree's nodes and key log take.
 const AREA: u32 = 1;
 
+/// The tree's nodes: a counted tree.
+type Tree<'h, H> = AreaNodes<'h, H, true>;
+
 /// Descriptor kind 2: a secondary index.
 pub const KIND_SECONDARY: u8 = 2;
 /// Offsets in an index descriptor.
@@ -79,7 +87,7 @@ impl Secondary {
     /// An empty index `index` of key width `w` (a multiple of 8 in 8..=1,016); `None` for any other width. It
     /// holds no block until its first row.
     pub fn create(index: u8, w: u64) -> Option<Secondary> {
-        Some(Secondary { index, shape: IndexShape::new(w, 0)?, root: 0, nodes: 0, log: KeyLog::default() })
+        Some(Secondary { index, shape: IndexShape::counted(w)?, root: 0, nodes: 0, log: KeyLog::default() })
     }
 
     /// Makes table `tbl`'s descriptor of index `index` (1 to 63), for an empty tree of key width `w` and the key
@@ -110,7 +118,7 @@ impl Secondary {
         let w = u64::from(rd_u16(blk, at(D_W))?);
         Ok(Secondary {
             index,
-            shape: IndexShape::new(w, 0).ok_or(rt(Corruption::Layout, b))?,
+            shape: IndexShape::counted(w).ok_or(rt(Corruption::Layout, b))?,
             root: rd_u64(blk, at(D_ROOT))?,
             nodes: u64::from(rd_u32(blk, at(D_NODES))?),
             log: KeyLog {
@@ -259,8 +267,8 @@ impl Secondary {
         }
     }
 
-    fn tree<'h, H: PageHost>(&self, h: &'h mut H, tbl: u64) -> AreaNodes<'h, H> {
-        let mut m = AreaNodes::new(h, tbl, AREA, self.shape, self.log);
+    fn tree<'h, H: PageHost>(&self, h: &'h mut H, tbl: u64) -> Tree<'h, H> {
+        let mut m = AreaNodes::counted(h, tbl, AREA, self.shape, self.log);
         m.nodes = self.nodes;
         m
     }
@@ -291,14 +299,14 @@ impl Secondary {
 /// `Secondary::insert` on the tree `m` with root `root`. `None` when the tree holds the row; else whether the
 /// key's count entry was made.
 fn insert_row<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
+    m: &mut Tree<'_, H>,
     root: &mut u64,
     key: &[u8],
     rid: u64,
     path: &mut Path,
 ) -> Result<Option<bool>, Fault> {
     let s = m.shape;
-    let row = |m: &mut AreaNodes<'_, H>| stored_field(m, row_field(rid), rid, key);
+    let row = |m: &mut Tree<'_, H>| stored_field(m, row_field(rid), rid, key);
     if *root == 0 {
         let field = row(m)?;
         *root = tree::insert_first(s, m, &IndexPending::Borrowed { key, field, value: &[], child: 0 })?;
@@ -312,6 +320,7 @@ fn insert_row<H: PageHost>(
     // The count entry the row lands before, raised first; the row then moves it up by one.
     let raised = count_next(m, n, j, key, 1)?.is_some();
     let field = row(m)?;
+    tree::node::add_rows(s, m, path.frames(), 1)?;
     area_insert::insert_vacant(m, root, n, j, key, field, &[], path)?;
     if raised {
         return Ok(Some(false));
@@ -321,7 +330,7 @@ fn insert_row<H: PageHost>(
 
 /// `Secondary::delete` on the tree `m` with root `root`, not empty.
 fn delete_row<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
+    m: &mut Tree<'_, H>,
     root: &mut u64,
     key: &[u8],
     rid: u64,
@@ -346,7 +355,7 @@ fn delete_row<H: PageHost>(
 /// Removes entry i of node n, found by the descent in `path`, and hands back its key-log record when its key
 /// is longer than W.
 fn remove_entry<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
+    m: &mut Tree<'_, H>,
     root: &mut u64,
     n: u64,
     i: u64,
@@ -363,7 +372,7 @@ fn remove_entry<H: PageHost>(
 
 /// When entry j of leaf n is the count entry of `key` and its count changed by `d` stays positive: the count
 /// so changed in place, and returned. `None`, with nothing changed, otherwise.
-fn count_next<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, j: u64, key: &[u8], d: i64) -> Result<Option<i64>, Fault> {
+fn count_next<H: PageHost>(m: &mut Tree<'_, H>, n: u64, j: u64, key: &[u8], d: i64) -> Result<Option<i64>, Fault> {
     let s = m.shape;
     if j >= count(s, &*m, n)? {
         return Ok(None);
@@ -383,7 +392,7 @@ fn count_next<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, j: u64, key: &[u8],
 /// Changes the count of `key` in the tree by `d`, 1 or −1, through a descent: in place, or with a count
 /// entry made for the key's first row or removed with its last. Returns whether a count entry was made.
 fn add_count<H: PageHost>(
-    m: &mut AreaNodes<'_, H>,
+    m: &mut Tree<'_, H>,
     root: &mut u64,
     key: &[u8],
     d: i64,
@@ -434,7 +443,7 @@ fn count_at<M: NodeRead + ResolveKey + ?Sized>(s: IndexShape, m: &M, n: u64, i: 
 }
 
 /// Sets the count of count entry i of node n to c: in its field, or in its key-log record.
-fn set_count<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, i: u64, c: i64) -> Result<(), Fault> {
+fn set_count<H: PageHost>(m: &mut Tree<'_, H>, n: u64, i: u64, c: i64) -> Result<(), Fault> {
     let (at, field) = field_at(m.shape, &*m, n, i)?;
     let new = count_field(c);
     if is_ovf(field) {
@@ -445,7 +454,7 @@ fn set_count<H: PageHost>(m: &mut AreaNodes<'_, H>, n: u64, i: u64, c: i64) -> R
 
 /// The field an entry of `key` stores for `field`: `field` itself when the key fits W, else an overflowed
 /// field naming the key's new key-log record, whose payload is `rec`.
-fn stored_field<H: PageHost>(m: &mut AreaNodes<'_, H>, field: u64, rec: u64, key: &[u8]) -> Result<u64, Fault> {
+fn stored_field<H: PageHost>(m: &mut Tree<'_, H>, field: u64, rec: u64, key: &[u8]) -> Result<u64, Fault> {
     if key.len() as u64 > m.shape.w {
         Ok(ovf_field(field, m.new_record(rec, key)?))
     } else {

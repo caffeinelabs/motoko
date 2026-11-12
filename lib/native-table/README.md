@@ -215,8 +215,8 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 ```
 
 - `count` takes a cell for every field of the index, or for its first fields only:
-  `orders.count(["city", "placed"], [#text("Zurich")])` counts every Zurich order. A count by first
-  fields takes longer the more rows it counts; a count of a whole key does not.
+  `orders.count(["city", "placed"], [#text("Zurich")])` counts every Zurich order. Either way it
+  costs about the same however many rows it counts.
 - Rows whose indexed field is null are in the index; null comes before every value.
 - Rows with equal keys come in the table's own order.
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.
