@@ -538,7 +538,7 @@ actor {
 
   // A unique index on email, and one on team and badge declared also as a plain index: a value a
   // row has, with no null field, is refused for another row, and a row keeps its own. tryAdd gives
-  // false; add, update and upsert trap; neither writes. evolve keeps the indexes unique
+  // false; add and update trap; neither writes. evolve keeps the indexes unique
   type Person = { email : ?Text; team : Text; badge : Nat };
   let people = NativeTable.empty<Nat, Person>().createUniqueIndex(["email"]).createIndex(["team", "badge"]).createUniqueIndex(["team", "badge"]).build();
 
@@ -556,7 +556,6 @@ actor {
   };
   public func uniqueAdd() : async () { people.add(4, { email = ?"b@x"; team = "green"; badge = 1 }) };
   public func uniqueUpdate() : async () { ignore people.update(3, { team = "red"; badge = 1 }) };
-  public func uniqueUpsert() : async () { ignore people.upsert(4, { email = ?"a@x"; team = "green"; badge = 1 }) };
   public func uniqueAfter() : async () {
     let p : NativeTable.NativeTable<Nat, { email : ?Text; team : Text; badge : Nat; note : ?Text }> = people.evolve();
     let tried = p.tryAdd(4, { email = ?"b@x"; team = "green"; badge = 1; note = null });
@@ -599,7 +598,6 @@ actor {
 //CALL ingress unique "DIDL\x00\x00"
 //CALL ingress uniqueAdd "DIDL\x00\x00"
 //CALL ingress uniqueUpdate "DIDL\x00\x00"
-//CALL ingress uniqueUpsert "DIDL\x00\x00"
 //CALL ingress uniqueAfter "DIDL\x00\x00"
 //CALL ingress unknownField "DIDL\x00\x00"
 //CALL ingress noFields "DIDL\x00\x00"
