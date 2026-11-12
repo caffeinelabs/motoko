@@ -81,13 +81,13 @@ pub fn checked_cell<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> 
 }
 
 /// The first pass: checks every cell (a Text's bytes as UTF-8 only when `UTF8`), encodes the key leaves into
-/// `key`, and sizes the image. Kept out of line: inlined into an upsert, it makes the upsert dearer.
+/// `key` when given, and sizes the image. Kept out of line: inlined into an upsert, it makes the upsert dearer.
 #[inline(never)]
 pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: crate::key::Sink>(
     shape: &Shape,
     h: &H,
     src: &mut R,
-    key: &mut K,
+    mut key: Option<&mut K>,
 ) -> Result<Plan, Fault> {
     let mut p = Plan::default();
     let mut items = 0u64;
@@ -96,7 +96,7 @@ pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: cr
         let l = shape.leaf(h, o)?;
         let item = {
             let v = if UTF8 { cell_of(src, &l)? } else { checked_cell(src, &l)? };
-            if l.key {
+            if let (true, Some(key)) = (l.key, key.as_deref_mut()) {
                 cell::enc_key(key, &l, &v)?;
             }
             has_item(&l, &v).then(|| cell::var_len(&v, l.ty))

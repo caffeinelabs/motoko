@@ -35,7 +35,7 @@ use ::native_table::{Fault, ImageId, PageHost};
 
 use super::layout::{
     Entries, Entry, Layout, MAX_KEY_PARTS, Picks, array_type, element_parts, key_parts, merge,
-    scratch,
+    placed, scratch,
 };
 use crate::barriers::allocation_barrier;
 use crate::bigint::{
@@ -623,14 +623,16 @@ unsafe fn row_of<'a, M: Memory>(
 /// The cells of the fields of `r`, a value of the row type of `named`, at their positions in
 /// `layout`, those of key `k` at the key's (`row_of`), null at the other fields', in a Blob that
 /// lives until the next collection; the leaf of each field of `named`, its position << 16, written
-/// at `leaves`. Each field is found by `merge`, which takes a Nat for an Int, and its cell is made
-/// for the table's type. Traps when `named` has fewer column entries than columns. Inlined, so
-/// that `nt_update` and `nt_upsert` make the cells in their own code.
+/// at `leaves`. Each field is found by `merge`, which takes a Nat for an Int, or at its place in
+/// `places` (`placed`), and its cell is made for the table's type. Traps when `named` has fewer
+/// column entries than columns. Inlined, so that `nt_update` and `nt_upsert` make the cells in
+/// their own code.
 #[inline(always)]
 pub unsafe fn update_cells<'a, M: Memory>(
     mem: &mut M,
     layout: &Layout,
     named: &Layout,
+    places: Option<&[u8]>,
     k: Value,
     r: Value,
     leaves: *mut u32,
@@ -642,12 +644,24 @@ pub unsafe fn update_cells<'a, M: Memory>(
         out.add(i).write(CellIn::Null);
     }
     let mut i = 0;
-    for (p, e, f) in merge(layout, named, true) {
+    let mut by_name = merge(layout, named, true);
+    let mut by_place = places.map(|places| placed(layout, named, places));
+    loop {
+        let (p, codes, f) = match &mut by_place {
+            Some(by_place) => match by_place.next() {
+                Some((p, f)) => (p, f.codes, f),
+                None => break,
+            },
+            None => match by_name.next() {
+                Some((p, e, f)) => (p, e.codes, f),
+                None => break,
+            },
+        };
         let v = match &mut fields {
             Some(fields) => fields.field(f.hash),
             None => r,
         };
-        out.add(p).write(cell(mem, e.codes, v));
+        out.add(p).write(cell(mem, codes, v));
         leaves.add(i).write((p as u32) << 16);
         i += 1;
     }

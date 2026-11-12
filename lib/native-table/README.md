@@ -89,8 +89,9 @@ ignore orders.update(7, { paid = true })
 - A field of `fields` has the type of the row's field, or a `Nat` for an `Int` field (`?Nat` for
   `?Int`), so `{ placed = 0 }` needs no annotation. Write `null` with its type:
   `{ note = null : ?Text }`.
-- It traps when `fields` has a field `R` lacks, or a field of another type.
-- `upsert` compiles only when `fields` is a record and each field of `R` it leaves out is an option.
+- `update` traps when `fields` has a field `R` lacks, or a field of another type.
+- `upsert` compiles only when `fields` is a record, each field of `R` it leaves out is an option,
+  and `R` has each of its fields, of its type.
 
 ## Read by key
 
@@ -374,8 +375,8 @@ Each message starts with `native table: `.
 
 | Message | Raised by | When |
 |---|---|---|
-| `the row type has no field of that name` | `build`; `view`, `update`, `upsert`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
-| `a field has another type than the table's` | `view`, `update`, `upsert`, `append` | a field of the view's row type, or of `fields`, that the row has with another type; `update` and `upsert` take a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
+| `the row type has no field of that name` | `build`; `view`, `update`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
+| `a field has another type than the table's` | `view`, `update`, `append` | a field of the view's row type, or of `fields`, that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
 | `append takes array fields only` | `append` | a field of `fields` that is not an array field |
 | `a key that is a tuple is not one cell` | `NativeTableCells.cells` | `key` is true and the table's key is a tuple |
 | `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |

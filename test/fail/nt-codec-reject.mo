@@ -46,3 +46,9 @@ ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();
 // A write that can create a row is given a value that is not a record
 ignore makes<Nat, Text, { name : Text; note : ?Text }>();
 ignore makes<Nat, Text, { note : ?Text }>();
+
+// A write that can create a row is given a field the row lacks, or has with another type
+ignore makes<Nat, { name : Text; town : Text }, { name : Text }>();
+ignore makes<Nat, { name : Nat }, { name : Text }>();
+ignore makes<Nat, { note : Text }, { note : ?Text }>();
+ignore makes<Nat, Int, Nat>();

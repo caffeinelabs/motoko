@@ -335,7 +335,7 @@ pub fn merge<'l, 'n>(
         let (p, e) = loop {
             match fields.next() {
                 Some((_, e)) if e.hash < f.hash => {}
-                Some((p, e)) if e.hash == f.hash && e.name == f.name => break (p, e),
+                Some((p, e)) if e.hash == f.hash && same(e.name, f.name) => break (p, e),
                 _ => rts_trap_with("native table: the row type has no field of that name"),
             }
         };
@@ -344,11 +344,50 @@ pub fn merge<'l, 'n>(
                 (e.codes, f.codes),
                 ([ty::INT], [ty::NAT]) | ([ty::OPTION, ty::INT], [ty::OPTION, ty::NAT])
             );
-        if e.codes != f.codes && !wide {
+        if !same(e.codes, f.codes) && !wide {
             rts_trap_with("native table: a field has another type than the table's");
         }
         (p, e, f)
     })
+}
+
+/// Each field of the row of `named`, whose codec the compiler made for a write that can create a
+/// row of the table of `layout` (`nt_upsert`): its position in `layout`, the i-th u32 of `places`,
+/// and its entry in `named`, which holds the table's type codes. Traps for a position that is not
+/// one of a field of `layout`.
+pub fn placed<'a>(
+    layout: &Layout,
+    named: &Layout<'a>,
+    places: &'a [u8],
+) -> impl Iterator<Item = (usize, Entry<'a>)> {
+    let columns = layout.columns;
+    let given = named.entries().take(named.columns).skip(1).enumerate();
+    given.map(move |(i, f)| match u32_at(places, 4 * i) {
+        Some(p) if (1..columns).contains(&(p as usize)) => (p as usize, f),
+        _ => rts_trap_with("native table: malformed layout"),
+    })
+}
+
+/// Whether `a` and `b` hold the same bytes, compared here, 8 bytes at a time, then 4, 2 and 1, each
+/// step one word: a name or the type codes of a column are a few bytes, for which a call of the
+/// library's compare costs more.
+fn same(mut a: &[u8], mut b: &[u8]) -> bool {
+    a.len() == b.len()
+        && (0..a.len() / 8).all(|_| same_head::<8>(&mut a, &mut b))
+        && same_head::<4>(&mut a, &mut b)
+        && same_head::<2>(&mut a, &mut b)
+        && same_head::<1>(&mut a, &mut b)
+}
+
+/// Whether the first `N` bytes of `a` and `b`, of the same length, are the same, and drops them;
+/// true when there are fewer, which are kept.
+fn same_head<const N: usize>(a: &mut &[u8], b: &mut &[u8]) -> bool {
+    let (Some((x, ra)), Some((y, rb))) = (a.split_first_chunk::<N>(), b.split_first_chunk::<N>())
+    else {
+        return true;
+    };
+    (*a, *b) = (ra, rb);
+    x == y
 }
 
 /// The layout of a view of the table whose codec layout is `codec`, a table's or a view's, with

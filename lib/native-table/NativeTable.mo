@@ -190,8 +190,9 @@ module {
 
   /// Sets the fields of `fields` in the row the key has, as `update` does; when the key has no row,
   /// inserts one from them, with null in the row's other fields. Returns true when the key is new
-  /// to the table. A field of `R` that `fields` leaves out must be an option: when not, the call
-  /// does not compile. Traps as `update` does.
+  /// to the table. A field of `R` that `fields` leaves out must be an option, and a field of
+  /// `fields` must be a field of `R` of the same type, or a `Nat` for an `Int` (`?Nat` for `?Int`):
+  /// when not, the call does not compile. Traps on a view.
   public func upsert<K, R, P>(self : NativeTable<K, R>, key : K, fields : P, codec : (implicit : Prim.NtCodec<(K, P, R)>)) : Bool {
     Prim.ntUpsert(self.id, self.codec, codec, key, fields)
   };

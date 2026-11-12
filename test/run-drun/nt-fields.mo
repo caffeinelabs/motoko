@@ -12,9 +12,9 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // update sets some fields of a row and keeps the others, in packed rows and rows of the open
 // group, with long values, and in a table whose row type changed; the index on a changed field
 // moves and the totals change by the difference; a Nat is taken for an Int. upsert inserts a row,
-// null in the fields it leaves out, when the key has none, and is update when the key has one. An
-// update of a field the row lacks or has with another type, and an update on a view, trap and
-// change nothing
+// null in the fields it leaves out, when the key has none, and is update when the key has one, also
+// in a table whose row type changed. An update of a field the row lacks or has with another type,
+// and an update on a view, trap and change nothing
 actor {
   type Order = { customer : Text; city : Text; amount : Nat; paid : Bool; placed : Int; note : ?Text };
   type Name = { customer : Text; city : Text };
@@ -248,7 +248,8 @@ actor {
     );
     switch changed {
       case ?t {
-        Prim.debugPrint(debug_show (t.update(1, { email = ?"ana@example.org" }), t.update(2, { age = 31 }), t.get(1), t.get(2)))
+        Prim.debugPrint(debug_show (t.update(1, { email = ?"ana@example.org" }), t.update(2, { age = 31 }), t.get(1), t.get(2)));
+        Prim.debugPrint(debug_show (t.upsert(5, { name = "Di"; age = 22 }), t.get(5), t.upsert(5, { age = 23; name = "Di"; email = ?"di@example.org" }), t.get(5)))
       }
       case null {}
     }

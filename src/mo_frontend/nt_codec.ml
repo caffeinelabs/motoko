@@ -30,6 +30,12 @@
    are the bytes of the hash list that compiled code attaches to a record of
    type R. Empty when R is a scalar.
 
+   The codec of a write that can create a row of R from the fields of a P
+   (`placed`) has the layout of the fields of R that P gives, in label-hash
+   order, and in place of `labels` the u32 position of each among the columns
+   of R's layout, the key's 0 included, so the runtime finds them without their
+   names.
+
    Other types, and types with type parameters, are rejected with a message
    that names the key, the row or the field.
 *)
@@ -138,6 +144,11 @@ let field_rule = "a field must be a scalar or an array, or an option of one; an 
 
 let unnamed codes = { codes; hash = 0l; name = "" }
 
+(* [f] of each of [xs], or the first error *)
+let rec map_ok f = function
+  | [] -> Ok []
+  | x :: xs -> Result.bind (f x) (fun y -> Result.map (fun ys -> y :: ys) (map_ok f xs))
+
 (* The columns of R, and whether R is a record *)
 let row_columns r =
   let open Lib.Result.Syntax in
@@ -151,13 +162,7 @@ let row_columns r =
       | Some _ when String.length f.T.lab > 0xFFFF ->
         Error (Printf.sprintf "native table %s has a name longer than 65535 bytes" what)
       | Some codes -> Ok { codes; hash = Hash.hash f.T.lab; name = f.T.lab } in
-    let rec fields = function
-      | [] -> Ok []
-      | f :: fs ->
-        let* c = field f in
-        let* cs = fields fs in
-        Ok (c :: cs) in
-    let* cs = fields fs in
+    let* cs = map_ok field fs in
     Ok (by_hash cs, true)
   | _ ->
     match scalar r with
@@ -201,14 +206,8 @@ let hash64 s =
   done;
   !h
 
-(* The layout and labels Blobs for key type [k] and row type [r], or why the
-   types are not accepted *)
-let blobs k r : (string * string, string) result =
-  let open Lib.Result.Syntax in
-  let* key = match key_type k with
-    | None -> reject "key" k key_rule
-    | Some codes -> Ok codes in
-  let* (row, is_record) = row_columns r in
+(* The layout Blob of a key of type codes [key] and the columns [row] *)
+let layout key row =
   let columns = unnamed key :: row in
   let body = Buffer.create 64 in
   Buffer.add_int32_le body (Int32.of_int (List.length columns));
@@ -219,7 +218,51 @@ let blobs k r : (string * string, string) result =
   Buffer.add_int32_le layout version;
   Buffer.add_int64_le layout (hash64 body);
   Buffer.add_string layout body;
+  Buffer.contents layout
+
+let key_codes k =
+  match key_type k with
+  | None -> reject "key" k key_rule
+  | Some codes -> Ok codes
+
+(* The layout and labels Blobs for key type [k] and row type [r], or why the
+   types are not accepted *)
+let blobs k r : (string * string, string) result =
+  let open Lib.Result.Syntax in
+  let* key = key_codes k in
+  let* (row, is_record) = row_columns r in
   let labels = Buffer.create 64 in
   if is_record then
     List.iter (fun c -> Buffer.add_int64_le labels (Int64.of_int32 c.hash)) row;
-  Ok (Buffer.contents layout, Buffer.contents labels)
+  Ok (layout key row, Buffer.contents labels)
+
+(* The layout and positions Blobs of a write that can create a row of type [r]
+   from the fields of a [p], under key type [k], or why the types are not
+   accepted: a row of [r] must be made from a [p] (`makes`), and each field of
+   [p] must be a field of [r] of the same name and type, or a Nat (an option of
+   one) where [r]'s is an Int (an option of one), since a Nat value is an Int
+   value *)
+let placed k p r : (string * string, string) result =
+  let open Lib.Result.Syntax in
+  let* () = makes p r in
+  let* key = key_codes k in
+  let* (given, _) = row_columns p in
+  let* (row, _) = row_columns r in
+  let place (c : column) =
+    let typ t = match T.normalize t with
+      | T.Obj (_, fs, _) -> (List.find (fun (f : T.field) -> f.T.lab = c.name) fs).T.typ
+      | _ -> t in
+    let what = if c.name = "" then "row" else Printf.sprintf "field `%s`" c.name in
+    match List.find_index (fun (d : column) -> d.name = c.name) row with
+    | None -> reject what (typ p) "the table's row has no field of that name"
+    | Some i ->
+      let d = List.nth row i in
+      match c.codes, d.codes with
+      | cs, ds when cs = ds -> Ok (d, i + 1)
+      (* A Nat, or an option of one, where the table's is an Int, or an option of one *)
+      | [0x0A], [0x0B] | [0x20; 0x0A], [0x20; 0x0B] -> Ok (d, i + 1)
+      | _ -> reject what (typ p) (Printf.sprintf "the table's has type %s" (T.string_of_typ (typ r))) in
+  let* placed = map_ok place given in
+  let positions = Buffer.create 16 in
+  List.iter (fun (_, i) -> Buffer.add_int32_le positions (Int32.of_int i)) placed;
+  Ok (layout key (List.map fst placed), Buffer.contents positions)

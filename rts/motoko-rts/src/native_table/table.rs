@@ -360,7 +360,10 @@ pub unsafe fn nt_update<M: Memory>(
 }
 
 /// Sets the fields of `fields` in the row key `k` has, as `nt_update` does; when `k` has no row,
-/// inserts one from them, with null in the row's other fields. 1 when `k` is new, else 0.
+/// inserts one from them, with null in the row's other fields. 1 when `k` is new, else 0. The
+/// compiler found each field of `named` in the table's row and gave it the table's type: the
+/// codec's second Blob holds, in place of a hash list, the u32 position of each in the table's
+/// layout (`placed`).
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_upsert<M: Memory>(
     mem: &mut M,
@@ -403,13 +406,14 @@ unsafe fn set_fields<M: Memory, const APPEND: bool>(
     insert: bool,
 ) -> u64 {
     let layout = layout_of(codec);
+    let places = insert.then(|| blob_bytes(labels_of(named)));
     let named = layout_of(named);
     if APPEND && merge(&layout, &named, true).any(|(_, e, _)| array_type(e.codes).is_none()) {
         rts_trap_with("native table: append takes array fields only");
     }
     let n = named.columns() - 1;
     let leaves = scratch::<u32, M>(mem, n);
-    let mut row = update_cells(mem, &layout, &named, k, fields, leaves);
+    let mut row = update_cells(mem, &layout, &named, places, k, fields, leaves);
     // The key's cells are the row's.
     let mut k = row;
     let mem: *mut M = mem;

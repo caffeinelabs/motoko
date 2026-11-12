@@ -305,7 +305,8 @@ func ntUpdate<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, 
 
 // Sets the fields of `fields` in the row `k` has, as `ntUpdate`; when `k` has no row, inserts one
 // from them, null in the row's other fields (the compiler gives a codec `named` only when each of
-// those is an option). True when `k` is new
+// those is an option, and each field of P is one of R, its place in R's row recorded). True when
+// `k` is new
 func ntUpsert<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P, R)>, k : K, fields : P) : Bool {
   (prim "nt_upsert" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P, R)>, K, P) -> Bool)(id, codec, named, k, fields)
 };

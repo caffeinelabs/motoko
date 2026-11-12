@@ -58,3 +58,19 @@ error[M0279]: native table row has type {note : ?Text}, but a write that can cre
     ┌─ nt-codec-reject.mo:48:42
  48 │  ignore makes<Nat, Text, { note : ?Text }>();
     │                                           ^^ 
+error[M0279]: native table field `town` has type Text, but the table's row has no field of that name
+    ┌─ nt-codec-reject.mo:51:65
+ 51 │  ignore makes<Nat, { name : Text; town : Text }, { name : Text }>();
+    │                                                                  ^^ 
+error[M0279]: native table field `name` has type Nat, but the table's has type Text
+    ┌─ nt-codec-reject.mo:52:51
+ 52 │  ignore makes<Nat, { name : Nat }, { name : Text }>();
+    │                                                    ^^ 
+error[M0279]: native table field `note` has type Text, but the table's has type ?Text
+    ┌─ nt-codec-reject.mo:53:53
+ 53 │  ignore makes<Nat, { note : Text }, { note : ?Text }>();
+    │                                                      ^^ 
+error[M0279]: native table row has type Int, but the table's has type Nat
+    ┌─ nt-codec-reject.mo:54:28
+ 54 │  ignore makes<Nat, Int, Nat>();
+    │                             ^^ 

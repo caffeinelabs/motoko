@@ -1963,18 +1963,18 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
 
 (** The built-in implicit for a hole of type [Prim.NtCodec<(K, R)>]: a call of the privileged
     [Prim.@ntCodec<(K, R)>(layout, labels)], with both Blobs computed from K and R, or why K and R
-    are not accepted. For [Prim.NtCodec<(K, P, R)>], the codec of P's, refused unless a row of R
-    can be made from a P (`Nt_codec.makes`). [None] when the hole has another type. *)
+    are not accepted. For [Prim.NtCodec<(K, P, R)>], the codec of a write that can create a row
+    of R from the fields of a P (`Nt_codec.placed`). [None] when the hole has another type. *)
 let nt_codec_candidate hole_typ =
   let open Lib.Option.Syntax in
   let* arg = match T.normalize hole_typ with
     | T.NtCodec arg -> Some arg
     | _ -> None in
-  let+ (k, r, made) = match T.normalize arg with
-    | T.Tup [k; r] -> Some (k, r, Ok ())
-    | T.Tup [k; p; r] -> Some (k, p, Nt_codec.makes p r)
+  let+ blobs = match T.normalize arg with
+    | T.Tup [k; r] -> Some (Nt_codec.blobs k r)
+    | T.Tup [k; p; r] -> Some (Nt_codec.placed k p r)
     | _ -> None in
-  Result.bind made (fun () -> Nt_codec.blobs k r) |> Result.map (fun (layout, labels) ->
+  blobs |> Result.map (fun (layout, labels) ->
     let mk e = e @? no_region in
     let blob s = mk (LitE (ref (BlobLit s))) in
     let callee = mk (dot_module_exp (ImplicitLibE "@prim") ("@ntCodec" @@ no_region)) in

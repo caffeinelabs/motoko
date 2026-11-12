@@ -683,31 +683,36 @@ impl<'h, H: PageHost> Table<'h, H> {
         if self.shape.unique != 0 {
             self.unique_row(&mut indexes::Dyn(row), scratch)?;
         }
-        let (rid, inserted) = self.write_row(scratch, row, &mut Path::new(), None)?;
+        let (rid, inserted) = self.write_row(scratch, row, &mut Path::new(), &mut [0u8; KEY_STACK], None, None)?;
         let u = if inserted { Upsert::Inserted(rid) } else { Upsert::Replaced(rid) };
         Ok((u, self.settle()?))
     }
 
-    /// (rid, inserted) of an upsert. E(k) is built on the stack when it fits, else in the scratch (its length
-    /// counted by a plan that only counts it). A row image longer than an inline one takes the scratch too, after
-    /// E(k) when E(k) is there, asked for before anything is written. `found` is the lookup of E(k) when the caller
-    /// made it, into `path`. Inlined in both callers, where a call would make each insert dearer.
+    /// (rid, inserted) of an upsert. E(k) is built on the stack (`kb`) when it fits, else in the scratch (its
+    /// length counted by a plan that only counts it). A row image longer than an inline one takes the scratch too,
+    /// after E(k) when E(k) is there, asked for before anything is written. `found` is the lookup of E(k) when the
+    /// caller made it, into `path`; `known` E(k)'s length when the caller built it in `kb`, which the plan then
+    /// leaves out. Inlined in both callers, where a call would make each insert dearer.
     #[inline(always)]
     fn write_row<S: Scratch, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
         row: &mut R,
         path: &mut Path,
+        kb: &mut [u8; KEY_STACK],
         found: Option<(Option<Primary>, primary::Lookup)>,
+        known: Option<usize>,
     ) -> Result<(u64, bool), Fault> {
         self.filled = 0;
-        let mut kb = [0u8; KEY_STACK];
-        let first = {
-            let mut ks = SliceSink::new(&mut kb);
-            match row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut ks) {
-                Ok(plan) => Some((plan, ks.len)),
-                Err(Fault::Scratch { .. }) => None,
-                Err(e) => return Err(e),
+        let first = match known {
+            Some(n) => Some((row::plan::<true, _, _, LenSink>(&self.shape, &*self.host, row, None)?, n)),
+            None => {
+                let mut ks = SliceSink::new(kb);
+                match row::plan::<true, _, _, _>(&self.shape, &*self.host, row, Some(&mut ks)) {
+                    Ok(plan) => Some((plan, ks.len)),
+                    Err(Fault::Scratch { .. }) => None,
+                    Err(e) => return Err(e),
+                }
             }
         };
         // E(k)'s length on the stack, or its bytes in the scratch and the bytes a new row's image takes after them.
@@ -716,7 +721,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             Some((plan, n)) => (plan, Ok(n)),
             None => {
                 let mut c = LenSink(0);
-                let plan = row::plan::<true, _, _, _>(&self.shape, &*self.host, row, &mut c)?;
+                let plan = row::plan::<true, _, _, _>(&self.shape, &*self.host, row, Some(&mut c))?;
                 let need = c.0.checked_add(image(&plan)).ok_or(Fault::Scratch { need: u64::MAX })?;
                 let buf = scratch.get(usize::try_from(need).map_err(|_| Fault::Scratch { need })?)?;
                 let at = usize::try_from(c.0).unwrap_or(usize::MAX);
@@ -743,7 +748,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             if plan.len > row::STAGE as u64 && matches!(found, read::Row::Buffered(_)) {
                 scratch.get(usize::try_from(plan.len).map_err(|_| Fault::Scratch { need: plan.len })?)?;
             }
-            self.index_update(found, row, rid, &mut kb, scratch, path)?;
+            self.index_update(found, row, rid, kb, scratch, path)?;
             let (h, tbl) = (&mut *self.host, self.root);
             match found {
                 read::Row::Buffered(at) => {
@@ -773,7 +778,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan, big)?;
         self.filled = filled;
         primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, path)?;
-        self.index_insert(row, rid, &mut kb, scratch, path)?;
+        self.index_insert(row, rid, kb, scratch, path)?;
         Ok((rid, true))
     }
 
@@ -782,9 +787,10 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// a row still in the open group gets a new image, its stored one with those leaves' cells and items replaced
     /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. Returns the row's
     /// rid, or `None` when no row has key k: with nothing written, or with `insert`, after inserting `src`, which
-    /// then has a cell for every leaf, as `upsert` does, in the same lookup. `BadRef` for a leaf the table does not
-    /// have; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value; `Unique` when a
-    /// unique index holds the row's new key under it for another row. Every refusal comes before the first write.
+    /// then has a cell for every leaf, k's for its key leaves, as `upsert` does, in the same lookup and under the
+    /// same E(k). `BadRef` for a leaf the table does not have; `BadValue` for a cell its leaf's type refuses, or a
+    /// key leaf given another value; `Unique` when a unique index holds the row's new key under it for another row.
+    /// Every refusal comes before the first write.
     pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
@@ -802,10 +808,12 @@ impl<'h, H: PageHost> Table<'h, H> {
             if !insert {
                 return Ok((None, self.wake()?));
             }
+            // E(k) lies in `kb` when it fits there; then the insert takes it as it is.
+            let n = (e.len() <= KEY_STACK).then_some(e.len());
             if self.shape.unique != 0 {
                 self.unique_row(&mut indexes::Dyn(src), scratch)?;
             }
-            self.write_row(scratch, src, &mut path, Some(found))?;
+            self.write_row(scratch, src, &mut path, &mut kb, Some(found), n)?;
             return Ok((None, self.settle()?));
         };
         let row = self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row();
