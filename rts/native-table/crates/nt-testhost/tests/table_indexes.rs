@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 
-use native_table::consts::COMPACT_DEAD;
+use native_table::consts::{COMPACT_DEAD, FORMAT_TABLE, FORMAT_TABLE_MIN};
 use native_table::fault::Fault;
 use native_table::index::area_nodes::KeyLog;
 use native_table::index::secondary::{Secondary, Start};
@@ -976,7 +976,7 @@ fn filled(h: &mut VecHost, n: u64) -> (Table<'_, VecHost>, Model) {
 /// it, reads its rows and keeps its indexes. An open never uses a stored shape of another table format or of
 /// another schema page, schema hash or version, nor one with any byte of those four words changed: it derives
 /// the shape from the schema image again and stores it. A stored shape that passes every check is the one an
-/// open uses, as it is: its hash is not checked.
+/// open uses, as it is: its hash is not checked. A root of a table format an open does not read is refused.
 #[test]
 fn the_stored_shape() {
     let derived = |h: &VecHost, root: u64| Shape::open(h, root::u64_at(h, root, root::SCHEMA_PAGE).unwrap()).unwrap();
@@ -1039,6 +1039,11 @@ fn the_stored_shape() {
     set_bytes(&mut h, root, &hash);
     assert_eq!(reopen(&mut h, root), s, "another hash: taken");
     assert_eq!(bytes(&h, root), hash, "another hash: not stored again");
+    // A root of another table format is refused, an older one too: its secondary index trees hold no row counts.
+    for f in [FORMAT_TABLE_MIN - 1, FORMAT_TABLE + 1, FORMAT_TABLE] {
+        h.get_mut(Region::Block(root)).unwrap()[root::FORMAT as usize..][..2].copy_from_slice(&f.to_le_bytes());
+        assert_eq!(Table::open(&mut h, root).is_ok(), f == FORMAT_TABLE, "format {f}");
+    }
     set_bytes(&mut h, root, &good);
     let tb = Table::open(&mut h, root).unwrap();
     assert_eq!(*tb.shape(), s);

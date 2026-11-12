@@ -114,12 +114,11 @@ pub const IMAGE_V1: u16 = 1;
 /// a group seals it, and a compaction or column release rewrites a group whole in one call, so no group waits
 /// frozen and no rewrite spans calls: the root's frozen queue (64–83) and job slots 2–7, a buffer descriptor's
 /// bytes 24–31 and 56–63 and a group page's bytes 640–655 are zero, no rewrite state block exists, and the drain
-/// holds only removed indexes' trees and key logs. An index directory of another version is refused with a
-/// header fault, so no count reads a record at another layout's offsets or meaning. Version 13: a secondary index's
-/// tree is counted, each internal node keeping the row entries under each child after its children, so it holds
-/// fewer entries. Version 14: a sweep gives back a page of area 0 or 1 whose blocks are all free, leaving a zero
-/// entry in the area's page list, and the root's bytes 64–82 and 152–159 hold the sweep.
+/// holds only removed indexes' trees and key logs. Versions 13 and 14: secondary index trees count the rows under
+/// each child, and upkeep gives back free pages; an open refuses a root older than `FORMAT_TABLE_MIN`.
 pub const FORMAT_TABLE: u16 = 14;
+/// Format. The oldest table root an open reads: an older one's secondary index trees hold no row counts.
+pub const FORMAT_TABLE_MIN: u16 = 13;
 
 // ---- Indexes ----
 

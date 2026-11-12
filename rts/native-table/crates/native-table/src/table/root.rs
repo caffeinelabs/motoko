@@ -1,6 +1,6 @@
 //! The table root block: the first block area 0 allocates, never moved.
 
-use crate::consts::{magic, BLOCK, FORMAT_IMAGE, FORMAT_KEY, FORMAT_TABLE, FORMAT_VALUE};
+use crate::consts::{magic, BLOCK, FORMAT_IMAGE, FORMAT_KEY, FORMAT_TABLE, FORMAT_TABLE_MIN, FORMAT_VALUE};
 use crate::fault::{rt, Corruption, Fault};
 use crate::mem::{fill, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
@@ -87,7 +87,7 @@ pub fn init<H: PageHost>(
 /// Checks the root's magic and format version.
 pub fn check<H: PageHost + ?Sized>(h: &H, tbl: u64) -> Result<(), Fault> {
     let b = h.get(Region::Block(tbl))?;
-    if rd_u32(b, MAGIC)? != magic::NTTR || rd_u16(b, FORMAT)? > FORMAT_TABLE {
+    if rd_u32(b, MAGIC)? != magic::NTTR || !(FORMAT_TABLE_MIN..=FORMAT_TABLE).contains(&rd_u16(b, FORMAT)?) {
         return Err(rt(Corruption::Header, tbl));
     }
     Ok(())
