@@ -95,7 +95,9 @@ fn array_codes(b: &[u8]) -> usize {
     let at = u32::from(b.first() == Some(&ty::OPTION));
     match list_end(b, at) {
         Ok(end) => end as usize,
-        Err(_) if b.first() == Some(&ty::TUPLE) => tuple_end(b, 0).map_or(usize::MAX, |end| end as usize),
+        Err(_) if b.first() == Some(&ty::TUPLE) => {
+            tuple_end(b, 0).map_or(usize::MAX, |end| end as usize)
+        }
         Err(_) => usize::MAX,
     }
 }
@@ -258,7 +260,8 @@ impl<'a> Layout<'a> {
         let fields = scratch::<&[u8], M>(mem, self.columns);
         let mut rest = self.entries;
         for p in 0..self.columns {
-            let (_, after) = entry(rest).unwrap_or_else(|| rts_trap_with("native table: malformed layout"));
+            let (_, after) =
+                entry(rest).unwrap_or_else(|| rts_trap_with("native table: malformed layout"));
             fields.add(p).write(&rest[..rest.len() - after.len()]);
             rest = after;
         }
@@ -266,7 +269,11 @@ impl<'a> Layout<'a> {
         let mut end = 0;
         for c in 0..m {
             let p = position(c);
-            let e = if p < self.columns { *fields.add(p) } else { NONE };
+            let e = if p < self.columns {
+                *fields.add(p)
+            } else {
+                NONE
+            };
             core::ptr::copy_nonoverlapping(e.as_ptr(), out.add(end), e.len());
             end += e.len();
         }
@@ -292,7 +299,9 @@ impl<'a> Picks<'a> {
     /// The position in the table's layout and the type codes of field `i` of the view; none for an
     /// `i` past the last field, `usize::MAX` included.
     pub fn get(&self, i: usize) -> Option<(usize, &'a [u8])> {
-        let p = self.picks.get(PICK.wrapping_mul(i)..PICK.wrapping_mul(i.wrapping_add(1)))?;
+        let p = self
+            .picks
+            .get(PICK.wrapping_mul(i)..PICK.wrapping_mul(i.wrapping_add(1)))?;
         let n = if p[2] == ty::OPTION { 2 } else { 1 };
         Some((usize::from(u16::from_le_bytes([p[0], p[1]])), &p[2..2 + n]))
     }
@@ -520,7 +529,10 @@ pub unsafe fn evolved_image<'b, M: Memory>(
     next: &Layout,
 ) -> Result<(&'b [u8], &'b [u16], usize), Fault> {
     let (old_columns, old_leaves) = (stored.columns as usize, stored.leaves as usize);
-    let version = stored.version.checked_add(1).ok_or(bounds(u64::from(stored.version)))?;
+    let version = stored
+        .version
+        .checked_add(1)
+        .ok_or(bounds(u64::from(stored.version)))?;
     let pool = stored.types();
     let names = stored
         .bytes

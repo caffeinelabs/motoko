@@ -32,9 +32,9 @@ use super::layout::{
     Layout, Picks, SCHEMA_VERSION, evolved_image, schema_image, scratch, view_layout,
 };
 use super::row::{
-    CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact,
-    filter_cond, int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap,
-    pair, text_bytes, update_cells,
+    CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact, filter_cond,
+    int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap, pair,
+    text_bytes, update_cells,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -382,9 +382,9 @@ unsafe fn set_fields<M: Memory>(
     let named = layout_of(named);
     let n = named.columns() - 1;
     let leaves = scratch::<u32, M>(mem, n);
-    let k = [key(mem, &layout, k)];
-    let mut row = update_cells(mem, &layout, &named, k[0], fields, leaves);
-    let mut k = Cells::new(&k);
+    let mut row = update_cells(mem, &layout, &named, k, fields, leaves);
+    // The key's cells are the row's.
+    let mut k = row;
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     if let Some(map) = root_block(&host, id, &layout) {
@@ -434,8 +434,8 @@ pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) ->
     let Some(layout) = Layout::parse(blob_bytes(codec.as_array().get(0))) else {
         return get_view(mem, id, codec, k);
     };
-    let k = [key(mem, &layout, k)];
-    let mut k = Cells::new(&k);
+    let one;
+    let mut k = key!(mem, &layout, k, one);
     let mem: *mut M = mem;
     let mut row = RowOut::new(mem, &layout, labels_of(codec), Out::Row);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
@@ -473,8 +473,8 @@ unsafe fn get<'a, M: Memory, F: Places<'a>>(
 #[inline(never)]
 unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
     let (layout, picks) = view_of(codec);
-    let k = [key(mem, &layout, k)];
-    let mut k = Cells::new(&k);
+    let one;
+    let mut k = key!(mem, &layout, k, one);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
@@ -487,8 +487,8 @@ unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> V
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> u64 {
     let layout = header_of(codec);
-    let k = [key(mem, &layout, k)];
-    let mut k = Cells::new(&k);
+    let one;
+    let mut k = key!(mem, &layout, k, one);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let mut table = open(&mut host, id, &layout);
@@ -1132,7 +1132,16 @@ pub unsafe fn nt_scan<M: Memory>(
     let filter = filter_opt(&mut *mem, &layout, filter);
     let (rest, n) = match map {
         None => scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row),
-        Some(map) => scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row.mapped(map)),
+        Some(map) => scan(
+            &mut host,
+            id,
+            filter.as_ref(),
+            what,
+            next,
+            limit,
+            rows,
+            row.mapped(map),
+        ),
     };
     batch(&mut *mem, rows, n, rest)
 }
