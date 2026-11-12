@@ -13,8 +13,10 @@
 //! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
 //! of the field in the table's layout, then its first two type codes, padded with 0; then the u32
 //! offset of the `VIEW` byte. So a call made with a view's codec finds the table's layout where a
-//! table's codec has it: a call that checks only the layout's header reads the table's, and a call
-//! that checks every column entry fails at the `VIEW` byte.
+//! table's codec has it: a call that checks only the layout's header reads the table's. A table's
+//! layout ends with the name of its last column, ASCII letters, digits and underscores, or with a
+//! column that has none, whose label hash and name length are 0; so its last 4 bytes, read as a
+//! u32, are 0 or at least 0x30000000, never the offset of a `VIEW` byte in it (`Layout::of`).
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
@@ -177,10 +179,19 @@ impl<'a> Layout<'a> {
         (columns == self.columns && columns > 0).then_some(self)
     }
 
+    /// The layout in `bytes` when it is a table's, its header alone checked (`header`); `None` when
+    /// it is a view's or does not start as a layout does.
+    #[inline(always)]
+    pub fn of(bytes: &'a [u8]) -> Option<Layout<'a>> {
+        match Self::view_table(bytes) {
+            Some(_) => None,
+            None => Self::header(bytes),
+        }
+    }
+
     /// The layout in `bytes` with only its header checked, or `None` when they do not start as a
     /// layout does. Its columns are checked only as `entries` reads them, and the column count is
-    /// not: for a primitive that needs the codec hash, or one column found by name, and not every
-    /// column.
+    /// not: a call that sizes anything by it reads no more entries than it says.
     pub fn header(bytes: &'a [u8]) -> Option<Layout<'a>> {
         if bytes.get(..4)? != MAGIC || u32_at(bytes, 4)? != VERSION {
             return None;
@@ -209,14 +220,11 @@ impl<'a> Layout<'a> {
         (*bytes.get(..bytes.len() - 4)?.get(start)? == VIEW).then(|| &bytes[..start])
     }
 
-    /// The layout of the table the codec layout `bytes` is of, a table's or a view's, every column
-    /// checked as `parse` checks them, and its bytes; `None` when `bytes` is neither.
+    /// The layout of the table the codec layout `bytes` is of, a table's or a view's, its header
+    /// alone checked, and its bytes; `None` when `bytes` is neither.
     fn table(bytes: &'a [u8]) -> Option<(Layout<'a>, &'a [u8])> {
-        let table = match Self::parse(bytes) {
-            Some(layout) => return Some((layout, bytes)),
-            None => Self::view_table(bytes)?,
-        };
-        Some((Self::parse(table)?, table))
+        let table = Self::view_table(bytes).unwrap_or(bytes);
+        Some((Self::header(table)?, table))
     }
 
     /// The number of columns, the key's included.
@@ -232,14 +240,18 @@ impl<'a> Layout<'a> {
     }
 
     /// Whether `labels` is the hash list of a record of the row type: the label hashes of the
-    /// row's fields, in the layout's order, as u64 words.
+    /// row's fields, in the layout's order, as u64 words, one per column after the key and no
+    /// column entry after the last.
     pub fn is_hash_list(&self, labels: &[u8]) -> bool {
+        let mut entries = self.entries();
         labels.len() == (self.columns - 1) * size_of::<u64>()
-            && self
-                .entries()
-                .skip(1)
-                .zip(labels.chunks_exact(size_of::<u64>()))
-                .all(|(e, w)| u64_at(w, 0) == Some(u64::from(e.hash)))
+            && entries.next().is_some()
+            && labels.chunks_exact(size_of::<u64>()).all(|w| {
+                entries
+                    .next()
+                    .is_some_and(|e| u64_at(w, 0) == Some(u64::from(e.hash)))
+            })
+            && entries.rest.is_empty()
     }
 
     pub fn entries(&self) -> Entries<'a> {
@@ -308,18 +320,18 @@ impl<'a> Picks<'a> {
 }
 
 /// Each field of the row of `named` found among the fields of the row of `layout`, a table's, by
-/// label hash and name, both in label-hash order: in `named`'s order, the field's position in
-/// `layout`, its entry there and its entry in `named`. Traps when the table's row has no field of a
-/// name, or has it with other type codes; with `widen`, a field of `named` may also be a Nat where
-/// the table's is an Int, or an option of a Nat where the table's is an option of an Int, since a
-/// Nat value is an Int value.
+/// label hash and name, both in label-hash order, each layout read up to its column count: in
+/// `named`'s order, the field's position in `layout`, its entry there and its entry in `named`.
+/// Traps when the table's row has no field of a name, or has it with other type codes; with
+/// `widen`, a field of `named` may also be a Nat where the table's is an Int, or an option of a Nat
+/// where the table's is an option of an Int, since a Nat value is an Int value.
 pub fn merge<'l, 'n>(
     layout: &Layout<'l>,
     named: &Layout<'n>,
     widen: bool,
 ) -> impl Iterator<Item = (usize, Entry<'l>, Entry<'n>)> {
-    let mut fields = layout.entries().enumerate().skip(1);
-    named.entries().skip(1).map(move |f| {
+    let mut fields = layout.entries().take(layout.columns).enumerate().skip(1);
+    named.entries().take(named.columns).skip(1).map(move |f| {
         let (p, e) = loop {
             match fields.next() {
                 Some((_, e)) if e.hash < f.hash => {}

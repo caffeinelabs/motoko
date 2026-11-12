@@ -106,9 +106,16 @@ unsafe fn blob_bytes<'a>(v: Value) -> &'a [u8] {
     core::slice::from_raw_parts(blob.payload_const(), blob.len().as_usize())
 }
 
-/// The layout of the codec `codec`: a codec is a pair of the layout, a Blob, and the hash list of
-/// the row type. Traps for a view's codec (`nt_view`).
+/// The layout of the codec `codec`, its header alone checked (`Layout::of`): a codec is a pair of
+/// the layout, a Blob, and the hash list of the row type. Traps for a view's codec (`nt_view`).
 unsafe fn layout_of<'a>(codec: Value) -> Layout<'a> {
+    let layout = blob_bytes(codec.as_array().get(0));
+    Layout::of(layout).unwrap_or_else(|| not_a_table(codec))
+}
+
+/// `layout_of`, every column entry checked (`Layout::parse`): for a layout a table or a view is
+/// made from.
+unsafe fn checked_layout_of<'a>(codec: Value) -> Layout<'a> {
     let layout = blob_bytes(codec.as_array().get(0));
     Layout::parse(layout).unwrap_or_else(|| not_a_table(codec))
 }
@@ -135,12 +142,12 @@ unsafe fn view_of<'a>(codec: Value) -> (Layout<'a>, Picks<'a>) {
 /// codec, the layout of the table it reads.
 unsafe fn read_layout_of<'a>(codec: Value) -> Layout<'a> {
     let layout = blob_bytes(codec.as_array().get(0));
-    Layout::parse(layout).unwrap_or_else(|| viewed(codec))
+    Layout::of(layout).unwrap_or_else(|| viewed(codec))
 }
 
-/// The layout of the table that the view's codec `codec` reads, its header alone checked: the
-/// view's layout was made from that table's layout with every column checked (`nt_view`). Traps
-/// when `codec` is not a view's. Out of line, so a call with a table's codec runs as before.
+/// The layout of the table that the view's codec `codec` reads, its header alone checked, as a
+/// table's codec's is (`Layout::of`). Traps when `codec` is not a view's. Out of line, so a call
+/// with a table's codec runs as before.
 #[cold]
 #[inline(never)]
 unsafe fn viewed<'a>(codec: Value) -> Layout<'a> {
@@ -222,7 +229,7 @@ unsafe fn open<'h, 'a, M: Memory>(
 /// index, from 1, in a pair; equal lists share one index, unique when one of them is.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) -> Value {
-    let layout = layout_of(codec);
+    let layout = checked_layout_of(codec);
     let lists = indexes.as_array();
     let ids = scratch::<Value, M>(mem, lists.len());
     let mut decls = [IndexDecl::default(); INDEX_MAX as usize];
@@ -423,7 +430,7 @@ unsafe fn put_row<M: Memory>(
 /// another type.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_view<M: Memory>(mem: &mut M, codec: Value, viewed: Value) -> Value {
-    let view = layout_of(viewed);
+    let view = checked_layout_of(viewed);
     let layout = view_layout(mem, blob_bytes(codec.as_array().get(0)), &view);
     pair(mem, layout, labels_of(viewed))
 }
@@ -431,7 +438,7 @@ pub unsafe fn nt_view<M: Memory>(mem: &mut M, codec: Value, viewed: Value) -> Va
 /// The row key `k` has, built as a value of the row type, or null.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_get<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
-    let Some(layout) = Layout::parse(blob_bytes(codec.as_array().get(0))) else {
+    let Some(layout) = Layout::of(blob_bytes(codec.as_array().get(0))) else {
         return get_view(mem, id, codec, k);
     };
     let one;
@@ -586,7 +593,7 @@ unsafe fn index_cells<'c, M: Memory, H: PageHost>(
     }
     for (i, &o) in d.ords().iter().take(n).enumerate() {
         let column = (or_trap(shape.leaf(h, u64::from(o))).id >> 16) as usize;
-        let codes = match layout.entries().nth(column) {
+        let codes = match layout.entries().take(columns).nth(column) {
             Some(e) => e.codes,
             None => rts_trap_with("native table: malformed layout"),
         };
@@ -711,7 +718,7 @@ pub unsafe fn nt_walk<M: Memory>(
     limit: u64,
 ) -> Value {
     let bytes = blob_bytes(codec.as_array().get(0));
-    let (mut layout, view) = match Layout::parse(bytes) {
+    let (mut layout, view) = match Layout::of(bytes) {
         Some(layout) => (layout, None),
         None => viewed_picks(codec),
     };
@@ -1116,7 +1123,7 @@ pub unsafe fn nt_scan<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let Some(mut layout) = Layout::parse(blob_bytes(codec.as_array().get(0))) else {
+    let Some(mut layout) = Layout::of(blob_bytes(codec.as_array().get(0))) else {
         return scan_view(mem, id, codec, what, filter, next, limit);
     };
     let out = scan_out(what);
@@ -1349,7 +1356,7 @@ pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget:
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_evolve<M: Memory>(mem: &mut M, id: u64, codec: Value, next: Value) -> u64 {
     let layout = layout_of(codec);
-    let new = layout_of(next);
+    let new = checked_layout_of(next);
     let mem: *mut M = mem;
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let had_map = root_block(&host, id, &layout).is_some();

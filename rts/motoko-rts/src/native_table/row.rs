@@ -566,17 +566,20 @@ impl Fields {
 }
 
 /// The cells of key `k` and row `r` in the columns of `layout`, in a Blob that lives until the
-/// next collection.
+/// next collection. Traps when the layout has fewer column entries than columns.
 pub unsafe fn cells<'a, M: Memory>(mem: &mut M, layout: &Layout, k: Value, r: Value) -> Cells<'a> {
     let mut fields = layout.record_row().then(|| Fields::of(r));
     let mut entries = layout.entries();
     let (out, len) = row_of(mem, entries.next(), layout.columns(), k);
-    for (i, e) in entries.enumerate() {
+    for c in 1..layout.columns() {
+        let Some(e) = entries.next() else {
+            rts_trap_with("native table: malformed layout")
+        };
         let v = match &mut fields {
             Some(fields) => fields.field(e.hash),
             None => r,
         };
-        out.add(i + 1).write(cell(mem, e.codes, v));
+        out.add(c).write(cell(mem, e.codes, v));
     }
     Cells {
         cells: core::slice::from_raw_parts(out, len),
@@ -608,7 +611,7 @@ unsafe fn row_of<'a, M: Memory>(
 /// `layout`, those of key `k` at the key's (`row_of`), null at the other fields', in a Blob that
 /// lives until the next collection; the leaf of each field of `named`, its position << 16, written
 /// at `leaves`. Each field is found by `merge`, which takes a Nat for an Int, and its cell is made
-/// for the table's type.
+/// for the table's type. Traps when `named` has fewer column entries than columns.
 pub unsafe fn update_cells<'a, M: Memory>(
     mem: &mut M,
     layout: &Layout,
@@ -623,13 +626,18 @@ pub unsafe fn update_cells<'a, M: Memory>(
     for i in 1..n {
         out.add(i).write(CellIn::Null);
     }
-    for (i, (p, e, f)) in merge(layout, named, true).enumerate() {
+    let mut i = 0;
+    for (p, e, f) in merge(layout, named, true) {
         let v = match &mut fields {
             Some(fields) => fields.field(f.hash),
             None => r,
         };
         out.add(p).write(cell(mem, e.codes, v));
         leaves.add(i).write((p as u32) << 16);
+        i += 1;
+    }
+    if i + 1 != named.columns() {
+        rts_trap_with("native table: malformed layout");
     }
     Cells {
         cells: core::slice::from_raw_parts(out, len),
