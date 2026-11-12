@@ -32,8 +32,10 @@ pub const LONG_ITEM: u64 = 32;
 /// The stack buffer an inline row image is built in.
 pub const STAGE: usize = 3_072;
 const _: () = assert!(STAGE as u64 == ROW_INLINE_MAX);
-/// The smaller stack buffer a short inline row image is built in: a stage is zeroed at every write.
+/// The smaller stack buffers a shorter inline row image is built in: a stage is zeroed at every write.
 const SHORT_STAGE: usize = 256;
+const SMALL_STAGE: usize = 512;
+const MID_STAGE: usize = 1_024;
 
 /// Whether a variable value of `n` bytes is a long value: past `HUGE_VALUE`.
 #[inline]
@@ -118,14 +120,20 @@ pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: cr
     Ok(p)
 }
 
-/// Runs `f` with `len` bytes for a row image: stack bytes when an inline row image of `len` fits them
-/// (`SHORT_STAGE` of them when it fits those), else the first `len` bytes of `big`.
+/// Runs `f` with `len` bytes for a row image: stack bytes when an inline row image of `len` fits them (the
+/// smallest of the stages that holds it), else the first `len` bytes of `big`.
 pub fn staged<T>(len: u64, big: &mut [u8], f: impl FnOnce(&mut [u8]) -> Result<T, Fault>) -> Result<T, Fault> {
     let n = usize::try_from(len).map_err(|_| rt(Corruption::Range, len))?;
-    let (mut short, mut whole);
+    let (mut short, mut small, mut mid, mut whole);
     let buf: &mut [u8] = if n <= SHORT_STAGE {
         short = [0u8; SHORT_STAGE];
         &mut short
+    } else if n <= SMALL_STAGE {
+        small = [0u8; SMALL_STAGE];
+        &mut small
+    } else if n <= MID_STAGE {
+        mid = [0u8; MID_STAGE];
+        &mut mid
     } else if n <= STAGE {
         whole = [0u8; STAGE];
         &mut whole
