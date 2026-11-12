@@ -518,7 +518,7 @@ fn text_not_utf8_refused() {
     for k in [0, n - 1] {
         assert_eq!(tb.upsert(&mut key_scratch(), &mut Src::new(&small_row(k, bad.clone()))).map(|_| ()), refused);
         let (key, cell) = ([(id(0), V::U(k))], [(id(2), V::Bytes(bad.clone()))]);
-        let r = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(2)], &mut Src::new(&cell));
+        let r = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(2)], &mut Src::new(&cell), false);
         assert_eq!(r.map(|_| ()), refused);
         assert_eq!(get_row(&tb, &key).unwrap().1, good(k));
     }

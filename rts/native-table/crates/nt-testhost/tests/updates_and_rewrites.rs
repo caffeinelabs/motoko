@@ -1162,7 +1162,7 @@ fn update_of_one_leaf_keeps_long_values() {
     let before = (check_ownership(&tb), tb.host().live_pages());
     row[4] = (id(4), V::U(9));
     let key = [(id(0), V::U(1))];
-    tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(4)], &mut Src::new(&row[4..])).unwrap();
+    tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(4)], &mut Src::new(&row[4..]), false).unwrap();
     assert_eq!(get_row(&tb, 1).unwrap().1, row);
     assert_eq!((check_ownership(&tb), tb.host().live_pages()), before, "the long values keep their images");
 }
@@ -1209,7 +1209,7 @@ fn update_of_some_leaves_of_a_buffered_row() {
     for cells in steps {
         let leaves: Vec<u32> = cells.iter().map(|c| c.0).collect();
         let key = [(id(0), V::U(1))];
-        tb.update(&mut key_scratch(), &mut Src::new(&key), &leaves, &mut Src::new(cells)).unwrap();
+        tb.update(&mut key_scratch(), &mut Src::new(&key), &leaves, &mut Src::new(cells), false).unwrap();
         let row = &mut model.get_mut(&1).unwrap().1;
         for (l, v) in cells {
             row.iter_mut().find(|c| c.0 == *l).unwrap().1 = v.clone();
@@ -1244,7 +1244,8 @@ fn growing_a_buffered_row_past_the_tail_blocks_room() {
         let tail = root::u64_at(tb.host(), tb.root(), root::TAIL).unwrap();
         let cells = [(id(1), V::Bytes(vec![b'b'; n]))];
         if k == 0 {
-            tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))]), &[id(1)], &mut Src::new(&cells)).unwrap();
+            tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))]), &[id(1)], &mut Src::new(&cells), false)
+                .unwrap();
         } else {
             tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k)), cells[0].clone()])).unwrap();
         }
@@ -1263,7 +1264,8 @@ fn growing_a_buffered_row_past_the_tail_blocks_room() {
     // Once the open group has its most buffer blocks, a long row image takes the row.
     for i in 0..600 {
         let cells = [(id(1), V::Bytes(vec![b'c'; 2_000 + 40 * (i % 2)]))];
-        tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(2))]), &[id(1)], &mut Src::new(&cells)).unwrap();
+        tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(2))]), &[id(1)], &mut Src::new(&cells), false)
+            .unwrap();
         model.get_mut(&2).unwrap().1[1] = cells[0].clone();
     }
     check_reads(&tb, &model);
@@ -1334,7 +1336,7 @@ fn update_of_one_leaf_with_a_long_key() {
     let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
     let key = [(id(0), V::Bytes(vec![b'k'; 70_000]))];
     tb.upsert(&mut key_scratch(), &mut Src::new(&[key[0].clone(), (id(1), V::U(1))])).unwrap();
-    let rid = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(1)], &mut Src::new(&[(id(1), V::U(2))]));
+    let rid = tb.update(&mut key_scratch(), &mut Src::new(&key), &[id(1)], &mut Src::new(&[(id(1), V::U(2))]), false);
     let mut s = Sink::default();
     assert!(tb.get(&mut key_scratch(), &mut Src::new(&key), &mut s).unwrap());
     assert_eq!(rid.unwrap().0, s.rid);

@@ -403,10 +403,7 @@ unsafe fn set_fields<M: Memory>(
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
     let leaves = core::slice::from_raw_parts(leaves, n);
-    let (rid, _) = or_trap(table.update(&mut scratch, &mut k, leaves, &mut row));
-    if insert && rid.is_none() {
-        put_row(&mut table, &mut scratch, &mut row);
-    }
+    let (rid, _) = or_trap(table.update(&mut scratch, &mut k, leaves, &mut row, insert));
     (rid.is_some() != insert) as u64
 }
 

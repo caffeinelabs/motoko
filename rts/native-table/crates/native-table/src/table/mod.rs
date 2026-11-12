@@ -375,10 +375,16 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(buf.get(..n).unwrap_or(&[]))
     }
 
-    /// The live row of E(k), for a write: its rid and where it lies, after checking that the row's key leaves
-    /// encode to E(k). `path` is the caller's, for the lookup.
-    fn find_key(&self, e: &[u8], path: &mut Path) -> Result<Option<(u64, read::Row)>, Fault> {
-        self.read_key::<true, _, _>(e, path, |rid, row| Ok((rid, row.row())))
+    /// The primary index, `None` when not made yet, and the lookup of E(k) in it, for a write: a hit is the row
+    /// the write finds, a miss the position its new entry takes. `path` is the caller's, for the lookup.
+    #[inline(always)]
+    fn look(&self, e: &[u8], path: &mut Path) -> Result<(Option<Primary>, primary::Lookup), Fault> {
+        let prim = Primary::read(&*self.host, self.root)?;
+        let look = match &prim {
+            Some(p) => primary::lookup(&*self.host, p, e, path)?,
+            None => primary::Lookup { found: None, vacant: None },
+        };
+        Ok((prim, look))
     }
 
     /// `f` of the live row of E(k), opened once for all its reads, and its rid; `None` when there is none. With
@@ -635,18 +641,22 @@ impl<'h, H: PageHost> Table<'h, H> {
         if self.shape.unique != 0 {
             self.unique_row(&mut indexes::Dyn(row), scratch)?;
         }
-        let (rid, inserted) = self.write_row(scratch, row)?;
+        let (rid, inserted) = self.write_row(scratch, row, &mut Path::new(), None)?;
         let u = if inserted { Upsert::Inserted(rid) } else { Upsert::Replaced(rid) };
         Ok((u, self.settle()?))
     }
 
     /// (rid, inserted) of an upsert. E(k) is built on the stack when it fits, else in the scratch (its length
     /// counted by a plan that only counts it). A row image longer than an inline one takes the scratch too, after
-    /// E(k) when E(k) is there, asked for before anything is written.
+    /// E(k) when E(k) is there, asked for before anything is written. `found` is the lookup of E(k) when the caller
+    /// made it, into `path`. Inlined in both callers, where a call would make each insert dearer.
+    #[inline(always)]
     fn write_row<S: Scratch, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
         row: &mut R,
+        path: &mut Path,
+        found: Option<(Option<Primary>, primary::Lookup)>,
     ) -> Result<(u64, bool), Fault> {
         self.filled = 0;
         let mut kb = [0u8; KEY_STACK];
@@ -677,13 +687,11 @@ impl<'h, H: PageHost> Table<'h, H> {
             Ok(n) => kb.get(..*n).unwrap_or(&[]),
             Err((k, _)) => k,
         };
-        // One lookup of E(k) in the primary index: a hit is the row the write finds, a miss the position its
-        // new entry takes. A primary index not made yet is empty; it is made only when the row goes in.
-        let mut path = Path::new();
-        let prim = Primary::read(&*self.host, self.root)?;
-        let look = match &prim {
-            Some(p) => primary::lookup(&*self.host, p, e, &mut path)?,
-            None => primary::Lookup { found: None, vacant: None },
+        // One lookup of E(k) in the primary index. A primary index not made yet is empty; it is made only when the
+        // row goes in.
+        let (prim, look) = match found {
+            Some(found) => found,
+            None => self.look(e, path)?,
         };
         if let Some((rid, _, _)) = look.found {
             let found = self.row_of(rid, e)?;
@@ -693,7 +701,7 @@ impl<'h, H: PageHost> Table<'h, H> {
             if plan.len > row::STAGE as u64 && matches!(found, read::Row::Buffered(_)) {
                 scratch.get(usize::try_from(plan.len).map_err(|_| Fault::Scratch { need: plan.len })?)?;
             }
-            self.index_update(found, row, rid, &mut kb, scratch, &mut path)?;
+            self.index_update(found, row, rid, &mut kb, scratch, path)?;
             let (h, tbl) = (&mut *self.host, self.root);
             match found {
                 read::Row::Buffered(at) => {
@@ -722,8 +730,8 @@ impl<'h, H: PageHost> Table<'h, H> {
         };
         let (rid, filled) = write::insert(&mut *self.host, self.root, &self.shape, row, &plan, big)?;
         self.filled = filled;
-        primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, &mut path)?;
-        self.index_insert(row, rid, &mut kb, scratch, &mut path)?;
+        primary::insert(&mut *self.host, self.root, &mut p, e, rid, look.vacant, path)?;
+        self.index_insert(row, rid, &mut kb, scratch, path)?;
         Ok((rid, true))
     }
 
@@ -731,21 +739,34 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// leaves: in a sealed group only those leaves are read and written, each changed one as an upsert writes it;
     /// a row still in the open group gets a new image, its stored one with those leaves' cells and items replaced
     /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. Returns the row's
-    /// rid, or `None`, with nothing written, when no row has key k. `BadRef` for a leaf the table does not have;
-    /// `BadValue` for a cell its leaf's type refuses, or a key leaf given another value; `Unique` when a unique
-    /// index holds the row's new key under it for another row. Every refusal comes before the first write.
+    /// rid, or `None` when no row has key k: with nothing written, or with `insert`, after inserting `src`, which
+    /// then has a cell for every leaf, as `upsert` does, in the same lookup. `BadRef` for a leaf the table does not
+    /// have; `BadValue` for a cell its leaf's type refuses, or a key leaf given another value; `Unique` when a
+    /// unique index holds the row's new key under it for another row. Every refusal comes before the first write.
     pub fn update<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
         &mut self,
         scratch: &mut S,
         key: &mut K,
         leaves: &[u32],
         src: &mut R,
+        insert: bool,
     ) -> Result<(Option<u64>, Wake), Fault> {
         self.filled = 0;
         let mut kb = [0u8; KEY_STACK];
         let e = self.key_in(key, &mut kb, scratch)?;
         let mut path = Path::new();
-        let Some((rid, row)) = self.find_key(e, &mut path)? else { return Ok((None, self.wake()?)) };
+        let found = self.look(e, &mut path)?;
+        let Some((rid, _, _)) = found.1.found else {
+            if !insert {
+                return Ok((None, self.wake()?));
+            }
+            if self.shape.unique != 0 {
+                self.unique_row(&mut indexes::Dyn(src), scratch)?;
+            }
+            self.write_row(scratch, src, &mut path, Some(found))?;
+            return Ok((None, self.settle()?));
+        };
+        let row = self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row();
         // The indexes whose key a changed leaf is part of; the cells checked before anything is written.
         let mut moved = 0u64;
         let (h, tbl, shape) = (&*self.host, self.root, &self.shape);

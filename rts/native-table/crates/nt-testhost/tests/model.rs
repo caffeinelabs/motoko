@@ -69,7 +69,7 @@ use native_table::tree::Dir;
 use native_table::value::ty;
 use native_table::{Fault, Progress, Wake};
 use nt_testhost::big::Big;
-use nt_testhost::rows::{schema_versioned, t, Src, VCol, V};
+use nt_testhost::rows::{rid_of, schema_versioned, t, Src, VCol, V};
 use nt_testhost::{TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 const DEFAULT_SEED: u64 = 0x6E74_6D6F_6465_6C31;
@@ -1706,7 +1706,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 let kc = key_cells(&s, &key.1);
                 let rid = m[key].0;
                 assert_eq!(
-                    tb.update(&mut scratch, &mut Src::new(&kc), &leaves, &mut Src::new(&only)).unwrap().0,
+                    tb.update(&mut scratch, &mut Src::new(&kc), &leaves, &mut Src::new(&only), false).unwrap().0,
                     Some(rid)
                 );
                 m.insert(key.clone(), (rid, row.clone()));
@@ -1716,7 +1716,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                 if other != *key {
                     cells[0].1 = key_cells(&s, &other.1).remove(0).1;
                     tb.host_mut().end_message();
-                    let got = tb.update(&mut scratch, &mut Src::new(&kc), &[leaf(0)], &mut Src::new(&cells));
+                    let got = tb.update(&mut scratch, &mut Src::new(&kc), &[leaf(0)], &mut Src::new(&cells), false);
                     assert_eq!(got.map(|x| x.0), Err(Fault::BadValue { leaf: 0 }), "update {key:?}'s key");
                     assert_eq!(tb.host().changed_blocks(), 0, "a refused update writes nothing");
                 }
@@ -1727,6 +1727,7 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
                         &mut Src::new(&key_cells(&s, &other.1)),
                         &leaves,
                         &mut Src::new(&cells),
+                        false,
                     );
                     assert_eq!(got.unwrap().0, None, "update of {other:?}, which no row has");
                     assert_eq!(tb.host().changed_blocks(), 0, "an update of a key no row has writes nothing");
@@ -1734,7 +1735,15 @@ fn run(seed: u64, key: Kind, ops: u64, fill: u8) -> Digest {
             }
             Some((key, Some(row))) => {
                 let cells = row_cells(&s, row, &mut r);
-                let got = tb.upsert(&mut scratch, &mut Src::new(&cells));
+                // Every other new key goes in through an update that inserts it.
+                let got = if i % 2 == 0 && !m.contains_key(key) {
+                    let kc = key_cells(&s, &key.1);
+                    let got = tb.update(&mut scratch, &mut Src::new(&kc), &[], &mut Src::new(&cells), true).unwrap();
+                    assert_eq!(got.0, None, "update of {key:?}, which no row has, inserts it");
+                    Ok((Upsert::Inserted(rid_of(&tb, &kc).unwrap()), got.1))
+                } else {
+                    tb.upsert(&mut scratch, &mut Src::new(&cells))
+                };
                 match (got, m.get(key)) {
                     (Ok((Upsert::Inserted(rid), _)), None) => {
                         assert!(last_rid.is_none_or(|l| rid > l), "row ids rise: {rid} after {last_rid:?}");

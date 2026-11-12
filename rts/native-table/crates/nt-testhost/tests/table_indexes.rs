@@ -489,9 +489,9 @@ fn declarations() {
 }
 
 /// Unique indexes, one on the Text, one on (?Bool, i64): a write that would give a second row a key of one with
-/// no null part is refused with nothing written, a whole-row write or an update of some leaves of a buffered or
-/// a sealed row, whose other part comes from the stored row; keys longer than a point operation's stack too. A
-/// row keeps its own key, and keys with a null part never conflict.
+/// no null part is refused with nothing written, a whole-row write, an update that inserts, or an update of some
+/// leaves of a buffered or a sealed row, whose other part comes from the stored row; keys longer than a point
+/// operation's stack too. A row keeps its own key, and keys with a null part never conflict.
 #[test]
 fn unique_indexes() {
     let unique = |d: IndexDecl| IndexDecl { flags: 8, ..d };
@@ -511,7 +511,7 @@ fn unique_indexes() {
     let set = |tb: &mut Table<'_, VecHost>, k: u64, leaf: u32, v: V| {
         tb.host_mut().end_message();
         let key = [(id(0), V::U(k))];
-        tb.update(&mut key_scratch(), &mut Src::new(&key), &[leaf], &mut Src::new(&[(leaf, v)]))
+        tb.update(&mut key_scratch(), &mut Src::new(&key), &[leaf], &mut Src::new(&[(leaf, v)]), false)
             .map(|(r, _)| r.is_some())
     };
     let refused = |tb: &mut Table<'_, VecHost>, got: Result<bool, Fault>| {
@@ -529,6 +529,9 @@ fn unique_indexes() {
     for sealed in [false, true] {
         let got = put(&mut tb, row(5, V::text("a"), V::Null, 0));
         refused(&mut tb, got);
+        let (key, new) = ([(id(0), V::U(5))], row(5, long(b'x'), t.clone(), 1));
+        let got = tb.update(&mut key_scratch(), &mut Src::new(&key), &[], &mut Src::new(&new), true);
+        refused(&mut tb, got.map(|(r, _)| r.is_some()));
         let got = put(&mut tb, row(5, long(b'x'), V::Null, 0));
         refused(&mut tb, got);
         let got = put(&mut tb, row(5, V::text("e"), t.clone(), 2));
