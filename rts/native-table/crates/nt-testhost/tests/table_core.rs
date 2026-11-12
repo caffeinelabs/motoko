@@ -573,7 +573,7 @@ fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
                 longs += 1;
             }
             let row = native_table::table::row::RowRef::new(h, loc)?;
-            for vi in 0..shape.vars {
+            for vi in 0..shape.head.vars {
                 if let native_table::table::row::Item::Long { img, .. } = row.item(&shape, vi)? {
                     add(&img);
                     longs += 1;
@@ -670,7 +670,7 @@ fn long_values() {
             buffer::for_each_slot(h, d, |_, b, sl| {
                 let loc = buffer::slot_row(h, b, sl)?.unwrap();
                 let row = native_table::table::row::RowRef::new(h, loc)?;
-                for vi in 0..tb.shape().vars {
+                for vi in 0..tb.shape().head.vars {
                     if let native_table::table::row::Item::Long { img, .. } = row.item(tb.shape(), vi)? {
                         s.extend(image_pages(h, &img));
                     }

@@ -170,14 +170,6 @@ pub struct Shape {
     /// The layout of a row image of the schema version.
     pub head: RowHead,
     leaves_at: u64,
-    /// Bytes of each of a row image's two bitmaps.
-    pub bitmap: u64,
-    /// The fixed region's offset in a row image.
-    pub fixed_at: u64,
-    /// The fixed region's bytes.
-    pub fixed: u64,
-    /// Variable leaves V.
-    pub vars: u64,
     /// Running records R and the bytes of their leaf list and of the records.
     pub run_r: u64,
     pub run_list: u64,
@@ -221,10 +213,6 @@ impl Shape {
             leaves: u64::from(v.leaves),
             head: RowHead::default(),
             leaves_at: u64::from(v.layout.leaves),
-            bitmap: 0,
-            fixed_at: 0,
-            fixed: 0,
-            vars: 0,
             run_r: 0,
             run_list: 0,
             run_bytes: 0,
@@ -248,15 +236,15 @@ impl Shape {
         if s.leaves == 0 {
             return Err(rt(Corruption::Leaf, 0));
         }
-        let mut r = 0u64;
+        let (mut r, mut fixed, mut vars) = (0u64, 0u64, 0u64);
         let mut key_width = 0u64;
         for o in 0..s.leaves {
             let l = s.leaf(h, o)?;
             r = r.wrapping_add(1);
             // Widths are at most 65,535 per leaf and leaves at most 65,535: the sums stay far below 2^63.
-            s.fixed = s.fixed.wrapping_add(l.ty.fixed_width());
+            fixed = fixed.wrapping_add(l.ty.fixed_width());
             if l.ty.variable() {
-                s.vars = s.vars.wrapping_add(1);
+                vars = vars.wrapping_add(1);
             }
             if l.key {
                 s.key_leaves = s.key_leaves.wrapping_add(1);
@@ -268,11 +256,7 @@ impl Shape {
         if s.key_leaves == 0 {
             return Err(rt(Corruption::Leaf, 0));
         }
-        s.bitmap = r.div_ceil(8);
-        // bitmap ≤ 8,192.
-        s.fixed_at = align8(8u64.wrapping_add(s.bitmap.wrapping_mul(2)));
-        s.head =
-            RowHead { version: s.version, r, bitmap: s.bitmap, fixed_at: s.fixed_at, fixed: s.fixed, vars: s.vars };
+        s.head = RowHead::of(s.version, r, fixed, vars);
         s.key_w = key_width.div_ceil(8).wrapping_mul(8).clamp(W_MIN, W_MAX);
         // Rule of room: the fixed part first, then each integer leaf's running record with its list entry in
         // ordinal order while it fits. A total that does not fit goes to the totals space.
@@ -310,10 +294,10 @@ impl Shape {
             self.leaves,
             self.head.r,
             self.leaves_at,
-            self.bitmap,
-            self.fixed_at,
-            self.fixed,
-            self.vars,
+            self.head.bitmap,
+            self.head.fixed_at,
+            self.head.fixed,
+            self.head.vars,
             self.run_r,
             self.run_list,
             self.run_bytes,
@@ -378,10 +362,6 @@ impl Shape {
             leaves,
             head: RowHead { version, r: rows_r, bitmap, fixed_at, fixed, vars },
             leaves_at,
-            bitmap,
-            fixed_at,
-            fixed,
-            vars,
             run_r,
             run_list,
             run_bytes,
