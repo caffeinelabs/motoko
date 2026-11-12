@@ -12,7 +12,7 @@ use native_table::area::{AreaRecord, IMAGE_AREA};
 use native_table::consts::{AREAS, BLOCK, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PAGE};
 use native_table::fault::{corrupt, Fault};
 use native_table::index::secondary::Start;
-use native_table::mem::{rd_u32, rd_u64};
+use native_table::mem::rd_u32;
 use native_table::schema::IndexDecl;
 use native_table::table::group::{self, GroupView, LeafDir, Seg};
 use native_table::table::jobs::{self, Ran};
@@ -1380,18 +1380,6 @@ fn held_pages(h: &VecHost, tbl: u64) -> u64 {
     (0..AREAS as u32).map(|a| nt_testhost::held_pages(h, tbl, a)).sum()
 }
 
-/// Blocks in use in area 0: its pages' blocks less the never-used and the free ones.
-fn used0(h: &VecHost, tbl: u64) -> u64 {
-    let rec = AreaRecord::read(h, tbl, 0).unwrap();
-    let mut free = 0;
-    let mut b = rec.free_head;
-    while b != 0 {
-        free += 1;
-        b = rd_u64(h.get(Region::Block(b)).unwrap(), 0).unwrap();
-    }
-    nt_testhost::held_pages(h, tbl, 0) * 16 - (16 - u64::from(rec.bump)) - free
-}
-
 /// Runs maintenance steps until none is pending; each step gives back at most 16 pages, but for those that give
 /// back a group's images, one a group. Returns the steps.
 fn reclaim(tb: &mut Table<'_, VecHost>) -> u64 {
@@ -1417,6 +1405,7 @@ fn cleared(tb: &mut Table<'_, VecHost>, fill: u8) {
     let (h, tbl) = (tb.host(), tb.root());
     assert_eq!(h.live_pages() as u64, held_pages(h, tbl), "the host's pages are the table's");
     assert_eq!(AreaRecord::read(h, tbl, 15).unwrap().pages, 1, "the schema page alone");
+    let used0 = |h: &VecHost, tbl| nt_testhost::used_blocks(h, tbl, 0);
     assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1, "an empty table's blocks and a radix block");
 }
 

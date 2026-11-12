@@ -60,7 +60,6 @@ use std::ops::Bound;
 use native_table::area::AreaRecord;
 use native_table::consts::{AREAS, GROUP_SLOTS};
 use native_table::index::secondary::Start;
-use native_table::mem::rd_u64;
 use native_table::schema::IndexDecl;
 use native_table::table::filter::{Cond, Filter};
 use native_table::table::jobs::Ran;
@@ -68,7 +67,7 @@ use native_table::table::totals::Total;
 use native_table::table::{buffer, root, CellIn, CellOut, RowSink, Table, Upsert};
 use native_table::tree::Dir;
 use native_table::value::ty;
-use native_table::{Fault, PageHost, Progress, Region, Wake};
+use native_table::{Fault, Progress, Wake};
 use nt_testhost::big::Big;
 use nt_testhost::rows::{schema_versioned, t, Src, VCol, V};
 use nt_testhost::{TestBudget, VecHost, VecScratch, XorShift, FILLS};
@@ -1107,17 +1106,7 @@ fn check_pages(tb: &Table<'_, VecHost>) {
 /// Blocks in use in areas 0 and 1 (their pages' blocks, less the never-used ones and the free ones), and the
 /// image pages of area 15.
 fn held(tb: &Table<'_, VecHost>) -> (u64, u64, u64) {
-    let used = |a: u32| {
-        let rec = AreaRecord::read(tb.host(), tb.root(), a).unwrap();
-        let mut free = 0u64;
-        let mut b = rec.free_head;
-        while b != 0 {
-            free += 1;
-            b = rd_u64(tb.host().get(Region::Block(b)).unwrap(), 0).unwrap();
-        }
-        let never = if rec.newest != 0 { 16 - u64::from(rec.bump) } else { 0 };
-        nt_testhost::held_pages(tb.host(), tb.root(), a) * 16 - never - free
-    };
+    let used = |a: u32| nt_testhost::used_blocks(tb.host(), tb.root(), a);
     (used(0), used(1), AreaRecord::read(tb.host(), tb.root(), 15).unwrap().pages)
 }
 

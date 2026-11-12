@@ -282,15 +282,22 @@ fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
     let mut longs = 0;
     let patch_longs = |dir: u64, add: &mut dyn FnMut(&native_table::image::Image)| {
         patch::for_each_unit(h, dir, |u| {
+            let map = rd_u64(h.get(Region::Block(u.first)).unwrap(), patch::B_MAP).unwrap();
             let mut b = u.first;
-            let mut first = true;
+            let mut j = 0u64;
             while b != 0 {
                 let s = h.get(Region::Block(b)).unwrap();
                 let n = rd_u16(s, patch::B_ENTRIES).unwrap() as u64;
-                let base = if first { patch::FIRST_ENTRIES } else { patch::LATER_ENTRIES };
+                let base = if j == 0 { patch::FIRST_ENTRIES } else { patch::LATER_ENTRIES };
                 for i in 0..n {
                     let at = base + i * patch::ENTRY;
                     let flags = s[at as usize + 2];
+                    // The position map names the block of each live entry; a chain without one has one block.
+                    if flags & patch::F_DEAD == 0 {
+                        let pos = rd_u16(s, at).unwrap() as usize;
+                        let k = if map == 0 { 0 } else { h.get(Region::Block(map)).unwrap()[pos] as u64 };
+                        assert_eq!(k, j.min(255), "the position map at position {pos}");
+                    }
                     if flags & patch::F_DEAD == 0 && flags & patch::F_LONG != 0 {
                         let data = rd_u16(s, at + 6).unwrap() as u64;
                         if s[data as usize..data as usize + 24].iter().any(|&x| x != 0) {
@@ -299,7 +306,7 @@ fn check_ownership(tb: &Table<'_, VecHost>) -> usize {
                     }
                 }
                 b = rd_u64(s, patch::B_NEXT).unwrap();
-                first = false;
+                j += 1;
             }
             Ok(())
         })
@@ -1042,6 +1049,39 @@ fn long_patch_chains() {
         (longest, model.len())
     });
     assert!(digest.0 > 3 * native_table::consts::PATCH_FOLD_BLOCKS, "chains far past their bound: {digest:?}");
+}
+
+/// A chain past its first block has a position map naming each live entry's block (`check_ownership`), and a
+/// compaction gives the map back with the chain: from the second round on, area 0 holds the blocks it held before
+/// the round's changes.
+#[test]
+fn patch_position_maps() {
+    let m = model_schema();
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 97, &m.img).unwrap();
+    let (mut r, mut model, mut next_key, mut units) = (XorShift(0x3A9), Rows::new(), 0u64, Units::default());
+    fill_group(&mut tb, &mut r, &mut model, &mut next_key);
+    run_all(&mut tb, &mut units);
+    let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).take(300).collect();
+    for round in 0..3 {
+        let used = nt_testhost::used_blocks(tb.host(), tb.root(), 0);
+        for (i, k) in keys.iter().enumerate() {
+            set_cell(&mut tb, &mut model, *k, id(1), V::Bytes(text(&mut r, 30 + (i * 7 + round) % 60)));
+        }
+        let pg = root::group(tb.host(), tb.root(), 0).unwrap();
+        let dir = buffer::u64_of(tb.host(), pg, page::P_PATCH_DIR).unwrap();
+        let u = patch::unit(tb.host(), dir, 1).unwrap().unwrap();
+        assert!(u.blocks > 1 && rd_u64(tb.host().get(Region::Block(u.first)).unwrap(), patch::B_MAP).unwrap() != 0);
+        check_reads(&tb, &model);
+        check_ownership(&tb);
+        let tbl = tb.root();
+        native_table::table::jobs::queue(tb.host_mut(), tbl, 0, pg).unwrap();
+        run_all(&mut tb, &mut units);
+        check_reads(&tb, &model);
+        if round > 0 {
+            assert_eq!(nt_testhost::used_blocks(tb.host(), tb.root(), 0), used, "round {round}");
+        }
+    }
 }
 
 // ---------------------------------------------------------------- big values

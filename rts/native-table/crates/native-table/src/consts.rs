@@ -115,8 +115,9 @@ pub const IMAGE_V1: u16 = 1;
 /// frozen and no rewrite spans calls: the root's frozen queue (64–83) and job slots 2–7, a buffer descriptor's
 /// bytes 24–31 and 56–63 and a group page's bytes 640–655 are zero, no rewrite state block exists, and the drain
 /// holds only removed indexes' trees and key logs. Versions 13 and 14: secondary index trees count the rows under
-/// each child, and upkeep gives back free pages; an open refuses a root older than `FORMAT_TABLE_MIN`.
-pub const FORMAT_TABLE: u16 = 14;
+/// each child, and upkeep gives back free pages; an open refuses a root older than `FORMAT_TABLE_MIN`. Version
+/// 15: a patch chain's first block names a position map (`table::patch`); a chain without one is searched whole.
+pub const FORMAT_TABLE: u16 = 15;
 /// Format. The oldest table root an open reads: an older one's secondary index trees hold no row counts.
 pub const FORMAT_TABLE_MIN: u16 = 13;
 

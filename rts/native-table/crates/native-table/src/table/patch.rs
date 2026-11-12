@@ -8,10 +8,14 @@
 //! block but the last holds 254 records, and a 255th unit takes a new block linked from the last.
 //!
 //! **Patch block** (area 0): {magic `NTPB` u32 @0; `FORMAT_TABLE` u16 @4; entries u16 @6; next block of the
-//! chain u64 @8; data low u16 @16 (data grows down from 4,096); leaf ordinal u16 @18; zero @20..32; the
-//! first block of a chain: the patched bitmap by position @32..544}, then entries of 8 bytes sorted by
-//! position {position u16, flags u8 (bit 0 null, bit 1 long, bit 2 dead, bit 3 chain), zero u8, length u16,
-//! data offset u16}.
+//! chain u64 @8; data low u16 @16 (data grows down from 4,096); leaf ordinal u16 @18; zero @20..24; the
+//! first block of a chain: its position map u64 @24 (0: none), the patched bitmap by position @32..544, else
+//! zero @24..32}, then entries of 8 bytes sorted by position {position u16, flags u8 (bit 0 null, bit 1 long,
+//! bit 2 dead, bit 3 chain), zero u8, length u16, data offset u16}.
+//!
+//! **Position map** (area 0, zero-filled when allocated, made when a chain takes its second block): a byte per
+//! position, k: the position's live entry lies in the chain's block k (from 0) or a later one (k = 255: any
+//! block from the 255th on). A lookup follows the links to block k and searches from there.
 //!
 //! An entry's data is the value's VE when it fits `LONG_VALUE`; a longer value lies in its own chain of
 //! area-0 blocks {next u64 @0; 4,088 bytes} (flag bit 3; data: {chain head u64, length u32}) or, past
@@ -41,6 +45,7 @@ pub const B_ENTRIES: u64 = 6;
 pub const B_NEXT: u64 = 8;
 pub const B_LOW: u64 = 16;
 pub const B_LEAF: u64 = 18;
+pub const B_MAP: u64 = 24;
 pub const B_BITMAP: u64 = 32;
 /// Where the entries start: after the bitmap in a chain's first block, after the header in the others.
 pub const FIRST_ENTRIES: u64 = 544;
@@ -211,22 +216,24 @@ fn find_in_block<H: PageHost + ?Sized>(h: &H, b: u64, first: bool, pos: u64) -> 
     Ok(None)
 }
 
-/// The live entry of position `pos` in a unit, or `None`.
+/// The live entry of position `pos` in a unit, or `None`, searched from the block the position map names.
 pub fn lookup_in<H: PageHost + ?Sized>(h: &H, u: &Unit, pos: u64) -> Result<Option<Entry>, Fault> {
     if !marked(h, u, pos)? {
         return Ok(None);
     }
+    let map = rd_u64(h.get(Region::Block(u.first))?, B_MAP)?;
+    let from = if map == 0 { 0 } else { u64::from(rd_u8(h.get(Region::Block(map))?, pos)?) };
     let mut b = u.first;
-    let mut first = true;
-    let mut hops = 0u64;
+    let mut i = 0u64;
     while b != 0 {
-        if let Some(e) = find_in_block(h, b, first, pos)? {
-            return Ok(Some(e));
+        if i >= from {
+            if let Some(e) = find_in_block(h, b, i == 0, pos)? {
+                return Ok(Some(e));
+            }
         }
         b = rd_u64(h.get(Region::Block(b))?, B_NEXT)?;
-        first = false;
-        hops = hops.wrapping_add(1);
-        if hops > u.blocks.saturating_add(1) {
+        i = i.wrapping_add(1);
+        if i > u.blocks.saturating_add(1) {
             return Err(rt(Corruption::Link, u.first));
         }
     }
@@ -338,8 +345,8 @@ fn free_chain<H: PageHost>(h: &mut H, tbl: u64, first: u64, next_at: u64) -> Res
     Ok(())
 }
 
-/// Frees a patch directory: each unit's patch blocks with the value chains and long values of their live
-/// entries, then the directory's blocks.
+/// Frees a patch directory: each unit's patch blocks and position map with the value chains and long values of
+/// their live entries, then the directory's blocks.
 pub fn free_dir<H: PageHost>(h: &mut H, tbl: u64, dir: u64) -> Result<(), Fault> {
     if dir == 0 {
         return Ok(());
@@ -353,10 +360,13 @@ pub fn free_dir<H: PageHost>(h: &mut H, tbl: u64, dir: u64) -> Result<(), Fault>
             let mut b = rd_u64(h.get(Region::Block(d))?, at.wrapping_add(R_FIRST))?;
             let mut first = true;
             while b != 0 {
-                let (n, next) = {
+                let (n, next, map) = {
                     let s = h.get(Region::Block(b))?;
-                    (u64::from(rd_u16(s, B_ENTRIES)?), rd_u64(s, B_NEXT)?)
+                    (u64::from(rd_u16(s, B_ENTRIES)?), rd_u64(s, B_NEXT)?, rd_u64(s, B_MAP)?)
                 };
+                if map != 0 {
+                    crate::area::free_block(h, tbl, 0, map)?;
+                }
                 // A chain's first block holds the bitmap: its entries start after it.
                 let base = if first { FIRST_ENTRIES } else { LATER_ENTRIES };
                 for j in 0..n {
@@ -476,7 +486,7 @@ fn add_unit<H: PageHost>(h: &mut H, tbl: u64, dir: u64, ordinal: u64) -> Result<
 /// block `holder` (made when 0), whose live entry of them, as the caller looked it up, is `old_entry`: a live
 /// entry of exactly the new data's length is overwritten in place; otherwise it is marked dead and a new entry
 /// goes into the chain's newest block when it has room, else into a new block appended to the chain. The bitmap
-/// bit is set and the counters updated.
+/// bit, the position map's byte and the counters are updated.
 #[allow(clippy::too_many_arguments)]
 pub fn upsert<H: PageHost>(
     h: &mut H,
@@ -532,34 +542,35 @@ pub fn upsert<H: PageHost>(
         let b = h.get_mut(Region::Block(e.block))?;
         put_u8(b, e.at.wrapping_add(2), e.flags | F_DEAD)?;
     }
-    // The chain's newest block.
+    // The chain's newest block, block i from 0.
     let mut last = u.first;
-    let mut first = true;
+    let mut i = 0u64;
     loop {
         let next = rd_u64(h.get(Region::Block(last))?, B_NEXT)?;
         if next == 0 {
             break;
         }
         last = next;
-        first = false;
+        i = i.wrapping_add(1);
     }
     let (n, low) = {
         let s = h.get(Region::Block(last))?;
         (u64::from(rd_u16(s, B_ENTRIES)?), u64::from(rd_u16(s, B_LOW)?))
     };
-    let end = entries_at(first).wrapping_add(n.wrapping_add(1).wrapping_mul(ENTRY));
+    let end = entries_at(i == 0).wrapping_add(n.wrapping_add(1).wrapping_mul(ENTRY));
     let mut added_blocks = 0u64;
-    let (blk, first_blk, n, low) = if end.saturating_add(bytes) <= low {
-        (last, first, n, low)
+    let (blk, n, low) = if end.saturating_add(bytes) <= low {
+        (last, n, low)
     } else {
         let nb = new_block(h, tbl, ordinal, false)?;
         put_u64(h.get_mut(Region::Block(last))?, B_NEXT, nb)?;
         added_blocks = 1;
-        (nb, false, 0, BLOCK)
+        i = i.wrapping_add(1);
+        (nb, 0, BLOCK)
     };
     let data_at = low.wrapping_sub(bytes);
     let b = h.get_mut(Region::Block(blk))?;
-    let base = entries_at(first_blk);
+    let base = entries_at(i == 0);
     // The insertion point: after every entry of a smaller or equal position.
     let (mut lo, mut hi) = (0u64, n);
     while lo < hi {
@@ -580,11 +591,19 @@ pub fn upsert<H: PageHost>(
     d.write(b, data_at)?;
     put_u16(b, B_ENTRIES, w16(n.wrapping_add(1))?)?;
     put_u16(b, B_LOW, w16(data_at)?)?;
-    // The bitmap bit, in the chain's first block.
+    // The bitmap bit, in the chain's first block, and past the first block the position map's byte.
     let fb = h.get_mut(Region::Block(u.first))?;
     let bit_at = B_BITMAP.wrapping_add(pos / 8);
     let v = rd_u8(fb, bit_at)?;
     put_u8(fb, bit_at, v | (1u8 << (pos % 8)))?;
+    let mut map = rd_u64(fb, B_MAP)?;
+    if i > 0 {
+        if map == 0 {
+            map = crate::area::alloc_zeroed(h, tbl, 0)?;
+            put_u64(h.get_mut(Region::Block(u.first))?, B_MAP, map)?;
+        }
+        put_u8(h.get_mut(Region::Block(map))?, pos, u8::try_from(i).unwrap_or(u8::MAX))?;
+    }
     finish_counters(h, dir, &u, live_delta, entries_delta, added_blocks)?;
     out.blocks = u.blocks.wrapping_add(added_blocks);
     out.units = units(&*h, dir)?;

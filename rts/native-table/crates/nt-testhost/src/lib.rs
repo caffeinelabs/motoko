@@ -354,6 +354,19 @@ pub fn held_pages<H: PageHost>(h: &H, tbl: u64, a: u32) -> u64 {
     (0..rec.pages).filter(|&i| rec.page_list.get(h, i).unwrap() != 0).count() as u64
 }
 
+/// Blocks in use in area `a` (0 or 1): its pages' blocks, less the never-used ones and the free ones.
+pub fn used_blocks<H: PageHost>(h: &H, tbl: u64, a: u32) -> u64 {
+    let rec = native_table::area::AreaRecord::read(h, tbl, a).unwrap();
+    let mut free = 0u64;
+    let mut b = rec.free_head;
+    while b != 0 {
+        free += 1;
+        b = native_table::mem::rd_u64(h.get(Region::Block(b)).unwrap(), 0).unwrap();
+    }
+    let never = if rec.newest != 0 { 16 - u64::from(rec.bump) } else { 0 };
+    held_pages(h, tbl, a) * 16 - never - free
+}
+
 /// Hex of bytes, uppercase, space separated.
 pub fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02X}")).collect::<Vec<_>>().join(" ")
