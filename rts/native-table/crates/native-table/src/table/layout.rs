@@ -458,19 +458,54 @@ impl Shape {
         let mut o = from;
         let end = to.min(self.leaves);
         while o < end {
-            let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
-            let l = Leaf {
-                kind: rd_u8(b, at.wrapping_add(4))?,
-                code: rd_u8(b, at.wrapping_add(5))?,
-                width: rd_u16(b, at.wrapping_add(8))?,
-                ..Leaf::default()
-            };
-            let t = Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?;
-            f(o, Span { width: t.fixed_width(), variable: t.variable() })?;
+            f(o, self.span_in(b, o)?)?;
             // o < end ≤ 65,535.
             o = o.wrapping_add(1);
         }
         Ok(())
+    }
+
+    /// The span of leaf `o`, read in place from its leaf record in schema page bytes `b`.
+    #[inline(always)]
+    fn span_in(&self, b: &[u8], o: u64) -> Result<Span, Fault> {
+        let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
+        let l = Leaf {
+            kind: rd_u8(b, at.wrapping_add(4))?,
+            code: rd_u8(b, at.wrapping_add(5))?,
+            width: rd_u16(b, at.wrapping_add(8))?,
+            ..Leaf::default()
+        };
+        let t = Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?;
+        Ok(Span { width: t.fixed_width(), variable: t.variable() })
+    }
+
+    /// The next leaf from ordinal `*o` on whose id `ids` holds, read whole, with `*o` then past it and `left`, the
+    /// ids not met yet, one fewer; the leaves before it are handed to `pass` by their spans, read in place.
+    /// `None` once `left` is 0 or past the last leaf: the leaves after the last one named are not read.
+    pub fn next_named<H, F>(
+        &self,
+        h: &H,
+        ids: &[u32],
+        o: &mut u64,
+        left: &mut usize,
+        mut pass: F,
+    ) -> Result<Option<LeafInfo>, Fault>
+    where
+        H: PageHost + ?Sized,
+        F: FnMut(Span),
+    {
+        let b = h.get(Region::Page(self.page))?;
+        while *left > 0 && *o < self.leaves {
+            let x = *o;
+            // x < leaves ≤ 65,535.
+            *o = x.wrapping_add(1);
+            if ids.contains(&rd_u32(b, self.leaves_at.wrapping_add(x.wrapping_mul(LEAF_BYTES)))?) {
+                *left = left.wrapping_sub(1);
+                return self.leaf_in(b, x).map(Some);
+            }
+            pass(self.span_in(b, x)?);
+        }
+        Ok(None)
     }
 
     /// The layout of a row image of schema version v: the table's own; a row of another version is

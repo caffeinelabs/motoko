@@ -1223,6 +1223,9 @@ fn update_of_some_leaves_of_a_buffered_row() {
     assert!(places[2] == places[1] && places[3] == places[1], "then in place");
     assert!(places[4].is_none() && places[5].is_some(), "a long row image, then inline");
     assert_eq!(tb.host().live_pages(), pages, "the long values and the long row image are given back");
+    // The row's other long value outlived the replaced one: its removal gives it back.
+    assert!(tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(1))])).unwrap().0.is_some());
+    check_ownership(&tb);
 }
 
 /// Writes that grow a buffered row past its place and the tail block's room: the row moves to a new tail block,

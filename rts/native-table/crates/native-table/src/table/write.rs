@@ -219,7 +219,7 @@ pub fn insert<H: PageHost, R: RowSource + ?Sized>(
     // The row image, then its place: the tail block's free space, which holds `need` bytes, or a long row image.
     let (end, ext) = (buffer::u16_of(&*h, tail, B_ROWS_END)?, super::extremes::of_desc(&*h, desc)?);
     let (stub, filled) = row::staged(p.len, big, |buf| {
-        let (mut filled, totals, longs) = build(&*h, shape, src, None, None, buf)?;
+        let (mut filled, totals, longs) = build(&*h, shape, src, None, buf)?;
         if totals || longs {
             filled = filled.saturating_add(after(h, tbl, shape, tail, ext, src, None, None, buf, longs)?);
         }
@@ -362,8 +362,8 @@ fn named(leaves: Option<&[u32]>, l: &LeafInfo) -> bool {
     !l.key && leaves.is_none_or(|ids| ids.contains(&l.id))
 }
 
-/// The bytes of the new image of the buffered row `at` with the leaves `leaves` names set to the source's cells,
-/// which the caller has checked.
+/// The bytes of the new image of the buffered row `at` with the leaves `leaves` names, key leaves excepted, set
+/// to the source's cells, which the caller has checked.
 pub fn spliced<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     h: &H,
     shape: &Shape,
@@ -374,11 +374,11 @@ pub fn spliced<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     let row = RowRef::new(h, buffer::slot_row(h, at.block, at.slot)?.ok_or(rt(Corruption::Link, at.block))?)?;
     let mut walk = Walk::of(shape, &row)?;
     let mut len = row.len;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(h, o)?;
+    let (mut o, mut left) = (0u64, leaves.len());
+    while let Some(l) = shape.next_named(h, leaves, &mut o, &mut left, |s| walk.pass(s))? {
         let vi = walk.var;
         walk.skip(&l);
-        if named(Some(leaves), &l) && l.ty.variable() {
+        if !l.key && l.ty.variable() {
             let (_, was, _) = row.item_span(&walk.head, vi)?;
             let v = row::checked_cell(src, &l)?;
             let new = row::has_item(&l, &v)
@@ -390,11 +390,11 @@ pub fn spliced<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     Ok(len)
 }
 
-/// Writes the buffered row `at` again with the leaves `leaves` names (every leaf but the key's when `None`) set to
-/// the source's cells, which the caller has checked; `len` is the new image's bytes. The new row image is the
-/// stored one with those leaves' bits, cells and items replaced and every other item copied as it is, built on
-/// the stack, or in the scratch when longer than an inline row image. Returns the bytes the host copied from the
-/// argument.
+/// Writes the buffered row `at` again with the leaves `leaves` names (every leaf when `None`), key leaves
+/// excepted, set to the source's cells, which the caller has checked; `len` is the new image's bytes. The new row
+/// image is the stored one with those leaves' bits, cells and items replaced and every other item copied as it
+/// is, built on the stack, or in the scratch when longer than an inline row image. Returns the bytes the host
+/// copied from the argument.
 #[allow(clippy::too_many_arguments)]
 pub fn splice<H: PageHost, R: RowSource + ?Sized, S: crate::host::Scratch>(
     h: &mut H,
@@ -411,7 +411,10 @@ pub fn splice<H: PageHost, R: RowSource + ?Sized, S: crate::host::Scratch>(
     let to = inline_to(&*h, shape, tail, old, len)?;
     let big = if len > row::STAGE as u64 { scratch.get(usize::try_from(len).unwrap_or(usize::MAX))? } else { &mut [] };
     row::staged(len, big, |buf| {
-        let (mut filled, totals, longs) = build(&*h, shape, src, Some(old), leaves, buf)?;
+        let (mut filled, totals, longs) = match leaves {
+            Some(ids) => build_named(&*h, shape, src, old, ids, buf)?,
+            None => build(&*h, shape, src, Some(old), buf)?,
+        };
         if totals || longs {
             let ext = super::extremes::of_desc(&*h, at.desc)?;
             filled = filled.saturating_add(after(h, tbl, shape, tail, ext, src, Some(old), leaves, buf, longs)?);
@@ -434,18 +437,82 @@ pub fn splice<H: PageHost, R: RowSource + ?Sized, S: crate::host::Scratch>(
     })
 }
 
+/// Writes leaf `$l`'s cell from the source, which the caller has checked, into the row image in `$buf` (layout
+/// `$head`): its bits (bit `$bit`), its fixed cell (at `$fixed`), and for a variable leaf its item table entry (at
+/// `$entry`) and its item at `$end`, which then moves past it; a long item's reference is left zero (and `$long`
+/// set). Bytes copied from the argument add to `$filled`. It ends the loop turn it is in.
+macro_rules! put_leaf {
+    (
+        $buf:ident, $head:ident, $src:ident, $l:ident, $fixed:ident, $bit:ident, $entry:ident, $end:ident, $long:ident,
+        $filled:ident
+    ) => {
+        let v = row::checked_cell($src, &$l)?;
+        put_bit($buf, 8, $bit, v.is_null())?;
+        put_bit($buf, 8u64.wrapping_add($head.bitmap), $bit, cell::is_big(&v))?;
+        let w = $l.ty.fixed_width();
+        if w > 0 {
+            let d = sub_mut($buf, $fixed, w)?;
+            match v {
+                Val::Bytes(b) if w > 30 => copy_bytes(d, b),
+                _ if w > 30 => d.fill(0),
+                _ => {
+                    let mut c = [0u8; 30];
+                    let k = cell::fixed_cell(&v, $l.ty, &mut c);
+                    copy_bytes(d, c.get(..usize::try_from(k).unwrap_or(0)).unwrap_or(&[]));
+                }
+            }
+        }
+        if !$l.ty.variable() {
+            continue;
+        }
+        let Some(n) = row::has_item(&$l, &v).then(|| cell::var_len(&v, $l.ty)) else {
+            put_u32($buf, $entry, 0)?;
+            continue;
+        };
+        put_u32($buf, $entry, u32::try_from($end).map_err(|_| rt(Corruption::Range, $end))?)?;
+        if row::is_long(n) {
+            // Its reference is written once the long value is made.
+            fill($buf, $end, row::LONG_ITEM, 0)?;
+            put_u8($buf, $end, row::ITEM_LONG)?;
+            $long = true;
+            $end = $end.wrapping_add(row::LONG_ITEM);
+            continue;
+        }
+        put_u8($buf, $end, row::ITEM_INLINE)?;
+        let k = crate::bytes::put_uleb($buf, $end.wrapping_add(1), n)?;
+        let d = sub_mut($buf, $end.wrapping_add(1).wrapping_add(k), n)?;
+        match v {
+            Val::Bytes(b) | Val::Big(b) => copy_bytes(d, b),
+            Val::Arg(_) => {
+                for (i, piece) in d.chunks_mut(usize::try_from(BLOCK).unwrap_or(4_096)).enumerate() {
+                    $src.fill($l.id, (i as u64).wrapping_mul(BLOCK), piece)?;
+                }
+                if matches!($l.ty, Ty::Text) && core::str::from_utf8(d).is_err() {
+                    return Err(Fault::BadValue { leaf: $l.id });
+                }
+                $filled = $filled.saturating_add(n);
+            }
+            _ => {
+                let mut leb = [0u8; 19];
+                let k = cell::small_leb(&v, matches!($l.ty, Ty::Int), &mut leb);
+                copy_bytes(d, leb.get(..k).unwrap_or(&[]));
+            }
+        }
+        $end = $end.wrapping_add(1).wrapping_add(k).wrapping_add(n);
+    };
+}
+
 /// Builds a row image in `buf`, its bytes: of a new row (`old` none), every leaf's from the source's cells; of the
-/// stored row `old`, its image's header, bitmaps and fixed region with the bits and cells of the leaves the write
-/// takes (`named`) set, then the item table and the items, a taken leaf's from its cell, every other one copied.
-/// The reference of a new long value is left zero. Returns the bytes the host copied from the argument, whether
-/// a taken leaf has a total, and whether either image holds a long value: the work `after` has.
+/// stored row `old`, its image's header, bitmaps and fixed region with the bits and cells of every leaf but the
+/// key's set, then the item table and the items, a key leaf's copied, every other one from its cell. The
+/// reference of a new long value is left zero. Returns the bytes the host copied from the argument, whether a
+/// taken leaf has a total, and whether either image holds a long value: the work `after` has.
 #[inline(always)]
 fn build<H: PageHost + ?Sized, R: RowSource + ?Sized>(
     h: &H,
     shape: &Shape,
     src: &mut R,
     old: Option<RowLoc>,
-    leaves: Option<&[u32]>,
     buf: &mut [u8],
 ) -> Result<(u64, bool, bool), Fault> {
     let row = old.map(|loc| RowRef::new(h, loc)).transpose()?;
@@ -470,13 +537,11 @@ fn build<H: PageHost + ?Sized, R: RowSource + ?Sized>(
         let (fixed, vi, bit) = (walk.fixed, walk.var, walk.bit);
         walk.skip(&l);
         let entry = table.wrapping_add(vi.wrapping_mul(4));
-        if let Some(row) = row.as_ref().filter(|_| !named(leaves, &l)) {
-            // A whole row's key leaf keeps its value: another one that encodes the same (−0.0 for 0.0) is refused.
-            if leaves.is_none() {
-                let cur = cur::from_stored(row, shape, &l, &row::stored_at(&head, row, &l, fixed, vi, bit)?, vi)?;
-                if !cur::same(h, &l, &cur, &row::checked_cell(src, &l)?)? {
-                    return Err(Fault::BadValue { leaf: l.id });
-                }
+        if let Some(row) = row.as_ref().filter(|_| l.key) {
+            // A key leaf keeps its value: another one that encodes the same (−0.0 for 0.0) is refused.
+            let cur = cur::from_stored(row, shape, &l, &row::stored_at(&head, row, &l, fixed, vi, bit)?, vi)?;
+            if !cur::same(h, &l, &cur, &row::checked_cell(src, &l)?)? {
+                return Err(Fault::BadValue { leaf: l.id });
             }
             if l.ty.variable() {
                 let (a, n, lg) = row.item_span(&head, vi)?;
@@ -488,59 +553,7 @@ fn build<H: PageHost + ?Sized, R: RowSource + ?Sized>(
             continue;
         }
         totals |= l.ty.running().is_some();
-        let v = row::checked_cell(src, &l)?;
-        put_bit(buf, 8, bit, v.is_null())?;
-        put_bit(buf, 8u64.wrapping_add(head.bitmap), bit, cell::is_big(&v))?;
-        let w = l.ty.fixed_width();
-        if w > 0 {
-            let d = sub_mut(buf, fixed, w)?;
-            match v {
-                Val::Bytes(b) if w > 30 => copy_bytes(d, b),
-                _ if w > 30 => d.fill(0),
-                _ => {
-                    let mut c = [0u8; 30];
-                    let k = cell::fixed_cell(&v, l.ty, &mut c);
-                    copy_bytes(d, c.get(..usize::try_from(k).unwrap_or(0)).unwrap_or(&[]));
-                }
-            }
-        }
-        if !l.ty.variable() {
-            continue;
-        }
-        let Some(n) = row::has_item(&l, &v).then(|| cell::var_len(&v, l.ty)) else {
-            put_u32(buf, entry, 0)?;
-            continue;
-        };
-        put_u32(buf, entry, at32(end)?)?;
-        if row::is_long(n) {
-            // Its reference is written once the long value is made.
-            fill(buf, end, row::LONG_ITEM, 0)?;
-            put_u8(buf, end, row::ITEM_LONG)?;
-            long = true;
-            end = end.wrapping_add(row::LONG_ITEM);
-            continue;
-        }
-        put_u8(buf, end, row::ITEM_INLINE)?;
-        let k = crate::bytes::put_uleb(buf, end.wrapping_add(1), n)?;
-        let d = sub_mut(buf, end.wrapping_add(1).wrapping_add(k), n)?;
-        match v {
-            Val::Bytes(b) | Val::Big(b) => copy_bytes(d, b),
-            Val::Arg(_) => {
-                for (i, piece) in d.chunks_mut(usize::try_from(BLOCK).unwrap_or(4_096)).enumerate() {
-                    src.fill(l.id, (i as u64).wrapping_mul(BLOCK), piece)?;
-                }
-                if matches!(l.ty, Ty::Text) && core::str::from_utf8(d).is_err() {
-                    return Err(Fault::BadValue { leaf: l.id });
-                }
-                filled = filled.saturating_add(n);
-            }
-            _ => {
-                let mut leb = [0u8; 19];
-                let k = cell::small_leb(&v, matches!(l.ty, Ty::Int), &mut leb);
-                copy_bytes(d, leb.get(..k).unwrap_or(&[]));
-            }
-        }
-        end = end.wrapping_add(1).wrapping_add(k).wrapping_add(n);
+        put_leaf!(buf, head, src, l, fixed, bit, entry, end, long, filled);
     }
     let big = sub(buf, 8u64.wrapping_add(head.bitmap), head.bitmap)?.iter().any(|&b| b != 0);
     put_u16(buf, 4, (if big { row::ROW_BIG } else { 0 }) | (if long { row::ROW_LONG } else { 0 }))?;
@@ -548,6 +561,90 @@ fn build<H: PageHost + ?Sized, R: RowSource + ?Sized>(
         return Err(rt(Corruption::Count, end));
     }
     Ok((filled, totals, long || was_long))
+}
+
+/// `build` of the stored row `old` with only the leaves `ids` names, key leaves excepted, taken from the source:
+/// the stored image up to its first item is copied in one piece and the named leaves' bits and cells set; the
+/// items between theirs are copied in runs, and the item table entries after a named item move by the bytes the
+/// items before them grew. The leaves after the last one named are not read.
+fn build_named<H: PageHost + ?Sized, R: RowSource + ?Sized>(
+    h: &H,
+    shape: &Shape,
+    src: &mut R,
+    old: RowLoc,
+    ids: &[u32],
+    buf: &mut [u8],
+) -> Result<(u64, bool, bool), Fault> {
+    let row = RowRef::new(h, old)?;
+    let mut walk = Walk::of(shape, &row)?;
+    let head = walk.head;
+    let (table, items) = (head.items_table_at(), head.items_at());
+    row.read(0, sub_mut(buf, 0, items)?)?;
+    let was_long = rd_u16(buf, 4)? & row::ROW_LONG != 0;
+    // `from`: the stored image's first item byte not copied yet; `end`: the new image's; the entries from `next` on
+    // are not moved yet.
+    let (mut from, mut end, mut next) = (items, items, 0u64);
+    let (mut long, mut dropped, mut filled, mut totals) = (false, false, 0u64, false);
+    let (mut o, mut left) = (0u64, ids.len());
+    while let Some(l) = shape.next_named(h, ids, &mut o, &mut left, |s| walk.pass(s))? {
+        let (fixed, vi, bit) = (walk.fixed, walk.var, walk.bit);
+        walk.skip(&l);
+        if l.key {
+            continue;
+        }
+        totals |= l.ty.running().is_some();
+        let entry = table.wrapping_add(vi.wrapping_mul(4));
+        if l.ty.variable() {
+            shift(buf, table, next, vi, end.wrapping_sub(from))?;
+            next = vi.wrapping_add(1);
+            // The stored item's place: its own, or where the next stored item begins (the image's end if none).
+            let (mut at, n, lg) = row.item_span(&head, vi)?;
+            let mut j = next;
+            while at == 0 && j < head.vars {
+                at = u64::from(rd_u32(buf, table.wrapping_add(j.wrapping_mul(4)))?);
+                j = j.wrapping_add(1);
+            }
+            let at = if at == 0 { row.len } else { at };
+            let run = at.checked_sub(from).ok_or(rt(Corruption::Bounds, at))?;
+            row.read(from, sub_mut(buf, end, run)?)?;
+            (end, from, dropped) = (end.wrapping_add(run), at.wrapping_add(n), dropped | lg);
+        }
+        put_leaf!(buf, head, src, l, fixed, bit, entry, end, long, filled);
+    }
+    shift(buf, table, next, head.vars, end.wrapping_sub(from))?;
+    let run = row.len.checked_sub(from).ok_or(rt(Corruption::Bounds, from))?;
+    row.read(from, sub_mut(buf, end, run)?)?;
+    end = end.wrapping_add(run);
+    // A copied item may be long; when a long item was replaced, the items themselves tell whether one is left.
+    let mut j = 0u64;
+    long |= was_long && !dropped;
+    while was_long && !long && j < head.vars {
+        let e = u64::from(rd_u32(buf, table.wrapping_add(j.wrapping_mul(4)))?);
+        long = e != 0 && rd_u8(buf, e)? == row::ITEM_LONG;
+        j = j.wrapping_add(1);
+    }
+    let big = sub(buf, 8u64.wrapping_add(head.bitmap), head.bitmap)?.iter().any(|&b| b != 0);
+    put_u16(buf, 4, (if big { row::ROW_BIG } else { 0 }) | (if long { row::ROW_LONG } else { 0 }))?;
+    if end != buf.len() as u64 {
+        return Err(rt(Corruption::Count, end));
+    }
+    Ok((filled, totals, long || was_long))
+}
+
+/// Moves the item table entries [i, j) of the row image in `buf` (its item table at `table`) that name an item by
+/// `grow` bytes (a wrapping difference).
+fn shift(buf: &mut [u8], table: u64, i: u64, j: u64, grow: u64) -> Result<(), Fault> {
+    if grow == 0 {
+        return Ok(());
+    }
+    for x in i..j {
+        let at = table.wrapping_add(x.wrapping_mul(4));
+        let e = u64::from(rd_u32(buf, at)?);
+        if e != 0 {
+            put_u32(buf, at, u32::try_from(e.wrapping_add(grow)).map_err(|_| rt(Corruption::Range, e))?)?;
+        }
+    }
+    Ok(())
 }
 
 /// Sets bit `bit` of the bitmap at `off` of `b` to `on`.
@@ -558,11 +655,82 @@ fn put_bit(b: &mut [u8], off: u64, bit: u64, on: bool) -> Result<(), Fault> {
     put_u8(b, at, if on { x | m } else { x & !m })
 }
 
+/// The work `after` has for one leaf `$l` the write takes (at fixed offset `$fixed`, variable index `$vi` and bitmap
+/// bit `$bit`, its running record at `$run_at`): bytes copied from the argument add to `$filled`. It ends the loop
+/// turn it is in.
+macro_rules! after_leaf {
+    (
+        $h:ident, $tbl:ident, $shape:ident, $tail:ident, $ext:ident, $src:ident, $old:ident, $l:ident, $run_at:ident,
+        $fixed:ident, $vi:ident, $bit:ident, $buf:ident, $longs:ident, $uid:ident, $filled:ident, $head:expr
+    ) => {
+        if $run_at != At::None {
+            let v = row::checked_cell($src, &$l)?;
+            match $old {
+                Some(loc) => {
+                    let cur = {
+                        let row = RowRef::new(&*$h, loc)?;
+                        cur::from_stored(
+                            &row,
+                            $shape,
+                            &$l,
+                            &row::stored_at(&$head, &row, &$l, $fixed, $vi, $bit)?,
+                            $vi,
+                        )?
+                    };
+                    if !cur::same(&*$h, &$l, &cur, &v)? {
+                        total_leaf($h, $tbl, $tail, $run_at, &$l, TSrc::Cur(&cur), Sign::Remove, $ext)?;
+                        total_leaf($h, $tbl, $tail, $run_at, &$l, TSrc::Val(&v), Sign::Add, $ext)?;
+                    }
+                }
+                None => total_leaf($h, $tbl, $tail, $run_at, &$l, TSrc::Val(&v), Sign::Add, $ext)?,
+            }
+        }
+        if !$longs || !$l.ty.variable() {
+            continue;
+        }
+        let was = match $old {
+            Some(loc) => match row::stored_at(&$head, &RowRef::new(&*$h, loc)?, &$l, $fixed, $vi, $bit)? {
+                Stored::Item(Item::Long { img, len }) => Some((img, len)),
+                _ => None,
+            },
+            None => None,
+        };
+        let (n, keep) = {
+            let v = row::checked_cell($src, &$l)?;
+            let n = row::has_item(&$l, &v).then(|| cell::var_len(&v, $l.ty)).filter(|&n| row::is_long(n));
+            let keep = match (n, was, v) {
+                (Some(_), Some((img, len)), Val::Bytes(b) | Val::Big(b)) => {
+                    cur::same_bytes(len, b, |at, dst| long::read(&*$h, img, at, dst))?
+                }
+                _ => false,
+            };
+            (n, keep)
+        };
+        if let Some(n) = n {
+            let img = match was {
+                Some((img, _)) if keep => img,
+                _ => {
+                    mark_long($h, $tail)?;
+                    let (img, f) = row::long_value($shape, $h, $tbl, $uid, $src, &$l, n)?;
+                    $filled = $filled.saturating_add(f);
+                    img
+                }
+            };
+            let a = rd_u32($buf, $shape.head.items_table_at().wrapping_add($vi.wrapping_mul(4)))?;
+            img.put_ref($buf, u64::from(a).wrapping_add(8))?;
+        }
+        if let Some((img, _)) = was.filter(|_| !keep) {
+            drain::free_image($h, $tbl, &img)?;
+        }
+    };
+}
+
 /// After `build`, while the stored image `old` (when there is one) is as it was: each integer leaf the write
 /// takes moves the totals and the group's extremes (block `ext`) from its stored value (none for a new row) to
 /// its new one when they differ; when an image holds a long value (`longs`), a taken leaf's new long value is
 /// made and its reference written into `buf`, unless its stored long value holds the same bytes and is kept, and
-/// a stored long value not kept is freed. Returns the bytes the host copied from the argument.
+/// a stored long value not kept is freed. Returns the bytes the host copied from the argument. The leaves of an
+/// update that names some (`leaves`, after `build_named`) are `after_named`'s.
 #[allow(clippy::too_many_arguments)]
 fn after<H: PageHost, R: RowSource + ?Sized>(
     h: &mut H,
@@ -576,6 +744,9 @@ fn after<H: PageHost, R: RowSource + ?Sized>(
     buf: &mut [u8],
     longs: bool,
 ) -> Result<u64, Fault> {
+    if let Some(ids) = leaves {
+        return after_named(h, tbl, shape, tail, ext, src, old, ids, buf, longs);
+    }
     let uid = root::u64_at(&*h, tbl, root::UID)?;
     let mut rc = RunCursor::open(&*h, tail)?;
     let mut walk = Walk { fixed: shape.head.fixed_at, var: 0, bit: 0, head: shape.head };
@@ -588,59 +759,48 @@ fn after<H: PageHost, R: RowSource + ?Sized>(
         if old.is_some() && !named(leaves, &l) {
             continue;
         }
-        if run_at != At::None {
-            let v = row::checked_cell(src, &l)?;
-            match old {
-                Some(loc) => {
-                    let cur = {
-                        let row = RowRef::new(&*h, loc)?;
-                        cur::from_stored(&row, shape, &l, &row::stored_at(&walk.head, &row, &l, fixed, vi, bit)?, vi)?
-                    };
-                    if !cur::same(&*h, &l, &cur, &v)? {
-                        total_leaf(h, tbl, tail, run_at, &l, TSrc::Cur(&cur), Sign::Remove, ext)?;
-                        total_leaf(h, tbl, tail, run_at, &l, TSrc::Val(&v), Sign::Add, ext)?;
-                    }
-                }
-                None => total_leaf(h, tbl, tail, run_at, &l, TSrc::Val(&v), Sign::Add, ext)?,
+        after_leaf!(h, tbl, shape, tail, ext, src, old, l, run_at, fixed, vi, bit, buf, longs, uid, filled, walk.head);
+    }
+    Ok(filled)
+}
+
+/// `after` for `build_named`: the leaves `ids` names, key leaves excepted, each integer one's running record found
+/// by itself; the leaves after the last one named are not read.
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn after_named<H: PageHost, R: RowSource + ?Sized>(
+    h: &mut H,
+    tbl: u64,
+    shape: &Shape,
+    tail: u64,
+    ext: u64,
+    src: &mut R,
+    old: Option<RowLoc>,
+    ids: &[u32],
+    buf: &mut [u8],
+    longs: bool,
+) -> Result<u64, Fault> {
+    let uid = root::u64_at(&*h, tbl, root::UID)?;
+    let mut walk = Walk { fixed: shape.head.fixed_at, var: 0, bit: 0, head: shape.head };
+    // The running records are passed by the leaves' types up to each named integer leaf's.
+    let (mut rc, mut ro) = (RunCursor::open(&*h, tail)?, 0u16);
+    let (mut o, mut left, mut filled) = (0u64, ids.len(), 0u64);
+    while let Some(l) = shape.next_named(&*h, ids, &mut o, &mut left, |s| walk.pass(s))? {
+        let mut run_at = At::None;
+        if l.ty.running().is_some() {
+            let (hot, page) = (h.get(Region::Block(tail))?, h.get(Region::Page(shape.page))?);
+            while ro < l.ordinal {
+                rc.place_kind(hot, ro, shape.running_of(page, u64::from(ro))?)?;
+                ro = ro.wrapping_add(1);
             }
+            (run_at, ro) = (rc.place(hot, &l)?, ro.wrapping_add(1));
         }
-        if !longs || !l.ty.variable() {
+        let (fixed, vi, bit) = (walk.fixed, walk.var, walk.bit);
+        walk.skip(&l);
+        if l.key {
             continue;
         }
-        let was = match old {
-            Some(loc) => match row::stored_at(&walk.head, &RowRef::new(&*h, loc)?, &l, fixed, vi, bit)? {
-                Stored::Item(Item::Long { img, len }) => Some((img, len)),
-                _ => None,
-            },
-            None => None,
-        };
-        let (n, keep) = {
-            let v = row::checked_cell(src, &l)?;
-            let n = row::has_item(&l, &v).then(|| cell::var_len(&v, l.ty)).filter(|&n| row::is_long(n));
-            let keep = match (n, was, v) {
-                (Some(_), Some((img, len)), Val::Bytes(b) | Val::Big(b)) => {
-                    cur::same_bytes(len, b, |at, dst| long::read(&*h, img, at, dst))?
-                }
-                _ => false,
-            };
-            (n, keep)
-        };
-        if let Some(n) = n {
-            let img = match was {
-                Some((img, _)) if keep => img,
-                _ => {
-                    mark_long(h, tail)?;
-                    let (img, f) = row::long_value(shape, h, tbl, uid, src, &l, n)?;
-                    filled = filled.saturating_add(f);
-                    img
-                }
-            };
-            let a = rd_u32(buf, shape.head.items_table_at().wrapping_add(vi.wrapping_mul(4)))?;
-            img.put_ref(buf, u64::from(a).wrapping_add(8))?;
-        }
-        if let Some((img, _)) = was.filter(|_| !keep) {
-            drain::free_image(h, tbl, &img)?;
-        }
+        after_leaf!(h, tbl, shape, tail, ext, src, old, l, run_at, fixed, vi, bit, buf, longs, uid, filled, walk.head);
     }
     Ok(filled)
 }
