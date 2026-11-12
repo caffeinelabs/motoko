@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 
+use native_table::area::{AreaRecord, IMAGE_AREA};
 use native_table::consts::{COMPACT_DEAD, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PATCH_UNITS_PER_DIR};
 use native_table::fault::Fault;
 use native_table::mem::{rd_u16, rd_u32, rd_u64};
@@ -1182,6 +1183,50 @@ fn update_of_some_leaves_of_a_buffered_row() {
     assert!(places[2] == places[1] && places[3] == places[1], "then in place");
     assert!(places[4].is_none() && places[5].is_some(), "a long row image, then inline");
     assert_eq!(tb.host().live_pages(), pages, "the long values and the long row image are given back");
+}
+
+/// Writes that grow a buffered row past its place and the tail block's room: the row moves to a new tail block,
+/// and no image page is taken for it.
+#[test]
+fn growing_a_buffered_row_past_the_tail_blocks_room() {
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema(&[t::scalar(ty::NAT), t::scalar(ty::TEXT)]).0).unwrap();
+    let mut model = Rows::new();
+    for k in 0..3u64 {
+        put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::Bytes(vec![b'a'; [1, 1_500, 1_500][k as usize]]))]);
+    }
+    let images = |tb: &Table<'_, VecHost>| AreaRecord::read(tb.host(), tb.root(), IMAGE_AREA).unwrap().pages;
+    let pages = images(&tb);
+    for (k, n) in [(0u64, 2_000), (1, 2_040)] {
+        let tail = root::u64_at(tb.host(), tb.root(), root::TAIL).unwrap();
+        let cells = [(id(1), V::Bytes(vec![b'b'; n]))];
+        if k == 0 {
+            tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))]), &[id(1)], &mut Src::new(&cells)).unwrap();
+        } else {
+            tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k)), cells[0].clone()])).unwrap();
+        }
+        model.get_mut(&k).unwrap().1[1] = cells[0].clone();
+        check_reads(&tb, &model);
+        check_running(&tb, &model);
+        check_ownership(&tb);
+        let at = buffer::locate(tb.host(), tb.root(), model[&k].0).unwrap().unwrap();
+        let Some(buffer::RowLoc::Inline { block, .. }) = buffer::slot_row(tb.host(), at.block, at.slot).unwrap() else {
+            panic!("key {k}: not inline");
+        };
+        assert_ne!(block, tail, "key {k}: in a new tail block");
+        assert_eq!(block, root::u64_at(tb.host(), tb.root(), root::TAIL).unwrap());
+        assert_eq!(images(&tb), pages, "no image page");
+    }
+    // Once the open group has its most buffer blocks, a long row image takes the row.
+    for i in 0..600 {
+        let cells = [(id(1), V::Bytes(vec![b'c'; 2_000 + 40 * (i % 2)]))];
+        tb.update(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(2))]), &[id(1)], &mut Src::new(&cells)).unwrap();
+        model.get_mut(&2).unwrap().1[1] = cells[0].clone();
+    }
+    check_reads(&tb, &model);
+    check_ownership(&tb);
+    let at = buffer::locate(tb.host(), tb.root(), model[&2].0).unwrap().unwrap();
+    assert!(matches!(buffer::slot_row(tb.host(), at.block, at.slot).unwrap(), Some(buffer::RowLoc::Long(_))));
 }
 
 /// Scratch of a fixed size, refusing a longer request.

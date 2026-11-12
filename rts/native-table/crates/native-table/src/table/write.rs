@@ -329,6 +329,15 @@ fn put_inline<H: PageHost>(h: &mut H, at: &Located, to: (u64, u64, bool), img: &
     buffer::write_slot(b, at.slot, &Slot { off: slot.off, len: MOVED_STUB, flags: SLOT_MOVED })
 }
 
+/// Writes an updated buffered row's inline image `img`, which has room neither in its place nor in the tail block,
+/// in a new tail block of the open group, the hot state copied to it: a long row image would take a page of its own.
+#[inline(never)]
+fn put_new_tail<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, at: &Located, img: &[u8]) -> Result<(), Fault> {
+    let tail = new_tail(h, tbl, shape)?;
+    let off = buffer::u16_of(&*h, tail, B_ROWS_END)?;
+    put_inline(h, at, (tail, off, true), img)
+}
+
 /// A long row image of `len` content bytes being written for a buffered row of the open group (tail block
 /// `tail`), whose flag it sets.
 fn long_out<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, tail: u64, len: u64) -> Result<LongOut, Fault> {
@@ -416,6 +425,9 @@ pub fn splice<H: PageHost, R: RowSource + ?Sized, S: crate::host::Scratch>(
         }
         match to {
             Some(to) => put_inline(h, at, to, buf)?,
+            None if !long_row(shape, len) && buffer::u16_of(&*h, at.desc, D_BLOCKS)? < BUFFER_BLOCKS_MAX => {
+                put_new_tail(h, tbl, shape, at, buf)?
+            }
             None => {
                 let mut lo = long_out(h, tbl, shape, tail, len)?;
                 lo.put(h, buf)?;
