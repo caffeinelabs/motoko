@@ -68,10 +68,10 @@ actor {
     Prim.debugPrint(debug_show (none.reverseEntries().next(), one.reverseEntries().next()));
     let added = Prim.Array_init<Nat>(rows, 0);
     var n = 0;
-    for (k in many.keys()) { added[n] := k; n += 1 };
-    for ((k, r) in many.reverseEntries()) {
+    for k in many.keys() { added[n] := k; n += 1 };
+    for (k, r) in many.reverseEntries() {
       n -= 1;
-      if (k != added[n] or r != row(k)) { disagree += 1 }
+      if k != added[n] or r != row(k) { disagree += 1 }
     };
     Prim.debugPrint(debug_show { n; disagree })
   };
@@ -89,7 +89,7 @@ actor {
     many.remove(0);
     var rows = 2;
     var wrong = 0;
-    for ((k, _) in back) { rows += 1; if (k == 6_000 or k == 0) { wrong += 1 } };
+    for (k, _) in back { rows += 1; if k == 6_000 or k == 0 { wrong += 1 } };
     Prim.debugPrint(debug_show (rows, wrong, many.size()))
   }
 }
