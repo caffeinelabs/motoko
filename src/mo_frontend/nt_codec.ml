@@ -164,19 +164,21 @@ let row_columns r =
     | None -> reject "row" r row_rule
     | Some codes -> Ok ([unnamed codes], false)
 
-(* Ok when a row of type [r] can be made from a record of type [p]: every field of [r] that [p]
-   leaves out is an option, stored as null *)
+(* Ok when a row of type [r] can be made from a value of type [p]: when [r] is a record, [p] is
+   one, and every field of [r] that [p] leaves out is an option, stored as null *)
 let makes p r =
   match T.normalize p, T.normalize r with
-  | T.Obj (_, ps, _), T.Obj (_, rs, _) ->
+  | p, T.Obj (_, rs, _) when not (is_param p) ->
+    let ps = match p with T.Obj (_, ps, _) -> ps | _ -> [] in
     let left_out (f : T.field) =
       not (List.exists (fun (g : T.field) -> g.T.lab = f.T.lab) ps) &&
       (match T.normalize f.T.typ with T.Opt _ -> false | _ -> true) in
-    (match List.find_opt left_out rs with
-    | Some f ->
+    (match List.find_opt left_out rs, p with
+    | Some f, _ ->
       reject (Printf.sprintf "field `%s`" f.T.lab) f.T.typ
         "a write that can create a row must give every field that is not an option"
-    | None -> Ok ())
+    | None, T.Obj _ -> Ok ()
+    | None, _ -> reject "row" r "a write that can create a row must give its fields in a record")
   | _ -> if is_param r then reject "row" r row_rule else Ok ()
 
 (* splitmix64's finalizer *)

@@ -89,7 +89,7 @@ ignore orders.update(7, { paid = true })
   `?Int`), so `{ placed = 0 }` needs no annotation. Write `null` with its type:
   `{ note = null : ?Text }`.
 - It traps when `fields` has a field `R` lacks, or a field of another type.
-- `upsert` compiles only when each field of `R` that `fields` leaves out is an option.
+- `upsert` compiles only when `fields` is a record and each field of `R` it leaves out is an option.
 
 ## Read by key
 

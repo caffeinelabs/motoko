@@ -50,3 +50,11 @@ error[M0279]: native table field `age` has type Nat, but a write that can create
     ┌─ nt-codec-reject.mo:44:77
  44 │  ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();
     │                                                                              ^^ 
+error[M0279]: native table field `name` has type Text, but a write that can create a row must give every field that is not an option
+    ┌─ nt-codec-reject.mo:47:55
+ 47 │  ignore makes<Nat, Text, { name : Text; note : ?Text }>();
+    │                                                        ^^ 
+error[M0279]: native table row has type {note : ?Text}, but a write that can create a row must give its fields in a record
+    ┌─ nt-codec-reject.mo:48:42
+ 48 │  ignore makes<Nat, Text, { note : ?Text }>();
+    │                                           ^^ 

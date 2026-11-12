@@ -42,3 +42,7 @@ func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>();
 // A write that can create a row leaves out a field that is not an option
 func makes<K, P, R>(c : (implicit : Prim.NtCodec<(K, P, R)>)) : Prim.NtCodec<(K, P, R)> = c;
 ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();
+
+// A write that can create a row is given a value that is not a record
+ignore makes<Nat, Text, { name : Text; note : ?Text }>();
+ignore makes<Nat, Text, { note : ?Text }>();
