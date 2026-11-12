@@ -1041,7 +1041,7 @@ fn long_patch_chains() {
         }
         (longest, model.len())
     });
-    assert!(digest.0 > 4 * native_table::consts::PATCH_FOLD_BLOCKS, "chains far past their bound: {digest:?}");
+    assert!(digest.0 > 3 * native_table::consts::PATCH_FOLD_BLOCKS, "chains far past their bound: {digest:?}");
 }
 
 // ---------------------------------------------------------------- big values

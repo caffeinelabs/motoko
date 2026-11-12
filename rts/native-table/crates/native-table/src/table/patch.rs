@@ -244,7 +244,8 @@ pub fn lookup<H: PageHost + ?Sized>(h: &H, dir: u64, ordinal: u64, pos: u64) -> 
 #[derive(Clone, Copy, Debug)]
 pub enum Data<'a> {
     Null,
-    Ve(&'a [u8]),
+    /// A VE in two pieces, written one after the other.
+    Ve(&'a [u8], &'a [u8]),
     Chain { head: u64, len: u64 },
     Long { img: Image, len: u64 },
 }
@@ -253,7 +254,7 @@ impl Data<'_> {
     fn flags(&self) -> u8 {
         match self {
             Data::Null => F_NULL,
-            Data::Ve(_) => 0,
+            Data::Ve(..) => 0,
             Data::Chain { .. } => F_CHAIN,
             Data::Long { .. } => F_LONG,
         }
@@ -262,7 +263,7 @@ impl Data<'_> {
     fn bytes(&self) -> u64 {
         match self {
             Data::Null => 0,
-            Data::Ve(b) => b.len() as u64,
+            Data::Ve(a, b) => (a.len() as u64).wrapping_add(b.len() as u64),
             Data::Chain { .. } => CHAIN_STUB,
             Data::Long { .. } => REF_BYTES,
         }
@@ -272,7 +273,7 @@ impl Data<'_> {
     fn live(&self) -> u64 {
         match self {
             Data::Null => 0,
-            Data::Ve(b) => b.len() as u64,
+            Data::Ve(a, b) => (a.len() as u64).wrapping_add(b.len() as u64),
             Data::Chain { len, .. } | Data::Long { len, .. } => *len,
         }
     }
@@ -280,7 +281,10 @@ impl Data<'_> {
     fn write(&self, b: &mut [u8], at: u64) -> Result<(), Fault> {
         match self {
             Data::Null => Ok(()),
-            Data::Ve(v) => put(b, at, v),
+            Data::Ve(x, y) => {
+                put(b, at, x)?;
+                put(b, at.wrapping_add(x.len() as u64), y)
+            }
             Data::Chain { head, len } => {
                 put_u64(b, at, *head)?;
                 put_u32(b, at.wrapping_add(8), u32::try_from(*len).map_err(|_| rt(Corruption::Range, *len))?)
@@ -469,9 +473,11 @@ fn add_unit<H: PageHost>(h: &mut H, tbl: u64, dir: u64, ordinal: u64) -> Result<
 }
 
 /// Upserts (leaf `ordinal`, position `pos`) → `d` into the directory named by the u64 at `holder_off` of
-/// block `holder` (made when 0): a live entry of exactly the new data's length is overwritten in place;
-/// otherwise it is marked dead and a new entry goes into the chain's newest block when it has room, else into
-/// a new block appended to the chain. The bitmap bit is set and the counters updated.
+/// block `holder` (made when 0), whose live entry of them, as the caller looked it up, is `old_entry`: a live
+/// entry of exactly the new data's length is overwritten in place; otherwise it is marked dead and a new entry
+/// goes into the chain's newest block when it has room, else into a new block appended to the chain. The bitmap
+/// bit is set and the counters updated.
+#[allow(clippy::too_many_arguments)]
 pub fn upsert<H: PageHost>(
     h: &mut H,
     tbl: u64,
@@ -480,6 +486,7 @@ pub fn upsert<H: PageHost>(
     ordinal: u64,
     pos: u64,
     d: &Data<'_>,
+    old_entry: Option<Entry>,
 ) -> Result<Upserted, Fault> {
     if pos >= 4_096 {
         return Err(rt(Corruption::Range, pos));
@@ -497,7 +504,6 @@ pub fn upsert<H: PageHost>(
         }
     };
     let bytes = d.bytes();
-    let old_entry = lookup_in(h, &u, pos)?;
     let mut out = Upserted {
         old: Old::None,
         old_live: 0,

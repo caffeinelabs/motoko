@@ -46,7 +46,7 @@ impl PVal {
     pub fn data(&self) -> Data<'_> {
         match self {
             PVal::Null => Data::Null,
-            PVal::Ve { buf, len } => Data::Ve(buf.get(..*len).unwrap_or(&[])),
+            PVal::Ve { buf, len } => Data::Ve(buf.get(..*len).unwrap_or(&[]), &[]),
             PVal::Chain { head, len } => Data::Chain { head: *head, len: *len },
             PVal::Long { img, len } => Data::Long { img: *img, len: *len },
         }
@@ -439,8 +439,8 @@ impl Leaves for &[u32] {
 }
 
 /// Updates the leaves `leaves` gives of a sealed row (position `pos` of group page `pg`) to the source's
-/// values, whose cells the caller has checked; returns whether anything changed and the bytes the host copied
-/// from the argument. Every refusal comes before the first write.
+/// values, whose cells the caller has checked; returns the bytes the host copied from the argument. A key leaf
+/// given another value is refused before the first write; each other leaf's patch entry is looked up once.
 #[allow(clippy::too_many_arguments)]
 pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
     h: &mut H,
@@ -450,42 +450,36 @@ pub fn update_sealed<H: PageHost, R: RowSource + ?Sized, L: Leaves>(
     pg: u64,
     pos: u64,
     leaves: L,
-) -> Result<(bool, u64), Fault> {
-    let s = overlay::sealed(&*h, pg)?;
-    // Which leaves change; a key leaf never does.
-    let mut any = false;
+) -> Result<u64, Fault> {
+    let mut s = overlay::sealed(&*h, pg)?;
     for i in 0..leaves.count(shape) {
         let l = leaves.leaf(&*h, shape, i)?;
-        let cur = overlay::sealed_value(&*h, &s, &l, pos)?;
-        let v = row::checked_cell(src, &l)?;
-        if cur::same(&*h, &l, &cur, &v)? {
-            continue;
-        }
-        if l.key {
+        if l.key && !cur::same(&*h, &l, &overlay::sealed_value(&*h, &s, &l, pos)?, &row::checked_cell(src, &l)?)? {
             return Err(Fault::BadValue { leaf: l.id });
         }
-        any = true;
-    }
-    if !any {
-        return Ok((false, 0));
     }
     let mut filled = 0u64;
     for i in 0..leaves.count(shape) {
         let l = leaves.leaf(&*h, shape, i)?;
-        let s = overlay::sealed(&*h, pg)?;
-        let old = overlay::sealed_value(&*h, &s, &l, pos)?;
+        // An earlier leaf's patch may have made the group's patch directory.
+        s.dir = rd_u64(h.get(Region::Block(pg))?, page::P_PATCH_DIR)?;
+        let e = overlay::patch_entry(&*h, &s, &l, pos)?;
+        let old = match &e {
+            Some(e) => cur::from_entry(&*h, e, &l)?,
+            None => overlay::image_value(&*h, &s.meta, &l, pos)?,
+        };
         {
             let v = row::checked_cell(src, &l)?;
             if cur::same(&*h, &l, &old, &v)? {
                 continue;
             }
         }
-        filled = filled.saturating_add(write_leaf(h, tbl, shape, src, &s, &l, pos, &old)?);
+        filled = filled.saturating_add(write_leaf(h, tbl, shape, src, &s, &l, pos, &old, e)?);
     }
-    Ok((true, filled))
+    Ok(filled)
 }
 
-/// Writes one changed leaf of a sealed row.
+/// Writes one changed leaf of a sealed row, whose value `old` its live patch entry `e` holds, or else its image.
 #[allow(clippy::too_many_arguments)]
 fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     h: &mut H,
@@ -496,6 +490,7 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     l: &LeafInfo,
     pos: u64,
     old: &SVal,
+    e: Option<patch::Entry>,
 ) -> Result<u64, Fault> {
     let o = u64::from(l.ordinal);
     // An integer leaf's total and the group's extremes lose the old value here, and take the new one once it
@@ -509,7 +504,7 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
     } else {
         None
     };
-    let patched = s.dir != 0 && patch::lookup(&*h, s.dir, o, pos)?.is_some();
+    let patched = e.is_some();
     let mut filled = 0u64;
     let wrote = if patched {
         false
@@ -528,9 +523,16 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
         }
         return Ok(filled);
     }
-    let (pv, f) = patch_value(h, tbl, shape, l, src)?;
-    filled = f;
-    let up = patch::upsert(h, tbl, s.page, page::P_PATCH_DIR, o, pos, &pv.data())?;
+    let mut head = [0u8; 32];
+    let v = row::checked_cell(src, l)?;
+    let up = match ve_data(l, &v, &mut head) {
+        Some(d) => patch::upsert(h, tbl, s.page, page::P_PATCH_DIR, o, pos, &d, e)?,
+        None => {
+            let (pv, f) = patch_value(h, tbl, shape, l, src)?;
+            filled = f;
+            patch::upsert(h, tbl, s.page, page::P_PATCH_DIR, o, pos, &pv.data(), e)?
+        }
+    };
     patch::release(h, tbl, up.old)?;
     // A value the image held out of line is superseded for good: its long value is freed now.
     if !patched {
@@ -550,6 +552,29 @@ fn write_leaf<H: PageHost, R: RowSource + ?Sized>(
         hot::apply_at(h, tbl, tail, at, l, &new, Sign::Add, ext)?;
     }
     Ok(filled)
+}
+
+/// The patch data of a value in memory whose VE fits `LONG_VALUE`, the VE's head built in `head` and its bytes
+/// the value's own, copied nowhere first; `None` for a value still in the argument or longer (`patch_value`).
+fn ve_data<'a>(l: &LeafInfo, v: &Val<'a>, head: &'a mut [u8; 32]) -> Option<Data<'a>> {
+    if v.is_null() {
+        return Some(Data::Null);
+    }
+    let (k, body): (usize, &'a [u8]) = match cur::ve_short(l, v, head) {
+        Some(n) => (n, &[]),
+        None => {
+            let mut h11 = [0u8; 11];
+            let (k, n) = cur::ve_long_parts(l, v, &mut h11)?;
+            let (Val::Bytes(b) | Val::Big(b)) = *v else { return None };
+            if (k as u64).checked_add(n)? > LONG_VALUE {
+                return None;
+            }
+            crate::mem::copy_bytes(head, h11.get(..k)?);
+            (k, b)
+        }
+    };
+    let head: &'a [u8; 32] = head;
+    Some(Data::Ve(head.get(..k)?, body))
 }
 
 fn new_value<H: PageHost + ?Sized>(h: &H, holder: u64, off: u64, l: &LeafInfo, pos: u64) -> Result<SVal, Fault> {

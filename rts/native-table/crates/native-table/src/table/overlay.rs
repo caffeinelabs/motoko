@@ -54,7 +54,7 @@ pub fn sealed_value<H: PageHost + ?Sized>(h: &H, s: &Sealed, l: &LeafInfo, pos: 
 }
 
 /// The patch entry holding leaf `l` at position `pos` of a sealed group, if any.
-fn patch_entry<H: PageHost + ?Sized>(h: &H, s: &Sealed, l: &LeafInfo, pos: u64) -> Result<Option<patch::Entry>, Fault> {
+pub fn patch_entry<H: PageHost + ?Sized>(h: &H, s: &Sealed, l: &LeafInfo, pos: u64) -> Result<Option<patch::Entry>, Fault> {
     if s.dir != 0 {
         return patch::lookup(h, s.dir, u64::from(l.ordinal), pos);
     }

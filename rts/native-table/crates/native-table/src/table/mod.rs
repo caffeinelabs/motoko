@@ -700,8 +700,7 @@ impl<'h, H: PageHost> Table<'h, H> {
                     self.filled = write::splice(h, tbl, &self.shape, row, &at, None, plan.len, scratch)?;
                 }
                 read::Row::Sealed { page, pos } => {
-                    let (_, filled) = update::update_sealed(h, tbl, &self.shape, row, page, pos, update::Every)?;
-                    self.filled = filled;
+                    self.filled = update::update_sealed(h, tbl, &self.shape, row, page, pos, update::Every)?;
                 }
             }
             return Ok((rid, false));
@@ -776,7 +775,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         match row {
             read::Row::Sealed { page, pos } => {
                 self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
-                (_, self.filled) = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
+                self.filled = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
             }
             read::Row::Buffered(at) => {
                 // The scratch a new image past the stack takes: a refusal comes before the first write.

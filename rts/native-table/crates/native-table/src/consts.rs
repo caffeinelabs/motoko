@@ -72,7 +72,7 @@ pub const BIGSUM_INLINE: u64 = 64;
 /// Policy. Dead positions (25%) that queue a compaction.
 pub const COMPACT_DEAD: u64 = 1_024;
 /// Policy. Patch blocks of one leaf that queue a compaction.
-pub const PATCH_FOLD_BLOCKS: u64 = 4;
+pub const PATCH_FOLD_BLOCKS: u64 = 32;
 /// Format. Patch unit records per patch directory block; record 255 links the next directory block.
 pub const PATCH_UNITS_PER_DIR: u64 = 254;
 /// Format. Areas per table.
