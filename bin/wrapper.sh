@@ -18,7 +18,7 @@ declare -A envs # list of expected environment variables with paths to products
 # Define build products here
 real[moc]=src/moc
 hint[moc]="make -C $rel_root/src moc"
-envs[moc]="MOC_RELEASE_RTS MOC_DEBUG_RTS"
+envs[moc]="MOC_RELEASE_RTS MOC_DEBUG_RTS MOC_RELEASE_TABLE_RTS MOC_DEBUG_TABLE_RTS"
 real[mo-ld]=src/mo-ld
 hint[mo-ld]="make -C $rel_root/src mo-ld"
 real[mo-doc]=src/mo-doc
@@ -34,6 +34,8 @@ rts_hint="make -C $rel_root/rts"
 
 real[MOC_RELEASE_RTS]=rts/mo-rts.wasm
 real[MOC_DEBUG_RTS]=rts/mo-rts-debug.wasm
+real[MOC_RELEASE_TABLE_RTS]=rts/mo-rts-table.wasm
+real[MOC_DEBUG_TABLE_RTS]=rts/mo-rts-table-debug.wasm
 
 for var in ${envs[moc]}; do
   hint[$var]=$rts_hint

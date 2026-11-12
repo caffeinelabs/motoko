@@ -1,0 +1,76 @@
+error[M0279]: native table field `tags` has type [var Text], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:7:54
+  7 │  ignore codec<Nat, { name : Text; tags : [var Text] }>();
+    │                                                       ^^ 
+error[M0279]: native table field `grid` has type [[Nat]], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:10:51
+ 10 │  ignore codec<Nat, { name : Text; grid : [[Nat]] }>();
+    │                                                    ^^ 
+error[M0279]: native table field `states` has type [{#off; #on}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:13:61
+ 13 │  ignore codec<Nat, { name : Text; states : [{ #on; #off }] }>();
+    │                                                              ^^ 
+error[M0279]: native table field `history` has type [?{amount : Nat}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:16:66
+ 16 │  ignore codec<Nat, { name : Text; history : [?{ amount : Nat }] }>();
+    │                                                                   ^^ 
+error[M0279]: native table field `history` has type [{amount : Nat; notes : [Text]}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:19:81
+ 19 │  ignore codec<Nat, { name : Text; history : [{ amount : Nat; notes : [Text] }] }>();
+    │                                                                                  ^^ 
+error[M0279]: native table field `marks` has type [{}], but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:22:49
+ 22 │  ignore codec<Nat, { name : Text; marks : [{}] }>();
+    │                                                  ^^ 
+error[M0279]: native table field `address` has type {city : Text}, but a field must be a scalar or an array, or an option of one; an array's elements must be scalars, options of scalars, or records of them
+    ┌─ nt-codec-reject.mo:25:62
+ 25 │  ignore codec<Nat, { name : Text; address : { city : Text } }>();
+    │                                                               ^^ 
+error[M0279]: native table field `visits` has type var Nat, but a field must be immutable
+    ┌─ nt-codec-reject.mo:28:53
+ 28 │  ignore codec<Nat, { name : Text; var visits : Nat }>();
+    │                                                      ^^ 
+error[M0279]: native table key has type ?Nat, but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+    ┌─ nt-codec-reject.mo:31:36
+ 31 │  ignore codec<?Nat, { name : Text }>();
+    │                                     ^^ 
+error[M0279]: native table key has type (Text, ?Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+    ┌─ nt-codec-reject.mo:34:44
+ 34 │  ignore codec<(Text, ?Nat), { name : Text }>();
+    │                                             ^^ 
+error[M0279]: native table key has type (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), but a key must be one of Nat, Int, Nat8 to Nat64, Int8 to Int64, Float, Bool, Char, Text, Blob or Principal, or a tuple of 2 to 7 of them
+    ┌─ nt-codec-reject.mo:37:72
+ 37 │  ignore codec<(Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat), { name : Text }>();
+    │                                                                         ^^ 
+error[M0279]: native table row has type R, but its type must not depend on a type parameter
+    ┌─ nt-codec-reject.mo:40:57
+ 40 │  func table<R>() : Prim.NtCodec<(Nat, R)> = codec<Nat, R>();
+    │                                                          ^^ 
+error[M0279]: native table field `age` has type Nat, but a write that can create a row must give every field that is not an option
+    ┌─ nt-codec-reject.mo:44:77
+ 44 │  ignore makes<Nat, { name : Text }, { name : Text; age : Nat; note : ?Text }>();
+    │                                                                              ^^ 
+error[M0279]: native table field `name` has type Text, but a write that can create a row must give every field that is not an option
+    ┌─ nt-codec-reject.mo:47:55
+ 47 │  ignore makes<Nat, Text, { name : Text; note : ?Text }>();
+    │                                                        ^^ 
+error[M0279]: native table row has type {note : ?Text}, but a write that can create a row must give its fields in a record
+    ┌─ nt-codec-reject.mo:48:42
+ 48 │  ignore makes<Nat, Text, { note : ?Text }>();
+    │                                           ^^ 
+error[M0279]: native table field `town` has type Text, but the table's row has no field of that name
+    ┌─ nt-codec-reject.mo:51:65
+ 51 │  ignore makes<Nat, { name : Text; town : Text }, { name : Text }>();
+    │                                                                  ^^ 
+error[M0279]: native table field `name` has type Nat, but the table's has type Text
+    ┌─ nt-codec-reject.mo:52:51
+ 52 │  ignore makes<Nat, { name : Nat }, { name : Text }>();
+    │                                                    ^^ 
+error[M0279]: native table field `note` has type Text, but the table's has type ?Text
+    ┌─ nt-codec-reject.mo:53:53
+ 53 │  ignore makes<Nat, { note : Text }, { note : ?Text }>();
+    │                                                      ^^ 
+error[M0279]: native table row has type Int, but the table's has type Nat
+    ┌─ nt-codec-reject.mo:54:28
+ 54 │  ignore makes<Nat, Int, Nat>();
+    │                             ^^ 

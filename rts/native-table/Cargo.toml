@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/native-table",
+    "crates/nt-testhost",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+publish = false
+
+[profile.release]
+opt-level = 3
+panic = "abort"
+debug = false
+strip = "none"
+
+[profile.dev]
+panic = "abort"
+
+# Optimized tests that keep overflow checks and debug assertions.
+[profile.test-fast]
+inherits = "release"
+overflow-checks = true
+debug-assertions = true

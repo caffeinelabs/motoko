@@ -68,7 +68,7 @@ CLANG_FLAGS_64 = $(CLANG_FLAGS_COMMON) \
 
 .PHONY: all
 
-all: mo-rts.wasm mo-rts-debug.wasm
+all: mo-rts.wasm mo-rts-debug.wasm mo-rts-table.wasm mo-rts-table-debug.wasm
 
 _build:
 	mkdir -p $@
@@ -178,6 +178,29 @@ $(RTS_RUST_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
 	$(RTS_DEBUG_BUILD_64)
 	cp $(RTS_DEBUG_TARGET_64) $@
 
+# The runtime with the native table, built in its own cargo target directory
+
+RTS_TABLE_CARGO_OPTIONS=--features native_table --target-dir target/table
+# The debug runtime with the native table is optimized for size, with its debug assertions and
+# overflow checks kept: at opt-level 1, a program that links it is larger than one install message
+# may carry, and one of its functions is more complex than the IC accepts.
+RTS_TABLE_DEBUG_BUILD_64=$(RTS_DEBUG_BUILD_64) $(RTS_TABLE_CARGO_OPTIONS) --config 'profile.dev.opt-level="s"'
+RTS_TABLE_RELEASE_BUILD_64=$(RTS_RELEASE_BUILD_64) $(RTS_TABLE_CARGO_OPTIONS)
+
+RTS_TABLE_DEBUG_TARGET_64=motoko-rts/target/table/wasm64-none-shared/debug/libmotoko_rts.a
+RTS_TABLE_RELEASE_TARGET_64=motoko-rts/target/table/wasm64-none-shared/release/libmotoko_rts.a
+
+RTS_RUST_TABLE_WASM_64_A=_build/wasm64/libmotoko_rts_table.a
+RTS_RUST_TABLE_DEBUG_WASM_64_A=_build/wasm64/libmotoko_rts_table_debug.a
+
+$(RTS_RUST_TABLE_WASM_64_A): $(RTS_DEPENDENCIES_64)
+	$(RTS_TABLE_RELEASE_BUILD_64)
+	cp $(RTS_TABLE_RELEASE_TARGET_64) $@
+
+$(RTS_RUST_TABLE_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
+	$(RTS_TABLE_DEBUG_BUILD_64)
+	cp $(RTS_TABLE_DEBUG_TARGET_64) $@
+
 #
 # The test suite
 #
@@ -197,7 +220,7 @@ TEST_MODULES = persistence_20k persistence_small \
   gc_chunk_5 gc_chunk_6 gc_chunk_7 gc_chunk_8 gc_chunk_9 \
   gc_predefined gc_components \
   bigint bitrel continuation_table crc32 \
-  leb128 principal_id stable_option text utf8
+  leb128 native_table principal_id stable_option text utf8
 
 GIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo "0")
 
@@ -265,6 +288,21 @@ mo-rts.wasm: $(RTS_RUST_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
 	wasm-validate --enable-memory64 $@
 
 mo-rts-debug.wasm: $(RTS_RUST_DEBUG_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
+	$(WASM_LD) -o $@ \
+	  $(LINKER_OPTIONS_64) \
+	  $+
+	wasm-validate --enable-memory64 $@
+
+# The runtime with the native table is linked without its function names; the debug one keeps
+# them. All other sections are kept.
+mo-rts-table.wasm: $(RTS_RUST_TABLE_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
+	$(WASM_LD) -o $@ \
+	  $(LINKER_OPTIONS_64) \
+	  --strip-all --keep-section=producers --keep-section=target_features \
+	  $+
+	wasm-validate --enable-memory64 $@
+
+mo-rts-table-debug.wasm: $(RTS_RUST_TABLE_DEBUG_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
 	$(WASM_LD) -o $@ \
 	  $(LINKER_OPTIONS_64) \
 	  $+

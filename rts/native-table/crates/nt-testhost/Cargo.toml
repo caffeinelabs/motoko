@@ -1,0 +1,10 @@
+[package]
+name = "nt-testhost"
+description = "Test host for the native-table crate: Vec-backed main memory with fill patterns, call logs and counters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+native-table = { path = "../native-table" }

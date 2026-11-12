@@ -4,6 +4,24 @@
 
 * motoko (`moc`)
 
+  * feat: native tables. The `NativeTable` library, in `lib/native-table`,
+    keeps a table's rows outside the garbage-collected heap, across upgrades
+    that keep main memory, and answers reads by key, scans, index walks and
+    counts, filters, and totals of integer fields; see its `README.md`. A
+    stable table's row type changes in an upgrade through `evolve` in the
+    migration function, which adds fields of an option type and drops fields.
+    A view of a table reads only some fields of each row, and `update` sets
+    some fields of a row and keeps the others. A field can hold an array of
+    scalars, of options of scalars, or of records of those, read and written
+    whole, and a key can be a tuple of 2 to 7 scalars. Scans go in the order
+    keys were first added. Also: `upsert`, `append`, `clear`, `reverseEntries`,
+    `withoutNullRows`, unique indexes with `tryAdd`, counts by an index's first fields,
+    `indexEntriesAt`, `reverseIndexEntriesAt` and `removeIndexRange`, and
+    upkeep that gives back pages removed rows left empty. The compiler
+    supplies a table's codec from its key and row types and rejects types a
+    table cannot have with the new error M0279; `moc.js` rejects a program
+    that uses native tables with the new error M0280 (#6492).
+
   * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
     value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
     result too large" when the result would have 2^31 or more bits, instead

@@ -1,0 +1,13 @@
+[package]
+name = "native-table"
+description = "Shared table and B-tree formats for Motoko's NativeTable and the PTable of Rust EOP, a Rust library for upgrades that keep the heap in place"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+# No dependencies and no dev-dependencies.
+[dependencies]

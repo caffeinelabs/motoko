@@ -1,0 +1,29 @@
+nt-codec-forge.mo:14.38-14.102: type error [M0096], expression of type
+  {labels : Blob; layout : Blob}
+cannot produce expected type
+  NtCodec<(Nat, Text)>
+nt-codec-forge.mo:17.80-17.81: type error [M0096], expression of type
+  Prim.NtCodec<(K0, R0)> = NtCodec<(K0, R0)>
+cannot produce expected type
+  NtCodec<(K, R)>
+because the type 
+  K0
+ is not compatible with type 
+  K
+nt-codec-forge.mo:20.55-20.66: type error [M0096], expression of type
+  Prim.NtCodec<(Nat, User)> = NtCodec<(Nat, User)>
+cannot produce expected type
+  NtCodec<(Nat, Text)>
+because the type 
+  {amount : Nat; city : Text; name : Text}
+ is not compatible with type 
+  Text
+nt-codec-forge.mo:23.54-23.59: type error [M0096], expression of type
+  Handle<Nat, User> = {codec : Prim.NtCodec<(Nat, User)>; id : Nat64}
+cannot produce expected type
+  {codec : Prim.NtCodec<(Nat, {city : Text; name : Text})>; id : Nat64}
+because field `amount` is missing from expected type 
+  {city : Text; name : Text}
+ of `Prim.NtCodec` (used by `codec`)
+nt-codec-forge.mo:26.16-26.27: type error [M0070], expected object type, but expression produces type
+  NtCodec<(Nat, User)> = NtCodec<(Nat, User)>

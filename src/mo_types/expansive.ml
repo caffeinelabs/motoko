@@ -107,7 +107,7 @@ let edges_typ cs c (es : EdgeSet.t) t : EdgeSet.t =
     | Con (_, ts) (* Cons from outer scopes are assumed to be non-expansive *)
     | Tup ts ->
       go_typs i (VertexSet.union exp non) VertexSet.empty es ts
-    | (Opt t1 | Mut t1 | Array t1 | Weak t1) ->
+    | (Opt t1 | Mut t1 | Array t1 | Weak t1 | NtCodec t1) ->
       go_typ i (VertexSet.union exp non) VertexSet.empty es t1
     | Async (s, t1, t2) ->
       go_typs i (VertexSet.union exp non) VertexSet.empty es [t1;t2]

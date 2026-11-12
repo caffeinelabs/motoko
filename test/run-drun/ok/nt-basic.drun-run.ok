@@ -1,0 +1,83 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: true
+debug.print: false
+debug.print: false
+debug.print: (10, 3, 2)
+debug.print: (true, true, true)
+debug.print: (true, false, 4)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ?{amount = 40; city = "Basel"; name = "Ana"}
+debug.print: true
+debug.print: Ana 42
+debug.print: Bo lives in Biel, amount 1
+debug.print: (true, true, {amount = 2_305_843_009_213_693_951; city = "Chur"; name = "Cy"})
+debug.print: (true, true, {amount = 2_305_843_009_213_693_952; city = "Chur"; name = "Cy"})
+debug.print: (true, true, {amount = 9_223_372_036_854_775_808; city = "Davos"; name = "Di"})
+debug.print: (true, true, {amount = 18_446_744_073_709_551_615; city = "Davos"; name = "Di"})
+debug.print: (true, true, {amount = 1_267_650_600_228_229_401_496_703_205_376; city = "Ems"; name = "Ed"})
+debug.print: true
+debug.print: (true, 114_688, true)
+debug.print: ?{amount = 5; city = "Horw"; name = "Hal"}
+debug.print: (null, null, null)
+debug.print: (true, false, true)
+debug.print: ?"on the Limmat"
+debug.print: (true, ?"", null)
+debug.print: (?3, ?1_180_591_620_717_411_303_424, null)
+debug.print: 2
+debug.print: (true, false)
+debug.print: (?{name = "item 5"; qty = 5}, ?{name = "item 4_199"; qty = 6}, ?{name = "item 15"; qty = 1}, ?{name = "item 6"; qty = 6}, null)
+debug.print: (?(+14), ?(+11), ?(+12), ?(+13), null, null)
+debug.print: (4_200, 4_202, ?{name = "item 0"; qty = 0}, true, ?{name = "item 0"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_202, 4_202, 2, 4_202, null)
+debug.print: (?(('x', -5, "a"), +14), ?(('x', -5, "b"), +11), ?(('y', -5, "a"), +12), ?(('x', +5, "a"), +13), null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (600, 600, 600, true, ?(("doc-6", 0), {name = "item 6"}))
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, false, false)
+debug.print: (true, false, true)
+debug.print: (true, true, false)
+debug.print: (3, false, false, true)
+debug.print: (true, false, true)
+debug.print: (1, 0, true, false)
+debug.print: (?"on the Rhône", null, null)
+debug.print: (true, true, true)
+debug.print: (?{amount = 41; city = "Aarau"; name = "Ana"}, ?4, ?"-")
+debug.print: (4, 2, 1)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, false, ?{name = "item 5"; qty = 6})
+debug.print: (true, false, null, ?{name = "item 17"; qty = 3})
+debug.print: (null, null, 4_199, 601)
+debug.print: (?[#nat(0), #text("item 0")], [("qty", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text})])
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ?{amount = 41; city = "Aarau"; name = "Ana"}
+debug.print: false
+debug.print: no match
+debug.print: missing
+debug.print: (true, true, {amount = 2_305_843_009_213_693_951; city = "Chur"; name = "Cy"})
+debug.print: missing 2_305_843_009_213_693_952
+debug.print: missing 9_223_372_036_854_775_808
+debug.print: (true, true, {amount = 18_446_744_073_709_551_615; city = "Davos"; name = "Di"})
+debug.print: missing 1_267_650_600_228_229_401_496_703_205_376
+debug.print: false
+debug.print: missing
+debug.print: ?{amount = 5; city = "Horw"; name = "Hal"}
+debug.print: (null, null, null)
+debug.print: (true, false, false)
+debug.print: null
+debug.print: (true, ?"-", null)
+debug.print: (null, ?4, null)
+debug.print: 0
+debug.print: (true, false)
+debug.print: (?{name = "item 5"; qty = 6}, ?{name = "item 4_199"; qty = 6}, ?{name = "item 15"; qty = 1}, ?{name = "item 6"; qty = 6}, null)
+debug.print: (?(+14), ?(+11), ?(+12), ?(+13), null, null)
+debug.print: (4_197, 4_199, null, true, null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (?{name = "item 6"; note = null; qty = 6}, ?{name = "new"; note = ?"added"; qty = 1}, true, 4_200)
+debug.print: (?(("doc-0", 0), {name = "item 0"; note = null; qty = 0}), [("qty", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text}), ("note", {array = null; optional = true; scalar = #text})])
+debug.print: (4_200, null)
+debug.print: (true, false, ?{name = "up"; note = null; qty = 3})
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a key that is a tuple is not one cell'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

@@ -1,0 +1,14 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: forms {blobs = 8; texts = 7; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: write {fresh = 12}
+debug.print: write {size = (4, 4, 4); wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {size = (4, 4, 4); wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: write {fresh = 0}
+debug.print: write {size = (4, 4, 4); wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: remove {removed = 12; size = (0, 0, 0)}
+ingress Completed: Reply: 0x4449444c0000

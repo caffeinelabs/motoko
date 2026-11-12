@@ -66,6 +66,7 @@ and typ =
   | Non                                       (* bottom *)
   | Named of name * typ                       (* named type *)
   | Weak of typ                               (* weak reference *)
+  | NtCodec of typ                            (* native table codec, made only by the compiler *)
   | Pre                                       (* pre-type *)
 
 and scope = typ
@@ -149,6 +150,7 @@ let tag = function
   | Pre -> 13
   | Named _ -> 14
   | Weak _ -> 15
+  | NtCodec _ -> 16
 
 let compare_prim p1 p2 =
   let d = tag_prim p1 - tag_prim p2 in
@@ -242,6 +244,8 @@ let rec compare_typ (t1 : typ) (t2 : typ) =
     (match String.compare n1 n2 with
      | 0 -> compare_typ t1 t2
      | ord -> ord)
+  | NtCodec t1, NtCodec t2 ->
+    compare_typ t1 t2
   | _ -> Int.compare (tag t1) (tag t2)
 
 and compare_tb tb1 tb2 =
@@ -456,6 +460,7 @@ let rec shift i n t =
   | Pre -> Pre
   | Named (name, t) -> Named (name, shift i n t)
   | Weak t -> Weak (shift i n t)
+  | NtCodec t -> NtCodec (shift i n t)
 
 and shift_bind i n tb =
   {tb with bound = shift i n tb.bound}
@@ -513,6 +518,7 @@ let rec subst sigma t =
   | Pre -> Pre
   | Named (name, t) -> Named (name, subst sigma t)
   | Weak t -> Weak (subst sigma t)
+  | NtCodec t -> NtCodec (subst sigma t)
 
 and subst_bind sigma tb =
   { tb with bound = subst sigma tb.bound}
@@ -563,6 +569,7 @@ let rec open' i ts t =
   | Pre -> Pre
   | Named (name, t) -> Named (name, open' i ts t)
   | Weak t -> Weak (open' i ts t)
+  | NtCodec t -> NtCodec (open' i ts t)
 
 and open_bind i ts tb  =
   {tb with bound = open' i ts tb.bound}
@@ -784,6 +791,7 @@ let rec span = function
   | Non -> Some 0
   | Named (_, t) -> span t
   | Weak t -> span t (* TBR *)
+  | NtCodec _ -> None
 
 
 (* Collecting type constructors *)
@@ -798,7 +806,7 @@ let rec cons' inTyp t cs =
   | Var _ | Prim _ | Any | Non | Pre -> cs
   | Con (c, ts) ->
     List.fold_right (cons' inTyp) ts (cons_con' inTyp c cs)
-  | Opt t | Mut t | Array t | Weak t ->
+  | Opt t | Mut t | Array t | Weak t | NtCodec t ->
     cons' inTyp t cs
   | Async (_, t1, t2) ->
     cons' inTyp t2 (cons' inTyp t1 cs)
@@ -880,6 +888,7 @@ let concrete t =
         List.for_all go (List.map (open_ ts) ts2)
       | Named (_, t) -> go t
       | Weak t -> go t
+      | NtCodec t -> go t
     end
   in go t
 
@@ -922,7 +931,8 @@ let paths p t =
       | Tup _
       | Variant _
       | Func _
-      | Weak _ -> ()
+      | Weak _
+      | NtCodec _ -> ()
     end
   in
   go p t;
@@ -944,6 +954,7 @@ let serializable allow_mut t =
       | Weak t ->
          (* weak references are stable if content is stable *)
          allow_mut && go t
+      | NtCodec t -> allow_mut && go t (* stable, but not shared *)
       | Mut t -> allow_mut && go t
       | Con (c, ts) ->
         (match Cons.kind c with
@@ -974,7 +985,7 @@ let find_unshared t =
       | Var _ | Pre -> assert false
       | Prim Error -> Some t
       | Any | Non | Prim _ -> None
-      | Async _ | Mut _ | Weak _ -> Some t
+      | Async _ | Mut _ | Weak _ | NtCodec _ -> Some t
       | Con (c, ts) ->
         (match Cons.kind c with
         | Abs _ -> None
@@ -1293,6 +1304,9 @@ let rec rel_typ d rel eq t1 t2 =
     rel_typ d rel eq t1' t2'
   | Weak t1', Weak t2' ->
     rel_typ d rel eq t1' t2'
+  | NtCodec t1', NtCodec t2' ->
+    (* invariant: a codec's bytes are fixed by its key and row types *)
+    eq_typ d rel eq t1' t2'
   | Prim Null, Opt t2' when rel != eq ->
     true
   | Variant fs1, Variant fs2 ->
@@ -1453,6 +1467,8 @@ let rec compatible_typ co t1 t2 =
     compatible_typ co t1' t2'
   | Weak t1', Weak t2' ->
     compatible_typ co t1' t2' (* TBR *)
+  | NtCodec t1', NtCodec t2' ->
+    compatible_typ co t1' t2'
   | Prim Null, Opt _ | Opt _, Prim Null  ->
     true
   | Variant tfs1, Variant tfs2 ->
@@ -1498,7 +1514,7 @@ let rec inhabited_typ co t =
   match promote t with
   | Pre -> assert false
   | Non -> false
-  | Any | Prim _ | Array _ | Opt _ | Async _ | Func _ -> true
+  | Any | Prim _ | Array _ | Opt _ | Async _ | Func _ | NtCodec _ -> true
   | Weak t' (* TBR *)
   | Mut t' -> inhabited_typ co t'
   | Tup ts -> List.for_all (inhabited_typ co) ts
@@ -1531,6 +1547,7 @@ let rec singleton_typ co t =
   | Non -> false
   | Prim _ | Array _ | Opt _ | Async _ | Func _ -> false
   | Weak _
+  | NtCodec _
   | Mut _ -> false
   | Obj (_, _, _) -> false
   | Variant _ -> false
@@ -1562,7 +1579,7 @@ let rec has_no_subtypes_or_supertypes m co = function
         has_no_subtypes_or_supertypes m co (reduce tbs def ts)
       end
     )
-  | Mut _ -> true
+  | Mut _ | NtCodec _ -> true
   | Named (_, t) -> has_no_subtypes_or_supertypes m co t
   | Prim
     ( Bool
@@ -2063,7 +2080,7 @@ and can_omit n t =
     | Pre -> assert false
     | Prim _ | Any | Non -> true
     | Con (c, ts) -> List.for_all (go i ) ts
-    | Array t | Opt t | Mut t | Weak t -> go i t
+    | Array t | Opt t | Mut t | Weak t | NtCodec t -> go i t
     | Async (s, Var (_, j), t2) when j = i && i <= n -> go i t2 (* t1 is a phantom type *)
     | Async (s, t1, t2) -> go i t1 && go i t2
     | Tup ts -> List.for_all (go i ) ts
@@ -2125,6 +2142,8 @@ and pp_typ_nullary vs ppf t =
   | Con (c, ts) ->
     fprintf ppf "@[%s<@[<1>%a@]>@]" (string_of_con c)
       (pp_print_list ~pp_sep:comma (pp_typ' vs)) ts
+  | NtCodec t ->
+    fprintf ppf "@[NtCodec<@[<1>%a@]>@]" (pp_typ' vs) t
   | Array (Mut t) ->
     fprintf ppf "@[<1>[var %a]@]" (pp_typ' vs) t
   | Array t ->

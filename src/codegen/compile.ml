@@ -419,7 +419,7 @@ module E = struct
     (* Global fields *)
     (* Static *)
     mode : Flags.compile_mode;
-    rts : Wasm_exts.CustomModule.extended_module; (* The rts. Re-used when compiling actors *)
+    rts : bool -> Wasm_exts.CustomModule.extended_module; (* The rts, given whether the program calls the native table *)
     trap_with : t -> string -> G.t;
       (* Trap with message; in the env for dependency injection *)
 
@@ -477,6 +477,10 @@ module E = struct
     (* Signals that blob dedup functionality should be enabled. *)
     requires_blob_dedup : bool ref;
 
+    (* Signals that the stable type holds a native-table codec, so only the runtime that
+       contains the native table can check its compatibility on upgrade. *)
+    requires_native_table : bool ref;
+
     enhanced_migration : string option;
   }
 
@@ -515,6 +519,7 @@ module E = struct
     constant_functions = ref 0l;
     dedup = ref None;
     requires_blob_dedup = ref false;
+    requires_native_table = ref false;
     enhanced_migration;
   }
 
@@ -1106,6 +1111,34 @@ module Func = struct
 
 end (* Func *)
 
+(* The native-table primitives the runtime implements, by name: how each takes its arguments, a
+   Nat64 passed unboxed (`W`) or any other value (`V`), and what it gives back, a Nat64 (`W`), a
+   Nat made of a Nat64 (`N`), a Bool (`B`) or any other value (`V`) *)
+let native_table_prims = [
+  "nt_create", ([`V; `V; `V], `V);
+  "nt_size", ([`W; `V], `N);
+  "nt_put", ([`W; `V; `V; `V], `B);
+  "nt_try_put", ([`W; `V; `V; `V], `B);
+  "nt_get", ([`W; `V; `V], `V);
+  "nt_remove", ([`W; `V; `V], `B);
+  "nt_remove_range", ([`W; `V; `V; `V; `V; `V], `N);
+  "nt_scan", ([`W; `V; `W; `V; `W; `W], `V);
+  "nt_count", ([`W; `V; `V; `V; `V], `N);
+  "nt_walk", ([`W; `V; `V; `V; `V; `W; `V; `V; `V; `W], `V);
+  "nt_sum", ([`W; `V; `V; `V], `V);
+  "nt_extreme", ([`W; `V; `V; `V], `V);
+  "nt_scan_cells", ([`W; `V; `V; `V; `V; `W; `W], `V);
+  "nt_count_where", ([`W; `V; `V; `V], `N);
+  "nt_group_counts", ([`W; `V; `V; `V; `V; `W], `V);
+  "nt_maintain", ([`W; `V; `W], `B);
+  "nt_clear", ([`W; `V], `B);
+  "nt_evolve", ([`W; `V; `V], `B);
+  "nt_view", ([`V; `V], `V);
+  "nt_update", ([`W; `V; `V; `V; `V], `B);
+  "nt_upsert", ([`W; `V; `V; `V; `V], `B);
+  "nt_append", ([`W; `V; `V; `V; `V], `B);
+]
+
 module RTS = struct
   (* The connection to the C and Rust parts of the RTS *)
   let system_imports env =
@@ -1268,6 +1301,9 @@ module RTS = struct
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
     add_rts_import "set_migrations" [I64Type] [];
+    List.iter (fun (name, (args, _)) ->
+      add_rts_import name (List.map (fun _ -> I64Type) args) [I64Type]
+    ) native_table_prims;
     ()
 
 end (* RTS *)
@@ -7300,6 +7336,7 @@ module Serialization = struct
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
   let idl_var_vec  = -133l
+  let idl_nt_codec = -134l
 
   (*
   Note [persistence type descriptor]
@@ -7361,6 +7398,9 @@ module Serialization = struct
             List.iter go ts1; List.iter go ts2
           | Prim Blob -> ()
           | Weak t -> go t
+          | NtCodec t ->
+            if mode = Persistence then env.E.requires_native_table := true;
+            go t
           | Mut t -> go t
           | _ ->
             Printf.eprintf "type_desc: unexpected type %s\n" (string_of_typ t);
@@ -7485,6 +7525,8 @@ module Serialization = struct
          add_sleb128 idl_alias; add_idx t
       | Weak t ->
          add_sleb128 idl_weak; add_idx t
+      | NtCodec t ->
+         add_sleb128 idl_nt_codec; add_idx t
       | _ -> assert false in
 
     Buffer.add_string buf (match mode with
@@ -7693,6 +7735,8 @@ module Serialization = struct
       | Weak t ->
          E.trap_with env "buffer_size: Weak" ^^
          size_alias (fun () -> get_x ^^ WeakRef.load_field env ^^ size env t)
+      | NtCodec _ ->
+         E.trap_with env "buffer_size: NtCodec"
       | _ -> todo "buffer_size" (Arrange_ir.typ t) G.nop
       end ^^
       (* Check 32-bit overflow of buffer_size *)
@@ -7877,6 +7921,8 @@ module Serialization = struct
         write_alias (fun () ->
           get_x ^^ WeakRef.load_field env ^^ write env t
         )
+      | NtCodec _ ->
+        E.trap_with env "serialize_go: NtCodec"
       | _ -> todo "serialize" (Arrange_ir.typ t) G.nop
       end ^^
       get_data_buf ^^
@@ -8710,6 +8756,8 @@ module Serialization = struct
           get_arg_typ ^^ go env t ^^
           WeakRef.store_field env
         )
+      | NtCodec _ ->
+        E.trap_with env "deserialize_go: NtCodec"
       | Non ->
         skip get_idltyp ^^
         coercion_failed "IDL error: deserializing value of type None"
@@ -12516,6 +12564,32 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.subnet_self_node_count env ^^
     TaggedSmallWord.msb_adjust Type.Nat32
 
+  (* A native-table codec is a tuple of its layout and its hash list *)
+  | OtherPrim "nt_codec", [layout; labels] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae layout ^^
+    compile_exp_vanilla env ae labels ^^
+    Tuple.from_stack env 2
+
+  | OtherPrim "nt_codec_layout", [codec] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae codec ^^
+    Tuple.load_n env 0L
+
+  | OtherPrim p, es when (match List.assoc_opt p native_table_prims with
+      | Some (args, _) -> List.length args = List.length es
+      | None -> false) ->
+    let args, result = List.assoc p native_table_prims in
+    let arg kind e = match kind with
+      | `W -> compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e
+      | `V -> compile_exp_vanilla env ae e in
+    let sr, convert = match result with
+      | `W -> SR.UnboxedWord64 Type.Nat64, G.nop
+      | `N -> SR.Vanilla, BigNum.from_word64 env
+      | `B -> SR.bool, G.nop
+      | `V -> SR.Vanilla, G.nop in
+    sr, G.concat (List.map2 arg args es) ^^ E.call_rts env p ^^ convert
+
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
     compile_exp_vanilla env ae e ^^
@@ -13985,7 +14059,14 @@ and conclude_module env set_serialization_globals =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
-  Linking.LinkModule.link emodule "rts" (E.get_rts env)
+  (* Only programs that still call the native table, or keep a codec in stable variables,
+     link the larger runtime that contains it *)
+  let uses_native_table = !(env.E.requires_native_table) || List.exists (fun (imp : import) ->
+      let open Wasm.Source in
+      imp.it.module_name = Lib.Utf8.decode "rts" &&
+      String.starts_with ~prefix:"nt_" (Lib.Utf8.encode imp.it.item_name)
+    ) func_imports in
+  Linking.LinkModule.link emodule "rts" (E.get_rts env uses_native_table)
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)

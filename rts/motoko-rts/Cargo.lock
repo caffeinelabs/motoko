@@ -14,6 +14,7 @@ version = "0.1.0"
 dependencies = [
  "libm",
  "motoko-rts-macros",
+ "native-table",
 ]
 
 [[package]]
@@ -24,6 +25,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "native-table"
+version = "0.1.0"
 
 [[package]]
 name = "proc-macro2"

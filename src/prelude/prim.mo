@@ -100,6 +100,225 @@ func rts_logical_stable_memory_size() : Nat {
   (prim "rts_logical_stable_memory_size" : () -> Nat)();
 };
 
+// Native tables
+
+// How the rows of a native table with key and row types `T = (K, R)` are laid out: the layout
+// and the hash list of R. Only the compiler makes a codec, as an implicit argument where K and R
+// are known, so a codec always matches its type; the type is invariant in `T`.
+type NtCodec<T> = prim "NtCodec";
+
+func @ntCodec<T>(layout : Blob, labels : Blob) : NtCodec<T> {
+  (prim "nt_codec" : (Blob, Blob) -> NtCodec<T>)(layout, labels)
+};
+
+func ntCodecLayout<T>(codec : NtCodec<T>) : Blob {
+  (prim "nt_codec_layout" : NtCodec<T> -> Blob)(codec)
+};
+
+// Creates a table with an index on each list of fields of R, in key order, unique when its Bool
+// is true, and returns its id and the id of each list's index; equal lists share one index,
+// unique when one of them is. With `nulls`, its updates and upserts remove a row they leave with
+// every field null
+func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)], nulls : Bool) : (Nat64, [Nat]) {
+  (prim "nt_create" : (NtCodec<(K, R)>, [([Text], Bool)], Bool) -> (Nat64, [Nat]))(codec, indexes, nulls)
+};
+
+func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {
+  (prim "nt_size" : (Nat64, NtCodec<(K, R)>) -> Nat)(id, codec)
+};
+
+func ntPut<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) : Bool {
+  (prim "nt_put" : (Nat64, NtCodec<(K, R)>, K, R) -> Bool)(id, codec, k, r)
+};
+
+// ntPut, but false, writing nothing, when a unique index has a value of r for another row; else true
+func ntTryPut<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) : Bool {
+  (prim "nt_try_put" : (Nat64, NtCodec<(K, R)>, K, R) -> Bool)(id, codec, k, r)
+};
+
+func ntGet<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : ?R {
+  (prim "nt_get" : (Nat64, NtCodec<(K, R)>, K) -> ?R)(id, codec, k)
+};
+
+func ntRemove<K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) : Bool {
+  (prim "nt_remove" : (Nat64, NtCodec<(K, R)>, K) -> Bool)(id, codec, k)
+};
+
+// Up to `limit` rows (at most 64) from row id `next` on, every row, or with `filter` = ?(field, f)
+// the rows whose field `field` meets `f`; and the row id to go on from, or null when no row is left
+func ntScanEntries<K, R>(id : Nat64, codec : NtCodec<(K, R)>, filter : ?(Text, NtFilter), next : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 0, filter, next, limit)
+};
+
+func ntScanKeys<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([K], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([K], ?Nat64))(id, codec, 1, null, next, limit)
+};
+
+func ntScanValues<K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64, limit : Nat64) : ([R], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([R], ?Nat64))(id, codec, 2, null, next, limit)
+};
+
+// Every row newest first: up to `limit` rows (at most 64) below row id `before`; and the row id
+// to go on from, or null when no row is left
+func ntScanBack<K, R>(id : Nat64, codec : NtCodec<(K, R)>, before : Nat64, limit : Nat64) : ([(K, R)], ?Nat64) {
+  (prim "nt_scan" : (Nat64, NtCodec<(K, R)>, Nat64, ?(Text, NtFilter), Nat64, Nat64) -> ([(K, R)], ?Nat64))(id, codec, 4, null, before, limit)
+};
+
+// The value of one field of an index key
+type NtCell = {
+  #null_;
+  #bool : Bool;
+  #nat : Nat;
+  #int : Int;
+  #float : Float;
+  #text : Text;
+  #blob : Blob;
+  #principal : Principal
+};
+
+// One end of a filter's range: a cell, included or excluded
+type NtBound = { #incl : NtCell; #excl : NtCell };
+
+// What a filter asks of the value of a field: to equal the cell, null for `#null_`, or to lie
+// within the range, an end that is null open
+type NtFilter = { #eq : NtCell; #range : { low : ?NtBound; high : ?NtBound } };
+
+// The index on `fields` is the one `indexes`, field lists with their index ids, pairs with the
+// list `fields` itself, or else with a list of the same names in the same order; the calls that
+// name an index trap when there is none. A list taken from `indexes` is found without comparing
+// names
+
+// The number of rows with the index key `key` in the index on `fields`, one cell per field of
+// the index
+func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], key : [NtCell]) : Nat {
+  (prim "nt_count" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], [NtCell]) -> Nat)(
+    id,
+    codec,
+    indexes,
+    fields,
+    key,
+  )
+};
+
+// Up to `limit` rows (1 to 64) in the order of the index on `fields`, backward when `reverse`,
+// and the token to go on from, empty when no row is left. A walk goes on after the row its token
+// names; with an empty token, it starts at the index's first key (`start` 0), at its first key
+// whose first field is not null (1), or at the key `from` (2), at its n-th row, 0 the first, when
+// `start` also holds four times n. It stops before the first key past `to`
+func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ([(K, R)], Blob) {
+  (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ([(K, R)], Blob))(
+    id,
+    codec,
+    indexes,
+    fields,
+    reverse,
+    start,
+    from,
+    to,
+    token,
+    limit,
+  )
+};
+
+// Removes the rows the walk of the index on `fields` gives from the key `from`, or from its first
+// key when null, to the key `to`, or to its last when null; how many
+func ntRemoveRange<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], from : ?[NtCell], to : ?[NtCell]) : Nat {
+  (prim "nt_remove_range" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], ?[NtCell], ?[NtCell]) -> Nat)(id, codec, indexes, fields, from, to)
+};
+
+// The sum and the number of the non-null values of the field `column` of R over every row, or
+// with `filter` = ?(field, f) over the rows whose field `field` meets `f`; null when `column` is
+// not of an integer type
+func ntSum<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, filter : ?(Text, NtFilter)) : ?(Int, Nat) {
+  (prim "nt_sum" : (Nat64, NtCodec<(K, R)>, Text, ?(Text, NtFilter)) -> ?(Int, Nat))(id, codec, column, filter)
+};
+
+// The smallest non-null value of the field `column` of R over every row, or the largest when
+// `largest`; null when no row holds one, or when the field is not of an integer type
+func ntExtreme<K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text, largest : Bool) : ?Int {
+  (prim "nt_extreme" : (Nat64, NtCodec<(K, R)>, Text, Bool) -> ?Int)(id, codec, column, largest)
+};
+
+// Up to `limit` rows (at most 64) from row id `next` on, every row, or with `filter` = ?(field, f)
+// the rows whose field `field` meets `f`; each as the cells of its key when `key`, then of the
+// fields `fields` names, in the order named; and the row id to go on from, or null when no row is
+// left
+func ntScanCells<K, R>(id : Nat64, codec : NtCodec<(K, R)>, key : Bool, fields : [Text], filter : ?(Text, NtFilter), next : Nat64, limit : Nat64) : ([[NtCell]], ?Nat64) {
+  (prim "nt_scan_cells" : (Nat64, NtCodec<(K, R)>, Bool, [Text], ?(Text, NtFilter), Nat64, Nat64) -> ([[NtCell]], ?Nat64))(
+    id,
+    codec,
+    key,
+    fields,
+    filter,
+    next,
+    limit,
+  )
+};
+
+// The number of rows whose field `field` meets `filter`
+func ntCountWhere<K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text, filter : NtFilter) : Nat {
+  (prim "nt_count_where" : (Nat64, NtCodec<(K, R)>, Text, NtFilter) -> Nat)(id, codec, field, filter)
+};
+
+// Up to `limit` keys (1 to 64) of the index on `fields` in its order, each with the number of
+// rows that have it, from its first key when `after` is empty, else from the first key past
+// `after`; and the key to go on after, empty when no key is left
+func ntGroupCounts<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], after : Blob, limit : Nat64) : ([([NtCell], Nat)], Blob) {
+  (prim "nt_group_counts" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Blob, Nat64) -> ([([NtCell], Nat)], Blob))(
+    id,
+    codec,
+    indexes,
+    fields,
+    after,
+    limit,
+  )
+};
+
+// Runs steps of the table's maintenance, starting each only while the instructions this call has
+// used are fewer than `budget`; true when work is still pending
+func ntMaintain<K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) : Bool {
+  (prim "nt_maintain" : (Nat64, NtCodec<(K, R)>, Nat64) -> Bool)(id, codec, budget)
+};
+
+// Removes every row of the table; true when work is then pending
+func ntClear<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Bool {
+  (prim "nt_clear" : (Nat64, NtCodec<(K, R)>) -> Bool)(id, codec)
+};
+
+// Changes the table's row type from the one of `codec` to the one of `next`; true when the row
+// type changed
+func ntEvolve<K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>, next : NtCodec<(K, R2)>) : Bool {
+  (prim "nt_evolve" : (Nat64, NtCodec<(K, R1)>, NtCodec<(K, R2)>) -> Bool)(id, codec, next)
+};
+
+// The codec of a view of the table of `codec` with the row type of `viewed`, whose fields are
+// fields of R of the same names and types: a read with it reads only those fields
+func ntView<K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) : NtCodec<(K, P)> {
+  (prim "nt_view" : (NtCodec<(K, R)>, NtCodec<(K, P)>) -> NtCodec<(K, P)>)(codec, viewed)
+};
+
+// Sets the fields of `fields`, a value of the row type of `named`, in the row `k` has: each field
+// of P is a field of R of the same name and type, or a Nat (an option of one) for an Int (an option
+// of one). False, writing nothing, when `k` has no row
+func ntUpdate<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>, k : K, fields : P) : Bool {
+  (prim "nt_update" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P)>, K, P) -> Bool)(id, codec, named, k, fields)
+};
+
+// Sets the fields of `fields` in the row `k` has, as `ntUpdate`; when `k` has no row, inserts one
+// from them, null in the row's other fields (the compiler gives a codec `named` only when each of
+// those is an option, and each field of P is one of R, its place in R's row recorded). True when
+// `k` is new
+func ntUpsert<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P, R)>, k : K, fields : P) : Bool {
+  (prim "nt_upsert" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P, R)>, K, P) -> Bool)(id, codec, named, k, fields)
+};
+
+// Adds the elements of each array of `fields`, a value of the row type of `named`, at the end of
+// that array field of the row `k` has, as `ntUpdate` sets fields; a null array in the row counts
+// as empty, a null in `fields` adds nothing. False, writing nothing, when `k` has no row
+func ntAppend<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>, k : K, fields : P) : Bool {
+  (prim "nt_append" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P)>, K, P) -> Bool)(id, codec, named, k, fields)
+};
+
 //TODO: just call this `weak`?
 func allocWeakRef<T>(obj : T) : weak T {
   (prim "alloc_weak_ref" : T -> weak T)(obj);

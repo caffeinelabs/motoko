@@ -1,0 +1,27 @@
+# One canister switches between the runtime without native tables and the runtime with them across
+# upgrades, and keeps its table. Graph copy works while it has no table
+install $ID nt-runtimes/plain.mo ""
+ingress $ID put "DIDL\x00\x00"
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+upgrade $ID nt-runtimes/tables.mo ""
+ingress $ID makeTable "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID nt-runtimes/plain.mo ""
+ingress $ID check "DIDL\x00\x00"
+# The runtime without native tables also refuses graph copy while a table exists
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+upgrade $ID nt-runtimes/tables.mo ""
+ingress $ID check "DIDL\x00\x00"
+ingress $ID write "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+# A canister of release 2.2.1, whose persistent metadata has no word for native tables, makes a
+# table after its upgrade and keeps it (`plain-2.2.1.wasm`, see note.txt)
+reinstall $ID nt-runtimes/plain-2.2.1.wasm ""
+ingress $ID put "DIDL\x00\x00"
+upgrade $ID nt-runtimes/tables.mo ""
+ingress $ID makeTable "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID nt-runtimes/plain.mo ""
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID nt-runtimes/tables.mo ""
+ingress $ID check "DIDL\x00\x00"

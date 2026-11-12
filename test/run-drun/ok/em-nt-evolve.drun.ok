@@ -1,0 +1,88 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {few = 1_000; names = 2; orders = 40_000; version = 1}
+debug.print: (?{amount = 25; city = "Bern"; customer = "c25"; note = null; paid = false; placed = -19_975}, ?{amount = 999; city = "Genf"; customer = "c99"; note = ?"n1"; paid = false; placed = +19_999})
+debug.print: (?(+19_980_000), ?0, ?(+999))
+debug.print: 8_000
+debug.print: [(1, {amount = 1; city = "Bern"; customer = "c1"; note = ?"n1"; paid = false; placed = -19_999}), (5, {amount = 5; city = "Bern"; customer = "c5"; note = null; paid = false; placed = -19_995})]
+debug.print: [[#nat(0), #text("Basel"), #null_], [#nat(1), #text("Bern"), #text("n1")], [#nat(2), #text("Chur"), #text("n2")]]
+debug.print: (40, [(998, {amount = 998; city = "Chur"; customer = "c98"; note = ?"n4"; paid = true; placed = -19_002}), (1_998, {amount = 998; city = "Chur"; customer = "c98"; note = ?"n3"; paid = true; placed = -18_002})])
+debug.print: [(0, {amount = 0; city = "Basel"; customer = "c0"; note = null; paid = true; placed = -20_000}), (4, {amount = 4; city = "Basel"; customer = "c4"; note = ?"n4"; paid = true; placed = -19_996})]
+debug.print: [([#text("Basel")], 10_000), ([#text("Bern")], 10_000), ([#text("Chur")], 10_000), ([#text("Genf")], 10_000)]
+debug.print: ([(["city"], 1), (["amount"], 2), (["note"], 3)], ["customer", "placed", "city", "note", "paid", "amount"])
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {few = 1_000; names = 2; orders = 40_000; version = 2}
+debug.print: (?{amount = 25; city = "Bern"; coupon = null; customer = "c25"; paid = false; placed = -19_975; tip = null}, ?{amount = 0; city = "Basel"; coupon = null; customer = "c0"; paid = true; placed = -20_000; tip = null}, null)
+debug.print: null
+debug.print: (?(+19_980_000), ?(0, 0), null, null)
+debug.print: 40_000
+debug.print: [(1, {amount = 1; city = "Bern"; coupon = null; customer = "c1"; paid = false; placed = -19_999; tip = null}), (5, {amount = 5; city = "Bern"; coupon = null; customer = "c5"; paid = false; placed = -19_995; tip = null})]
+debug.print: [[#nat(0), #text("Basel"), #null_, #null_], [#nat(1), #text("Bern"), #null_, #null_], [#nat(2), #text("Chur"), #null_, #null_]]
+debug.print: (40, [(998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -19_002; tip = null}), (1_998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -18_002; tip = null})])
+debug.print: [(0, {amount = 0; city = "Basel"; coupon = null; customer = "c0"; paid = true; placed = -20_000; tip = null}), (4, {amount = 4; city = "Basel"; coupon = null; customer = "c4"; paid = true; placed = -19_996; tip = null})]
+debug.print: [([#text("Basel")], 10_000), ([#text("Bern")], 10_000), ([#text("Chur")], 10_000), ([#text("Genf")], 10_000)]
+debug.print: ([(["city"], 1), (["amount"], 2)], ["tip", "customer", "placed", "city", "paid", "coupon", "amount"])
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {few = 1_040; names = 2; orders = 40_040; version = 2}
+debug.print: (?{amount = 25; city = "Bern"; coupon = null; customer = "c25"; paid = false; placed = -19_975; tip = null}, ?{amount = 0; city = "Basel"; coupon = ?"r0"; customer = "c0"; paid = true; placed = -20_000; tip = ?0}, ?{amount = 1; city = "Zug"; coupon = ?"k1"; customer = "new 1"; paid = true; placed = +1; tip = ?101})
+debug.print: ?70_000
+debug.print: (?(+19_981_080), ?(+51_225, 60), ?0, ?(+9_000))
+debug.print: 39_980
+debug.print: [(1, {amount = 1; city = "Bern"; coupon = ?"r1"; customer = "c1"; paid = false; placed = -19_999; tip = ?1_000}), (5, {amount = 5; city = "Bern"; coupon = ?"r5"; customer = "c5"; paid = false; placed = -19_995; tip = ?5_000})]
+debug.print: [[#nat(0), #text("Basel"), #text("r0"), #nat(0)], [#nat(1), #text("Bern"), #text("r1"), #nat(1_000)], [#nat(2), #text("Chur"), #text("r2"), #nat(2_000)]]
+debug.print: (41, [(998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -19_002; tip = null}), (1_998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -18_002; tip = null})])
+debug.print: [(0, {amount = 0; city = "Basel"; coupon = ?"r0"; customer = "c0"; paid = true; placed = -20_000; tip = ?0}), (4, {amount = 4; city = "Basel"; coupon = ?"r4"; customer = "c4"; paid = true; placed = -19_996; tip = ?4_000})]
+debug.print: [([#text("Basel")], 9_998), ([#text("Bern")], 9_998), ([#text("Chur")], 9_997), ([#text("Genf")], 9_997), ([#text("Zug")], 50)]
+debug.print: ([(["city"], 1), (["amount"], 2)], ["tip", "customer", "placed", "city", "paid", "coupon", "amount"])
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field changes its type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a new field is not an option'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a row that is a scalar cannot change'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {few = 1_040; names = 2; orders = 40_040; version = 2}
+debug.print: (?{amount = 25; city = "Bern"; coupon = null; customer = "c25"; paid = false; placed = -19_975; tip = null}, ?{amount = 0; city = "Basel"; coupon = ?"r0"; customer = "c0"; paid = true; placed = -20_000; tip = ?0}, ?{amount = 1; city = "Zug"; coupon = ?"k1"; customer = "new 1"; paid = true; placed = +1; tip = ?101})
+debug.print: ?70_000
+debug.print: (?(+19_981_080), ?(+51_225, 60), ?0, ?(+9_000))
+debug.print: 39_980
+debug.print: [(1, {amount = 1; city = "Bern"; coupon = ?"r1"; customer = "c1"; paid = false; placed = -19_999; tip = ?1_000}), (5, {amount = 5; city = "Bern"; coupon = ?"r5"; customer = "c5"; paid = false; placed = -19_995; tip = ?5_000})]
+debug.print: [[#nat(0), #text("Basel"), #text("r0"), #nat(0)], [#nat(1), #text("Bern"), #text("r1"), #nat(1_000)], [#nat(2), #text("Chur"), #text("r2"), #nat(2_000)]]
+debug.print: (41, [(998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -19_002; tip = null}), (1_998, {amount = 998; city = "Chur"; coupon = null; customer = "c98"; paid = true; placed = -18_002; tip = null})])
+debug.print: [(0, {amount = 0; city = "Basel"; coupon = ?"r0"; customer = "c0"; paid = true; placed = -20_000; tip = ?0}), (4, {amount = 4; city = "Basel"; coupon = ?"r4"; customer = "c4"; paid = true; placed = -19_996; tip = ?4_000})]
+debug.print: [([#text("Basel")], 9_998), ([#text("Bern")], 9_998), ([#text("Chur")], 9_997), ([#text("Genf")], 9_997), ([#text("Zug")], 50)]
+debug.print: ([(["city"], 1), (["amount"], 2)], ["tip", "customer", "placed", "city", "paid", "coupon", "amount"])
+ingress Completed: Reply: 0x4449444c0000
+debug.print: evolve cost flat: true
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {few = 1_040; names = 2; orders = 40_040; version = 3}
+debug.print: (?{amount = 25; city = "Bern"; customer = "c25"; gift = null; tip = null}, ?{amount = 0; city = "Zug"; customer = "new 0"; gift = null; tip = ?100}, ?{amount = 0; city = "Basel"; customer = "c0"; gift = null; tip = ?0}, null)
+debug.print: (?(+19_981_080), ?(+51_225, 60), ?0, ?(+9_000))
+debug.print: 40_040
+debug.print: [(1, {amount = 1; city = "Bern"; customer = "c1"; gift = null; tip = ?1_000}), (5, {amount = 5; city = "Bern"; customer = "c5"; gift = null; tip = ?5_000})]
+debug.print: [[#nat(0), #text("Basel"), #null_, #nat(0)], [#nat(1), #text("Bern"), #null_, #nat(1_000)], [#nat(2), #text("Chur"), #null_, #nat(2_000)]]
+debug.print: (41, [(998, {amount = 998; city = "Chur"; customer = "c98"; gift = null; tip = null}), (1_998, {amount = 998; city = "Chur"; customer = "c98"; gift = null; tip = null})])
+debug.print: [(0, {amount = 0; city = "Basel"; customer = "c0"; gift = null; tip = ?0}), (4, {amount = 4; city = "Basel"; customer = "c4"; gift = null; tip = ?4_000})]
+debug.print: [([#text("Basel")], 9_998), ([#text("Bern")], 9_998), ([#text("Chur")], 9_997), ([#text("Genf")], 9_997), ([#text("Zug")], 50)]
+debug.print: ([(["city"], 1), (["amount"], 2)], ["tip", "customer", "city", "gift", "amount"])
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {few = 1_050; names = 2; orders = 40_050; version = 3}
+debug.print: (?{amount = 25; city = "Bern"; customer = "c25"; gift = null; tip = null}, ?{amount = 0; city = "Zug"; customer = "new 0"; gift = null; tip = ?100}, ?{amount = 0; city = "Basel"; customer = "c0"; gift = null; tip = ?0}, ?{amount = 1; city = "Zug"; customer = "gift 1"; gift = ?"g1"; tip = null})
+debug.print: (?(+19_981_125), ?(+51_225, 60), ?0, ?(+9_000))
+debug.print: 40_040
+debug.print: [(1, {amount = 1; city = "Bern"; customer = "c1"; gift = null; tip = ?1_000}), (5, {amount = 5; city = "Bern"; customer = "c5"; gift = null; tip = ?5_000})]
+debug.print: [[#nat(0), #text("Basel"), #null_, #nat(0)], [#nat(1), #text("Bern"), #null_, #nat(1_000)], [#nat(2), #text("Chur"), #null_, #nat(2_000)]]
+debug.print: (42, [(998, {amount = 998; city = "Chur"; customer = "c98"; gift = null; tip = null}), (1_998, {amount = 998; city = "Chur"; customer = "c98"; gift = null; tip = null})])
+debug.print: [(0, {amount = 0; city = "Basel"; customer = "c0"; gift = null; tip = ?0}), (4, {amount = 4; city = "Basel"; customer = "c4"; gift = null; tip = ?4_000})]
+debug.print: [([#text("Basel")], 9_998), ([#text("Bern")], 9_998), ([#text("Chur")], 9_997), ([#text("Genf")], 9_997), ([#text("Zug")], 60)]
+debug.print: ([(["city"], 1), (["amount"], 2)], ["tip", "customer", "city", "gift", "amount"])
+ingress Completed: Reply: 0x4449444c0000

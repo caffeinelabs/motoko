@@ -1,0 +1,17 @@
+// The table users with one more field, an option, in its row type
+type NtCodec__1066334254<T> = NtCodec<T>;
+type User__188123576 = {amount : Nat; city : Text; extra : ?Nat; name : Text};
+actor {
+  stable places :
+    {
+      codec : NtCodec__1066334254<(Text, Text)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    };
+  stable users :
+    {
+      codec : NtCodec__1066334254<(Nat, User__188123576)>;
+      id : Nat64;
+      indexes : [([Text], Nat)]
+    }
+};

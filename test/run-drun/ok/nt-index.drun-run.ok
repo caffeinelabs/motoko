@@ -1,0 +1,79 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: empty {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong = 0}
+debug.print: {maintain = false}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: fill {keys = [13, 41, 954, 82, 88, 1_468, 41, 27, 6, 100, 12, 1]; size = 3_000; wrong = 0}
+debug.print: [(["s"], 1), (["on"], 2), (["a"], 3), (["f", "on"], 4), (["c", "s"], 5), (["n8", "i16"], 6), (["fl"], 7), (["ch"], 8), (["ot"], 9), (["n64", "i64", "i8"], 10), (["bl", "p"], 11), (["z"], 12)]
+debug.print: [([#blob(""), #principal(aaaaa-aa)], 243), ([#blob(""), #principal(uuc56-gyb)], 233), ([#blob(""), #principal(ldbch-pqbaa)], 255), ([#blob("\00"), #principal(aaaaa-aa)], 252), ([#blob("\00"), #principal(uuc56-gyb)], 240), ([#blob("\00"), #principal(ldbch-pqbaa)], 269), ([#blob("\00\01"), #principal(aaaaa-aa)], 245), ([#blob("\00\01"), #principal(uuc56-gyb)], 263), ([#blob("\00\01"), #principal(ldbch-pqbaa)], 257), ([#blob("\FF"), #principal(aaaaa-aa)], 250), ([#blob("\FF"), #principal(uuc56-gyb)], 242), ([#blob("\FF"), #principal(ldbch-pqbaa)], 251)]
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {keys = [13, 41, 954, 82, 88, 1_468, 41, 27, 6, 100, 12, 1]; size = 3_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 30_348; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: change {keys = [13, 41, 921, 82, 88, 1_314, 41, 27, 6, 100, 12, 1]; size = 2_400; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 24_382; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: upkeep {keys = [13, 41, 921, 82, 88, 1_314, 41, 27, 6, 100, 12, 1]; size = 2_400; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: refill {keys = [13, 41, 964, 82, 88, 1_445, 41, 27, 6, 100, 12, 1]; size = 3_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 30_460; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: resume {added = 2; wrong = 0}
+debug.print: resumed {keys = [13, 41, 951, 82, 88, 1_456, 41, 27, 6, 100, 12, 1]; size = 3_000; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ranges {wrong = 0}
+debug.print: ranges {keys = [10, 39, 682, 78, 66, 1_093, 41, 27, 6, 100, 12, 1]; size = 1_684; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 17_504; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: clear {keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; size = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: walks {walked = 0; wrong = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (3_225, false, ?1, ?7, 1_075)
+debug.print: (?(+15_047), ?0, ?(+8), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (0, true, null, null, 0)
+debug.print: (?0, null, null, null, null)
+debug.print: (10, false, ?0, ?0, 0)
+debug.print: (?(+24), ?0, ?(+6), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (3_750, false, ?1, ?7, 1_250)
+debug.print: (?(+17_497), ?0, ?(+8), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+debug.print: true
+debug.print: (1, false, ?1, ?1, 0)
+debug.print: (?(+1), ?(+1), ?(+1), null, null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: false
+debug.print: (1, false, ?1, ?1, 0)
+debug.print: (?(+1), ?(+1), ?(+1), null, null)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {indexes = [(["email"], 1), (["team", "badge"], 2)]; size = 3; three = ?{badge = 1; email = null; team = "blue"}; tried = [false, false, true, true, true]}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a unique index already has this value'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a unique index already has this value'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: {size = 3; three = ?{badge = 1; email = null; note = null; team = "blue"}; tried = false}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: an index has 1 to 7 fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: no index on these fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key does not match the index's fields'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key value out of range'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: index key value out of range'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

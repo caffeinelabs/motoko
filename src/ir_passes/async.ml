@@ -175,6 +175,7 @@ let transform prog =
     | Pre -> Pre
     | Named _ -> assert false (* removed by erase_typ_field *)
     | Weak t -> Weak (t_typ t)
+    | NtCodec t -> NtCodec (t_typ t)
 
   and t_bind tb =
     { tb with bound = t_typ tb.bound }

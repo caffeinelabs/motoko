@@ -1,0 +1,72 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (?{city = "Basel"; customer = "c0"}, ?{city = "Chur"; customer = "c7"}, ?{city = "Bern"; customer = "c4_199"}, null)
+debug.print: (?{amount = 35; note = null}, ?{amount = 49; note = ?"replaced"}, ?{city = "Chur"}, ?{}, null)
+debug.print: (?1_180_591_620_717_411_303_424, null)
+debug.print: 4_200
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_200, 4_200, 4_200, 4_200, 4_200, 1_400, 4_200, 100)
+debug.print: (?(0, {city = "Basel"; customer = "c0"}), ?(7, {city = "Chur"}))
+debug.print: (?("Basel", 3), ?3)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2_100, 3, true, true, true, true, true, true, true)
+debug.print: (2_799, ?(-4_199), 4_200)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ?{name = "Ana"}
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (?{email = null; name = "Ana"}, ?{email = ?"cy@example.org"; name = "Cy"}, null)
+debug.print: (?(1, {email = null; name = "Ana"}), ?(2, {email = null; name = "Bo"}), ?(3, {email = ?"cy@example.org"; name = "Cy"}), null)
+debug.print: (?[#nat(40)], ?(+90), 3)
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field has another type than the table's'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field has another type than the table's'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: (?{city = "Basel"; customer = "c0"}, ?{city = "Chur"; customer = "c7"}, ?{city = "Bern"; customer = "c4_199"}, null)
+debug.print: (?{amount = 35; note = null}, ?{amount = 49; note = ?"replaced"}, ?{city = "Chur"}, ?{}, null)
+debug.print: (?1_180_591_620_717_411_303_424, null)
+debug.print: 4_200
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, false, null, null)
+debug.print: (null, 4_198, false)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (4_198, 4_198, 4_198, 4_198, 4_198, 1_399, 4_198, 100)
+debug.print: (?(0, {city = "Basel"; customer = "c0"}), ?(7, {city = "Chur"}))
+debug.print: (?("Basel", 3), ?3)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (2_100, 3, true, true, true, true, true, true, true)
+debug.print: (2_798, ?(-4_198), 4_198)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, true, true, true, true, false)
+debug.print: ([7, 9, 4_160], true, ?(+5), 4_198)
+debug.print: (true, true, ?{best = ?(+7); score = +5; tag = "a"}, true, ?{best = null; score = +5; tag = "b"}, 1)
+debug.print: (true, ?{best = null; score = +4; tag = "c"}, false, false, ?{best = ?(+1); score = +6; tag = "e"}, 1, 0)
+debug.print: (true, false, true, true, ?{role = null; seq = ?1}, false, (null, null, 1, 0), true, ?{note = null; tag = "t"})
+debug.print: (true, null, 0)
+debug.print: (true, true, ?{age = 40; email = ?"ana@example.org"; name = "Ana"}, ?{age = 31; email = null; name = "Bo"})
+debug.print: (true, ?{age = 22; email = null; name = "Di"}, false, ?{age = 23; email = ?"di@example.org"; name = "Di"})
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, true, true, true, true, null, ?{city = "Chur"; customer = "c9"})
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: the row type has no field of that name'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field has another type than the table's'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field has another type than the table's'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: not a table of this key and row type'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
+debug.print: (true, true, true, true, true, null, ?{city = "Chur"; customer = "c9"})
+ingress Completed: Reply: 0x4449444c0000

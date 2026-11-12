@@ -11,9 +11,11 @@ path = "../src/lib.rs"
 [features]
 ic = [] # Not used by RTS unit tests
 memory_check = []
+native_table = ["dep:native-table"]
 
 [dependencies]
 motoko-rts-macros = { path = "../../motoko-rts-macros" }
+native-table = { path = "../../native-table/crates/native-table", optional = true }
 
 [profile.dev]
 panic = "abort"

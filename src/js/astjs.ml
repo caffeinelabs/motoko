@@ -143,6 +143,7 @@ module Make (Cfg : Config) = struct
     | Pre -> js_string "Pre"
     | Named (n, t) -> to_js_object "Name" [| js_string n; typ_js t |]
     | Weak t -> to_js_object "Weak" [| typ_js t |]
+    | NtCodec t -> to_js_object "NtCodec" [| typ_js t |]
 
   and field_js { Type.lab; typ = t; src = s } =
     to_js_object lab (typ_js t :: src s |> Array.of_list)

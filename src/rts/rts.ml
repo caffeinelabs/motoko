@@ -21,3 +21,5 @@ let load_file env =
 
 let wasm_release : string Lazy.t = lazy (load_file "MOC_RELEASE_RTS")
 let wasm_debug : string Lazy.t = lazy (load_file "MOC_DEBUG_RTS")
+let wasm_release_table : string Lazy.t option = Some (lazy (load_file "MOC_RELEASE_TABLE_RTS"))
+let wasm_debug_table : string Lazy.t option = Some (lazy (load_file "MOC_DEBUG_TABLE_RTS"))

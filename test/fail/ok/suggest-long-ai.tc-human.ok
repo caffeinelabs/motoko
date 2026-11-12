@@ -18,6 +18,21 @@ error[M0072]: field region does not exist in type:
         #system_transient;
         #system_unknown
       };
+    type NtBound = {#excl : NtCell; #incl : NtCell};
+    type NtCell =
+      {
+        #blob : Blob;
+        #bool : Bool;
+        #float : Float;
+        #int : Int;
+        #nat : Nat;
+        #null_;
+        #principal : Principal;
+        #text : Text
+      };
+    type NtCodec<T> = NtCodec<T>;
+    type NtFilter =
+      {#eq : NtCell; #range : {high : ?NtBound; low : ?NtBound}};
     type __List =
       {
         index : Nat;
@@ -26,6 +41,7 @@ error[M0072]: field region does not exist in type:
         value : ?__WeakRef
       };
     type __WeakRef = {ref : weak Blob};
+    @ntCodec : <T>(layout : Blob, labels : Blob) -> NtCodec<T>;
     Array_init : <T>(len : Nat, x : T) -> [var T];
     Array_tabulate : <T>(len : Nat, gen : Nat -> T) -> [T];
     Array_tabulateVar : <T>(len : Nat, gen : Nat -> T) -> [var T];
@@ -224,6 +240,89 @@ error[M0072]: field region does not exist in type:
     natToNat32 : (n : Nat) -> Nat32;
     natToNat64 : (n : Nat) -> Nat64;
     natToNat8 : (n : Nat) -> Nat8;
+    ntAppend :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
+                k : K, fields : P) ->
+        Bool;
+    ntClear : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Bool;
+    ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
+    ntCount :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], key : [NtCell]) ->
+        Nat;
+    ntCountWhere :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, field : Text,
+             filter : NtFilter) ->
+        Nat;
+    ntCreate :
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)],
+             nulls : Bool) ->
+        (Nat64, [Nat]);
+    ntEvolve :
+      <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,
+                  next : NtCodec<(K, R2)>) ->
+        Bool;
+    ntExtreme :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
+             largest : Bool) ->
+        ?Int;
+    ntGet : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) -> ?R;
+    ntGroupCounts :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], after : Blob, limit : Nat64) ->
+        ([([NtCell], Nat)], Blob);
+    ntMaintain :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, budget : Nat64) -> Bool;
+    ntPut : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
+    ntRemove : <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K) -> Bool;
+    ntRemoveRange :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], from : ?[NtCell], to : ?[NtCell]) ->
+        Nat;
+    ntScanBack :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, before : Nat64,
+             limit : Nat64) ->
+        ([(K, R)], ?Nat64);
+    ntScanCells :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, key : Bool,
+             fields : [Text], filter : ?(Text, NtFilter), next : Nat64,
+             limit : Nat64) ->
+        ([[NtCell]], ?Nat64);
+    ntScanEntries :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, filter : ?(Text, NtFilter),
+             next : Nat64, limit : Nat64) ->
+        ([(K, R)], ?Nat64);
+    ntScanKeys :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64,
+             limit : Nat64) ->
+        ([K], ?Nat64);
+    ntScanValues :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, next : Nat64,
+             limit : Nat64) ->
+        ([R], ?Nat64);
+    ntSize : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Nat;
+    ntSum :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, column : Text,
+             filter : ?(Text, NtFilter)) ->
+        ?(Int, Nat);
+    ntTryPut :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, k : K, r : R) -> Bool;
+    ntUpdate :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
+                k : K, fields : P) ->
+        Bool;
+    ntUpsert :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>,
+                named : NtCodec<(K, P, R)>, k : K, fields : P) ->
+        Bool;
+    ntView :
+      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
+        NtCodec<(K, P)>;
+    ntWalk :
+      <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],
+             fields : [Text], reverse : Bool, start : Nat64, from : [NtCell],
+             to : ?[NtCell], token : Blob, limit : Nat64) ->
+        ([(K, R)], Blob);
     performanceCounter : (counter : Nat32) -> Nat64;
     popcntInt16 : (w : Int16) -> Int16;
     popcntInt32 : (w : Int32) -> Int32;

@@ -63,6 +63,7 @@ pub unsafe extern "C" fn is_graph_stabilization_started() -> bool {
 ///   Type index 0 represents the stable actor object to be serialized.
 /// Note:
 /// - Once started, the heap is invalidated. All application messages must be blocked after this start.
+/// - Traps while a native table exists: graph copy does not carry the tables' store memory over.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn start_graph_stabilization<M: Memory>(
     mem: &mut M,
@@ -70,6 +71,13 @@ pub unsafe fn start_graph_stabilization<M: Memory>(
     old_candid_data: Value,
     old_type_offsets: Value,
 ) {
+    // Tables are never freed, so a table exists once the store does. The runtime without native
+    // tables checks too: a canister that made tables may have switched to it.
+    if *crate::persistence::native_store_location() != 0 {
+        rts_trap_with(
+            "native table: graph-copy stabilization is not possible while a table exists",
+        );
+    }
     assert!(STABILIZATION_STATE.is_none());
     assert!(is_gc_stopped());
     let stable_memory_pages = stable_mem::size(); // Backup the virtual size.

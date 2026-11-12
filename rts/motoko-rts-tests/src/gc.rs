@@ -47,6 +47,68 @@ pub fn test_random_range(start: u64, end: u64) {
 
 pub fn test_gc_components() {
     self::incremental::test();
+    test_store_partition();
+}
+
+/// A store partition keeps every byte through a full collection cycle. The collector's
+/// occupied-size check runs at the start and at the end of the cycle.
+fn test_store_partition() {
+    use motoko_rts::gc::incremental::{
+        Phase, get_incremental_gc_state, get_partitioned_heap, partitioned_heap::PARTITION_SIZE,
+    };
+
+    println!("  Testing store partition...");
+    let test_heap = &test_heaps()[0];
+    // Room for one more partition.
+    let mut heap = test_heap.build(GC::Incremental, PARTITION_SIZE);
+    initialize_gc(&mut heap);
+
+    const WORDS: usize = PARTITION_SIZE / size_of::<u64>();
+    let pattern = |index: usize| (index as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+
+    unsafe {
+        let partitioned_heap = get_partitioned_heap();
+        let size_before = partitioned_heap.occupied_size().as_usize();
+        let start = partitioned_heap.take_store_partition(&mut heap);
+        assert_eq!(start % PARTITION_SIZE, 0);
+        assert_eq!(
+            partitioned_heap.occupied_size().as_usize(),
+            size_before + PARTITION_SIZE
+        );
+        let partition = partitioned_heap.get_partition(start / PARTITION_SIZE);
+        assert!(!partition.is_free());
+        assert!(!partition.has_dynamic_space());
+
+        let words = start as *mut u64;
+        for index in 0..WORDS {
+            *words.add(index) = pattern(index);
+        }
+
+        assert!(get_incremental_gc_state().phase() == Phase::Pause);
+        GC::Incremental.run(&mut heap, 0);
+        assert!(get_incremental_gc_state().phase() == Phase::Pause);
+
+        for index in 0..WORDS {
+            assert_eq!(*words.add(index), pattern(index));
+        }
+        let partition = get_partitioned_heap().get_partition(start / PARTITION_SIZE);
+        assert!(!partition.is_free());
+        assert!(!partition.has_dynamic_space());
+    }
+
+    check_dynamic_heap(
+        CheckMode::Reachability,
+        &test_heap.heap,
+        &test_heap.roots,
+        &test_heap.continuation_table,
+        &**heap.heap(),
+        heap.heap_base_offset(),
+        heap.heap_ptr_offset(),
+        heap.static_root_array_variable_offset(),
+        heap.continuation_table_variable_offset(),
+        heap.region0_pointer_variable_offset(),
+    );
+    reset_gc();
 }
 
 fn test_heaps() -> Vec<TestHeap> {
