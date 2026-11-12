@@ -61,8 +61,6 @@ pub fn has_item(l: &LeafInfo, v: &Val<'_>) -> bool {
 pub struct Plan {
     /// Image bytes.
     pub len: u64,
-    pub big: bool,
-    pub long: bool,
     /// Inline bytes: the image's bytes other than medium items and long items.
     pub inline: u64,
     /// Bytes of medium values (longer than `LONG_VALUE`, kept inline until the seal packs them).
@@ -94,22 +92,18 @@ pub fn plan<const UTF8: bool, H: PageHost + ?Sized, R: RowSource + ?Sized, K: cr
     let mut out_of_inline = 0u64;
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
-        let (big, item) = {
+        let item = {
             let v = if UTF8 { cell_of(src, &l)? } else { checked_cell(src, &l)? };
             if l.key {
                 cell::enc_key(key, &l, &v)?;
             }
-            (cell::is_big(&v), has_item(&l, &v).then(|| cell::var_len(&v, l.ty)))
+            has_item(&l, &v).then(|| cell::var_len(&v, l.ty))
         };
-        if big {
-            p.big = true;
-        }
         if let Some(n) = item {
             let long = is_long(n);
             let b = item_bytes(n, long);
             items = items.checked_add(b).ok_or(rt(Corruption::Range, b))?;
             if long {
-                p.long = true;
                 p.large = p.large.wrapping_add(1);
                 out_of_inline = out_of_inline.wrapping_add(b);
             } else if n > LONG_VALUE {

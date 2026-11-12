@@ -123,25 +123,18 @@ impl Secondary {
         }
         let (s, v) = (self.shape, self.view(h));
         let rank = |key: &[u8], kind| tree::rank(s, &v, self.root, &KeyProbe { key, kind });
-        let lo = match from {
-            Some(k) => rank(k, Kind::Low)?,
-            None => 0,
-        };
-        let hi = match to {
-            Some(k) => rank(k, Kind::Count)?,
-            None => node_rows(s, &v, self.root)?,
-        };
+        let lo = from.map_or(Ok(0), |k| rank(k, Kind::Low))?;
+        let hi = to.map_or_else(|| node_rows(s, &v, self.root), |k| rank(k, Kind::Count))?;
         Ok((lo, hi.saturating_sub(lo)))
     }
 
     /// The rid of the row with `t` rows before it in the tree's order; `None` when there is none. One descent.
     pub fn rid_at<H: PageHost + ?Sized>(&self, h: &H, t: u64) -> Result<Option<u64>, Fault> {
         let v = self.view(h);
-        let Some((n, i)) = (if self.root == 0 { None } else { tree::select(self.shape, &v, self.root, t)? }) else {
+        let Some(e) = (if self.root == 0 { None } else { tree::select(self.shape, &v, self.root, t)? }) else {
             return Ok(None);
         };
-        let (_, field) = field_at(self.shape, &v, n, i)?;
-        Ok(Some(if is_ovf(field) { v.record(field)?.0 } else { payload(field) }))
+        Ok(Some(rid_of(self.shape, &v, e)?))
     }
 
     /// Where the walk from `from` (`None`: from the index's end) in direction `dir` hands out its n-th row, 0 its
@@ -162,12 +155,8 @@ impl Secondary {
         }
         let (s, v) = (self.shape, self.view(h));
         let rank = |key: &[u8], kind| tree::rank(s, &v, self.root, &KeyProbe { key, kind });
-        // The row entry with `t` row entries before it in the tree's order, and its rid.
+        // The row entry with `t` row entries before it in the tree's order.
         let at = |t: u64| tree::select(s, &v, self.root, t);
-        let rid = |(n, i): (u64, u64)| -> Result<u64, Fault> {
-            let (_, field) = field_at(s, &v, n, i)?;
-            Ok(if is_ovf(field) { v.record(field)?.0 } else { payload(field) })
-        };
         // The entry's key, whole at the start of `key`: its length.
         let key_of = |(n, i): (u64, u64), key: &mut [u8]| -> Result<usize, Fault> {
             let written = entry_key(&v, n, i, key)?;
@@ -176,20 +165,14 @@ impl Secondary {
         if dir == Dir::Fwd {
             // Going forward the walk hands out the tree's rows in order, so it starts at the first row of its first
             // key, or goes on after the row before the n-th.
-            let first = match from {
-                Some(k) => rank(k, Kind::Low)?,
-                None => 0,
-            };
+            let first = from.map_or(Ok(0), |k| rank(k, Kind::Low))?;
             let Some(t) = first.checked_add(n) else { return Ok(None) };
             let Some(e) = at(t.wrapping_sub(u64::from(n > 0)))? else { return Ok(None) };
-            return Ok(Some((key_of(e, key)?, if n > 0 { Some(rid(e)?) } else { None })));
+            return Ok(Some((key_of(e, key)?, if n > 0 { Some(rid_of(s, &v, e)?) } else { None })));
         }
         // Going backward the keys fall but each key's rows rise: the n-th row's key holds the row n places before the
         // end of the walk's rows in the tree's order, and the rows of that key after that row come before the n-th.
-        let end = match from {
-            Some(k) => rank(k, Kind::Count)?,
-            None => node_rows(s, &v, self.root)?,
-        };
+        let end = from.map_or_else(|| node_rows(s, &v, self.root), |k| rank(k, Kind::Count))?;
         let Some(q) = end.checked_sub(n).and_then(|t| t.checked_sub(1)) else { return Ok(None) };
         let Some(e) = at(q)? else { return Ok(None) };
         let len = key_of(e, key)?;
@@ -200,7 +183,7 @@ impl Secondary {
             return Ok(Some((len, None)));
         }
         let Some(e) = at(lo.wrapping_add(before).wrapping_sub(1))? else { return Err(rt(Corruption::Count, q)) };
-        Ok(Some((len, Some(rid(e)?))))
+        Ok(Some((len, Some(rid_of(s, &v, e)?))))
     }
 
     /// The rows whose key starts with `prefix`, the encoding of the first parts of a key, not all of them: the rows
@@ -307,6 +290,13 @@ fn against_key<H: PageHost + ?Sized>(
 ) -> Result<Ordering, Fault> {
     let koff = ko(s, &s.shape(is_leaf(v, n)?), i);
     KeyProbe { key, kind: Kind::Count }.cmp_at(v, n, koff)
+}
+
+/// The rid row entry (n, i) holds: its field's payload, or its key-log record's when its key is longer than W.
+#[inline(always)]
+fn rid_of<H: PageHost + ?Sized>(s: IndexShape, v: &AreaView<'_, H>, (n, i): (u64, u64)) -> Result<u64, Fault> {
+    let (_, field) = field_at(s, v, n, i)?;
+    Ok(if is_ovf(field) { v.record(field)?.0 } else { payload(field) })
 }
 
 /// The row of `key` a forward cursor standing at or after the key's first row stands at: its rid, node and

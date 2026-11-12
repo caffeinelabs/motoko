@@ -28,13 +28,7 @@ pub trait Shape: Copy {
 /// and nI = ⌊(4,072 − b) / (ks + v + b)⌋, with voff = 8 + c·ks and coff = voff + c·v.
 pub const fn index_node_shape(ks: u64, v: u64, internal: bool, counted: bool) -> NodeShape {
     // ks ≤ 1,024 and v ≤ 256: every product below stays under 2^20.
-    let b = if internal && counted {
-        16
-    } else if internal {
-        8
-    } else {
-        0
-    };
+    let b = if internal { 8u64.wrapping_shl(counted as u32) } else { 0 };
     let per = ks.wrapping_add(v).wrapping_add(b);
     let room = NODE_SIZE.wrapping_sub(8).wrapping_sub(b);
     let cap = match room.checked_div(per) {
