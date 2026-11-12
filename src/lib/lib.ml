@@ -347,10 +347,15 @@ struct
     then (List.take n xs, List.drop n xs)
     else (xs, [])
 
-  (* Consecutive chunks of at most [n] elements *)
-  let rec chunks n = function
-    | [] -> []
-    | xs -> let chunk, rest = split_at n xs in chunk :: chunks n rest
+  (* Consecutive chunks of at most [n] elements, in linear time, as array literals can be huge *)
+  let chunks n xs =
+    assert (n > 0);
+    let rec go chunks chunk size = function
+      | [] -> List.rev (if chunk = [] then chunks else List.rev chunk :: chunks)
+      | x :: xs when size = n -> go (List.rev chunk :: chunks) [x] 1 xs
+      | x :: xs -> go chunks (x :: chunk) (size + 1) xs
+    in
+    go [] [] 0 xs
 
   let split3 l =
     let rec loop (xs, ys, zs) = function

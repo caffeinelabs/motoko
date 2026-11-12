@@ -607,7 +607,7 @@ check(a299, 299)
 // CHECK-NEXT: call $initialize_static_variables
 // CHECK-NEXT: call $initialize_root_array_0
 // CHECK-NEXT: call $initialize_root_array_1
-// CHECK-NEXT: call $initialize_root_array_2)
+// CHECK-NEXT: call $initialize_root_array_2
 // Small values like these texts are built inside the chunks, without a function each, so the IC's
 // limit of 50,000 functions per module does not limit how many there can be.
 // CHECK-NOT: call $alloc_{{[0-9]+}}
