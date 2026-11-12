@@ -570,12 +570,18 @@ pub fn delete_sealed<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, s: &Sealed
     // A group whose image holds huge values frees the row's: every leaf is read then.
     let huge = buffer::u16_of(&*h, pg, page::P_FLAGS)? & u64::from(page::PF_HUGE) != 0;
     let slot = GroupView::from_meta(&*h, &s.meta).slot(pos)?;
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
+    let mut o = 0;
+    while o < shape.leaves {
+        // Only a leaf with a total has work, unless the group holds huge values.
+        let l = match huge {
+            true => shape.leaf(&*h, o)?,
+            false => match shape.next_total(&*h, o, |_| ())? {
+                Some(l) => l,
+                None => break,
+            },
+        };
+        o = u64::from(l.ordinal).wrapping_add(1);
         let run = rc.place(h.get(Region::Block(tail))?, &l)?;
-        if run == At::None && !huge {
-            continue;
-        }
         let gv = GroupView::from_meta(&*h, &s.meta);
         let ld = gv.leaf(u64::from(l.ordinal))?;
         // In a group with no patches, the image cell itself: a total takes it as it is, unless it is a huge

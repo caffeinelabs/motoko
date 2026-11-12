@@ -77,13 +77,9 @@ fn totals_row<H: PageHost>(
         let row = RowRef::new(&*h, loc)?;
         Walk::of(shape, &row)?
     };
-    for o in 0..shape.leaves {
-        let l = shape.leaf(&*h, o)?;
+    // The leaves without a total are passed by their spans alone.
+    while let Some(l) = shape.next_total(&*h, walk.bit, |s| walk.pass(s))? {
         let run_at = rc.place(h.get(Region::Block(tail))?, &l)?;
-        if run_at == At::None {
-            walk.skip(&l);
-            continue;
-        }
         let vi = walk.var;
         let s = {
             let row = RowRef::new(&*h, loc)?;
@@ -663,11 +659,12 @@ fn mark_long<H: PageHost>(h: &mut H, tail: u64) -> Result<(), Fault> {
 
 /// Frees a buffered row's long values: its long items, and a long row image itself.
 pub fn free_longs<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, loc: RowLoc) -> Result<(), Fault> {
-    let mut walk = {
+    let (mut walk, n) = {
         let row = RowRef::new(&*h, loc)?;
-        Walk::of(shape, &row)?
+        // A row image whose header says it holds no long item has none to free.
+        (Walk::of(shape, &row)?, if row.flags()? & row::ROW_LONG != 0 { shape.leaves } else { 0 })
     };
-    for o in 0..shape.leaves {
+    for o in 0..n {
         let l = shape.leaf(&*h, o)?;
         let st = {
             let row = RowRef::new(&*h, loc)?;

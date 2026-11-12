@@ -269,24 +269,18 @@ fn enc_live<H: PageHost + ?Sized, O: Over + ?Sized, S: Sink>(
             let rr = row::RowRef::new(h, b.loc)?;
             // One walk while the parts' ordinals rise; a part before the walk's place starts it again.
             let mut walk = row::Walk::of(shape, &rr)?;
-            let mut next = 0u64;
             for &o in d.ords() {
                 let o = u64::from(o);
-                if o < next {
+                if o < walk.bit {
                     walk = row::Walk::of(shape, &rr)?;
-                    next = 0;
                 }
-                while next < o {
-                    walk.skip(&shape.leaf(h, next)?);
-                    next = next.wrapping_add(1);
-                }
+                walk.skip_to(shape, h, o)?;
                 let l = shape.leaf(h, o)?;
                 if let Some(v) = over.val(&l) {
                     cell::enc_key(s, &l, &v?)?;
                     continue;
                 }
                 let v = overlay::buffered_value(shape, &rr, &mut walk, &l)?;
-                next = o.wrapping_add(1);
                 cell::enc_key(s, &l, &read::sval_val(h, &l, &v, piece)?)?;
             }
         }

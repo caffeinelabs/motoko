@@ -399,12 +399,18 @@ impl Shape {
 
     /// Leaf `o`, from the first 16 bytes of its leaf record, read in one piece.
     pub fn leaf<H: PageHost + ?Sized>(&self, h: &H, o: u64) -> Result<LeafInfo, Fault> {
-        let bad = rt(Corruption::Leaf, o);
         if o >= self.leaves {
-            return Err(bad);
+            return Err(rt(Corruption::Leaf, o));
         }
+        self.leaf_in(h.get(Region::Page(self.page))?, o)
+    }
+
+    /// `leaf` for a leaf `o` below `leaves`, from schema page bytes `b`.
+    #[inline(always)]
+    fn leaf_in(&self, b: &[u8], o: u64) -> Result<LeafInfo, Fault> {
+        let bad = rt(Corruption::Leaf, o);
         let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
-        let r: [u8; 16] = sub(h.get(Region::Page(self.page))?, at, 16)?.try_into().map_err(|_| bad)?;
+        let r: [u8; 16] = sub(b, at, 16)?.try_into().map_err(|_| bad)?;
         let [i0, i1, i2, i3, kind, code, flags, _, w0, w1, _, _, p0, p1, p2, p3] = r;
         let ty = Ty::of(&Leaf { kind, code, width: u16::from_le_bytes([w0, w1]), ..Leaf::default() }).ok_or(bad)?;
         // o < leaves ≤ 65,535.
@@ -438,6 +444,27 @@ impl Shape {
             ..Leaf::default()
         };
         Ok(Ty::of(&l).ok_or(rt(Corruption::Leaf, o))?.running())
+    }
+
+    /// The first leaf from ordinal `from` on that has a total (an integer leaf), if any; `pass` is handed the span
+    /// of each leaf before it. Each leaf is read once, in place.
+    pub fn next_total<H, F>(&self, h: &H, from: u64, mut pass: F) -> Result<Option<LeafInfo>, Fault>
+    where
+        H: PageHost + ?Sized,
+        F: FnMut(Span),
+    {
+        let b = h.get(Region::Page(self.page))?;
+        let mut o = from;
+        while o < self.leaves {
+            let l = self.leaf_in(b, o)?;
+            if l.ty.running().is_some() {
+                return Ok(Some(l));
+            }
+            pass(Span { width: l.ty.fixed_width(), variable: l.ty.variable() });
+            // o < leaves ≤ 65,535.
+            o = o.wrapping_add(1);
+        }
+        Ok(None)
     }
 
     /// Hands the spans of leaves [from, to) (clamped to the leaves) to `f` in ordinal order, each read in place

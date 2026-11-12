@@ -486,7 +486,7 @@ unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> V
 /// the table has work pending.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_remove<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> u64 {
-    let layout = read_layout_of(codec);
+    let layout = header_of(codec);
     let k = [key(mem, &layout, k)];
     let mut k = Cells::new(&k);
     let mem: *mut M = mem;

@@ -17,7 +17,7 @@ use crate::mem::{copy_bytes, rd_u8, sub, PageHost, Region};
 
 use super::buffer::RowLoc;
 use super::cell::{self, Val};
-use super::layout::{LeafInfo, RowHead, Shape, Ty};
+use super::layout::{LeafInfo, RowHead, Shape, Span, Ty};
 use super::long::{self, Meta};
 use super::RowSource;
 
@@ -264,6 +264,13 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
         Ok(self.byte(8u64.wrapping_add(head.bitmap).wrapping_add(bit / 8))? >> (bit % 8) & 1 != 0)
     }
 
+    /// The header flags (`ROW_BIG`, `ROW_LONG`).
+    pub fn flags(&self) -> Result<u16, Fault> {
+        let mut b = [0u8; 2];
+        self.read(4, &mut b)?;
+        Ok(u16::from_le_bytes(b))
+    }
+
     pub fn version(&self) -> Result<u32, Fault> {
         Ok(self.version)
     }
@@ -398,6 +405,21 @@ impl Walk {
             self.var = self.var.wrapping_add(1);
         }
         self.bit = self.bit.wrapping_add(1);
+    }
+
+    /// Moves past a leaf of span `s`.
+    pub fn pass(&mut self, s: Span) {
+        self.fixed = self.fixed.wrapping_add(s.width);
+        self.var = self.var.wrapping_add(u64::from(s.variable));
+        self.bit = self.bit.wrapping_add(1);
+    }
+
+    /// Moves to leaf `o`, past the leaves before it, read in place (`Shape::spans`).
+    pub fn skip_to<H: PageHost + ?Sized>(&mut self, shape: &Shape, h: &H, o: u64) -> Result<(), Fault> {
+        shape.spans(h, self.bit, o, |_, s| {
+            self.pass(s);
+            Ok(())
+        })
     }
 }
 
