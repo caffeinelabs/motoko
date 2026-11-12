@@ -20,6 +20,11 @@ import NativeTable "mo:native-table/NativeTable";
 // Unique indexes refuse a second row's value. A field the row does not have, an empty field list,
 // fields the table has no index on, and keys with a cell of the wrong kind, the wrong number of
 // cells, no cell or a cell out of range trap
+//
+// Emptying a table: after `clear` the table has no row, its index and its sums, counts and
+// extremes start again from no rows, and rows written after it read back, while and after the
+// memory the old rows used goes back through writes and `maintain`. A second clear before that
+// memory is back, and a clear through a view, empty the table the same way
 actor {
   type Cell = NativeTable.Cell;
   type Row = {
@@ -536,6 +541,67 @@ actor {
     check("clear")
   };
 
+  // A second table, emptied with clear
+  type Item = { name : Text; qty : Nat; note : Text };
+
+  let items = NativeTable.empty<Nat, Item>().createIndex(["qty"]).build();
+  let names : NativeTable.NativeTable<Nat, { name : Text }> = items.view();
+
+  func item(i : Nat) : Item = {
+    name = "item " # debug_show i;
+    qty = i % 7;
+    // A Text of 3,000 bytes, past what a row holds in one piece, now and then
+    note = if i % 500 == 0 { repeat("n", 3_000) } else { "" }
+  };
+
+  func fillItems(n : Nat) {
+    var i = 0;
+    while i < n { items.add(i, item(i)); i += 1 };
+    i := 0;
+    while i < n { ignore items.update(i, { qty = 8 }); i += 3 };
+    i := 0;
+    while i < n { items.remove(i); i += 4 }
+  };
+
+  func showItems() {
+    let first = do ? { items.entries().next()!.0 };
+    let walked = do ? { items.indexEntries(["qty"], null, null).next()!.0 };
+    Prim.debugPrint(debug_show (items.size(), items.isEmpty(), first, walked, items.count(["qty"], [#nat(8)])));
+    Prim.debugPrint(debug_show (items.sum("qty"), items.min("qty"), items.max("qty"), items.get(5), names.get(6)))
+  };
+
+  public func itemsFill() : async () {
+    fillItems(4_300);
+    showItems()
+  };
+
+  public func itemsClear() : async () {
+    items.clear();
+    showItems();
+    var i = 0;
+    while i < 10 { items.add(i, item(i)); i += 1 };
+    showItems()
+  };
+
+  // Clears again before the first clear's memory is back, fills, then clears through a view
+  public func itemsAgain() : async () {
+    items.clear();
+    fillItems(5_000);
+    showItems();
+    names.clear();
+    Prim.debugPrint(debug_show (items.maintain(0)));
+    items.add(1, item(1));
+    showItems()
+  };
+
+  // Maintenance gives the memory back in steps until no work is left; a budget of 0 runs no step
+  // and tells whether work is pending
+  public func itemsUpkeep() : async () {
+    while items.maintain(100_000) {};
+    Prim.debugPrint(debug_show (items.maintain(0)));
+    showItems()
+  };
+
   // A unique index on email, and one on team and badge declared also as a plain index: a value a
   // row has, with no null field, is refused for another row, and a row keeps its own. tryAdd gives
   // false; add and update trap; neither writes. evolve keeps the indexes unique
@@ -595,6 +661,10 @@ actor {
 //CALL ingress walks "DIDL\x00\x00"
 //CALL ingress clear "DIDL\x00\x00"
 //CALL ingress walks "DIDL\x00\x00"
+//CALL ingress itemsFill "DIDL\x00\x00"
+//CALL ingress itemsClear "DIDL\x00\x00"
+//CALL ingress itemsAgain "DIDL\x00\x00"
+//CALL ingress itemsUpkeep "DIDL\x00\x00"
 //CALL ingress unique "DIDL\x00\x00"
 //CALL ingress uniqueAdd "DIDL\x00\x00"
 //CALL ingress uniqueUpdate "DIDL\x00\x00"
