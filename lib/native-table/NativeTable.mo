@@ -196,6 +196,15 @@ module {
     Prim.ntUpsert(self.id, self.codec, codec, key, fields)
   };
 
+  /// Adds the elements of each array of the record `fields` at the end of that array field of the
+  /// row the key has, and keeps the row's other fields: `ignore docs.append(id, { log = [entry] })`.
+  /// Returns true when the key has a row; when not, writes nothing and returns false. A null array
+  /// field of the row counts as empty, and a null in `fields` adds nothing. Traps as `update` does,
+  /// and when a field of `fields` is not an array field.
+  public func append<K, R, P>(self : NativeTable<K, R>, key : K, fields : P, codec : (implicit : Prim.NtCodec<(K, P)>)) : Bool {
+    Prim.ntAppend(self.id, self.codec, codec, key, fields)
+  };
+
   /// The row the key has, or null.
   public func get<K, R>(self : NativeTable<K, R>, key : K) : ?R {
     Prim.ntGet(self.id, self.codec, key)

@@ -16,8 +16,10 @@ debug.print: ("empties", true)
 ingress Completed: Reply: 0x4449444c0000
 debug.print: (4_200, ?{codes = ["c1"]; history = [{amount = 1; note = null; since = -1}]; name = "p1"; scores = [?1, null, ?1_000_000_000_000_000_000_000]; tags = ?["t1"]}, ?{codes = ["c2", "c3"]; name = "p2"}, ?{codes = ["c4_199", "c4_200", "c4_201"]; history = [{amount = 4_199; note = null; since = -4_199}, {amount = 4_200; note = ?"raise"; since = -4_199}]; name = "p4_199"; scores = [?4_199, null, ?4_199_000_000_000_000_000_000_000]; tags = ?["t4_199"]})
 ingress Completed: Reply: 0x4449444c0000
-debug.print: (true, true, true, ?{codes = ["new"]; history = [{amount = 5; note = null; since = -5}, {amount = 6; note = ?"raise"; since = -5}]; name = "p5"; scores = []; tags = null}, ?{codes = ["new"]; name = "p5"})
+debug.print: (true, true, true, ?{codes = ["new"]; history = [{amount = 5; note = null; since = -5}, {amount = 6; note = ?"raise"; since = -5}]; name = "p5"; scores = []; tags = null}, ?{codes = ["new"]; name = "p5"}, true, true, true, true, true, false, ?{codes = ["c6", "c7", "x"]; history = [{amount = 1; note = null; since = +2}]; name = "p6"; scores = [?6, null, ?6_000_000_000_000_000_000_000]; tags = null})
 ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: append takes array fields only'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: {cells = ?[#nat(0), #text("p0")]; got = 4_200; keys = 4_200; scanned = 8_400; viewed = 4_200; walked = (true, true)}
 ingress Completed: Reply: 0x4449444c0000
 debug.print: (2, ?(+71), [("age", {array = null; optional = false; scalar = #nat}), ("name", {array = null; optional = false; scalar = #text}), ("codes", {array = ?{optional = false}; optional = true; scalar = #text}), ("history.amount", {array = ?{optional = false}; optional = true; scalar = #nat})])

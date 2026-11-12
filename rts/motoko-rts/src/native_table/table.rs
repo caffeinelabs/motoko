@@ -29,7 +29,8 @@ use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
 use motoko_rts_macros::ic_mem_fn;
 
 use super::layout::{
-    Layout, Picks, SCHEMA_VERSION, evolved_image, schema_image, scratch, view_layout,
+    Layout, Picks, SCHEMA_VERSION, array_type, evolved_image, merge, schema_image, scratch,
+    view_layout,
 };
 use super::row::{
     CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact, filter_cond,
@@ -355,7 +356,7 @@ pub unsafe fn nt_update<M: Memory>(
     k: Value,
     fields: Value,
 ) -> u64 {
-    set_fields(mem, id, codec, named, k, fields, false)
+    set_fields::<M, false>(mem, id, codec, named, k, fields, false)
 }
 
 /// Sets the fields of `fields` in the row key `k` has, as `nt_update` does; when `k` has no row,
@@ -369,13 +370,30 @@ pub unsafe fn nt_upsert<M: Memory>(
     k: Value,
     fields: Value,
 ) -> u64 {
-    set_fields(mem, id, codec, named, k, fields, true)
+    set_fields::<M, false>(mem, id, codec, named, k, fields, true)
 }
 
-/// `nt_update`, and with `insert`, `nt_upsert`. Out of line, as is `put_row`, so that each of the
-/// table's write calls is made in one place, where it is inlined.
+/// Adds the elements of each array of `fields`, a value of the row type of the codec `named`, at
+/// the end of that array field of the row key `k` has, and keeps the row's other fields, as
+/// `nt_update` sets them; 1 when `k` has a row, else 0, writing nothing. A null array in the row
+/// counts as empty; a null in `fields` adds nothing. Traps as `nt_update` does, and for a field
+/// that is not an array.
+#[ic_mem_fn(ic_only)]
+pub unsafe fn nt_append<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    named: Value,
+    k: Value,
+    fields: Value,
+) -> u64 {
+    set_fields::<M, true>(mem, id, codec, named, k, fields, false)
+}
+
+/// `nt_update`, with `insert` `nt_upsert`, and with `APPEND` `nt_append`. Out of line, as is
+/// `put_row`, so that each of the table's write calls is made in one place, where it is inlined.
 #[inline(never)]
-unsafe fn set_fields<M: Memory>(
+unsafe fn set_fields<M: Memory, const APPEND: bool>(
     mem: &mut M,
     id: u64,
     codec: Value,
@@ -386,6 +404,9 @@ unsafe fn set_fields<M: Memory>(
 ) -> u64 {
     let layout = layout_of(codec);
     let named = layout_of(named);
+    if APPEND && merge(&layout, &named, true).any(|(_, e, _)| array_type(e.codes).is_none()) {
+        rts_trap_with("native table: append takes array fields only");
+    }
     let n = named.columns() - 1;
     let leaves = scratch::<u32, M>(mem, n);
     let mut row = update_cells(mem, &layout, &named, k, fields, leaves);
@@ -403,7 +424,12 @@ unsafe fn set_fields<M: Memory>(
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
     let leaves = core::slice::from_raw_parts(leaves, n);
-    let (rid, _) = or_trap(table.update(&mut scratch, &mut k, leaves, &mut row, insert));
+    let (rid, _) = or_trap(if APPEND {
+        let give = |row: &mut Cells, leaf, b: &[u8]| *row = row.with(&mut *mem, leaf, b);
+        table.append(&mut scratch, &mut k, leaves, &mut row, give)
+    } else {
+        table.update(&mut scratch, &mut k, leaves, &mut row, insert)
+    });
     (rid.is_some() != insert) as u64
 }
 

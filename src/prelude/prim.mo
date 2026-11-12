@@ -310,6 +310,13 @@ func ntUpsert<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, 
   (prim "nt_upsert" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P, R)>, K, P) -> Bool)(id, codec, named, k, fields)
 };
 
+// Adds the elements of each array of `fields`, a value of the row type of `named`, at the end of
+// that array field of the row `k` has, as `ntUpdate` sets fields; a null array in the row counts
+// as empty, a null in `fields` adds nothing. False, writing nothing, when `k` has no row
+func ntAppend<K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>, k : K, fields : P) : Bool {
+  (prim "nt_append" : (Nat64, NtCodec<(K, R)>, NtCodec<(K, P)>, K, P) -> Bool)(id, codec, named, k, fields)
+};
+
 //TODO: just call this `weak`?
 func allocWeakRef<T>(obj : T) : weak T {
   (prim "alloc_weak_ref" : T -> weak T)(obj);

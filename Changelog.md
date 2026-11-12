@@ -14,7 +14,7 @@
     some fields of a row and keeps the others. A field can hold an array of
     scalars, of options of scalars, or of records of those, read and written
     whole, and a key can be a tuple of 2 to 7 scalars. Scans go in the order
-    keys were first added. Also: `upsert`, `clear`, `reverseEntries`,
+    keys were first added. Also: `upsert`, `append`, `clear`, `reverseEntries`,
     unique indexes with `tryAdd`, counts by an index's first fields,
     `indexEntriesAt`, `reverseIndexEntriesAt` and `removeIndexRange`, and
     upkeep that gives back pages removed rows left empty. The compiler

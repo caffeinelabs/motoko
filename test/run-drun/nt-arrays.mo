@@ -100,6 +100,8 @@ actor {
   // 10,000 codes: an array far past a row's inline limit, which a read gets in pieces
   func longCodes() : [Text] = Prim.Array_tabulate<Text>(10_000, func(i) = "code-" # debug_show i);
 
+  func concat(a : [Text], b : [Text]) : [Text] = Prim.Array_tabulate<Text>(a.size() + b.size(), func(i) = if i < a.size() { a[i] } else { b[i - a.size()] });
+
   func person(i : Nat) : Person {
     {
       name = "p" # debug_show i;
@@ -119,8 +121,12 @@ actor {
   func expected(i : Nat) : Person {
     switch i {
       case 5 { { person(5) with codes = ["new"]; scores = []; tags = null } }
-      case 7 { { person(7) with name = "renamed" } }
+      case 6 { { person(6) with codes = ["c6", "c7", "x"]; history = [{ amount = 1; since = 2; note = null }] } }
+      case 7 { { person(7) with name = "renamed"; codes = concat(longCodes(), ["more"]) } }
+      case 9 { { person(9) with tags = ?["new"] } }
+      case 10 { { person(10) with codes = ["c10", "c11", "y"] } }
       case 4_150 { { person(4_150) with name = "renamed too"; tags = ?["x", "y"] } }
+      case 4_151 { { person(4_151) with codes = concat(person(4_151).codes, longCodes()); scores = [?4_151, null, ?4_151_000_000_000_000_000_000_000, null] } }
       case _ { person(i) }
     }
   };
@@ -181,12 +187,25 @@ actor {
   };
 
   // update sets an array field, and keeps an array the update does not name, a long one too, in a
-  // packed row (5, 7) and in a row of the open group (4,150)
+  // packed row (5, 7) and in a row of the open group (4,150). append adds elements at the end of
+  // array fields, in packed rows (6, 7, 9, 10) and in a row of the open group (4,151), long arrays
+  // too; a null array counts as empty (9), a null adds nothing (10), and a key with no row gives
+  // false
   public func update() : async () {
     let a = people.update(5, { codes = ["new"]; scores = [] : [?Nat]; tags = null : ?[Text] });
     let b = people.update(7, { name = "renamed" });
     let c = people.update(4_150, { name = "renamed too"; tags = ?["x", "y"] });
-    Prim.debugPrint(debug_show (a, b, c, people.get(5), names.get(5)))
+    let d = people.append(6, { codes = ["x"]; history = [{ amount = 1; since = 2 : Int; note = null : ?Text }] });
+    let e = people.append(7, { codes = ["more"] });
+    let f = people.append(9, { tags = ?["new"] });
+    let g = people.append(10, { codes = ["y"]; tags = null : ?[Text] });
+    let h = people.append(4_151, { codes = longCodes(); scores = [null : ?Nat] });
+    let none = people.append(5_000, { codes = ["x"] });
+    Prim.debugPrint(debug_show (a, b, c, people.get(5), names.get(5), d, e, f, g, h, none, people.get(6)))
+  };
+
+  public func appendScalar() : async () {
+    ignore people.append(1, { name = "x" })
   };
 
   public func change() : async () {
@@ -197,11 +216,12 @@ actor {
     Prim.debugPrint(debug_show (t.size(), t.sum("age"), t.fieldTypes()))
   };
 
-  // The added array fields hold null in the rows from before, and arrays once written
+  // The added array fields hold null in the rows from before, and arrays once written or added to
   public func changedRows() : async () {
     switch changed {
       case ?t {
-        ignore t.update(1, { codes = ?["a", "b"] });
+        ignore t.update(1, { codes = ?["a"] });
+        ignore t.append(1, { codes = ?["b"] });
         t.add(3, { name = "Cy"; age = 7; codes = null; history = ?[{ amount = 5 }, { amount = 6 }] });
         let v : NativeTable.NativeTable<Nat, { codes : ?[Text]; history : ?[{ amount : Nat }] }> = t.view();
         for e in t.entries() { Prim.debugPrint(debug_show e) };
@@ -258,6 +278,7 @@ actor {
 //CALL ingress kindsRoundTrip "DIDL\x00\x00"
 //CALL ingress put "DIDL\x00\x00"
 //CALL ingress update "DIDL\x00\x00"
+//CALL ingress appendScalar "DIDL\x00\x00"
 //CALL ingress check "DIDL\x00\x00"
 //CALL ingress change "DIDL\x00\x00"
 //CALL ingress changedRows "DIDL\x00\x00"

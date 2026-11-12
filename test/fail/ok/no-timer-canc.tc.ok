@@ -239,6 +239,10 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     natToNat32 : (n : Nat) -> Nat32;
     natToNat64 : (n : Nat) -> Nat64;
     natToNat8 : (n : Nat) -> Nat8;
+    ntAppend :
+      <K, R, P>(id : Nat64, codec : NtCodec<(K, R)>, named : NtCodec<(K, P)>,
+                k : K, fields : P) ->
+        Bool;
     ntClear : <K, R>(id : Nat64, codec : NtCodec<(K, R)>) -> Bool;
     ntCodecLayout : <T>(codec : NtCodec<T>) -> Blob;
     ntCount :

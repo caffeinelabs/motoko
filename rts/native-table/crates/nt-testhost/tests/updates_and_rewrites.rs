@@ -16,11 +16,11 @@ use native_table::table::group::GroupView;
 use native_table::table::jobs::Ran;
 use native_table::table::layout::Ty;
 use native_table::table::row::{Item, RowRef};
-use native_table::table::{buffer, page, patch, root, Table, Upsert};
+use native_table::table::{buffer, page, patch, root, CellIn, RowSource, Table, Upsert};
 use native_table::value::ty;
 use native_table::{CorruptAt, Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
-use nt_testhost::rows::{schema, t, Sink, Src, V};
+use nt_testhost::rows::{schema, t, uleb, Sink, Src, V};
 use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// Scratch for keys longer than a point operation's stack.
@@ -1341,6 +1341,78 @@ fn update_of_one_leaf_with_a_long_key() {
     assert!(tb.get(&mut key_scratch(), &mut Src::new(&key), &mut s).unwrap());
     assert_eq!(rid.unwrap().0, s.rid);
     assert_eq!(fetch_long(&tb, s.rid.unwrap(), s.cells), vec![key[0].clone(), (id(1), V::U(2))]);
+}
+
+/// A row's cells the test owns, which `append` replaces with the lists it gives.
+struct Owned(Vec<(u32, V)>);
+
+impl RowSource for Owned {
+    fn cell(&mut self, leaf: u32) -> Result<CellIn<'_>, Fault> {
+        match self.0.iter().find(|c| c.0 == leaf).map(|c| &c.1) {
+            Some(V::Bytes(b)) => Ok(CellIn::Bytes(b)),
+            Some(V::Null) => Ok(CellIn::Null),
+            Some(V::U(x)) => Ok(CellIn::U64(*x)),
+            _ => Err(Fault::BadValue { leaf }),
+        }
+    }
+
+    fn fill(&mut self, _: u32, _: u64, _: &mut [u8]) -> Result<(), Fault> {
+        Err(Fault::BadRef)
+    }
+}
+
+/// `append` to lists of u8: two lists of a sealed row in one call, a null list taken as empty, a null given adding
+/// nothing, a count whose LEB128 grows a byte and long lists, read in pieces, in a buffered row and a sealed one.
+/// A key with no row writes nothing, and a leaf that is not a Blob is refused. Every row reads back, after
+/// maintenance too.
+#[test]
+fn append_adds_elements_at_the_end_of_lists() {
+    let list = |e: &[u8]| V::Bytes([uleb(e.len() as u128), e.to_vec()].concat());
+    let cols = [t::scalar(ty::NAT), vec![ty::LIST, ty::U8], t::opt(vec![ty::LIST, ty::U8]), t::scalar(ty::NAT)];
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema(&cols).0).unwrap();
+    let mut model = Rows::new();
+    let mut k = 0;
+    while seals(&tb) == 0 || model.len() < 2 + GROUP_SLOTS as usize {
+        let opt = if k % 2 == 0 { V::Null } else { list(&[3]) };
+        put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), list(&[1, 2])), (id(2), opt), (id(3), V::U(k))]);
+        k += 1;
+    }
+    let (long, more): (Vec<u8>, Vec<u8>) = ((0..70_000).map(|i| i as u8).collect(), (0..125).collect());
+    let steps: [(u64, Vec<(u32, V)>, Vec<(u32, V)>); 8] = [
+        (
+            1,
+            vec![(id(1), list(&[5])), (id(2), list(&[6, 7]))],
+            vec![(id(1), list(&[1, 2, 5])), (id(2), list(&[3, 6, 7]))],
+        ),
+        (2, vec![(id(2), list(&[9]))], vec![(id(2), list(&[9]))]),
+        (3, vec![(id(2), V::Null)], vec![(id(2), list(&[3]))]),
+        (4, vec![(id(2), V::Null)], vec![(id(2), V::Null)]),
+        (k - 1, vec![(id(1), list(&more))], vec![(id(1), list(&[&[1, 2], &more[..]].concat()))]),
+        (k - 1, vec![(id(1), list(&long))], vec![(id(1), list(&[&[1, 2], &more[..], &long].concat()))]),
+        (5, vec![(id(1), list(&long))], vec![(id(1), list(&[&[1, 2], &long[..]].concat()))]),
+        (5, vec![(id(1), list(&[8]))], vec![(id(1), list(&[&[1, 2], &long[..], &[8]].concat()))]),
+    ];
+    let append = |tb: &mut Table<'_, VecHost>, k: u64, cells: Vec<(u32, V)>| {
+        let leaves: Vec<u32> = cells.iter().map(|c| c.0).collect();
+        let give = |s: &mut Owned, l, b: &[u8]| s.0.iter_mut().find(|c| c.0 == l).unwrap().1 = V::Bytes(b.to_vec());
+        let key = [(id(0), V::U(k))];
+        tb.append(&mut key_scratch(), &mut Src::new(&key), &leaves, &mut Owned(cells), give).map(|r| r.0)
+    };
+    for (k, cells, after) in steps {
+        assert_eq!(append(&mut tb, k, cells).unwrap(), Some(model[&k].0));
+        for (l, v) in after {
+            model.get_mut(&k).unwrap().1.iter_mut().find(|c| c.0 == l).unwrap().1 = v;
+        }
+        check_reads(&tb, &model);
+    }
+    tb.host_mut().end_message();
+    let none = append(&mut tb, k, vec![(id(1), list(&[1]))]).unwrap();
+    assert_eq!((none, tb.host_mut().end_message()), (None, 0), "no row, nothing written");
+    assert_eq!(append(&mut tb, 1, vec![(id(3), V::U(1))]).unwrap_err(), Fault::BadValue { leaf: id(3) });
+    maintain_all(&mut tb);
+    check_reads(&tb, &model);
+    check_ownership(&tb);
 }
 
 /// A sealed row's u64 cell, in a group whose values all fit one byte, updated to one that does not: the cell

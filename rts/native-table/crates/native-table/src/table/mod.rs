@@ -40,12 +40,13 @@ pub mod versions;
 mod walks;
 pub mod write;
 
+use crate::bytes::{put_uleb, rd_uleb, uleb_len};
 use crate::consts::PAGE;
 use crate::fault::{rt, Corruption, Fault, ImageId};
 use crate::host::{wake_from_state, Budget, Progress, Scratch, Wake};
 use crate::index::secondary::{Secondary, Start};
 use crate::key::{LenSink, Sink, SliceSink};
-use crate::mem::{put, put_u16, rd_u16, PageHost, Region};
+use crate::mem::{put, put_u16, rd_u16, sub, sub_mut, PageHost, Region};
 use crate::schema::SchemaView;
 use crate::tree::{Dir, Path};
 
@@ -192,6 +193,47 @@ fn long_key<H: PageHost + ?Sized>(
         }
         _ => Err(Fault::BadValue { leaf: l.id }),
     }
+}
+
+/// Leaf `id`'s list in row `rid` with the elements of the list the source gives for it after its own
+/// (`Table::append`), built in the scratch and given to `give` with the source; nothing when both are null.
+#[allow(clippy::too_many_arguments)]
+fn join<H: PageHost + ?Sized, R: RowSource + ?Sized, S: Scratch>(
+    h: &H,
+    tbl: u64,
+    shape: &Shape,
+    rid: u64,
+    id: u32,
+    src: &mut R,
+    scratch: &mut S,
+    give: &mut impl FnMut(&mut R, u32, &[u8]),
+) -> Result<(), Fault> {
+    let old = read::value_of(h, tbl, shape, rid, id)?;
+    let new: &[u8] = match (shape.leaf(h, shape.ordinal_of(h, id)?.ok_or(Fault::BadRef)?)?.ty, src.cell(id)?) {
+        (Ty::Blob, CellIn::Null) if old.is_null() => return Ok(()),
+        (Ty::Blob, CellIn::Null) => &[0],
+        (Ty::Blob, CellIn::Bytes(b)) => b,
+        _ => return Err(Fault::BadValue { leaf: id }),
+    };
+    let (a, pa) = if old.is_null() {
+        (0, 0)
+    } else {
+        let mut head = [0u8; 10];
+        cur::read(h, &old, 0, sub_mut(&mut head, 0, old.len().min(10))?)?;
+        rd_uleb(&head, 0, ImageId::Runtime)?
+    };
+    let (b, pb) = rd_uleb(new, 0, ImageId::Runtime)?;
+    let count = a.checked_add(b).ok_or(Fault::BadValue { leaf: id })?;
+    let (olds, news) = (old.len().wrapping_sub(pa), (new.len() as u64).wrapping_sub(pb));
+    let len = uleb_len(count).wrapping_add(olds).wrapping_add(news);
+    let o = scratch.get(usize::try_from(len).map_err(|_| Fault::Scratch { need: len })?)?;
+    let k = put_uleb(o, 0, count)?;
+    if !old.is_null() {
+        cur::read(h, &old, pa, sub_mut(o, k, olds)?)?;
+    }
+    put(o, k.wrapping_add(olds), sub(new, pb, news)?)?;
+    give(src, id, o);
+    Ok(())
 }
 
 /// A table over a host, by its root block.
@@ -767,6 +809,49 @@ impl<'h, H: PageHost> Table<'h, H> {
             return Ok((None, self.settle()?));
         };
         let row = self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row();
+        self.set_leaves(scratch, rid, row, leaves, src, &mut kb, &mut path)
+    }
+
+    /// Adds elements at the end of lists of the row with key k, and keeps its other leaves: each leaf `leaves`
+    /// names is a Blob holding a list (its element count in ULEB128, then the elements), and the source gives for
+    /// it a list whose elements follow the stored ones, or null for none; a null stored list counts as empty. Each
+    /// new list is built in the scratch and given to `give` with the source, which makes it the source's cell for
+    /// its leaf, kept past later requests of the scratch; then the leaves are written as `update` writes them, in
+    /// its one lookup. Returns the row's rid, or `None`, with nothing written, when no row has key k. `BadValue`
+    /// for a leaf that is not a Blob.
+    pub fn append<S: Scratch, K: RowSource + ?Sized, R: RowSource + ?Sized>(
+        &mut self,
+        scratch: &mut S,
+        key: &mut K,
+        leaves: &[u32],
+        src: &mut R,
+        mut give: impl FnMut(&mut R, u32, &[u8]),
+    ) -> Result<(Option<u64>, Wake), Fault> {
+        self.filled = 0;
+        let mut kb = [0u8; KEY_STACK];
+        let e = self.key_in(key, &mut kb, scratch)?;
+        let mut path = Path::new();
+        let Some((rid, _, _)) = self.look(e, &mut path)?.1.found else { return Ok((None, self.wake()?)) };
+        let row = self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row();
+        for &id in leaves {
+            join(&*self.host, self.root, &self.shape, rid, id, src, scratch, &mut give)?;
+        }
+        self.set_leaves(scratch, rid, row, leaves, src, &mut kb, &mut path)
+    }
+
+    /// `update` of the leaves `leaves` of the row `rid`, lying at `row`, once its key is found.
+    #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
+    fn set_leaves<S: Scratch, R: RowSource + ?Sized>(
+        &mut self,
+        scratch: &mut S,
+        rid: u64,
+        row: read::Row,
+        leaves: &[u32],
+        src: &mut R,
+        kb: &mut [u8; KEY_STACK],
+        path: &mut Path,
+    ) -> Result<(Option<u64>, Wake), Fault> {
         // The indexes whose key a changed leaf is part of; the cells checked before anything is written.
         let mut moved = 0u64;
         let (h, tbl, shape) = (&*self.host, self.root, &self.shape);
@@ -795,7 +880,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         }
         match row {
             read::Row::Sealed { page, pos } => {
-                self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
+                self.index_stored(&live, moved, false, rid, kb, scratch, path)?;
                 self.filled = update::update_sealed(&mut *self.host, tbl, &self.shape, src, page, pos, leaves)?;
             }
             read::Row::Buffered(at) => {
@@ -804,11 +889,11 @@ impl<'h, H: PageHost> Table<'h, H> {
                 if len > row::STAGE as u64 {
                     scratch.get(usize::try_from(len).map_err(|_| Fault::Scratch { need: len })?)?;
                 }
-                self.index_stored(&live, moved, false, rid, &mut kb, scratch, &mut path)?;
+                self.index_stored(&live, moved, false, rid, kb, scratch, path)?;
                 self.filled = write::splice(&mut *self.host, tbl, &self.shape, src, &at, Some(leaves), len, scratch)?;
             }
         }
-        self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, &mut kb, scratch, &mut path)?;
+        self.index_stored(&read::Live::open(&*self.host, row)?, moved, true, rid, kb, scratch, path)?;
         Ok((Some(rid), self.settle()?))
     }
 

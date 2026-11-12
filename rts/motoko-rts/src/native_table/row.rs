@@ -79,6 +79,19 @@ impl<'a> Cells<'a> {
     pub fn new(cells: &'a [CellIn<'a>]) -> Self {
         Cells { cells }
     }
+
+    /// These cells, with the cell of field leaf `leaf` the bytes `b`, which a `BlobScratch` gave
+    /// and so live until the next collection, in a Blob that lives as long.
+    pub unsafe fn with<M: Memory>(self, mem: &mut M, leaf: u32, b: &[u8]) -> Cells<'a> {
+        let n = self.cells.len();
+        let out = scratch::<CellIn, M>(mem, n);
+        for (i, &c) in self.cells.iter().enumerate() {
+            out.add(i).write(c);
+        }
+        let b = core::slice::from_raw_parts(b.as_ptr(), b.len());
+        out.add((leaf >> 16) as usize).write(CellIn::Bytes(b));
+        Cells::new(core::slice::from_raw_parts(out, n))
+    }
 }
 
 /// The field position the map gives a dropped column.
@@ -611,7 +624,9 @@ unsafe fn row_of<'a, M: Memory>(
 /// `layout`, those of key `k` at the key's (`row_of`), null at the other fields', in a Blob that
 /// lives until the next collection; the leaf of each field of `named`, its position << 16, written
 /// at `leaves`. Each field is found by `merge`, which takes a Nat for an Int, and its cell is made
-/// for the table's type. Traps when `named` has fewer column entries than columns.
+/// for the table's type. Traps when `named` has fewer column entries than columns. Inlined, so
+/// that `nt_update` and `nt_upsert` make the cells in their own code.
+#[inline(always)]
 pub unsafe fn update_cells<'a, M: Memory>(
     mem: &mut M,
     layout: &Layout,
