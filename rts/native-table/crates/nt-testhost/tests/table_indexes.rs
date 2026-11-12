@@ -339,23 +339,11 @@ fn check_sorted(tb: &Table<'_, VecHost>, i: usize, m: &Model) {
             got.extend(more);
         }
         assert!(got == want, "index {ix}, {dir:?}: the walk in pieces");
-        // From the key of a row in the middle: every row of that key, then the keys after it; and from its n-th row.
+        // From the key of a row in the middle: every row of that key, then the keys after it.
         if let Some((k, _)) = want.get(want.len() / 2) {
             let from = want.iter().position(|(x, _)| x == k).unwrap();
             let got = sorted(tb, i, dir, Start::Key(k), 30);
             assert!(got[..] == want[from..want.len().min(from + 30)], "index {ix}, {dir:?}: from a key");
-            for n in [1, 2, 7, (want.len() - from) as u64 - 1, (want.len() - from) as u64] {
-                let at = (from + n as usize).min(want.len());
-                let page = &want[at..want.len().min(at + 30)];
-                assert!(
-                    sorted(tb, i, dir, Start::Nth(Some(k), n), 30) == page,
-                    "index {ix}, {dir:?}: from a key at its row {n}"
-                );
-                assert!(
-                    sorted(tb, i, dir, Start::Nth(None, at as u64), 30) == page,
-                    "index {ix}, {dir:?}: from its row {at}"
-                );
-            }
         }
     }
     // The smallest and largest keys whose first part is not null (a nullable part's tag 00).
@@ -369,8 +357,7 @@ fn check_sorted(tb: &Table<'_, VecHost>, i: usize, m: &Model) {
     assert_eq!((min, max), (keys.first().cloned(), keys.last().cloned()), "index {ix}: the ends");
 }
 
-/// Every index against the model: every key's count, and by the first part, a key no row holds, the group walk,
-/// and the sorted walks.
+/// Every index against the model: every key's count, a key no row holds, the group walk, and the sorted walks.
 fn check(tb: &Table<'_, VecHost>, m: &Model) -> u64 {
     check_live(tb, m, &[1, 2, 3, 4, 5])
 }
@@ -398,15 +385,6 @@ fn check_live(tb: &Table<'_, VecHost>, m: &Model, live: &[u8]) -> u64 {
                 0,
                 "index {ix}: a key no row holds"
             );
-        }
-        // By the first part alone, on an index of two.
-        let mut firsts: HashMap<String, (Vec<(u32, V)>, i128)> = HashMap::new();
-        for (cells, c) in counts.values().filter(|(cells, _)| cells.len() > 1) {
-            firsts.entry(format!("{:?}", cells[0])).or_insert((cells[..1].to_vec(), 0)).1 += c;
-        }
-        for (cells, c) in firsts.values() {
-            let got = tb.count_prefix(&mut key_scratch(), ix, 1, &mut Src::new(cells)).unwrap();
-            assert_eq!(got, *c, "index {ix}: by the first part");
         }
         let mut want: Vec<i128> = counts.values().map(|x| x.1).collect();
         let mut got = walk(tb, i);

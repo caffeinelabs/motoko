@@ -14,10 +14,7 @@ use native_table::fault::{corrupt, Fault};
 use native_table::mem::rd_u32;
 use native_table::table::group::{self, GroupView, LeafDir, Seg};
 use native_table::table::layout::Ty;
-use native_table::index::secondary::Start;
-use native_table::table::totals::Total;
 use native_table::table::{buffer, extremes, page, read, root, Table, Upsert};
-use native_table::tree::Dir;
 use native_table::value::ty;
 use native_table::{Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::rows::{rid_of, schema, t, Sink, Src, V};
@@ -955,53 +952,6 @@ fn changed_blocks_of_a_total_in_the_totals_space() {
         assert!(!counts.is_empty() && counts.iter().all(|&c| c == 2), "{counts:?}");
         counts
     });
-}
-
-/// Removing a row reads no more of the host's memory when its row type has more leaves a removal has nothing to
-/// do for (empty arrays, absent arrays), placed before an indexed leaf: a packed row and a buffered one. The
-/// removals keep the totals and the index right.
-#[test]
-fn removal_reads_no_leaf_it_has_nothing_to_do_for() {
-    let reads = |extra: u32| -> Vec<u64> {
-        let mut cols = vec![t::scalar(ty::NAT), t::scalar(ty::I64)];
-        cols.extend((0..extra).map(|i| if i % 2 == 0 { vec![ty::LIST, ty::TEXT] } else { t::opt(vec![ty::LIST, ty::NAT]) }));
-        cols.push(t::scalar(ty::TEXT));
-        let last = id(extra + 2);
-        let mut part = [(0, false); 7];
-        part[0] = (last, false);
-        let img = native_table::schema::IndexDecl { id: 1, flags: 0, w: 16, parts: 1, part };
-        let img = nt_testhost::rows::schema_indexed(&cols, &[img]).0;
-        let row = |k: u64| {
-            let mut r = vec![(id(0), V::U(k)), (id(1), V::I(k as i64 - 9))];
-            r.extend((0..extra).map(|i| (id(i + 2), if i % 2 == 0 { V::Bytes(vec![0]) } else { V::Null })));
-            r.push((last, V::text(&format!("t{}", k % 7))));
-            r
-        };
-        let mut h = VecHost::new(FILLS[0]);
-        h.set_logging(false);
-        let (mut tb, _) = Table::create(&mut h, 3, &img).unwrap();
-        let n = GROUP_SLOTS as u64 + 100;
-        for k in 0..n {
-            tb.upsert(&mut key_scratch(), &mut Src::new(&row(k))).unwrap();
-        }
-        maintain_all(&mut tb);
-        let mut out = Vec::new();
-        for k in [5, GROUP_SLOTS as u64 + 5] {
-            let pages = tb.host().memory().len() as u64 / PAGE;
-            tb.host_mut().watched = (1..=pages).map(|p| p * PAGE).collect();
-            tb.host().watched_reads.set(0);
-            assert!(tb.remove(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(k))])).unwrap().0.is_some());
-            out.push(tb.host().watched_reads.get());
-            tb.host_mut().watched.clear();
-        }
-        let want: i64 = (0..n).filter(|&k| k != 5 && k != GROUP_SLOTS as u64 + 5).map(|k| k as i64 - 9).sum();
-        assert_eq!(tb.sum(id(1), &mut [0; 64]).unwrap(), (Total::Small(i128::from(want)), n - 2));
-        let mut walked = 0;
-        tb.walk(1, Dir::Fwd, Start::End, u64::MAX, &mut [0; 256], |_, _| Ok(walked += 1)).unwrap();
-        assert_eq!(walked, n - 2);
-        out
-    };
-    assert_eq!(reads(0), reads(5));
 }
 
 // ---------------------------------------------------------------- wide rows

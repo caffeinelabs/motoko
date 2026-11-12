@@ -98,6 +98,19 @@ fn reclaim(tb: &mut Table<'_, VecHost>) -> u64 {
     steps
 }
 
+/// Clears the table and runs maintenance to the end: the host then lends exactly the pages the table's areas hold,
+/// area 15 holds the schema page alone, and the blocks in use are an empty table's and one radix block.
+fn cleared(tb: &mut Table<'_, VecHost>, fill: u8) {
+    tb.clear().unwrap();
+    reclaim(tb);
+    let mut fresh = VecHost::new(fill);
+    let (_, ftbl) = Table::create(&mut fresh, 7, &image()).unwrap();
+    let (h, tbl) = (tb.host(), tb.root());
+    assert_eq!(h.live_pages() as u64, held_pages(h, tbl), "the host's pages are the table's");
+    assert_eq!(AreaRecord::read(h, tbl, 15).unwrap().pages, 1, "the schema page alone");
+    assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1, "an empty table's blocks and a radix block");
+}
+
 /// A table filled with `n` rows: replaced, removed and long rows among them, a compaction queued once a group is
 /// packed.
 fn filled(h: &mut VecHost, n: u64) -> u64 {
@@ -118,9 +131,6 @@ fn filled(h: &mut VecHost, n: u64) -> u64 {
 fn clear_tables() {
     for fill in FILLS {
         for n in [0, 300, GROUP_SLOTS + 700, 3 * GROUP_SLOTS] {
-            let mut fresh = VecHost::new(fill);
-            let (ft, ftbl) = Table::create(&mut fresh, 7, &image()).unwrap();
-            drop(ft);
             let mut h = VecHost::new(fill);
             h.set_logging(false);
             let tbl = filled(&mut h, n);
@@ -141,12 +151,7 @@ fn clear_tables() {
             let steps = reclaim(&mut tb);
             let (cells, walked, count) = rows(&tb);
             assert_eq!((cells.len(), walked, count), (800, 400, 200), "{n} rows: {steps} steps");
-            tb.clear().unwrap();
-            reclaim(&mut tb);
-            let h = tb.host();
-            assert_eq!(h.live_pages() as u64, held_pages(h, tbl), "{n} rows: the host's pages are the table's");
-            assert_eq!(AreaRecord::read(h, tbl, 15).unwrap().pages, 1, "{n} rows: the schema page alone");
-            assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1, "{n} rows: an empty table's blocks and a radix block");
+            cleared(&mut tb, fill);
         }
     }
 }
@@ -198,14 +203,7 @@ fn clear_while_reclaiming() {
     reclaim(&mut tb);
     assert_eq!(tb.len().unwrap(), 100);
     assert_eq!(rows(&tb).2, 100);
-    tb.clear().unwrap();
-    reclaim(&mut tb);
-    let mut fresh = VecHost::new(FILLS[1]);
-    let (_, ftbl) = Table::create(&mut fresh, 7, &image()).unwrap();
-    let h = tb.host();
-    assert_eq!(h.live_pages() as u64, held_pages(h, tbl));
-    assert_eq!(AreaRecord::read(h, tbl, 15).unwrap().pages, 1);
-    assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1);
+    cleared(&mut tb, FILLS[1]);
 }
 
 #[test]
@@ -248,12 +246,6 @@ fn removals_give_back_pages() {
         while root::u64_at(tb.host(), tbl, root::SWEPT_N).unwrap() == 0 {
             assert_ne!(tb.step().unwrap(), Ran::Nothing, "a sweep takes blocks");
         }
-        tb.clear().unwrap();
-        reclaim(&mut tb);
-        let mut fresh = VecHost::new(fill);
-        let (_, ftbl) = Table::create(&mut fresh, 7, &image()).unwrap();
-        let h = tb.host();
-        assert_eq!(h.live_pages() as u64, held_pages(h, tbl));
-        assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1);
+        cleared(&mut tb, fill);
     }
 }
