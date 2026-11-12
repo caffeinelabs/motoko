@@ -22,8 +22,7 @@ import NativeTable "mo:native-table/NativeTable"
 - Tables run in compiled code only. The interpreter, `moc -r`, traps on a table call with
   `native tables need compiled code`.
 - A table is never freed: it keeps a few pages while the canister lives, also when nothing refers
-  to it any more, and there is no call that drops it. `clear()` gives back the memory its rows used,
-  and the table's upkeep gives back each 64 KiB page that removed rows leave empty.
+  to it any more, and there is no call that drops it.
 - Tables live in their own part of Wasm memory, taken in steps of 64 MiB: the first table takes
   64 MiB at once, and the tables grow by 64 MiB whenever they fill what they have.
 - Tables survive upgrades that keep main memory. An upgrade by graph copy traps while a table exists
@@ -76,7 +75,7 @@ let i = items.get(("doc-7", 3))
 | `t.upsert(k, fields) : Bool` | as `update` when `k` has a row; when not, inserts one from `fields`, with null in the row's other fields; true when `k` was new |
 | `t.remove(k)` | removes the row `k` has, if any |
 | `t.delete(k) : Bool` | as `remove`; true when `k` had a row |
-| `t.clear()` | removes every row, with its index entries: `size` is 0, and sums, counts, `min` and `max` start again from no rows |
+| `t.clear()` | removes every row, with its index entries, at a cost that does not grow with the table: `size` is 0, and sums, counts, `min` and `max` start again from no rows; the indexes stay declared |
 
 Change one field:
 
@@ -91,13 +90,6 @@ ignore orders.update(7, { paid = true })
   `{ note = null : ?Text }`.
 - It traps when `fields` has a field `R` lacks, or a field of another type.
 - `upsert` compiles only when each field of `R` that `fields` leaves out is an option.
-
-`clear()`:
-
-- Its cost does not grow with the table. The memory the rows used goes back to the tables' memory in
-  steps of the table's upkeep: each write runs one step, and `maintain` runs more. A table that
-  receives no writes after `clear()` gives its memory back through `maintain`.
-- The indexes stay declared, and the row type stays as it is.
 
 ## Read by key
 
@@ -128,8 +120,8 @@ for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
 - `view` takes `P` from the declared type, as `evolve` does; or give all three types:
   `orders.view<Nat, Order, Name>()`.
 - It traps when `P` has a field `R` lacks, or a field of another type.
-- `remove` and `delete` on a view remove the whole row; `add`, `insert`, `update`, `upsert` and
-  `evolve` on a view trap.
+- `remove` and `delete` on a view remove the whole row; `add`, `insert`, `tryAdd`, `update`, `upsert`
+  and `evolve` on a view trap.
 - After `evolve`, make views from the table `evolve` returns.
 
 ## Arrays in rows
@@ -226,8 +218,6 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.
 - `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
   costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
-- `removeIndexRange` costs less than removing the walk's rows one by one:
-  `orders.removeIndexRange(["city"], ?[#text("Basel")], ?[#text("Basel")])` removes every Basel order.
 
 ## Filters
 
@@ -381,17 +371,18 @@ Each message starts with `native table: `.
 |---|---|---|
 | `the row type has no field of that name` | `build`; `view`, `update`, `upsert`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
 | `a field has another type than the table's` | `view`, `update`, `upsert` | a field of the view's row type, or of `fields`, that the row has with another type; `update` and `upsert` take a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
+| `a key that is a tuple is not one cell` | `NativeTableCells.cells` | `key` is true and the table's key is a tuple |
 | `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |
 | `an index has 1 to 7 fields` | `build` | a field list given to `createIndex` that is empty or has more than 7 fields |
 | `a table has at most 63 indexes` | `build` | a 64th distinct field list given to `createIndex` |
 | `a unique index already has this value` | `add`, `insert`, `update`, `upsert` | a write that would give a second row the value a unique index has for another row; it writes nothing |
-| `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
+| `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `indexEntriesAt`, `reverseIndexEntriesAt`, `removeIndexRange`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
 | `index key does not match the index's fields` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a key with the wrong number of cells, or a cell of the wrong kind; in a filter, a cell of the wrong kind, `#null_` for a field that is not an option, or `#null_` as a range end |
 | `index key value out of range` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a cell, of a key or a filter, outside its field's range, for example `#nat(300)` for a `Nat8` |
 | `a field changes its type` | `evolve` | a field keeps its name but changes its type |
 | `a new field is not an option` | `evolve` | a field the old row type lacks is not of an option type |
 | `a row that is a scalar cannot change` | `evolve` | the old or the new row type is a scalar, and the two differ |
-| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value or a view from before an `evolve` that changed the table's row type, unless a later `evolve` returned the table to that row type; and `add`, `insert`, `update`, `upsert` or `evolve` on a view |
+| `not a table of this key and row type` | every call on a table | a handle that does not name a table this program made with these key and row types, for example a record built by hand, or a table value or a view from before an `evolve` that changed the table's row type, unless a later `evolve` returned the table to that row type; and `add`, `insert`, `tryAdd`, `update`, `upsert` or `evolve` on a view |
 | `graph-copy stabilization is not possible while a table exists` | `__motoko_stabilize_before_upgrade` | the start of an upgrade by graph copy, once the canister has made a table |
 
 ## With OQL

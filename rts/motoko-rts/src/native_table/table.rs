@@ -1310,9 +1310,9 @@ pub unsafe fn nt_clear<M: Memory>(mem: &mut M, id: u64, codec: Value) -> u64 {
 /// Runs steps of maintenance on the table whose root block is `id`, starting each only while
 /// performance counter 0 is below its value at the start of the call plus `budget`, so a call can
 /// go past its budget by the step it started last; 1 when work is still pending, else 0. A step
-/// compacts or drops one whole row group, or gives back part of the memory of the rows `nt_clear`
-/// removed; writes run one step each when work is pending, so a table that receives no writes
-/// advances only through this call.
+/// compacts or drops one whole row group, gives back part of the memory of the rows `nt_clear`
+/// removed, or gives back pages that removed rows left empty; writes run one step each when work
+/// is pending, so a table that receives no writes advances only through this call.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_maintain<M: Memory>(mem: &mut M, id: u64, codec: Value, budget: u64) -> u64 {
     let start = ic0_performance_counter(0);

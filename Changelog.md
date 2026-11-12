@@ -11,20 +11,16 @@
     stable table's row type changes in an upgrade through `evolve` in the
     migration function, which adds fields of an option type and drops fields.
     A view of a table reads only some fields of each row, and `update` sets
-    some fields of a row and keeps the others, and `upsert` inserts one from
-    them when the key has none. A field can hold an array of
+    some fields of a row and keeps the others. A field can hold an array of
     scalars, of options of scalars, or of records of those, read and written
-    whole. A key can be a tuple of 2 to 7 scalars. `clear` removes every row
-    at a cost that does not grow with the table. Scans go in the order keys
-    were first added, and `reverseEntries` goes newest first. A unique index
-    refuses a second row with its value, and `tryAdd` returns false then.
-    `count` takes the values of an index's first fields too,
-    `indexEntriesAt` starts an index walk at its n-th row, and
-    `removeIndexRange` removes the rows of a range of an index's keys; the
-    pages removed rows leave empty go back in the table's upkeep. The
-    compiler supplies a table's codec from its key and row types and rejects
-    types a table cannot have with the new error M0279; `moc.js` rejects a
-    program that uses native tables with the new error M0280 (#6492).
+    whole, and a key can be a tuple of 2 to 7 scalars. Scans go in the order
+    keys were first added. Also: `upsert`, `clear`, `reverseEntries`,
+    unique indexes with `tryAdd`, counts by an index's first fields,
+    `indexEntriesAt`, `reverseIndexEntriesAt` and `removeIndexRange`, and
+    upkeep that gives back pages removed rows left empty. The compiler
+    supplies a table's codec from its key and row types and rejects types a
+    table cannot have with the new error M0279; `moc.js` rejects a program
+    that uses native tables with the new error M0280 (#6492).
 
   * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
     value, and `Prim.shiftLeft` of a nonzero value traps with "left shift

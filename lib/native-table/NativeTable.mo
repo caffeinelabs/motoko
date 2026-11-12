@@ -560,8 +560,10 @@ module {
 
   /// Runs the table's upkeep in whole steps. A step compacts one group of 4,096 rows that removals
   /// or replacements have left with many removed rows or changed fields, drops a group with no row
-  /// left, or gives back part of the memory of the rows `clear` removed. Each write runs one step first when work is pending; this runs steps until the call
-  /// has used about `budget` instructions, and can go past that by the last step it starts.
+  /// left, gives back part of the memory of the rows `clear` removed, or gives back pages that
+  /// removed rows left empty. Each write runs one step first when work is pending; this runs steps
+  /// until the call has used about `budget` instructions, and can go past that by the last step it
+  /// starts.
   /// Returns true when work is still pending. Call it, from a timer for example, to get the work
   /// done on a table that receives no writes.
   public func maintain<K, R>(self : NativeTable<K, R>, budget : Nat) : Bool {
