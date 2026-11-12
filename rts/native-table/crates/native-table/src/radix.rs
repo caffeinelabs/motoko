@@ -10,7 +10,7 @@
 //! the totals space, and key-log block lists. A walk examines a block's 512 entries in order and skips an
 //! absent entry at any level at once.
 
-use crate::area::{alloc_zeroed, free_block};
+use crate::area::{alloc_zeroed, push_free};
 use crate::consts::RADIX_FAN;
 use crate::fault::{corrupt, Corruption, Fault, ImageId};
 use crate::mem::{put_u64, rd_u64, PageHost, Region};
@@ -150,7 +150,7 @@ impl Radix {
     }
 
     /// Clears entry i. Then, from the leaf up, a block whose 512 entries all read 0 is freed with
-    /// `free_block(0, ·)` and its entry in the parent cleared, up to the root: at most height × 512 word
+    /// `push_free(0, ·)` and its entry in the parent cleared, up to the root: at most height × 512 word
     /// reads (`zeroed`). An emptied root block is freed too and the root becomes 0; the height is kept.
     pub fn clear<H: PageHost>(&mut self, h: &mut H, tbl: u64, i: u64) -> Result<(), Fault> {
         self.check()?;
@@ -183,7 +183,7 @@ impl Radix {
             if !zeroed(h.get(Region::Block(block))?) {
                 return Ok(());
             }
-            free_block(h, tbl, 0, block)?;
+            push_free(h, tbl, 0, block)?;
             // level < height ≤ HEIGHT_MAX.
             level = level.wrapping_add(1);
             if level >= self.height {
@@ -196,7 +196,7 @@ impl Radix {
     }
 
     /// Frees the whole array: each present leaf entry is handed to `leaf` (which frees what it names) and each
-    /// radix block is freed with `free_block(0, ·)` once every entry below it is done, so a block's entries go
+    /// radix block is freed with `push_free(0, ·)` once every entry below it is done, so a block's entries go
     /// before the block.
     pub fn release<H, F>(self, h: &mut H, tbl: u64, mut leaf: F) -> Result<(), Fault>
     where
@@ -211,7 +211,7 @@ impl Radix {
                 }
             }
             for &b in c.finished.get(..usize::from(c.n_finished)).unwrap_or(&[]) {
-                free_block(h, tbl, 0, b)?;
+                push_free(h, tbl, 0, b)?;
             }
         }
         Ok(())

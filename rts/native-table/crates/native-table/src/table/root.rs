@@ -28,6 +28,14 @@ pub const GROUP_TO_QUEUE: u64 = 128;
 /// (`clear`; 0: none).
 pub const PARK_FIRST: u64 = 136;
 pub const PARK_LAST: u64 = 144;
+/// The sweep that gives back wholly free pages (`area::sweep_step`): its radix array of the blocks it took (root
+/// u64, entries u64, height u8), its stage u8, its page-list index u32 and the blocks freed since it last ran u32.
+pub const SWEPT: u64 = 64;
+pub const SWEPT_N: u64 = 72;
+pub const SWEPT_H: u64 = 80;
+pub const SWEEP_STAGE: u64 = 81;
+pub const SWEEP_AT: u64 = 152;
+pub const FREED: u64 = 156;
 /// Index directory block references 0–2.
 pub const INDEX_DIRS: u64 = 928;
 pub const FMT_IMAGE: u64 = 2_128;

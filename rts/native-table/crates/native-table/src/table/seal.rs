@@ -1542,7 +1542,7 @@ fn run<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, rw: &Rw) -> Result<u64, 
     let lay = layout(h, shape, rw, &mut cx, leaves)?;
     let (img, lv) = write(h, tbl, shape, rw, &src, &mut cx, &lay)?;
     super::drain::free_list(h, tbl, cx.ws.blocks, 0)?;
-    crate::area::free_block(h, tbl, 0, work)?;
+    crate::area::push_free(h, tbl, 0, work)?;
     // The new group page.
     let pg = crate::area::alloc_block(h, tbl, 0)?;
     let ext_at = if rw.kind == SEAL { buffer::D_EXT } else { page::P_EXT };

@@ -20,7 +20,8 @@
     refuses a second row with its value, and `tryAdd` returns false then.
     `count` takes the values of an index's first fields too,
     `indexEntriesAt` starts an index walk at its n-th row, and
-    `removeIndexRange` removes the rows of a range of an index's keys. The
+    `removeIndexRange` removes the rows of a range of an index's keys; the
+    pages removed rows leave empty go back in the table's upkeep. The
     compiler supplies a table's codec from its key and row types and rejects
     types a table cannot have with the new error M0279; `moc.js` rejects a
     program that uses native tables with the new error M0280 (#6492).

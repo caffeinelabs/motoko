@@ -22,7 +22,8 @@ import NativeTable "mo:native-table/NativeTable"
 - Tables run in compiled code only. The interpreter, `moc -r`, traps on a table call with
   `native tables need compiled code`.
 - A table is never freed: it keeps a few pages while the canister lives, also when nothing refers
-  to it any more, and there is no call that drops it. `clear()` gives back the memory its rows used.
+  to it any more, and there is no call that drops it. `clear()` gives back the memory its rows used,
+  and the table's upkeep gives back each 64 KiB page that removed rows leave empty.
 - Tables live in their own part of Wasm memory, taken in steps of 64 MiB: the first table takes
   64 MiB at once, and the tables grow by 64 MiB whenever they fill what they have.
 - Tables survive upgrades that keep main memory. An upgrade by graph copy traps while a table exists
@@ -295,8 +296,9 @@ per field of the record, as `"history.amount"`, with that field's scalar type, a
 `array.optional` says whether that field is an option.
 
 A step of upkeep compacts one group of 4,096 rows that removals or replacements have left with
-many removed rows or changed fields, drops a group with no row left, or gives back part of the
-memory of the rows `clear()` removed; `maintain` can go past
+many removed rows or changed fields, drops a group with no row left, gives back part of the
+memory of the rows `clear()` removed, or gives back pages that removed rows left empty, which it
+looks for once removals have freed some memory since it last looked; `maintain` can go past
 `budget` by the step it started last. Each write already runs one step when work is pending. Call
 `maintain`, from a timer for example, for a table that receives no writes.
 

@@ -117,8 +117,9 @@ pub const IMAGE_V1: u16 = 1;
 /// holds only removed indexes' trees and key logs. An index directory of another version is refused with a
 /// header fault, so no count reads a record at another layout's offsets or meaning. Version 13: a secondary index's
 /// tree is counted, each internal node keeping the row entries under each child after its children, so it holds
-/// fewer entries.
-pub const FORMAT_TABLE: u16 = 13;
+/// fewer entries. Version 14: a sweep gives back a page of area 0 or 1 whose blocks are all free, leaving a zero
+/// entry in the area's page list, and the root's bytes 64–82 and 152–159 hold the sweep.
+pub const FORMAT_TABLE: u16 = 14;
 
 // ---- Indexes ----
 

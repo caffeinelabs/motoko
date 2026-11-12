@@ -14,7 +14,7 @@
 //! 0. the groups, one a step: a sealed group's images (its rows, its long values, its patches' values) go back,
 //!    as a compaction's drop frees them, and the open group's long values; their area-0 blocks are freed onto the
 //!    old area 0's free stack, the root holding the old record for the step;
-//! 1. area 1's pages, `PAGES` a step;
+//! 1. area 1's pages, `PAGES` a step (in phases 1 and 2, a zero entry is a page a sweep gave back, passed over);
 //! 2. area 0's pages but the root block's page, `PAGES` a step. A page whose blocks may hold the page list's own
 //!    radix blocks (index 1 and the multiples of 512: the list's blocks are taken from the page whose append
 //!    needs them) is put aside on a list linked through its block 0, which the list never holds;
@@ -147,7 +147,9 @@ fn pages<H: PageHost>(h: &mut H, park: u64, a: u32, at: u64) -> Result<Option<u6
     let end = rec.pages.min(at.saturating_add(PAGES));
     for i in at..end {
         let p = rec.page_list.get(&*h, i)?;
-        if a == 1 {
+        if p == 0 {
+            // Given back by a sweep.
+        } else if a == 1 {
             h.page_free(p)?;
         } else if i == 1 || (i != 0 && i % RADIX_FAN == 0) {
             let aside = rd_u64(h.get(Region::Block(park))?, ASIDE)?;
@@ -189,5 +191,5 @@ fn aside<H: PageHost>(h: &mut H, tbl: u64, park: u64) -> Result<(), Fault> {
     free_block(h, tbl, 0, park)?;
     root::set_u64(h, tbl, root::PARK_FIRST, 0)?;
     root::set_u64(h, tbl, root::PARK_LAST, 0)?;
-    root::set_u8(h, tbl, root::FREEING, 0)
+    root::set_u8(h, tbl, root::FREEING, root::u8_at(&*h, tbl, root::FREEING)? & !FREEING)
 }

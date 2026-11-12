@@ -18,3 +18,8 @@ debug.print: false
 debug.print: (1, false, ?1, ?1, 0)
 debug.print: (?(+1), ?(+1), ?(+1), null, null)
 ingress Completed: Reply: 0x4449444c0000
+debug.print: (0, true, null, null, 0)
+debug.print: (?0, null, null, null, null)
+debug.print: (225, false, ?1, ?7, 75)
+debug.print: (?(+1_050), ?0, ?(+8), ?{name = "item 5"; note = ""; qty = 5}, ?{name = "item 6"})
+ingress Completed: Reply: 0x4449444c0000

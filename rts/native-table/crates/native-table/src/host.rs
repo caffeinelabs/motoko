@@ -84,14 +84,16 @@ pub enum Wake {
 
 /// The maintenance state byte: bit 0 pending.
 pub const STATE_PENDING: u8 = 1;
-/// The freeing byte after it: 1 while the memory of the structures `clear` let go of is going back.
+/// The freeing byte after it: bit 0 while the memory of the structures `clear` let go of is going back, bit 1
+/// while a sweep gives back wholly free pages.
 pub const FREEING: u8 = 1;
+pub const SWEEP: u8 = 2;
 
 /// `Wake` from the table root's maintenance state byte and the freeing byte after it, read as one little-endian
 /// u16.
 #[inline]
 pub fn wake_from_state(state: u16) -> Wake {
-    if state & (u16::from(STATE_PENDING) | u16::from(FREEING) << 8) != 0 {
+    if state & (u16::from(STATE_PENDING) | u16::from(FREEING | SWEEP) << 8) != 0 {
         Wake::Later
     } else {
         Wake::Idle

@@ -2,7 +2,8 @@
 //! runs.
 //!
 //! The jobs are the compaction queue (compactions and group drops) and, once it is empty, giving back the memory
-//! of the structures `clear` let go of (`clear::step`). A step runs the next piece of one: a compaction rewrites
+//! of the structures `clear` let go of (`clear::step`), then the pages whose blocks are all free
+//! (`area::sweep_step`). A step runs the next piece of one: a compaction rewrites
 //! one whole group (`seal`), a drop frees one group. The seal of a full group is no job: the write that fills the
 //! group runs it (`write::freeze`).
 //!
@@ -14,7 +15,7 @@
 
 use crate::consts::{magic, COMPACT_DEAD, FORMAT_TABLE, PATCH_FOLD_BLOCKS, PATCH_UNITS_PER_DIR};
 use crate::fault::{rt, Corruption, Fault};
-use crate::host::{wake_from_state, Wake, STATE_PENDING};
+use crate::host::{wake_from_state, Wake, STATE_PENDING, SWEEP};
 use crate::mem::{put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, PageHost, Region};
 
 use super::buffer::{self, DESC_BIT};
@@ -193,18 +194,21 @@ pub enum Ran {
     Nothing,
     Compaction,
     Drop,
-    /// A piece of the memory of the structures `clear` let go of given back.
+    /// A piece of the memory of the structures `clear` let go of given back, or of a sweep.
     Free,
 }
 
-/// Runs one step: the compaction queue's next piece, or else the next piece of the memory `clear` gives back.
-/// Returns what ran (`Ran::Nothing` when no job is pending).
+/// Runs one step: the compaction queue's next piece, or else the next piece of the memory `clear` gives back, or
+/// else a sweep's. Returns what ran (`Ran::Nothing` when no job is pending).
 pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Fault> {
     push_recorded(h, tbl)?;
     let ran = if queued(&*h, tbl)? {
         compaction(h, tbl, shape)?
     } else if root::u64_at(&*h, tbl, root::PARK_FIRST)? != 0 {
         super::clear::step(h, tbl, shape)?;
+        Ran::Free
+    } else if root::u8_at(&*h, tbl, root::FREEING)? & SWEEP != 0 {
+        crate::area::sweep_step(h, tbl)?;
         Ran::Free
     } else {
         Ran::Nothing

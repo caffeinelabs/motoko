@@ -1095,7 +1095,7 @@ fn index_key(tb: &Table<'_, VecHost>, ix: u8, cells: &[(u32, V)]) -> Vec<u8> {
 /// The pages the host lends equal those the table's areas hold, and those of the structures `clear` let go of
 /// while their memory is going back.
 fn check_pages(tb: &Table<'_, VecHost>) {
-    let held: u64 = (0..AREAS as u32).map(|a| AreaRecord::read(tb.host(), tb.root(), a).unwrap().pages).sum();
+    let held: u64 = (0..AREAS as u32).map(|a| nt_testhost::held_pages(tb.host(), tb.root(), a)).sum();
     let live = tb.host().live_pages() as u64;
     if root::u64_at(tb.host(), tb.root(), root::PARK_FIRST).unwrap() == 0 {
         assert_eq!(live, held, "the host's live pages are the table's");
@@ -1116,7 +1116,7 @@ fn held(tb: &Table<'_, VecHost>) -> (u64, u64, u64) {
             b = rd_u64(tb.host().get(Region::Block(b)).unwrap(), 0).unwrap();
         }
         let never = if rec.newest != 0 { 16 - u64::from(rec.bump) } else { 0 };
-        rec.pages * 16 - never - free
+        nt_testhost::held_pages(tb.host(), tb.root(), a) * 16 - never - free
     };
     (used(0), used(1), AreaRecord::read(tb.host(), tb.root(), 15).unwrap().pages)
 }

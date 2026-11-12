@@ -1,8 +1,9 @@
 //! Freeing. A call frees at once what it lets go of: an image (`free_image`), a radix array of blocks
 //! (`free_list`), a group page with everything it names (`free_group_page`), and a sealed group's buffer
-//! descriptor with its buffer blocks and its long row images (`free_descriptor`).
+//! descriptor with its buffer blocks and its long row images (`free_descriptor`). The blocks a seal lets go of
+//! (its work space and the sealed group's buffer) do not count toward a sweep (`area::free_block`).
 
-use crate::area::{free_block, image_page_free};
+use crate::area::{free_block, image_page_free, push_free};
 use crate::consts::BUFFER_BLOCKS_MAX;
 use crate::fault::Fault;
 use crate::image::{Blocks, Image, REF_BYTES};
@@ -16,7 +17,7 @@ use super::page;
 
 /// Frees a radix array listing blocks of area `area`: the blocks, then the array's own blocks.
 pub fn free_list<H: PageHost>(h: &mut H, tbl: u64, r: Radix, area: u32) -> Result<(), Fault> {
-    r.release(h, tbl, |h, b| free_block(h, tbl, area, b))
+    r.release(h, tbl, |h, b| push_free(h, tbl, area, b))
 }
 
 /// Frees an image: its pages, then its radix blocks.
@@ -101,11 +102,11 @@ pub fn free_descriptor<H: PageHost>(h: &mut H, tbl: u64, d: u64) -> Result<(), F
     }
     for k in 0..blocks {
         let b = buffer::u64_of(&*h, d, buffer::D_RECORDS.wrapping_add(k.wrapping_mul(16)))?;
-        free_block(h, tbl, 0, b)?;
+        push_free(h, tbl, 0, b)?;
     }
     let ext = buffer::u64_of(&*h, d, buffer::D_EXT)?;
     if ext != 0 {
-        free_block(h, tbl, 0, ext)?;
+        push_free(h, tbl, 0, ext)?;
     }
-    free_block(h, tbl, 0, d)
+    push_free(h, tbl, 0, d)
 }

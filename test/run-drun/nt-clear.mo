@@ -4,7 +4,8 @@ import NativeTable "mo:native-table/NativeTable";
 // Emptying a table: after `clear` the table has no row, its index and its sums, counts and
 // extremes start again from no rows, and rows written after it read back, while and after the
 // memory the old rows used goes back through writes and `maintain`. A second clear before that
-// memory is back, and a clear through a view, empty the table the same way
+// memory is back, and a clear through a view, empty the table the same way. Rows removed one at a
+// time give back the pages they left free in the same steps, and rows added after read back
 actor {
   type Item = { name : Text; qty : Nat; note : Text };
 
@@ -71,6 +72,16 @@ actor {
     while items.maintain(100_000) {};
     Prim.debugPrint(debug_show (items.maintain(0)));
     show()
+  };
+
+  public func empty() : async () {
+    fill(9_000);
+    var i = 0;
+    while i < 9_000 { items.remove(i); i += 1 };
+    while items.maintain(100_000) {};
+    show();
+    fill(300);
+    show()
   }
 }
 
@@ -83,3 +94,4 @@ actor {
 //CALL ingress clear "DIDL\x00\x00"
 //CALL ingress again "DIDL\x00\x00"
 //CALL ingress upkeep "DIDL\x00\x00"
+//CALL ingress empty "DIDL\x00\x00"

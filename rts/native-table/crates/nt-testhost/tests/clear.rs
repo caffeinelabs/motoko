@@ -4,7 +4,9 @@
 //! back every page the old rows used except the root block's, a few pages a step: the host lends exactly the
 //! pages the table's areas hold, area 15 holds the schema page alone, and the blocks in use are an empty table's
 //! and one radix block. The host refuses any access to a page it took back, so no block of one is still read. A
-//! second and a third clear before the first one's memory is all back are reclaimed in order.
+//! second and a third clear before the first one's memory is all back are reclaimed in order. Rows removed one at
+//! a time give back, through the sweeps of maintenance, the pages whose blocks are all free, while rows written
+//! during a sweep read back; a clear in the middle of a sweep gives back the rest.
 
 use native_table::area::AreaRecord;
 use native_table::consts::{AREAS, GROUP_SLOTS};
@@ -12,6 +14,7 @@ use native_table::index::secondary::Start;
 use native_table::mem::rd_u64;
 use native_table::schema::IndexDecl;
 use native_table::table::jobs::{self, Ran};
+use native_table::table::root;
 use native_table::table::totals::Total;
 use native_table::table::{Table, Upsert};
 use native_table::tree::Dir;
@@ -65,7 +68,7 @@ fn rows(tb: &Table<'_, VecHost>) -> (Vec<(u32, V)>, usize, u64) {
 
 /// Pages the table's areas hold.
 fn held_pages(h: &VecHost, tbl: u64) -> u64 {
-    (0..AREAS as u32).map(|a| AreaRecord::read(h, tbl, a).unwrap().pages).sum()
+    (0..AREAS as u32).map(|a| nt_testhost::held_pages(h, tbl, a)).sum()
 }
 
 /// Blocks in use in area 0: its pages' blocks less the never-used and the free ones.
@@ -77,7 +80,7 @@ fn used0(h: &VecHost, tbl: u64) -> u64 {
         free += 1;
         b = rd_u64(h.get(Region::Block(b)).unwrap(), 0).unwrap();
     }
-    rec.pages * 16 - (16 - u64::from(rec.bump)) - free
+    nt_testhost::held_pages(h, tbl, 0) * 16 - (16 - u64::from(rec.bump)) - free
 }
 
 /// Runs maintenance steps until none is pending; each step gives back at most 16 pages, but for those that give
@@ -203,4 +206,54 @@ fn clear_while_reclaiming() {
     assert_eq!(h.live_pages() as u64, held_pages(h, tbl));
     assert_eq!(AreaRecord::read(h, tbl, 15).unwrap().pages, 1);
     assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1);
+}
+
+#[test]
+fn removals_give_back_pages() {
+    for fill in FILLS {
+        let n = 3 * GROUP_SLOTS;
+        let mut h = VecHost::new(fill);
+        h.set_logging(false);
+        let tbl = filled(&mut h, n);
+        let mut tb = Table::open(&mut h, tbl).unwrap();
+        reclaim(&mut tb);
+        let own01 = |h: &VecHost| nt_testhost::held_pages(h, tbl, 0) + nt_testhost::held_pages(h, tbl, 1);
+        let full = own01(tb.host());
+        let (mut kept, mut swept) = (0u64, 0u64);
+        for k in 0..n {
+            tb.write_step().unwrap();
+            swept += u64::from(root::u8_at(tb.host(), tbl, root::SWEEP_STAGE).unwrap() != 0);
+            tb.remove(&mut scratch(), &mut Src::new(&[(0, V::U(k))])).unwrap();
+            if k % 512 == 0 {
+                put(&mut tb, n + k, k);
+                kept += k;
+            }
+        }
+        reclaim(&mut tb);
+        let h = tb.host();
+        let (live, own) = (h.live_pages() as u64, held_pages(h, tbl));
+        assert_eq!(live, own, "the host's pages are the table's");
+        assert!(swept > 0 && 4 * own01(h) < full, "{swept} steps in a sweep: {full} pages, then {}", own01(h));
+        let (cells, walked, count) = rows(&tb);
+        assert_eq!((cells.len() as u64, walked as u64, count), (4 * n / 512, 2 * n / 512, n / 512));
+        let (total, _) = tb.sum(1 << 16, &mut [0; 64]).unwrap();
+        assert_eq!(total, Total::Small(i128::from(kept)));
+        // A clear while a sweep has blocks taken.
+        for k in 0..n {
+            put(&mut tb, k, k);
+        }
+        for k in 0..n {
+            tb.remove(&mut scratch(), &mut Src::new(&[(0, V::U(k))])).unwrap();
+        }
+        while root::u64_at(tb.host(), tbl, root::SWEPT_N).unwrap() == 0 {
+            assert_ne!(tb.step().unwrap(), Ran::Nothing, "a sweep takes blocks");
+        }
+        tb.clear().unwrap();
+        reclaim(&mut tb);
+        let mut fresh = VecHost::new(fill);
+        let (_, ftbl) = Table::create(&mut fresh, 7, &image()).unwrap();
+        let h = tb.host();
+        assert_eq!(h.live_pages() as u64, held_pages(h, tbl));
+        assert_eq!(used0(h, tbl), used0(&fresh, ftbl) + 1);
+    }
 }

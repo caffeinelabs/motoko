@@ -345,6 +345,15 @@ pub fn open_group<H: PageHost + ?Sized>(h: &H, tbl: u64) -> u64 {
     native_table::table::root::u64_at(h, tbl, native_table::table::root::OPEN_GROUP).unwrap()
 }
 
+/// The pages area a holds: its page list's entries but those a sweep gave back (area 15: its count).
+pub fn held_pages<H: PageHost>(h: &H, tbl: u64, a: u32) -> u64 {
+    let rec = native_table::area::AreaRecord::read(h, tbl, a).unwrap();
+    if a > 1 {
+        return rec.pages;
+    }
+    (0..rec.pages).filter(|&i| rec.page_list.get(h, i).unwrap() != 0).count() as u64
+}
+
 /// Hex of bytes, uppercase, space separated.
 pub fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02X}")).collect::<Vec<_>>().join(" ")

@@ -611,7 +611,7 @@ fn long_keys_hand_back_their_records() {
     let (p0, s0) = key_logs(&tb);
     assert!(p0.blocks > 0 && s0.blocks > 0, "both trees use their key logs");
     // The pages of area 1, which holds every index tree and key log.
-    let area1 = |tb: &Table<'_, VecHost>| native_table::area::AreaRecord::read(tb.host(), tb.root(), 1).unwrap().pages;
+    let area1 = |tb: &Table<'_, VecHost>| nt_testhost::held_pages(tb.host(), tb.root(), 1);
     let pages = area1(&tb);
     for round in 0..30_000u64 {
         let i = round % 20;
