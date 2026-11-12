@@ -202,8 +202,8 @@ func ntCount<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)
 // Up to `limit` rows (1 to 64) in the order of the index on `fields`, backward when `reverse`,
 // and the token to go on from, empty when no row is left. A walk goes on after the row its token
 // names; with an empty token, it starts at the index's first key (`start` 0), at its first key
-// whose first field is not null (1), or at the key `from` (2). It stops before the first key past
-// `to`
+// whose first field is not null (1), or at the key `from` (2), at its n-th row, 0 the first, when
+// `start` also holds four times n. It stops before the first key past `to`
 func ntWalk<K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)], fields : [Text], reverse : Bool, start : Nat64, from : [NtCell], to : ?[NtCell], token : Blob, limit : Nat64) : ([(K, R)], Blob) {
   (prim "nt_walk" : (Nat64, NtCodec<(K, R)>, [([Text], Nat)], [Text], Bool, Nat64, [NtCell], ?[NtCell], Blob, Nat64) -> ([(K, R)], Blob))(
     id,

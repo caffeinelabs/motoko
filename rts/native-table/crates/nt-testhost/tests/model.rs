@@ -1392,6 +1392,18 @@ fn check_index(
         }
         assert!(got == want, "index {ix}, {dir:?}: the walk in pieces of {limit}");
         assert!(walk(tb, ix, dir, Start::End, 0, size(r)).is_empty(), "index {ix}, {dir:?}: a walk of no rows");
+        // From its n-th row.
+        let nth = |r: &mut XorShift, len: usize| {
+            let any = r.below(len as u64 + 2);
+            pick(r, &[0, 1, u64::MAX, any])
+        };
+        let first = |rows: &[(Vec<u8>, u64)], n: u64, limit: u64| {
+            let rest = rows.get(n as usize..).unwrap_or(&[]);
+            rest[..rest.len().min(limit as usize)].to_vec()
+        };
+        let n = nth(r, want.len());
+        let got = walk(tb, ix, dir, Start::Nth(None, n), limit, size(r));
+        assert!(got == first(&want, n, limit), "index {ix}, {dir:?}: the walk from its row {n}");
         // From a key: a row's, or a fresh one.
         for _ in 0..2 {
             let key: Vec<Mv> = match grouped.get(r.below(grouped.len() as u64 + 1) as usize) {
@@ -1412,6 +1424,9 @@ fn check_index(
             let limit = pick(r, &[1, 30, u64::MAX]);
             let got = walk(tb, ix, dir, Start::Key(&e), limit, size(r));
             assert!(got[..] == from[..from.len().min(limit as usize)], "index {ix}, {dir:?}: from {key:?}");
+            let n = nth(r, from.len());
+            let got = walk(tb, ix, dir, Start::Nth(Some(&e), n), limit, size(r));
+            assert!(got == first(&from, n, limit), "index {ix}, {dir:?}: from {key:?} at its row {n}");
             if grouped.is_empty() {
                 assert!(walk(tb, ix, dir, Start::After(&e, 1), limit, size(r)).is_empty(), "index {ix}: empty");
             }

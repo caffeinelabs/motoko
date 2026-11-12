@@ -197,6 +197,8 @@ its order:
 | `t.count(index, key) : Nat` | the number of rows with that key |
 | `t.indexEntries(index, from, to)` | the `(K, R)` from key `from` to key `to`, both included, smallest first; `null` for an open end |
 | `t.reverseIndexEntries(index, from, to)` | the same, largest first: from `from` down to `to` |
+| `t.indexEntriesAt(index, from, to, offset)` | `indexEntries` from its `offset`-th row on, 0 the first |
+| `t.reverseIndexEntriesAt(index, from, to, offset)` | `reverseIndexEntries` from its `offset`-th row on |
 | `t.minEntry(index) : ?(K, R)` | the row with the smallest key whose first field is not null |
 | `t.maxEntry(index) : ?(K, R)` | the row with the largest such key |
 | `t.groupCounts(index)` | each distinct key with its number of rows, as `([Cell], Nat)`, smallest key first |
@@ -220,6 +222,8 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - Rows whose indexed field is null are in the index; null comes before every value.
 - Rows with equal keys come in the table's own order.
 - A walk fetches 64 rows per call to the table, `groupCounts` 64 keys.
+- `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
+  costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
 
 ## Filters
 

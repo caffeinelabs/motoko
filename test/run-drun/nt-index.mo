@@ -326,6 +326,30 @@ actor {
     (wrong, n)
   };
 
+  // The number of things wrong with the walks of the index on `index` from `from` to `to`,
+  // backward when `reverse`, from their `offset`-th row, at a few offsets: a row of the first
+  // three that is not the whole walk's row there, or one too few or too many
+  func skips(index : [Text], from : ?[Cell], to : ?[Cell], reverse : Bool) : Nat {
+    func walk(offset : Nat) : { next : () -> ?(Nat, Row) } = if reverse {
+      rows.reverseIndexEntriesAt(index, from, to, offset)
+    } else { rows.indexEntriesAt(index, from, to, offset) };
+    let keys = Prim.Array_init<Nat>(m, 0);
+    var n = 0;
+    let all = if reverse { rows.reverseIndexEntries(index, from, to) } else { rows.indexEntries(index, from, to) };
+    for (k, _) in all { keys[n] := k; n += 1 };
+    var wrong = 0;
+    for offset in [0, 1, 2, 63, 64, 65, n / 2, Prim.abs(n - 1 : Int), n, n + 1, 2 ** 70].values() {
+      var got = 0;
+      label page for (k, _) in walk(offset) {
+        if offset + got >= n or keys[offset + got] != k { wrong += 1 };
+        got += 1;
+        if got == 3 { break page }
+      };
+      if got < 3 and offset + got < n { wrong += 1 }
+    };
+    wrong
+  };
+
   // The number of things wrong with the row with the smallest key whose first field is not null,
   // or the largest when `largest`: its key is not that key, it is not the model's row of its
   // key, or not the first row of the walk from its key; or there is a row and should be none, or
@@ -375,7 +399,10 @@ actor {
         add(walked(index, gs, null, ?last, true));
         add(walked(index, gs, ?first, null, true));
         add(walked(index, gs, ?last, null, false));
-        add(walked(index, gs, ?hi, ?lo, false))
+        add(walked(index, gs, ?hi, ?lo, false));
+        if index == ["a"] or index == ["c", "s"] or index == ["z"] or index == ["bl", "p"] {
+          wrong += skips(index, null, null, false) + skips(index, null, null, true) + skips(index, ?lo, ?hi, false) + skips(index, ?hi, ?lo, true)
+        }
       };
       wrong += ends(index, gs, false) + ends(index, gs, true)
     };

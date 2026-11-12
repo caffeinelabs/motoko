@@ -33,6 +33,9 @@ pub enum Start<'k> {
     Key(&'k [u8]),
     /// After the row with this rid under the key: where a walk that handed that row out last stopped.
     After(&'k [u8], u64),
+    /// At the n-th row, 0 the first, of the walk from the key (`Some`, as `Key`) or from `End` (`None`): the rows
+    /// before it are counted in the tree, not read.
+    Nth(Option<&'k [u8]>, u64),
 }
 
 impl Secondary {
@@ -64,6 +67,10 @@ impl Secondary {
         // The length of the key walked, at the start of `key`, and the rid of its row handed out last.
         let (mut len, mut after) = match start {
             Start::After(k, rid) => (take(key, k)?, Some(rid)),
+            Start::Nth(from, n) => match self.nth(h, spec, dir, from, n, key)? {
+                Some(at) => at,
+                None => return Ok(0),
+            },
             Start::End | Start::Key(_) => {
                 let from = if let Start::Key(k) = start { Bound::Included(k) } else { Bound::Unbounded };
                 let Some(n) = self.tree_key(h, spec, from, dir, next)? else { return Ok(0) };
@@ -100,6 +107,65 @@ impl Secondary {
             let Some(n) = found else { return Ok(done) };
             (len, after) = (take(key, next.get(..n).unwrap_or(&[]))?, None);
         }
+    }
+
+    /// Where the walk from `from` (`None`: from the index's end) in direction `dir` hands out its n-th row, 0 its
+    /// first, for `walk` to start: a key, whole at the start of `key`, its length, and the rid of the key's row to
+    /// go on after, `None` to start at the key's first row; `None` when the walk has no n-th row. Two descents of
+    /// the counted tree going forward, at most five backward, whatever `n`.
+    fn nth<H: PageHost + ?Sized>(
+        &self,
+        h: &H,
+        spec: &KeySpec<'_>,
+        dir: Dir,
+        from: Option<&[u8]>,
+        n: u64,
+        key: &mut [u8],
+    ) -> Result<Option<(usize, Option<u64>)>, Fault> {
+        if self.root == 0 {
+            return Ok(None);
+        }
+        let (s, v) = (self.shape, self.view(h));
+        let rank = |key: &[u8], kind| tree::rank(s, &v, self.root, &KeyProbe { key, kind });
+        // The row entry with `t` row entries before it in the tree's order, and its rid.
+        let at = |t: u64| tree::select(s, &v, self.root, t);
+        let rid = |(n, i): (u64, u64)| -> Result<u64, Fault> {
+            let (_, field) = field_at(s, &v, n, i)?;
+            Ok(if is_ovf(field) { v.record(field)?.0 } else { payload(field) })
+        };
+        // The entry's key, whole at the start of `key`: its length.
+        let key_of = |(n, i): (u64, u64), key: &mut [u8]| -> Result<usize, Fault> {
+            let written = entry_key(&v, n, i, key)?;
+            exact(spec, key, written)
+        };
+        if dir == Dir::Fwd {
+            // Going forward the walk hands out the tree's rows in order, so it starts at the first row of its first
+            // key, or goes on after the row before the n-th.
+            let first = match from {
+                Some(k) => rank(k, Kind::Low)?,
+                None => 0,
+            };
+            let Some(t) = first.checked_add(n) else { return Ok(None) };
+            let Some(e) = at(t.wrapping_sub(u64::from(n > 0)))? else { return Ok(None) };
+            return Ok(Some((key_of(e, key)?, if n > 0 { Some(rid(e)?) } else { None })));
+        }
+        // Going backward the keys fall but each key's rows rise: the n-th row's key holds the row n places before the
+        // end of the walk's rows in the tree's order, and the rows of that key after that row come before the n-th.
+        let end = match from {
+            Some(k) => rank(k, Kind::Count)?,
+            None => node_rows(s, &v, self.root)?,
+        };
+        let Some(q) = end.checked_sub(n).and_then(|t| t.checked_sub(1)) else { return Ok(None) };
+        let Some(e) = at(q)? else { return Ok(None) };
+        let len = key_of(e, key)?;
+        let k = key.get(..len).unwrap_or(&[]);
+        let (lo, hi) = (rank(k, Kind::Low)?, rank(k, Kind::Count)?);
+        let before = hi.wrapping_sub(q).wrapping_sub(1);
+        if before == 0 {
+            return Ok(Some((len, None)));
+        }
+        let Some(e) = at(lo.wrapping_add(before).wrapping_sub(1))? else { return Err(rt(Corruption::Count, q)) };
+        Ok(Some((len, Some(rid(e)?))))
     }
 
     /// The rows whose key starts with `prefix`, the encoding of the first parts of a key, not all of them: the rows

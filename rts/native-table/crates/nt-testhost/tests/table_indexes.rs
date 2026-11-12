@@ -339,11 +339,23 @@ fn check_sorted(tb: &Table<'_, VecHost>, i: usize, m: &Model) {
             got.extend(more);
         }
         assert!(got == want, "index {ix}, {dir:?}: the walk in pieces");
-        // From the key of a row in the middle: every row of that key, then the keys after it.
+        // From the key of a row in the middle: every row of that key, then the keys after it; and from its n-th row.
         if let Some((k, _)) = want.get(want.len() / 2) {
             let from = want.iter().position(|(x, _)| x == k).unwrap();
             let got = sorted(tb, i, dir, Start::Key(k), 30);
             assert!(got[..] == want[from..want.len().min(from + 30)], "index {ix}, {dir:?}: from a key");
+            for n in [1, 2, 7, (want.len() - from) as u64 - 1, (want.len() - from) as u64] {
+                let at = (from + n as usize).min(want.len());
+                let page = &want[at..want.len().min(at + 30)];
+                assert!(
+                    sorted(tb, i, dir, Start::Nth(Some(k), n), 30) == page,
+                    "index {ix}, {dir:?}: from a key at its row {n}"
+                );
+                assert!(
+                    sorted(tb, i, dir, Start::Nth(None, at as u64), 30) == page,
+                    "index {ix}, {dir:?}: from its row {at}"
+                );
+            }
         }
     }
     // The smallest and largest keys whose first part is not null (a nullable part's tag 00).

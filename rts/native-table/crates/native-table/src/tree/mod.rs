@@ -14,6 +14,7 @@ pub mod shape;
 
 pub use cursor::{Cursor, Dir, Direction, Fwd, Rev};
 pub use insert::{insert_at, insert_first};
+pub use node::select;
 pub use remove::remove_found;
 pub use search::{descend, find, rank, search, Search, Shared};
 pub use shape::{IndexShape, NodeShape, Shape};

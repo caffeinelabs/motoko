@@ -399,15 +399,18 @@ module {
   func rest(token : Blob) : ?Blob = if token.size() == 0 { null } else { ?token };
 
   /// The keys and rows of the index on `index`, in its order or backward, from the key `from` on,
-  /// or from the first, to the key `to`, or to the last.
-  func walk<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool, from : ?[Cell], to : ?[Cell]) : {
+  /// or from the first, to the key `to`, or to the last, from the `offset`-th of them on.
+  func walk<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool, from : ?[Cell], to : ?[Cell], offset : Nat) : {
     next : () -> ?(K, R)
   } {
     let (start, key) : (Nat64, [Cell]) = switch from {
       case null { (0, []) }
       case ?key { (2, key) }
     };
-    let (first, token) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start, key, to, "" : Blob, batch);
+    // From the `offset`-th row: one of 2^61 or more, more rows than a table holds, ends the walk as
+    // any past its last row. A Nat below 2^30 compares fastest.
+    let nth : Nat64 = if offset < 0x4000_0000 or offset < 0x2000_0000_0000_0000 { Prim.natToNat64(offset) } else { 0x2000_0000_0000_0000 };
+    let (first, token) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start | nth << 2, key, to, "" : Blob, batch);
     batches<(K, R), Blob>(
       first,
       rest(token),
@@ -426,7 +429,15 @@ module {
   public func indexEntries<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell]) : {
     next : () -> ?(K, R)
   } {
-    walk(self, index, false, from, to)
+    walk(self, index, false, from, to, 0)
+  };
+
+  /// As `indexEntries`, from its `offset`-th row on, 0 its first. The rows before it are counted in
+  /// the index, not read, so a page of a walk costs about the same at any offset.
+  public func indexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walk(self, index, false, from, to, offset)
   };
 
   /// As `indexEntries`, keys falling: from the key `from` down, or from the last, to the key `to`,
@@ -434,7 +445,14 @@ module {
   public func reverseIndexEntries<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell]) : {
     next : () -> ?(K, R)
   } {
-    walk(self, index, true, from, to)
+    walk(self, index, true, from, to, 0)
+  };
+
+  /// As `reverseIndexEntries`, from its `offset`-th row on, as `indexEntriesAt`.
+  public func reverseIndexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walk(self, index, true, from, to, offset)
   };
 
   /// The first key and row in the order of the index on `index`, or backward, whose key's first

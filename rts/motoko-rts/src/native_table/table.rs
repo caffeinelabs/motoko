@@ -645,7 +645,8 @@ unsafe fn blob_of_parts<M: Memory>(mem: &mut M, a: &[u8], b: &[u8]) -> Value {
 /// A walk resumes after the row its `token` names, the last row the call that gave the token
 /// handed back. A walk with an empty token starts, by `start`: 0 at the index's first key in its
 /// direction, 1 at its first key whose first part is not null, 2 at the key the cells of the array
-/// `from` give, or at the first key past it when no row has it. It stops before the first key past
+/// `from` give, or at the first key past it when no row has it; `start` plus four times n starts it
+/// at the n-th row from there instead, 0 the first, the rows before it not read. It stops before the first key past
 /// the key the cells of `to` give, when `to` is not null. With a view's codec (`nt_view`), only
 /// the view's fields of each row are read.
 #[ic_mem_fn(ic_only)]
@@ -689,6 +690,7 @@ pub unsafe fn nt_walk<M: Memory>(
         layout = map.layout(&mut *mem, &layout);
     }
     let table = table_at(&mut host, id);
+    let (start, nth) = (start & 3, start >> 2);
     // Where the walk starts; `None` when no row's first part is not null.
     let first = if !token.is_empty() {
         let Some(at) = token.len().checked_sub(8) else {
@@ -713,7 +715,9 @@ pub unsafe fn nt_walk<M: Memory>(
             _ => rts_trap_with("native table: unknown walk start"),
         };
         match (start, key) {
+            (_, Ok(Some(key))) if nth > 0 => Some(Start::Nth(Some(key), nth)),
             (_, Ok(Some(key))) => Some(Start::Key(key)),
+            (0, Ok(None)) if nth > 0 => Some(Start::Nth(None, nth)),
             (0, Ok(None)) => Some(Start::End),
             (_, Ok(None)) => None,
             (_, Err(fault)) => rts_trap_with(fault.text()),

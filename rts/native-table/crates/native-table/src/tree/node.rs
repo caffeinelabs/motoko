@@ -4,7 +4,7 @@
 //! every offset lies inside the node by construction.
 
 use super::shape::{NodeShape, Shape};
-use crate::consts::{FLAG_LEAF, F_COUNT};
+use crate::consts::{FLAG_LEAF, F_COUNT, PATH_STACK};
 use crate::fault::Fault;
 use crate::host::{NodeMem, NodeRead};
 
@@ -142,6 +142,46 @@ pub fn node_rows<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, n: u64) -> Result<
         return Ok(r);
     }
     Ok(r.wrapping_add(child_rows(s, m, n, c.wrapping_add(1))?))
+}
+
+/// In a counted tree whose root is `root` (not 0): the node and index of the row entry with `k` row entries
+/// before it, `None` when the tree holds no more. One descent: at each node, past the rows under the children and
+/// the row entries before it, into the child whose rows hold it. It fails with `PathOverflow` past `PATH_STACK`
+/// levels.
+pub fn select<S: Shape, M: NodeRead + ?Sized>(s: S, m: &M, root: u64, mut k: u64) -> Result<Option<(u64, u64)>, Fault> {
+    let ks = s.ks();
+    // The count flag of entry i is byte `flag` + i·`step` of the node's key parts.
+    let (Ok(flag), Ok(step)) = (usize::try_from(ks.wrapping_sub(8)), usize::try_from(ks.max(8))) else {
+        return Ok(None);
+    };
+    let mut n = root;
+    'node: for _ in 0..PATH_STACK {
+        let (leaf, sh) = shape_of(s, m, n)?;
+        let c = count(s, m, n)?;
+        let keys = m.bytes(n, ko(s, &sh, 0), c.wrapping_mul(ks))?;
+        let under = if leaf { &[][..] } else { m.bytes(n, to(s, 0), c.wrapping_add(1).wrapping_mul(8))? };
+        let mut under = under.chunks_exact(8);
+        let (mut i, mut at) = (0u64, flag);
+        loop {
+            if let Some(w) = under.next().and_then(|w| w.first_chunk()) {
+                let r = u64::from_le_bytes(*w);
+                if k < r {
+                    n = child(s, m, n, i)?;
+                    continue 'node;
+                }
+                k = k.wrapping_sub(r);
+            }
+            let Some(&b) = keys.get(at) else { return Ok(None) };
+            if b & COUNT_BYTE == 0 {
+                if k == 0 {
+                    return Ok(Some((n, i)));
+                }
+                k = k.wrapping_sub(1);
+            }
+            (i, at) = (i.wrapping_add(1), at.wrapping_add(step));
+        }
+    }
+    Err(Fault::PathOverflow)
 }
 
 /// Clamps a run length to what fits from index i of a node of capacity c.
