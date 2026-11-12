@@ -255,7 +255,8 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
              filter : NtFilter) ->
         Nat;
     ntCreate :
-      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) ->
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)],
+             nulls : Bool) ->
         (Nat64, [Nat]);
     ntEvolve :
       <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,

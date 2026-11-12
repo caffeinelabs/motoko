@@ -20,7 +20,7 @@ use native_table::table::{buffer, page, patch, root, CellIn, RowSource, Table, U
 use native_table::value::ty;
 use native_table::{CorruptAt, Corruption, ImageId, PageHost, Progress, Region, Wake};
 use nt_testhost::big::Big;
-use nt_testhost::rows::{schema, t, uleb, Sink, Src, V};
+use nt_testhost::rows::{schema, schema_versioned, t, uleb, Sink, Src, VCol, V};
 use nt_testhost::{open_group, Call, TestBudget, VecHost, VecScratch, XorShift, FILLS};
 
 /// Scratch for keys longer than a point operation's stack.
@@ -1413,6 +1413,61 @@ fn append_adds_elements_at_the_end_of_lists() {
     maintain_all(&mut tb);
     check_reads(&tb, &model);
     check_ownership(&tb);
+}
+
+/// On a table `without_null_rows`, an update that leaves a row null in every leaf but the key's removes it, in the
+/// write buffer and in a sealed group, and one that leaves a leaf set keeps it. Before, the table keeps such a row.
+/// `clear` keeps the setting, and so does `evolve`, after which a dropped leaf's old value does not count.
+#[test]
+fn update_removes_a_row_it_leaves_null_on_a_table_without_null_rows() {
+    let cols = [t::scalar(ty::NAT), t::opt(t::scalar(ty::NAT)), t::opt(t::scalar(ty::TEXT))];
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &schema(&cols).0).unwrap();
+    let mut model = Rows::new();
+    let row = |k: u64| vec![(id(0), V::U(k)), (id(1), V::U(k)), (id(2), V::text("x"))];
+    let mut k = 0;
+    while seals(&tb) == 0 || model.len() < 2 + GROUP_SLOTS as usize {
+        put_row(&mut tb, &mut model, row(k));
+        k += 1;
+    }
+    let update = |tb: &mut Table<'_, VecHost>, k: u64, cells: &[(u32, V)]| {
+        let leaves: Vec<u32> = cells.iter().map(|c| c.0).collect();
+        let key = [(id(0), V::U(k))];
+        tb.update(&mut key_scratch(), &mut Src::new(&key), &leaves, &mut Src::new(cells), false).unwrap().0
+    };
+    let nulls = [(id(1), V::Null), (id(2), V::Null)];
+    let removed = |tb: &mut Table<'_, VecHost>, model: &mut Rows, k: u64, cells: &[(u32, V)]| {
+        let rid = model.remove(&k).unwrap().0;
+        assert_eq!(update(tb, k, cells), Some(rid));
+        assert!(get_row(tb, k).is_none(), "row {k} removed");
+    };
+    assert_eq!(update(&mut tb, 0, &nulls), Some(model[&0].0));
+    model.get_mut(&0).unwrap().1 = [vec![(id(0), V::U(0))], nulls.to_vec()].concat();
+    check_reads(&tb, &model);
+    tb.without_null_rows().unwrap();
+    removed(&mut tb, &mut model, 0, &nulls[..1]);
+    for j in [1, k - 1] {
+        for (l, v) in [(1, V::Null), (2, V::text("y"))] {
+            assert_eq!(update(&mut tb, j, &[(id(l), v.clone())]), Some(model[&j].0));
+            model.get_mut(&j).unwrap().1[l as usize].1 = v;
+        }
+        removed(&mut tb, &mut model, j, &nulls[1..]);
+    }
+    removed(&mut tb, &mut model, 2, &nulls);
+    check_reads(&tb, &model);
+    maintain_all(&mut tb);
+    check_reads(&tb, &model);
+    check_ownership(&tb);
+    tb.clear().unwrap();
+    put_row(&mut tb, &mut Rows::new(), row(0));
+    let v2: Vec<VCol> = cols
+        .iter()
+        .zip([0, 0, 2])
+        .map(|(ty, dropped)| VCol { ty: ty.clone(), added: 1, dropped, default: None })
+        .collect();
+    tb.evolve(&schema_versioned(2, &v2, &[]).0).unwrap();
+    assert!(update(&mut tb, 0, &nulls[..1]).is_some() && get_row(&tb, 0).is_none(), "the dropped leaf does not count");
+    assert_eq!(tb.len().unwrap(), 0);
 }
 
 /// A sealed row's u64 cell, in a group whose values all fit one byte, updated to one that does not: the cell

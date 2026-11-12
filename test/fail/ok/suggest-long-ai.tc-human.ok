@@ -255,7 +255,8 @@ error[M0072]: field region does not exist in type:
              filter : NtFilter) ->
         Nat;
     ntCreate :
-      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) ->
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)],
+             nulls : Bool) ->
         (Nat64, [Nat]);
     ntEvolve :
       <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,

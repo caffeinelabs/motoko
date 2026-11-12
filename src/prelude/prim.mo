@@ -117,9 +117,10 @@ func ntCodecLayout<T>(codec : NtCodec<T>) : Blob {
 
 // Creates a table with an index on each list of fields of R, in key order, unique when its Bool
 // is true, and returns its id and the id of each list's index; equal lists share one index,
-// unique when one of them is
-func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) : (Nat64, [Nat]) {
-  (prim "nt_create" : (NtCodec<(K, R)>, [([Text], Bool)]) -> (Nat64, [Nat]))(codec, indexes)
+// unique when one of them is. With `nulls`, its updates and upserts remove a row they leave with
+// every field null
+func ntCreate<K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)], nulls : Bool) : (Nat64, [Nat]) {
+  (prim "nt_create" : (NtCodec<(K, R)>, [([Text], Bool)], Bool) -> (Nat64, [Nat]))(codec, indexes, nulls)
 };
 
 func ntSize<K, R>(id : Nat64, codec : NtCodec<(K, R)>) : Nat {

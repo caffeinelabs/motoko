@@ -271,16 +271,25 @@ impl<'h, H: PageHost> Table<'h, H> {
     }
 
     /// Removes every row, with its index entries, at a cost that does not grow with the table: the table gets
-    /// the empty structures `create` gives it (its row type, declared indexes and table uid kept; sums, counts
-    /// and extremes start again from no rows), and the old ones are parked (`clear`). Their memory goes back in
-    /// the steps of the table's maintenance, after its compactions: each write runs one, `maintain` runs more.
-    /// Scans and walks resumed after it hand out only rows written after it; row ids start again.
+    /// the empty structures `create` gives it (its row type, declared indexes, flags and table uid kept; sums,
+    /// counts and extremes start again from no rows), and the old ones are parked (`clear`). Their memory goes
+    /// back in the steps of the table's maintenance, after its compactions: each write runs one, `maintain` runs
+    /// more. Scans and walks resumed after it hand out only rows written after it; row ids start again.
     pub fn clear(&mut self) -> Result<Wake, Fault> {
         let uid = root::u64_at(&*self.host, self.root, root::UID)?;
+        let flags = root::u8_at(&*self.host, self.root, root::FLAGS)?;
         let parked = clear::park(&mut *self.host, self.root)?;
         self.init(uid)?;
+        root::set_u8(&mut *self.host, self.root, root::FLAGS, flags)?;
         clear::link(&mut *self.host, self.root, parked)?;
         self.wake()
+    }
+
+    /// From now on, `update` removes a row it would leave null in every leaf but its key leaves and dropped leaves
+    /// (`drop_null`); a row it inserts goes in as `src` gives it. Kept by `clear` and `evolve`.
+    pub fn without_null_rows(&mut self) -> Result<(), Fault> {
+        let flags = root::u8_at(&*self.host, self.root, root::FLAGS)?;
+        root::set_u8(&mut *self.host, self.root, root::FLAGS, flags | root::NO_NULL_ROWS)
     }
 
     /// Group 0's descriptor and first tail block, with a fresh hot state whose running-record leaf list
@@ -785,7 +794,8 @@ impl<'h, H: PageHost> Table<'h, H> {
     /// Sets the leaves `leaves` names (by leaf id) of the row with key k to the cells of `src`, keeping its other
     /// leaves: in a sealed group only those leaves are read and written, each changed one as an upsert writes it;
     /// a row still in the open group gets a new image, its stored one with those leaves' cells and items replaced
-    /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. Returns the row's
+    /// (`write::splice`). Only the secondary indexes with a part among the changed leaves move. On a table
+    /// `without_null_rows`, a row the write would leave null (`drop_null`) is removed instead. Returns the row's
     /// rid, or `None` when no row has key k: with nothing written, or with `insert`, after inserting `src`, which
     /// then has a cell for every leaf, k's for its key leaves, as `upsert` does, in the same lookup and under the
     /// same E(k). `BadRef` for a leaf the table does not have; `BadValue` for a cell its leaf's type refuses, or a
@@ -804,7 +814,7 @@ impl<'h, H: PageHost> Table<'h, H> {
         let e = self.key_in(key, &mut kb, scratch)?;
         let mut path = Path::new();
         let found = self.look(e, &mut path)?;
-        let Some((rid, _, _)) = found.1.found else {
+        let Some((rid, node, i)) = found.1.found else {
             if !insert {
                 return Ok((None, self.wake()?));
             }
@@ -817,7 +827,74 @@ impl<'h, H: PageHost> Table<'h, H> {
             return Ok((None, self.settle()?));
         };
         let row = self.live_key::<true>(&read::live(&*self.host, self.root, rid), rid, e)?.row();
+        if self.no_null_rows()?
+            && self.drop_null(scratch, src, leaves, row, rid, found.0, (node, i), &mut path, &mut kb)?
+        {
+            return Ok((Some(rid), self.settle()?));
+        }
         self.set_leaves(scratch, rid, row, leaves, src, &mut kb, &mut path)
+    }
+
+    /// Whether the table is `without_null_rows`.
+    #[inline(always)]
+    pub fn no_null_rows(&self) -> Result<bool, Fault> {
+        Ok(root::u8_at(&*self.host, self.root, root::FLAGS)? & root::NO_NULL_ROWS != 0)
+    }
+
+    /// Removes the row `rid`, lying at `row`, as `remove` does, from its entry `(node, i)` in the primary index
+    /// `prim`, which `path` reached, when the write of `src`'s cells to the leaves `leaves` would leave it null in
+    /// every leaf but its key leaves and dropped leaves: `src`'s cell for each of `leaves` is null, and the row
+    /// holds null in each other leaf. A key leaf among `leaves` is left to the write, which refuses another key.
+    /// Whether it removed the row. Out of line, so an update of a table that keeps such rows stays as it was.
+    #[allow(clippy::too_many_arguments)]
+    #[cold]
+    #[inline(never)]
+    fn drop_null<S: Scratch, R: RowSource + ?Sized>(
+        &mut self,
+        scratch: &mut S,
+        src: &mut R,
+        leaves: &[u32],
+        row: read::Row,
+        rid: u64,
+        prim: Option<Primary>,
+        (node, i): (u64, u64),
+        path: &mut Path,
+        kb: &mut [u8; KEY_STACK],
+    ) -> Result<bool, Fault> {
+        let (h, shape) = (&*self.host, &self.shape);
+        for &id in leaves {
+            if !matches!(src.cell(id)?, CellIn::Null) {
+                return Ok(false);
+            }
+        }
+        let page = h.get(Region::Page(shape.page))?;
+        let live = read::Live::open(h, row)?;
+        // A buffered row's null marks, one bit a leaf.
+        let marks = match &live {
+            read::Live::Buffered(at) => Some(row::RowRef::new(h, overlay::buffered(h, at)?.loc)?),
+            read::Live::Sealed(..) => None,
+        };
+        for o in 0..shape.leaves {
+            let l = shape.leaf_in(page, o)?;
+            let given = leaves.contains(&l.id);
+            if l.key && given {
+                return Ok(false);
+            }
+            if l.key || given || l.ty == Ty::Dropped {
+                continue;
+            }
+            let null = match (&live, &marks) {
+                (_, Some(r)) => r.null_bit(o)?,
+                (read::Live::Sealed(s, pos), _) => overlay::sealed_value(h, s, &l, *pos)? == cur::SVal::Null,
+                _ => false,
+            };
+            if !null {
+                return Ok(false);
+            }
+        }
+        let mut p = prim.ok_or(rt(Corruption::Link, rid))?;
+        self.drop_row(&live, rid, &mut p, (node, i), path, kb, scratch)?;
+        Ok(true)
     }
 
     /// Adds elements at the end of lists of the row with key k, and keeps its other leaves: each leaf `leaves`

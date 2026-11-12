@@ -1115,7 +1115,7 @@ end (* Func *)
    Nat64 passed unboxed (`W`) or any other value (`V`), and what it gives back, a Nat64 (`W`), a
    Nat made of a Nat64 (`N`), a Bool (`B`) or any other value (`V`) *)
 let native_table_prims = [
-  "nt_create", ([`V; `V], `V);
+  "nt_create", ([`V; `V; `V], `V);
   "nt_size", ([`W; `V], `N);
   "nt_put", ([`W; `V; `V; `V], `B);
   "nt_try_put", ([`W; `V; `V; `V], `B);

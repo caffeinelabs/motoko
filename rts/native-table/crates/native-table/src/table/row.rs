@@ -71,6 +71,7 @@ pub struct Plan {
     pub large: u64,
 }
 
+#[inline(always)]
 pub fn cell_of<'a, R: RowSource + ?Sized>(src: &'a mut R, l: &LeafInfo) -> Result<Val<'a>, Fault> {
     cell::check::<true>(l, src.cell(l.id)?)
 }

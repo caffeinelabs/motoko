@@ -14,7 +14,10 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // moves and the totals change by the difference; a Nat is taken for an Int. upsert inserts a row,
 // null in the fields it leaves out, when the key has none, and is update when the key has one, also
 // in a table whose row type changed. An update of a field the row lacks or has with another type,
-// and an update on a view, trap and change nothing
+// and an update on a view, trap and change nothing. On a table built withoutNullRows, update and
+// upsert remove a row they leave with every field null, also after evolve, where a dropped field
+// does not count; an upsert of nulls to a new key inserts nothing; a row with a field that is not an
+// option stays
 actor {
   type Order = { customer : Text; city : Text; amount : Nat; paid : Bool; placed : Int; note : ?Text };
   type Name = { customer : Text; city : Text };
@@ -28,6 +31,9 @@ actor {
   let all : NativeTable.NativeTable<Nat, Order> = orders.view();
 
   let scores = NativeTable.empty<Nat, { score : Int; best : ?Int; tag : Text }>().createIndex(["score"]).build();
+
+  let facts = NativeTable.empty<Text, { role : ?Text; seq : ?Nat }>().createIndex(["seq"]).withoutNullRows().build();
+  let tagged = NativeTable.empty<Nat, { tag : Text; note : ?Text }>().withoutNullRows().build();
 
   let counts = NativeTable.empty<Text, Nat>().build();
   let sameCounts : NativeTable.NativeTable<Text, Nat> = counts.view();
@@ -246,6 +252,22 @@ actor {
         scores.count(["score"], [#int(4)]),
       )
     );
+    tagged.add(1, { tag = "t"; note = ?"n" });
+    Prim.debugPrint(
+      debug_show (
+        facts.upsert("a", { role = ?"x"; seq = ?1 }),
+        facts.upsert("b", { role = null : ?Text }),
+        facts.upsert("d", { seq = ?2 }),
+        facts.update("a", { role = null : ?Text }),
+        facts.get("a"),
+        facts.upsert("a", { seq = null : ?Nat }),
+        (facts.get("a"), facts.get("b"), facts.size(), facts.count(["seq"], [#nat(1)])),
+        tagged.update(1, { note = null : ?Text }),
+        tagged.get(1),
+      )
+    );
+    let more : NativeTable.NativeTable<Text, { role : ?Text; note : ?Text }> = facts.evolve();
+    Prim.debugPrint(debug_show (more.update("d", { note = null : ?Text }), more.get("d"), more.size()));
     switch changed {
       case ?t {
         Prim.debugPrint(debug_show (t.update(1, { email = ?"ana@example.org" }), t.update(2, { age = 31 }), t.get(1), t.get(2)));

@@ -8,6 +8,8 @@ pub const MAGIC: u64 = 0;
 pub const FORMAT: u64 = 4;
 pub const KIND: u64 = 6;
 pub const FLAGS: u64 = 7;
+/// The flags bit of a table `without_null_rows` (`Table::without_null_rows`).
+pub const NO_NULL_ROWS: u8 = 1;
 pub const UID: u64 = 8;
 pub const SCHEMA_HASH: u64 = 16;
 pub const SCHEMA_VERSION: u64 = 24;

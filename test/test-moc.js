@@ -123,7 +123,7 @@ Motoko.saveFile(
   `import Prim "mo:⛔";
   actor {
     func codec<K, R>(c : (implicit : Prim.NtCodec<(K, R)>)) : Prim.NtCodec<(K, R)> = c;
-    public func create() : async Nat64 { Prim.ntCreate(codec<Nat, Text>(), []).0 }
+    public func create() : async Nat64 { Prim.ntCreate(codec<Nat, Text>(), [], false).0 }
   }`
 );
 const table_result = Motoko.compileWasm("ic", "table.mo");

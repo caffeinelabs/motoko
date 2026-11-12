@@ -22,7 +22,9 @@ use ::native_table::mem::{put, put_u64, rd_u64};
 use ::native_table::schema::{IndexDecl, SchemaView};
 use ::native_table::table::filter::Filter;
 use ::native_table::table::totals::Total;
-use ::native_table::table::{CellIn, CellOut, RowSink, Table, Upsert, buffer, indexes, root};
+use ::native_table::table::{
+    CellIn, CellOut, RowSink, RowSource, Table, Upsert, buffer, indexes, root,
+};
 use ::native_table::tree::Dir;
 use ::native_table::value::ty;
 use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
@@ -225,10 +227,17 @@ unsafe fn open<'h, 'a, M: Memory>(
 
 /// Creates an empty table of the codec's key and row types with a secondary index on each list of
 /// the array `indexes`, an array of pairs of an array of Texts that name fields of the row, in key
-/// order, and whether the index is unique. Returns its root block and the id of each list's
-/// index, from 1, in a pair; equal lists share one index, unique when one of them is.
+/// order, and whether the index is unique; with `nulls` true, a table whose updates and upserts
+/// remove a row they leave with every field null (`Table::without_null_rows`). Returns its root
+/// block and the id of each list's index, from 1, in a pair; equal lists share one index, unique
+/// when one of them is.
 #[ic_mem_fn(ic_only)]
-pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) -> Value {
+pub unsafe fn nt_create<M: Memory>(
+    mem: &mut M,
+    codec: Value,
+    indexes: Value,
+    nulls: Value,
+) -> Value {
     let layout = checked_layout_of(codec);
     let lists = indexes.as_array();
     let ids = scratch::<Value, M>(mem, lists.len());
@@ -274,7 +283,10 @@ pub unsafe fn nt_create<M: Memory>(mem: &mut M, codec: Value, indexes: Value) ->
     let image = or_trap(schema_image(mem, &layout, 0, SCHEMA_VERSION, &decls[..n]));
     let id = {
         let mut host = StoreHost::new(mem, native_store_location());
-        let (_, id) = or_trap(Table::create(&mut host, 0, image));
+        let (mut table, id) = or_trap(Table::create(&mut host, 0, image));
+        if nulls.get_raw() == TRUE_VALUE {
+            or_trap(table.without_null_rows());
+        }
         let block = or_trap(host.get_mut(Region::Block(id)));
         or_trap(put_u64(block, CODEC_HASH, layout.hash));
         or_trap(host.add_root(id));
@@ -360,7 +372,7 @@ pub unsafe fn nt_update<M: Memory>(
 }
 
 /// Sets the fields of `fields` in the row key `k` has, as `nt_update` does; when `k` has no row,
-/// inserts one from them, with null in the row's other fields. 1 when `k` is new, else 0. The
+/// inserts one from them, with null in the row's other fields. 1 when it inserts a row, else 0. The
 /// compiler found each field of `named` in the table's row and gave it the table's type: the
 /// codec's second Blob holds, in place of a hash list, the u32 position of each in the table's
 /// layout (`placed`).
@@ -428,13 +440,20 @@ unsafe fn set_fields<M: Memory, const APPEND: bool>(
     let mut scratch = BlobScratch { mem };
     or_trap(table.write_step());
     let leaves = core::slice::from_raw_parts(leaves, n);
+    // An upsert of nulls only inserts no row on a table without null rows; the row's other fields
+    // are null.
+    let new = insert
+        && !(or_trap(table.no_null_rows())
+            && leaves
+                .iter()
+                .all(|&l| matches!(row.cell(l), Ok(CellIn::Null))));
     let (rid, _) = or_trap(if APPEND {
         let give = |row: &mut Cells, leaf, b: &[u8]| *row = row.with(&mut *mem, leaf, b);
         table.append(&mut scratch, &mut k, leaves, &mut row, give)
     } else {
-        table.update(&mut scratch, &mut k, leaves, &mut row, insert)
+        table.update(&mut scratch, &mut k, leaves, &mut row, new)
     });
-    (rid.is_some() != insert) as u64
+    (rid.is_some() != new && insert == new) as u64
 }
 
 /// The table's upsert of `row`; 1 when its key is new.

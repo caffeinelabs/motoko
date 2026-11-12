@@ -18,8 +18,8 @@ module {
   };
 
   /// A table not created yet, with the field lists of the indexes it will have, each with whether
-  /// it is unique.
-  public type Builder<K, R> = { codec : Prim.NtCodec<(K, R)>; indexes : [([Text], Bool)] };
+  /// it is unique, and whether it removes rows left with every field null (`withoutNullRows`).
+  public type Builder<K, R> = { codec : Prim.NtCodec<(K, R)>; indexes : [([Text], Bool)]; noNullRows : Bool };
 
   /// The value of one field of an index key: `#null_`, `#bool`, `#nat`, `#int`, `#float`,
   /// `#text`, `#blob` or `#principal`. A Nat or Int stands for a value of any integer type or Char
@@ -65,7 +65,7 @@ module {
   /// A builder of a new, empty table with no indexes: add indexes with `createIndex`, then
   /// create the table with `build`.
   public func empty<K, R>(codec : (implicit : Prim.NtCodec<(K, R)>)) : Builder<K, R> {
-    { codec; indexes = [] }
+    { codec; indexes = []; noNullRows = false }
   };
 
   /// The builder with one more index, on the named fields of the row, in key order (1 to 7 of
@@ -85,15 +85,23 @@ module {
   func declare<K, R>(self : Builder<K, R>, fields : [Text], unique : Bool) : Builder<K, R> {
     let n = self.indexes.size();
     {
-      codec = self.codec;
+      self with
       indexes = Prim.Array_tabulate<([Text], Bool)>(n + 1, func i = if i < n { self.indexes[i] } else { (fields, unique) })
     }
+  };
+
+  /// The builder of a table where `update` and `upsert` remove the row they leave with every field
+  /// null, and an `upsert` of nulls only to a key with no row inserts nothing and returns false. The
+  /// table keeps this through `clear` and `evolve`. A row with a field that is not an option is never
+  /// removed.
+  public func withoutNullRows<K, R>(self : Builder<K, R>) : Builder<K, R> {
+    { self with noNullRows = true }
   };
 
   /// Creates the table with its indexes, so that each index holds every row from the start.
   /// Indexes cannot be added to the table afterwards.
   public func build<K, R>(self : Builder<K, R>) : NativeTable<K, R> {
-    let (id, ids) = Prim.ntCreate(self.codec, self.indexes);
+    let (id, ids) = Prim.ntCreate(self.codec, self.indexes, self.noNullRows);
     // Index ids count up from 1 in the order of each field list's first declaration.
     let indexes = Prim.Array_init<([Text], Nat)>(ids.size(), ([], 0));
     var n = 0;

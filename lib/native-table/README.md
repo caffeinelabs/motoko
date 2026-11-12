@@ -60,6 +60,9 @@ let i = items.get(("doc-7", 3))
 - Declaring the same field list twice gives one index.
 - `.createUniqueIndex(["email"])` declares an index that holds each value for one row at most. A
   value with null in one of its fields is never refused. Declared both ways, an index is unique.
+- `.withoutNullRows()` makes `update` and `upsert` remove the row they leave with every field null,
+  and an `upsert` of nulls only to a key with no row insert nothing and give false. A row with a
+  field that is not an option is never removed. `clear` and `evolve` keep this.
 - Every index holds every row from the start, and every write keeps it current.
 - A key that is a tuple is written and read whole: scans and walks give it as the tuple. To find
   the rows of one part of it, index a field that holds that part.

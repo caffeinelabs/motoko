@@ -254,7 +254,8 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
              filter : NtFilter) ->
         Nat;
     ntCreate :
-      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)]) ->
+      <K, R>(codec : NtCodec<(K, R)>, indexes : [([Text], Bool)],
+             nulls : Bool) ->
         (Nat64, [Nat]);
     ntEvolve :
       <K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>,
