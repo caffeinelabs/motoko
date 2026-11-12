@@ -95,16 +95,9 @@ fn array_codes(b: &[u8]) -> usize {
     let at = u32::from(b.first() == Some(&ty::OPTION));
     match list_end(b, at) {
         Ok(end) => end as usize,
-        Err(_) if b.first() == Some(&ty::TUPLE) => tuple_codes(b),
+        Err(_) if b.first() == Some(&ty::TUPLE) => tuple_end(b, 0).map_or(usize::MAX, |end| end as usize),
         Err(_) => usize::MAX,
     }
-}
-
-/// The number of type codes at the start of `b` when they are a key's tuple's, else `usize::MAX`.
-#[cold]
-#[inline(never)]
-fn tuple_codes(b: &[u8]) -> usize {
-    tuple_end(b, 0).map_or(usize::MAX, |end| end as usize)
 }
 
 /// The type code of each part of a key of the type codes `codes` when it is a tuple, else `None`.
