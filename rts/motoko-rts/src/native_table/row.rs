@@ -1728,8 +1728,8 @@ impl<'a, M: Memory> RowOut<'a, M> {
     /// is the table's map when its row type has changed. The leaves the table hands over
     /// (`leaves`) are the key's first when the key is built, then one per field of the view, then
     /// those of the parts after the first of a key that is a tuple, in a Blob that lives until the
-    /// next collection. Traps when `labels` does not have one label per field of the view, or none
-    /// for a view of a scalar.
+    /// next collection. Traps when a row is built and `labels` does not have one label per field
+    /// of the view, or none for a view of a scalar.
     pub unsafe fn picked(
         mem: *mut M,
         layout: &Layout<'a>,
@@ -1743,7 +1743,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
             mismatch();
         }
         let record = labels.as_blob().len().as_usize() == n * size_of::<u64>();
-        if !record && (labels.as_blob().len().as_usize() != 0 || n != 1) {
+        if !record && (labels.as_blob().len().as_usize() != 0 || n != 1) && out != Out::Key {
             mismatch();
         }
         let key = match (out, layout.entries().next()) {

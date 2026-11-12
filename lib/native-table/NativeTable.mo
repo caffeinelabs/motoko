@@ -284,7 +284,7 @@ module {
     batches<(K, R), Nat64>([], ?0, func from = Prim.ntScanEntries(self.id, self.codec, null, from, batch))
   };
 
-  /// The keys of the table, in the order of `entries`.
+  /// The keys of the table, in the order of `entries`. It reads no field of the rows.
   public func keys<K, R>(self : NativeTable<K, R>) : { next : () -> ?K } {
     batches<K, Nat64>([], ?0, func from = Prim.ntScanKeys(self.id, self.codec, from, batch))
   };

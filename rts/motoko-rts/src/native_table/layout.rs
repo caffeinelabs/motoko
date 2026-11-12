@@ -298,7 +298,7 @@ impl<'a> Layout<'a> {
 }
 
 /// The fields of a view (`Layout::view`), in the order of the view's row type.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Picks<'a> {
     picks: &'a [u8],
 }

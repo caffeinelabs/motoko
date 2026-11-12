@@ -11,7 +11,8 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // rows by the whole key, in rows of the open group and in packed rows, and a key that differs from
 // a row's in one part finds no row. Scans, index walks and views give the key as the tuple, a part
 // too long to lie in one piece of table memory included; update and upsert set fields by the key;
-// evolve keeps the key. The cells of a scan hold no key that is a tuple
+// evolve keeps the key, and keys gives the keys of entries. The cells of a scan hold no key that is
+// a tuple
 actor {
   type User = { name : Text; city : Text; amount : Nat };
   type Item = { name : Text; qty : Nat };
@@ -206,6 +207,10 @@ actor {
     Prim.debugPrint(debug_show (t.get(key(6)), t.get(("new", 0)), t.get((longPart("o"), 1)) == ?{ item(1) with note = null : ?Text }, t.size()));
     let rows = t.entries();
     Prim.debugPrint(debug_show (rows.next(), t.fieldTypes()));
+    let all = t.keys();
+    var keys = 0;
+    for (k, _) in t.entries() { if all.next() == ?k { keys += 1 } };
+    Prim.debugPrint(debug_show (keys, all.next()));
     Prim.debugPrint(debug_show (t.upsert(("up", 0), { name = "up"; qty = 2 }), t.upsert(("up", 0), { name = "up"; qty = 3 }), t.get(("up", 0))))
   };
 

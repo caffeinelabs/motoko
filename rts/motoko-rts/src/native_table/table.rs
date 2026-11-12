@@ -1154,10 +1154,10 @@ impl<'a, M: Memory, H: PageHost, F: Places<'a>> RowSink for Matches<'_, '_, 'a, 
 /// in row id order: every row when `filter` is null, else the rows whose field the Text
 /// `filter.0` names meets `filter.1`, a value of type `NtFilter`; and the row id to go on from, or
 /// null when no row is left: an array and an option in a pair. `what` says what is built of each
-/// row: 0 the pair of its key and its row, 1 its key, 2 its row; with `BACK` added, every row
-/// comes newest first, those below row id `next`, and `filter` is not read. Row ids never move, so
-/// a scan resumed after writes hands back every row that stays in the table and meets the filter
-/// exactly once.
+/// row: 0 the pair of its key and its row, 1 its key, read as a view of no field reads it, 2 its
+/// row; with `BACK` added, every row comes newest first, those below row id `next`, and `filter`
+/// is not read. Row ids never move, so a scan resumed after writes hands back every row that stays
+/// in the table and meets the filter exactly once.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_scan<M: Memory>(
     mem: &mut M,
@@ -1168,7 +1168,8 @@ pub unsafe fn nt_scan<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let Some(mut layout) = Layout::of(blob_bytes(codec.as_array().get(0))) else {
+    let layout = Layout::of(blob_bytes(codec.as_array().get(0)));
+    let Some(mut layout) = layout.filter(|_| what != 1) else {
         return scan_view(mem, id, codec, what, filter, next, limit);
     };
     let out = scan_out(what);
@@ -1198,8 +1199,9 @@ pub unsafe fn nt_scan<M: Memory>(
     batch(&mut *mem, rows, n, rest)
 }
 
-/// `nt_scan` with a view's codec: the rows come with only the view's fields read. Out of line, so
-/// a call with a table's codec runs as before.
+/// `nt_scan` with a view's codec, or for keys: the rows come with only the view's fields read, and
+/// the keys of a table or a view as a view of no field reads them. Out of line, so a call for a
+/// table's rows runs as before.
 #[cold]
 #[inline(never)]
 unsafe fn scan_view<M: Memory>(
@@ -1211,7 +1213,10 @@ unsafe fn scan_view<M: Memory>(
     next: u64,
     limit: u64,
 ) -> Value {
-    let (mut layout, picks) = view_of(codec);
+    let (mut layout, picks) = match what {
+        1 => (header_of(codec), Picks::default()),
+        _ => view_of(codec),
+    };
     let out = scan_out(what);
     let limit = limit.min(BATCH_LIMIT) as usize;
     let rows = scratch::<Value, M>(mem, limit);

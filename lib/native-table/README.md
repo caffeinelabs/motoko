@@ -125,6 +125,9 @@ for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
 - `view` takes `P` from the declared type, as `evolve` does; or give all three types:
   `orders.view<Nat, Order, Name>()`.
 - It traps when `P` has a field `R` lacks, or a field of another type.
+- A view of no field, `NativeTable<K, {}>`, reads only the keys: its index walks and scans read
+  no field of the row, and `entriesWhere` only the filtered field. `keys()` reads only the keys,
+  on a table too.
 - `remove` and `delete` on a view remove the whole row; `add`, `insert`, `tryAdd`, `update`, `upsert`,
   `append` and `evolve` on a view trap.
 - After `evolve`, make views from the table `evolve` returns.
