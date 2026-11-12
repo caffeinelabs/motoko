@@ -736,7 +736,8 @@ module E = struct
      IC's limit of 1,000,000, instead of giving each a function of its own. *)
   let small_object_fields = 16
 
-  let object_pool_add ?(small = true) (env : t) line (allocation : t -> G.t) : int64 =
+  (* [small] is required, so that no costly allocation is built inline by default. *)
+  let object_pool_add ~small (env : t) line (allocation : t -> G.t) : int64 =
     if !(env.object_pool.frozen) then raise (Invalid_argument "Object pool frozen");
     let index, t = Table.add !(env.object_pool.objects) (line, small, allocation) in
     env.object_pool.objects := t;
@@ -2139,16 +2140,16 @@ module Tagged = struct
     get_object ^^
     allocation_barrier env
 
-  let shared_object ?small line env allocation =
-    let index = E.object_pool_add ?small env line allocation in
+  let shared_object ~small line env allocation =
+    let index = E.object_pool_add ~small env line allocation in
     E.SharedObject index
 
   let materialize_shared_value env = function
   | E.Vanilla vanilla -> compile_unboxed_const vanilla
   | E.SharedObject index -> Heap.get_static_variable env index
 
-  let share env allocation =
-    materialize_shared_value env (shared_object __LINE__ env allocation)
+  let share ~small env allocation =
+    materialize_shared_value env (shared_object ~small __LINE__ env allocation)
 
 end (* Tagged *)
 
@@ -2180,7 +2181,7 @@ module MutBox = struct
     Tagged.store_field env field
 
   let add_global_mutbox env =
-    E.object_pool_add env __LINE__ alloc
+    E.object_pool_add ~small:true env __LINE__ alloc
 end
 
 
@@ -2256,10 +2257,10 @@ module Opt = struct
       )
 
   let constant env = function
-  | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
+  | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object ~small:true __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
   | E.Vanilla value -> E.Vanilla value (* not null and no `Opt` object *)
   | shared_value ->
-    Tagged.shared_object __LINE__ env (fun env ->
+    Tagged.shared_object ~small:true __LINE__ env (fun env ->
       let materialized_value = Tagged.materialize_shared_value env shared_value in
       inject env Type.Any materialized_value (* potentially wrap in new `Opt` *)
     )
@@ -2447,7 +2448,7 @@ module Closure = struct
 
   let constant env get_fi =
     let fi = Wasm.I64_convert.extend_i32_u (E.add_fun_ptr env (get_fi ())) in
-    Tagged.shared_object __LINE__ env (fun env -> Tagged.obj env Tagged.Closure [
+    Tagged.shared_object ~small:true __LINE__ env (fun env -> Tagged.obj env Tagged.Closure [
       compile_unboxed_const fi;
       compile_unboxed_const 0L
     ])
@@ -2492,7 +2493,7 @@ module BoxedWord64 = struct
     then
       E.Vanilla (BitTagged.tag_const pty i)
     else
-      Tagged.shared_object __LINE__ env (fun env -> compile_box env pty (compile_unboxed_const i))
+      Tagged.shared_object ~small:true __LINE__ env (fun env -> compile_box env pty (compile_unboxed_const i))
 
   let box env pty =
     Func.share_code1 Func.Never env
@@ -2853,7 +2854,7 @@ module Float = struct
     Tagged.(sanity_check_tag __LINE__ env (Bits64 F)) ^^
     Tagged.load_field_float64 env payload_field
 
-  let constant env f = Tagged.shared_object __LINE__ env (fun env ->
+  let constant env f = Tagged.shared_object ~small:true __LINE__ env (fun env ->
     compile_unboxed_const f ^^
     box env)
 
@@ -3834,7 +3835,7 @@ module Blob = struct
     get_blob
 
   let constant env sort payload : E.shared_value =
-    Tagged.shared_object __LINE__ env (fun env ->
+    Tagged.shared_object ~small:true __LINE__ env (fun env ->
       let blob_length = Int64.of_int (String.length payload) in
       let segment_index = E.add_static env StaticBytes.[Bytes payload] in
       load_data_segment env sort segment_index (compile_unboxed_const blob_length)
@@ -6544,7 +6545,7 @@ module StackRep = struct
   | Const.Unit -> E.Vanilla (Tuple.unit_vanilla_lit env)
   | Const.Tag (tag, value) ->
       let payload = build_constant env value in
-      Tagged.shared_object __LINE__ env (fun env ->
+      Tagged.shared_object ~small:true __LINE__ env (fun env ->
         let materialized_payload = Tagged.materialize_shared_value env payload in
         Variant.inject env tag materialized_payload
       )
@@ -7061,19 +7062,19 @@ module Serialization = struct
     | None -> assert false
 
   let get_global_candid_data env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.candid_data_segment) (get_candid_data_length env)
     )
 
   let get_global_type_offsets env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.type_offsets_segment) (get_type_offsets_length env)
     )
 
   let get_global_idl_types env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.idl_types_segment) (get_idl_types_length env)
     )
