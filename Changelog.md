@@ -8,7 +8,7 @@
     now handle records correctly. A missing `opt` field that sorts before the
     remaining fields no longer causes a spurious "incompatible function type"
     trap, and records with differently named fields are no longer wrongly
-    accepted (#NNNN).
+    accepted (#6498).
 
   * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
     value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
