@@ -17,9 +17,10 @@ actor {
         #inc : Any;
         #set : () -> Nat;
         #read : Any;
-        #reset : Any;
+        #reset : Any
       }
-    }) : Bool {
+    }
+  ) : Bool {
     if Principal.isAnonymous(caller) { return false };
     if arg.size() > 512 { return false };
     switch msg {
@@ -29,4 +30,4 @@ actor {
     }
   }
 
-};
+}

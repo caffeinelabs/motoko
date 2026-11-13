@@ -7,8 +7,8 @@ actor CountToTen {
     let C : Counters.Counter = await Counters.Counter(1);
     while (await C.read()) < 10 {
       Debug.print(Nat.toText(await C.read()));
-      await C.inc();
-    };
+      await C.inc()
+    }
   }
 };
 await CountToTen.countToTen()

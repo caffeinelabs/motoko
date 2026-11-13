@@ -8,6 +8,6 @@ actor Counter {
 
   public func bump() : async Nat {
     count += 1;
-    count;
-  };
-};
+    count
+  }
+}

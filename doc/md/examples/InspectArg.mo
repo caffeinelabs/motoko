@@ -8,7 +8,7 @@ actor {
   public func reset() : () { c := 0 }; // oneway
 
   system func inspect({ arg : Blob }) : Bool {
-    arg.size() <= 512;
+    arg.size() <= 512
   }
 
-};
+}

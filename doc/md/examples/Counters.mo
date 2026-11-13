@@ -7,7 +7,6 @@ actor class Counter(init : Nat) {
 
   public func bump() : async Nat {
     count += 1;
-    count;
-  };
-};
-
+    count
+  }
+}

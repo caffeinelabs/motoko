@@ -2,12 +2,12 @@ import Array "mo:core/Array";
 
 actor {
   type OldCard = {
-    title : Text;
+    title : Text
   };
 
   type NewCard = {
     title : Text;
-    description : Text;
+    description : Text
   };
 
   var map : [(Nat32, OldCard)] = [];
@@ -15,5 +15,5 @@ actor {
   var newMap : [(Nat32, NewCard)] = Array.map<(Nat32, OldCard), (Nat32, NewCard)>(
     map,
     func(key, { title }) { (key, { title; description = "<empty>" }) },
-  );
-};
+  )
+}
