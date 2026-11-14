@@ -10,13 +10,14 @@
 //! of the column's name and the name (the key has none).
 //!
 //! The layout of a view (`view_layout`) is the layout of the table it reads, then the byte `VIEW`,
-//! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
-//! of the field in the table's layout, then its first two type codes, padded with 0; then the u32
-//! offset of the `VIEW` byte. So a call made with a view's codec finds the table's layout where a
-//! table's codec has it: a call that checks only the layout's header reads the table's. A table's
-//! layout ends with the name of its last column, ASCII letters, digits and underscores, or with a
-//! column that has none, whose label hash and name length are 0; so its last 4 bytes, read as a
-//! u32, are 0 or at least 0x30000000, never the offset of a `VIEW` byte in it (`Layout::of`).
+//! which no column entry starts with, then 8 bytes per field of the view's row: the u16 position
+//! of the field in the table's layout, the u16 length of its type codes and the u32 offset of them
+//! in the table's layout; then the u32 offset of the `VIEW` byte. So a call made with a view's
+//! codec finds the table's layout where a table's codec has it: a call that checks only the
+//! layout's header reads the table's. A table's layout ends with the name of its last column,
+//! ASCII letters, digits and underscores, or with a column that has none, whose label hash and
+//! name length are 0; so its last 4 bytes, read as a u32, are 0 or at least 0x30000000, never the
+//! offset of a `VIEW` byte in it (`Layout::of`).
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
@@ -37,7 +38,7 @@ const VERSION: u32 = 1;
 /// The byte after the table's layout in a view's layout.
 const VIEW: u8 = 0xFF;
 /// The bytes of a field of a view.
-const PICK: usize = 4;
+const PICK: usize = 8;
 /// Bytes before the first column.
 const HEADER: usize = 20;
 /// The schema version of a new table, which added every column.
@@ -210,7 +211,7 @@ impl<'a> Layout<'a> {
         let table = Self::view_table(bytes)?;
         let picks = &bytes[table.len() + 1..bytes.len() - 4];
         let layout = Self::header(table)?;
-        (picks.len() % PICK == 0).then_some((layout, Picks { picks }))
+        (picks.len() % PICK == 0).then_some((layout, Picks { picks, table }))
     }
 
     /// The bytes of the table's layout in a view's layout `bytes`, or `None` when `bytes` is not a
@@ -301,6 +302,8 @@ impl<'a> Layout<'a> {
 #[derive(Clone, Copy, Default)]
 pub struct Picks<'a> {
     picks: &'a [u8],
+    /// The table's layout, where the type codes of the fields are.
+    table: &'a [u8],
 }
 
 impl<'a> Picks<'a> {
@@ -314,8 +317,12 @@ impl<'a> Picks<'a> {
         let p = self
             .picks
             .get(PICK.wrapping_mul(i)..PICK.wrapping_mul(i.wrapping_add(1)))?;
-        let n = if p[2] == ty::OPTION { 2 } else { 1 };
-        Some((usize::from(u16::from_le_bytes([p[0], p[1]])), &p[2..2 + n]))
+        let n = usize::from(u16::from_le_bytes([p[2], p[3]]));
+        let at = u32::from_le_bytes([p[4], p[5], p[6], p[7]]) as usize;
+        Some((
+            usize::from(u16::from_le_bytes([p[0], p[1]])),
+            self.table.get(at..at + n)?,
+        ))
     }
 }
 
@@ -408,8 +415,11 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
         let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
         let at = start + 1 + PICK * i;
         out[at..at + 2].copy_from_slice(&p.to_le_bytes());
-        let codes = &e.codes[..e.codes.len().min(2)];
-        out[at + 2..at + 2 + codes.len()].copy_from_slice(codes);
+        let n = u16::try_from(e.codes.len())
+            .unwrap_or_else(|_| rts_trap_with("native table: malformed layout"));
+        let codes = e.codes.as_ptr() as usize - table.as_ptr() as usize;
+        out[at + 2..at + 4].copy_from_slice(&n.to_le_bytes());
+        out[at + 4..at + 8].copy_from_slice(&(codes as u32).to_le_bytes());
     }
     out[size - 4..].copy_from_slice(&(start as u32).to_le_bytes());
     allocation_barrier(blob)

@@ -1565,8 +1565,6 @@ pub struct Picked<'a> {
     picks: Picks<'a>,
     /// The key's type codes, when the key's cell comes first.
     key: Option<&'a [u8]>,
-    /// The columns of the table's layout, where the picks' positions are.
-    table: Entries<'a>,
 }
 
 impl<'a> Places<'a> for Picked<'a> {
@@ -1597,8 +1595,7 @@ impl<'a> Places<'a> for Picked<'a> {
 
     fn codes(&self, column: usize) -> &'a [u8] {
         let pick = self.picks.get(self.position(column).wrapping_sub(1));
-        let entry = pick.and_then(|(p, _)| self.table.clone().nth(p));
-        entry.map_or(&[], |e| e.codes)
+        pick.map_or(&[], |(_, codes)| codes)
     }
 
     fn leaves(&self) -> Option<&'a [u32]> {
@@ -1755,12 +1752,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
         RowOut {
             mem,
             out,
-            fields: Picked {
-                leaves,
-                picks,
-                key,
-                table: layout.entries(),
-            },
+            fields: Picked { leaves, picks, key },
             next: 0,
             columns: width,
             labels: (record && out != Out::Key).then_some(labels),
