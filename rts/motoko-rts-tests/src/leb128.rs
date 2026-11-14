@@ -63,6 +63,75 @@ unsafe fn check_overflows() {
         0b0000_0001,
     ]); // isize::MAX + 1
 
+    // An 11th byte is never allowed, even when all extra bits are zero
+    // (0) or all equal the sign bit (-1)
+    check_signed_decode_overflow(
+        &[0b1000_0000; 10]
+            .iter()
+            .chain(&[0])
+            .copied()
+            .collect::<Vec<_>>(),
+    );
+    check_signed_decode_overflow(
+        &[0b1111_1111; 10]
+            .iter()
+            .chain(&[0b0111_1111])
+            .copied()
+            .collect::<Vec<_>>(),
+    );
+    check_signed_decode_overflow(
+        &[0b1000_0000; 10]
+            .iter()
+            .chain(&[0b0000_0001])
+            .copied()
+            .collect::<Vec<_>>(),
+    );
+
+    check_unsigned_decode_overflow(
+        &[0b1000_0000; 10]
+            .iter()
+            .chain(&[0])
+            .copied()
+            .collect::<Vec<_>>(),
+    );
+
+    // Non-minimal (padded) encodings of up to ten bytes stay valid
+    check_signed_decode(&[0b1000_0000, 0], 0);
+    check_signed_decode(
+        &[0b1000_0000; 9]
+            .iter()
+            .chain(&[0])
+            .copied()
+            .collect::<Vec<_>>(),
+        0,
+    );
+    check_signed_decode(&[0b1111_1111, 0b0111_1111], -1);
+    check_signed_decode(
+        &[0b1111_1111; 9]
+            .iter()
+            .chain(&[0b0111_1111])
+            .copied()
+            .collect::<Vec<_>>(),
+        -1,
+    );
+    check_signed_decode(&[0b1011_1111, 0b1000_0000, 0], 63);
+    check_signed_decode(
+        &[0b1000_0000; 9]
+            .iter()
+            .chain(&[0b0111_1111])
+            .copied()
+            .collect::<Vec<_>>(),
+        isize::MIN,
+    );
+    check_signed_decode(
+        &[0b1111_1111; 9]
+            .iter()
+            .chain(&[0])
+            .copied()
+            .collect::<Vec<_>>(),
+        isize::MAX,
+    );
+
     check_unsigned_decode_overflow(&[
         0b1000_0000,
         0b1000_0000,
@@ -138,6 +207,18 @@ unsafe fn check_signed_decode_overflow(buf: &[u8]) {
     };
 
     assert_eq!(sleb128_decode_checked(&mut buf_), None);
+}
+
+unsafe fn check_signed_decode(buf: &[u8], expected: isize) {
+    let mut buf_ = Buf {
+        ptr: buf.as_ptr() as *mut _,
+        end: buf.as_ptr().add(buf.len()) as *mut _,
+    };
+
+    assert_eq!(sleb128_decode_checked(&mut buf_), Some(expected));
+    // `Buf` is packed: copy the fields out instead of borrowing them
+    let (ptr, end) = (buf_.ptr, buf_.end);
+    assert_eq!(ptr, end, "decoder must consume all {} bytes", buf.len());
 }
 
 unsafe fn check_unsigned_decode_overflow(buf: &[u8]) {
