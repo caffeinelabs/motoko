@@ -274,7 +274,7 @@ pub fn emit_leaf<'h, H: PageHost + ?Sized, S: RowSink>(
     pos: u64,
     out: &mut S,
 ) -> Result<(), Fault> {
-    if let (Some(slot), 0) = (slot, s.dir) {
+    if let (Some(slot), true) = (slot, s.clean(l.ordinal)) {
         if emit_cell(gv, t, out, l, ld, c, slot, pos)? {
             return Ok(());
         }

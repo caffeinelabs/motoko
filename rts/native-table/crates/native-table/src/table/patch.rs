@@ -28,7 +28,7 @@ use crate::fault::{rt, Corruption, Fault};
 use crate::image::{Image, REF_BYTES};
 use crate::mem::{fill, put, put_u16, put_u32, put_u64, put_u8, rd_u16, rd_u32, rd_u64, rd_u8, PageHost, Region};
 
-use super::drain;
+use super::{drain, page};
 
 // ---- directory ----
 pub const D_UNITS: u64 = 6;
@@ -482,11 +482,22 @@ fn add_unit<H: PageHost>(h: &mut H, tbl: u64, dir: u64, ordinal: u64) -> Result<
     Ok((Unit { dir_block: last, rec: at, ordinal, blocks: 1, live: 0, first }, new_block_made))
 }
 
+/// Sets leaf ordinal `o`'s bit among a group page's patched leaves (`page::P_PATCHED`), when `holder` is a group
+/// page that keeps them.
+fn mark_patched<H: PageHost>(h: &mut H, holder: u64, holder_off: u64, o: u64) -> Result<(), Fault> {
+    let b = h.get_mut(Region::Block(holder))?;
+    if holder_off == page::P_PATCH_DIR && o < 256 && rd_u16(b, page::P_FLAGS)? & page::PF_PATCHED != 0 {
+        let at = page::P_PATCHED.wrapping_add(o / 8);
+        put_u8(b, at, rd_u8(b, at)? | 1 << (o % 8))?;
+    }
+    Ok(())
+}
+
 /// Upserts (leaf `ordinal`, position `pos`) → `d` into the directory named by the u64 at `holder_off` of
-/// block `holder` (made when 0), whose live entry of them, as the caller looked it up, is `old_entry`: a live
-/// entry of exactly the new data's length is overwritten in place; otherwise it is marked dead and a new entry
-/// goes into the chain's newest block when it has room, else into a new block appended to the chain. The bitmap
-/// bit, the position map's byte and the counters are updated.
+/// block `holder` (made when 0, and a group page's patched leaves with it), whose live entry of them, as the
+/// caller looked it up, is `old_entry`: a live entry of exactly the new data's length is overwritten in place;
+/// otherwise it is marked dead and a new entry goes into the chain's newest block when it has room, else into a
+/// new block appended to the chain. The bitmap bit, the position map's byte and the counters are updated.
 #[allow(clippy::too_many_arguments)]
 pub fn upsert<H: PageHost>(
     h: &mut H,
@@ -504,12 +515,18 @@ pub fn upsert<H: PageHost>(
     let mut dir = rd_u64(h.get(Region::Block(holder))?, holder_off)?;
     if dir == 0 {
         dir = new_dir(h, tbl)?;
-        put_u64(h.get_mut(Region::Block(holder))?, holder_off, dir)?;
+        let b = h.get_mut(Region::Block(holder))?;
+        put_u64(b, holder_off, dir)?;
+        if holder_off == page::P_PATCH_DIR {
+            fill(b, page::P_PATCHED, 32, 0)?;
+            put_u16(b, page::P_FLAGS, rd_u16(b, page::P_FLAGS)? | page::PF_PATCHED)?;
+        }
     }
     let (u, new_unit, new_dir_block) = match unit(h, dir, ordinal)? {
         Some(u) => (u, false, false),
         None => {
             let (u, nb) = add_unit(h, tbl, dir, ordinal)?;
+            mark_patched(h, holder, holder_off, ordinal)?;
             (u, true, nb)
         }
     };
