@@ -204,6 +204,11 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
         Ok(r)
     }
 
+    /// Row bytes [off, off + len) in place, when the row lies in one block.
+    pub fn inline_bytes(&self, off: u64, len: u64) -> Option<&'h [u8]> {
+        self.inline?.get(usize::try_from(off).ok()?..usize::try_from(off.checked_add(len)?).ok()?)
+    }
+
     /// Copies row bytes [off, off + out.len()) into `out`.
     pub fn read(&self, off: u64, out: &mut [u8]) -> Result<(), Fault> {
         let end = off.checked_add(out.len() as u64).ok_or(rt(Corruption::Bounds, off))?;

@@ -566,7 +566,7 @@ impl<'h, H: PageHost + ?Sized, S: RowSink, const N: usize> Visit<'h, H> for Cell
                     overlay::buffered_value(shape, &row, &mut walk, &l)?
                 }
             };
-            read::emit_sval(h, self.out, &l, &x)?;
+            read::emit_row_sval(&row, self.out, &l, &x)?;
         }
         self.row_end(rid)
     }

@@ -222,6 +222,21 @@ pub fn emit_sval<H: PageHost + ?Sized, S: RowSink>(h: &H, out: &mut S, l: &LeafI
     }
 }
 
+/// `emit_sval` for value `v` of the buffered row `row`: a byte string in the row's own bytes is handed from them.
+pub fn emit_row_sval<H: PageHost + ?Sized, S: RowSink>(
+    row: &RowRef<'_, H>,
+    out: &mut S,
+    l: &LeafInfo,
+    v: &SVal,
+) -> Result<(), Fault> {
+    if let SVal::B { at: cur::At::Row { off, .. }, len } = *v {
+        if let Some(b) = row.inline_bytes(off, len) {
+            return emit_bytes(out, l, b);
+        }
+    }
+    emit_sval(row.h, out, l, v)
+}
+
 /// Hands a buffered row's leaves to `out` in leaf order, under the overlay.
 pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     h: &H,
@@ -234,7 +249,7 @@ pub fn emit_buffered<H: PageHost + ?Sized, S: RowSink>(
     for o in 0..shape.leaves {
         let l = shape.leaf(h, o)?;
         let v = overlay::buffered_value(shape, &row, &mut walk, &l)?;
-        emit_sval(h, out, &l, &v)?;
+        emit_row_sval(&row, out, &l, &v)?;
     }
     Ok(())
 }
