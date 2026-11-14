@@ -62,8 +62,9 @@ s/\]/)?/g
 # bracket tokens are rewritten only after obelisk's optional-group brackets above, else they would become parens
 s/<lbracket>/'['/g
 s/TIGHT_LBRACKET/'['/g
-s/(\([a-zA-Z_0-9]*\))/\1/g
-s/(\(<[a-z_0-9]*>\))/\1/g
+# a parenthesised single symbol is a group, unless it is glued to a name: then it is a parameter list, e.g. `obj_body(pub)`
+s/\(^\|[^a-zA-Z_0-9>]\)(\([a-zA-Z_0-9]*\))/\1\2/g
+s/\(^\|[^a-zA-Z_0-9>]\)(\(<[a-z_0-9]*>\))/\1\2/g
 s/<semicolon>/\';\'/g
 s/<annot_opt>/(':' <typ>)?/g
 s/<pat_opt>/<pat_plain>?/g
