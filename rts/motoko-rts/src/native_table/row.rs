@@ -54,7 +54,6 @@ use crate::types::{
     TAG_BITS64_S, TAG_BITS64_U, TAG_BLOB_B, TAG_BLOB_P, TAG_BLOB_T, TAG_CONCAT, TAG_OBJECT,
     TAG_VARIANT, TRUE_VALUE, Tag, Value, Variant, Words,
 };
-use crate::utf8::utf8_valid;
 
 /// The low bits of a compact Nat or Int.
 const COMPACT_TAG: usize = 0b10;
@@ -1002,7 +1001,6 @@ pub unsafe fn key_cells<M: Memory>(
                 pos = or_trap(dec_bytes(key, pos, &mut out, image));
                 let b = out.written();
                 if code == ty::TEXT {
-                    check_utf8(b);
                     (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b))
                 } else {
                     (CELL_BLOB, blob_of(mem, TAG_BLOB_B, b))
@@ -1145,13 +1143,6 @@ pub(super) unsafe fn pair<M: Memory>(mem: &mut M, a: Value, b: Value) -> Value {
     allocation_barrier(v)
 }
 
-/// Checks that the bytes of a Text read from a table are UTF-8.
-unsafe fn check_utf8(b: &[u8]) {
-    if !utf8_valid(b.as_ptr() as *const _, b.len()) {
-        rts_trap_with("native table: stored text is not UTF-8");
-    }
-}
-
 /// The `NtCell` of cell `v` of a column of scalar type `code`, an option when `optional`:
 /// `#null_` for null, `#nat` for a value of a Nat type or Char, `#int` for one of an Int type, and
 /// the case of its own type for any other value; `None` for a cell that is not of the column's
@@ -1174,10 +1165,7 @@ unsafe fn cell_value<M: Memory>(
         }
         (ty::INT, CellOut::Int(b)) => (CELL_INT, int_of_sleb(b)),
         (ty::F64, CellOut::F64(f)) => (CELL_FLOAT, box64(mem, TAG_BITS64_F, f.to_bits())),
-        (ty::TEXT, CellOut::Bytes(b)) => {
-            check_utf8(b);
-            (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b))
-        }
+        (ty::TEXT, CellOut::Bytes(b)) => (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b)),
         (ty::BLOB, CellOut::Bytes(b)) => (CELL_BLOB, blob_of(mem, TAG_BLOB_B, b)),
         (ty::PRINCIPAL, CellOut::Bytes(b)) => (CELL_PRINCIPAL, blob_of(mem, TAG_BLOB_P, b)),
         _ => return None,
@@ -1201,10 +1189,7 @@ unsafe fn value_of<M: Memory>(mem: &mut M, code: u8, optional: bool, v: CellOut)
         (ty::INT, CellOut::I64(n)) => int_from_isize(n as isize),
         (ty::INT, CellOut::Int(b)) => int_of_sleb(b),
         (ty::F64, CellOut::F64(f)) => box64(mem, TAG_BITS64_F, f.to_bits()),
-        (ty::TEXT, CellOut::Bytes(b)) => {
-            check_utf8(b);
-            blob_of(mem, TAG_BLOB_T, b)
-        }
+        (ty::TEXT, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_T, b),
         (ty::BLOB, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_B, b),
         (ty::PRINCIPAL, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_P, b),
         _ => return None,
@@ -1450,10 +1435,7 @@ impl<M: Memory, H: PageHost> RowSink for CellRows<'_, '_, M, H> {
                 let (case, payload) = match self.types[at].0 {
                     ty::NAT => (CELL_NAT, nat_of_leb(bytes)),
                     ty::INT => (CELL_INT, int_of_sleb(bytes)),
-                    ty::TEXT => {
-                        check_utf8(bytes);
-                        (CELL_TEXT, *slot)
-                    }
+                    ty::TEXT => (CELL_TEXT, *slot),
                     _ => (CELL_BLOB, *slot),
                 };
                 *slot = variant_of(mem, case, payload);
@@ -1948,7 +1930,6 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
             match code {
                 ty::NAT => *slot = nat_of_leb(bytes),
                 ty::INT => *slot = int_of_sleb(bytes),
-                ty::TEXT => check_utf8(bytes),
                 ty::LIST => *slot = self.long_array((leaf >> 16) as usize, bytes),
                 _ => {}
             }
@@ -2007,10 +1988,7 @@ impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
                 (ty::INT, CellOut::I64(n)) => int_from_isize(n as isize),
                 (ty::INT, CellOut::Int(b)) => int_of_sleb(b),
                 (ty::F64, CellOut::F64(f)) => box64(mem, TAG_BITS64_F, f.to_bits()),
-                (ty::TEXT, CellOut::Bytes(b)) => {
-                    check_utf8(b);
-                    blob_of(mem, TAG_BLOB_T, b)
-                }
+                (ty::TEXT, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_T, b),
                 (ty::BLOB, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_B, b),
                 (ty::PRINCIPAL, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_P, b),
                 (ty::NAT | ty::INT | ty::TEXT | ty::BLOB, CellOut::Arg { len }) => {
