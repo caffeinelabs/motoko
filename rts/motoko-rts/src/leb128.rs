@@ -95,12 +95,18 @@ pub unsafe fn sleb128_decode_checked(buf: *mut Buf) -> Option<isize> {
 
         // Overflow check ported from Wasm reference implementation:
         // https://github.com/WebAssembly/spec/blob/f9770eb75117cac0c878feaa5eaf4a4d9dda61f5/interpreter/binary/decode.ml#L89-L98
+        // The last possible byte must not continue, and its bits beyond the
+        // word size must all equal the sign bit.
         let overflow = match usize::BITS {
             u64::BITS => {
-                shift == 63 && (byte & 0b0111_1111 != 0 && byte & 0b0111_1111 != 0b0111_1111)
+                shift == 63
+                    && (byte & 0b1000_0000 != 0
+                        || (byte & 0b0111_1111 != 0 && byte & 0b0111_1111 != 0b0111_1111))
             }
             u32::BITS => {
-                shift == 28 && (byte & 0b0111_1000 != 0 && byte & 0b0111_1000 != 0b0111_1000)
+                shift == 28
+                    && (byte & 0b1000_0000 != 0
+                        || (byte & 0b0111_1000 != 0 && byte & 0b0111_1000 != 0b0111_1000))
             }
             _ => unreachable!(),
         };
