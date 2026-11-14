@@ -335,6 +335,13 @@ fn a_dropped_field_coming_back_is_refused_and_changes_no_byte() {
         tb.upsert(&mut scratch(), &mut Src::new(&row)).unwrap();
     }
 
+    // Every leaf, the dropped one's included, is found by its id at its ordinal; an id the table lacks is not.
+    let s = tb.shape();
+    for o in 0..s.leaves {
+        assert_eq!(s.ordinal_of(tb.host(), s.leaf(tb.host(), o).unwrap().id).unwrap(), Some(o));
+    }
+    assert_eq!(s.ordinal_of(tb.host(), id(3)).unwrap(), None);
+
     // Version 3 declares the dropped field again, as version 1 did.
     let before = tb.host().memory().to_vec();
     let pages = tb.host().live_pages();
