@@ -216,12 +216,9 @@ unsafe fn check_signed_decode(buf: &[u8], expected: isize) {
     };
 
     assert_eq!(sleb128_decode_checked(&mut buf_), Some(expected));
-    assert_eq!(
-        buf_.ptr,
-        buf_.end,
-        "decoder must consume all {} bytes",
-        buf.len()
-    );
+    // `Buf` is packed: copy the fields out instead of borrowing them
+    let (ptr, end) = (buf_.ptr, buf_.end);
+    assert_eq!(ptr, end, "decoder must consume all {} bytes", buf.len());
 }
 
 unsafe fn check_unsigned_decode_overflow(buf: &[u8]) {
