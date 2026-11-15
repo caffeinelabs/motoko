@@ -1488,6 +1488,12 @@ pub trait Places<'a> {
     fn key_codes(&self) -> &'a [u8] {
         self.codes(0)
     }
+    /// The array whose bytes `b` are as `array_cell` writes them, of elements of the type codes
+    /// `element` (`array_of_ve`).
+    #[inline(always)]
+    unsafe fn array_of<M: Memory>(&mut self, mem: &mut M, element: &[u8], b: &[u8]) -> Value {
+        array_of_ve(mem, element, b)
+    }
 }
 
 /// The fields of a table whose row type never changed: the table hands every column over in
@@ -1618,6 +1624,8 @@ pub struct InPlan<'a> {
     plan: &'a [Planned],
     /// 1 when the cells are the view's fields alone, 0 when the key's comes first.
     shift: usize,
+    /// The hash lists of record elements made in this read, by the address of the element's type codes.
+    labels: [(usize, Value); 4],
 }
 
 impl<'a> InPlan<'a> {
@@ -1656,6 +1664,102 @@ impl<'a> Places<'a> for InPlan<'a> {
             .and_then(|i| self.codes_of(i))
             .unwrap_or(&[])
     }
+
+    unsafe fn array_of<M: Memory>(&mut self, mem: &mut M, element: &[u8], b: &[u8]) -> Value {
+        planned_array(mem, &mut self.labels, element, b)
+    }
+}
+
+/// `array_of_ve` for a view read through its plan: the fields of a record element are found once
+/// for every element, a Nat or an Int of at most 9 bytes is read in 64 bits, and the hash list of
+/// a record element is made once a read, kept in `labels` by the address of `element`.
+unsafe fn planned_array<M: Memory>(
+    mem: &mut M,
+    labels: &mut [(usize, Value); 4],
+    element: &[u8],
+    b: &[u8],
+) -> Value {
+    let (n, at) = rd_uleb(b, 0, ImageId::Runtime).unwrap_or_else(|_| malformed_array());
+    // Every element takes a byte at least.
+    if n > b.len() as u64 {
+        malformed_array();
+    }
+    let (n, mut at) = (n as usize, at as usize);
+    let (record, parts) = element_parts(element);
+    if !record || n == 0 {
+        let array = alloc_array(mem, TAG_ARRAY_I, n);
+        for i in 0..n {
+            let x = planned_part(mem, element, b, &mut at);
+            array.as_array().initialize(i, x, mem);
+        }
+        if at != b.len() {
+            malformed_array();
+        }
+        return allocation_barrier(array);
+    }
+    let (mut found, mut hash) = ([&[][..]; 16], [0u32; 16]);
+    let mut k = 0;
+    for e in parts {
+        if k == 16 {
+            return array_of_ve(mem, element, b);
+        }
+        (found[k], hash[k]) = (e.codes, e.hash);
+        k += 1;
+    }
+    let key = element.as_ptr() as usize;
+    let slot = labels
+        .iter()
+        .position(|&(a, _)| a == key || a == 0)
+        .unwrap_or(key % 4);
+    if labels[slot].0 != key {
+        let v = alloc_blob(mem, TAG_BLOB_B, Bytes(k * size_of::<u64>()));
+        let h = v.as_blob_mut().payload_addr() as *mut u64;
+        for (i, x) in hash[..k].iter().enumerate() {
+            h.add(i).write_unaligned(u64::from(*x));
+        }
+        labels[slot] = (key, allocation_barrier(v));
+    }
+    let array = alloc_array(mem, TAG_ARRAY_I, n);
+    for i in 0..n {
+        let v = new_object(mem, labels[slot].1);
+        let fields = (v.get_ptr() as *mut Object).payload_addr();
+        for (j, codes) in found[..k].iter().enumerate() {
+            *fields.add(j) = planned_part(mem, codes, b, &mut at);
+        }
+        array.as_array().initialize(i, allocation_barrier(v), mem);
+    }
+    if at != b.len() {
+        malformed_array();
+    }
+    allocation_barrier(array)
+}
+
+/// `part_of_ve`, a Nat or an Int of at most 9 bytes read in 64 bits.
+#[inline(always)]
+unsafe fn planned_part<M: Memory>(mem: &mut M, codes: &[u8], b: &[u8], at: &mut usize) -> Value {
+    let (code, optional) = match codes {
+        [ty::OPTION, c] => (*c, true),
+        [c] => (*c, false),
+        _ => return part_of_ve(mem, codes, b, at),
+    };
+    if matches!(code, ty::NAT | ty::INT) && (!optional || b.get(*at) == Some(&1)) {
+        let s = *at + usize::from(optional);
+        let mut v = 0u64;
+        for i in 0..9 {
+            let Some(&x) = b.get(s + i) else { break };
+            v |= u64::from(x & 0x7F) << (7 * i);
+            if x < 0x80 {
+                *at = s + i + 1;
+                return if code == ty::NAT {
+                    nat_of_u64(v)
+                } else {
+                    let shift = 64 - 7 * (i as u32 + 1);
+                    int_from_isize(((v << shift) as i64 >> shift) as isize)
+                };
+            }
+        }
+    }
+    part_of_ve(mem, codes, b, at)
 }
 
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
@@ -1851,6 +1955,7 @@ impl<'a, M: Memory> RowOut<'a, M, InPlan<'a>> {
                 codes,
                 plan,
                 shift,
+                labels: [(0, NULL_POINTER); 4],
             },
             next: 0,
             columns: plan.len(),
@@ -1928,7 +2033,7 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
         };
         match v {
             CellOut::Null if optional => Some(NULL_POINTER),
-            CellOut::Bytes(b) => Some(array_of_ve(&mut *self.mem, element, b)),
+            CellOut::Bytes(b) => Some(self.fields.array_of(&mut *self.mem, element, b)),
             CellOut::Arg { len } => Some(self.later((column as u32) << 16, ty::LIST, len)),
             _ => None,
         }
@@ -2004,9 +2109,9 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
     /// The array of `column`, of an array type, whose bytes are `bytes`.
     #[cold]
     #[inline(never)]
-    unsafe fn long_array(&self, column: usize, bytes: &[u8]) -> Value {
+    unsafe fn long_array(&mut self, column: usize, bytes: &[u8]) -> Value {
         match array_type(self.fields.codes(column)) {
-            Some((_, element)) => array_of_ve(&mut *self.mem, element, bytes),
+            Some((_, element)) => self.fields.array_of(&mut *self.mem, element, bytes),
             None => rts_trap_with("native table: malformed layout"),
         }
     }
