@@ -204,6 +204,11 @@ impl<'h, H: PageHost + ?Sized> RowRef<'h, H> {
         Ok(r)
     }
 
+    /// The row's bytes in place, when the row lies in one block.
+    pub fn inline_all(&self) -> Option<&'h [u8]> {
+        self.inline
+    }
+
     /// Row bytes [off, off + len) in place, when the row lies in one block.
     pub fn inline_bytes(&self, off: u64, len: u64) -> Option<&'h [u8]> {
         self.inline?.get(usize::try_from(off).ok()?..usize::try_from(off.checked_add(len)?).ok()?)

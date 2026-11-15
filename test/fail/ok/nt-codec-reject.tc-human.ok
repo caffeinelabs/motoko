@@ -74,3 +74,15 @@ error[M0279]: native table row has type Int, but the table's has type Nat
     ┌─ nt-codec-reject.mo:54:28
  54 │  ignore makes<Nat, Int, Nat>();
     │                             ^^ 
+error[M0279]: native table field `town` has type Text, but the table's row has no field of that name
+    ┌─ nt-codec-reject.mo:58:88
+ 58 │  ignore viewed<Nat, { customer : Text; town : Text }, { customer : Text; note : ?Text }>();
+    │                                                                                         ^^ 
+error[M0279]: native table field `amount` has type Int, but the table's has type Nat
+    ┌─ nt-codec-reject.mo:59:55
+ 59 │  ignore viewed<Nat, { amount : Int }, { amount : Nat }>();
+    │                                                        ^^ 
+error[M0279]: native table field `note` has type Text, but the table's has type ?Text
+    ┌─ nt-codec-reject.mo:60:54
+ 60 │  ignore viewed<Nat, { note : Text }, { note : ?Text }>();
+    │                                                       ^^ 

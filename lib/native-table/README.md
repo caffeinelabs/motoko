@@ -124,7 +124,7 @@ for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
   lists the table's fields.
 - `view` takes `P` from the declared type, as `evolve` does; or give all three types:
   `orders.view<Nat, Order, Name>()`.
-- It traps when `P` has a field `R` lacks, or a field of another type.
+- When `P` has a field `R` lacks, or a field of another type, `view` does not compile (M0279).
 - A view of no field, `NativeTable<K, {}>`, reads only the keys: its index walks and scans read
   no field of the row, and `entriesWhere` only the filtered field. `keys()` reads only the keys,
   on a table too.
@@ -381,8 +381,8 @@ Each message starts with `native table: `.
 
 | Message | Raised by | When |
 |---|---|---|
-| `the row type has no field of that name` | `build`; `view`, `update`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
-| `a field has another type than the table's` | `view`, `update`, `append` | a field of the view's row type, or of `fields`, that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
+| `the row type has no field of that name` | `build`; `update`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex` or in `fields`, or given to the call |
+| `a field has another type than the table's` | `update`, `append` | a field of `fields` that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
 | `append takes array fields only` | `append` | a field of `fields` that is not an array field |
 | `a key that is a tuple is not one cell` | `NativeTableCells.cells` | `key` is true and the table's key is a tuple |
 | `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |

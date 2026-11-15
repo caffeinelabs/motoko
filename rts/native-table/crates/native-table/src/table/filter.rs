@@ -29,7 +29,7 @@ use super::buffer::{self, DESC_BIT};
 use super::cell::{self, Val};
 use super::cur::{self, SVal};
 use super::extremes::{self, BIG, HAS};
-use super::group::{Cur, GroupView, LeafDir};
+use super::group::{Cur, GroupView, LeafDir, Tables};
 use super::layout::{LeafInfo, Shape, Ty};
 use super::overlay::{self, Buffered, Sealed};
 use super::read::{self, Live};
@@ -853,6 +853,110 @@ pub fn cells<H: PageHost + ?Sized, S: RowSink>(
     let mut c = Cells::<_, COLS>::new(leaves, leaves.len(), t.as_ref().map(|t| t.l.ordinal), out, limit);
     c.find(h, shape)?;
     run(h, tbl, shape, t.as_ref(), next, &mut c)
+}
+
+/// The live rows from rid `next` on that meet `f` (every live row when `f` is `None`), at most `limit` of them,
+/// each handed to `out` as the leaves of the read plan `plan` (`read::Planned`), in plan order, then `row_end`; the
+/// rid to go on from, or `None` when no row is left. Each leaf is found once per group.
+#[allow(clippy::too_many_arguments)]
+pub fn planned<H: PageHost + ?Sized, S: RowSink>(
+    h: &H,
+    tbl: u64,
+    shape: &Shape,
+    plan: &[read::Planned],
+    f: Option<&Filter<'_>>,
+    next: u64,
+    limit: u64,
+    out: &mut S,
+) -> Result<Option<u64>, Fault> {
+    let t = test_of(h, shape, f)?;
+    let mut c = PlanRows {
+        plan,
+        leaves: [None; COLS],
+        tested: t.as_ref().map(|t| t.l.ordinal),
+        out,
+        left: limit,
+        memo: read::Memo::default(),
+        tables: Tables::default(),
+        locs: [None; COLS],
+    };
+    for (x, p) in c.leaves.iter_mut().zip(plan) {
+        *x = Some(p.leaf()?);
+    }
+    run(h, tbl, shape, t.as_ref(), next, &mut c)
+}
+
+/// Hands the leaves of a read plan of each matching row to a sink, at most `left` more rows.
+struct PlanRows<'o, 'p, 'h, S: RowSink> {
+    plan: &'p [read::Planned],
+    /// The first `COLS` leaves of the plan.
+    leaves: [Option<LeafInfo>; COLS],
+    /// The filter's leaf, whose value the test has read.
+    tested: Option<u16>,
+    out: &'o mut S,
+    left: u64,
+    /// The open group's image blocks read, and its tables.
+    memo: read::Memo<'h>,
+    tables: Tables<'h>,
+    /// Where the first `COLS` leaves of the plan lie in the open group.
+    locs: [Option<read::Loc<'h>>; COLS],
+}
+
+impl<'h, H: PageHost + ?Sized, S: RowSink> Visit<'h, H> for PlanRows<'_, '_, 'h, S> {
+    fn full(&self) -> bool {
+        self.left == 0
+    }
+
+    fn open(&mut self, gv: &GroupView<'h, H>) -> Result<(), Fault> {
+        self.memo = read::Memo::of(gv);
+        self.tables = gv.tables();
+        for (x, l) in self.locs.iter_mut().zip(self.leaves.iter().flatten()) {
+            *x = match read::locate(gv, &self.tables, &mut self.memo, l)? {
+                Some(loc) => Some(loc.held(gv, &mut self.memo)?),
+                None => None,
+            };
+        }
+        Ok(())
+    }
+
+    fn sealed(
+        &mut self,
+        gv: &GroupView<'h, H>,
+        _shape: &Shape,
+        s: &Sealed,
+        pos: u64,
+        slot: Option<u64>,
+        rid: u64,
+        v: Option<&SVal>,
+    ) -> Result<(), Fault> {
+        for (i, p) in self.plan.iter().enumerate() {
+            let l = match self.leaves.get(i) {
+                Some(Some(l)) => *l,
+                _ => p.leaf()?,
+            };
+            if let Some(x) = v.filter(|_| self.tested == Some(l.ordinal)) {
+                read::emit_sval(gv.h, self.out, &l, x)?;
+                continue;
+            }
+            if let (Some(slot), Some(Some(loc)), true) = (slot, self.locs.get(i), s.clean(l.ordinal)) {
+                if read::emit_loc(gv, &mut self.memo, loc, self.out, &l, slot)? {
+                    continue;
+                }
+            }
+            let ld = gv.leaf_in(&self.tables, u64::from(l.ordinal))?;
+            read::emit_leaf(gv, Some(&self.tables), s, &l, &ld, None, slot, pos, self.out)?;
+        }
+        self.out.row_end(rid)?;
+        self.left = self.left.saturating_sub(1);
+        Ok(())
+    }
+
+    fn buffered(&mut self, h: &H, shape: &Shape, b: &Buffered, rid: u64, v: Option<&SVal>) -> Result<(), Fault> {
+        read::planned_buffered(h, shape, b, self.plan, self.tested.zip(v), self.out)?;
+        self.out.row_end(rid)?;
+        self.left = self.left.saturating_sub(1);
+        Ok(())
+    }
 }
 
 /// The live rows below rid `before`, newest first, at most `limit` of them, each handed to `out` whole, or as the

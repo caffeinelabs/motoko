@@ -7,8 +7,8 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // packed rows, long values, a table whose row type changed, a view of a view, a view of no field
 // and a view of a scalar row. Its scans and index walks give the same rows as the table's, with
 // the view's fields; its counts, sums, extremes, filters and cells name any field of the table;
-// delete on a view removes the whole row. A view of a field the row lacks or has with another
-// type, add and evolve on a view, and a view made before an evolve trap, and change nothing.
+// delete on a view removes the whole row. Add and evolve on a view, and a view made before an
+// evolve trap, and change nothing.
 // update sets some fields of a row and keeps the others, in packed rows and rows of the open
 // group, with long values, and in a table whose row type changed; the index on a changed field
 // moves and the totals change by the difference; a Nat is taken for an Int. upsert inserts a row,
@@ -194,21 +194,6 @@ actor {
     Prim.debugPrint(debug_show (oldNames.entries().next()))
   };
 
-  public func missingField() : async () {
-    let v : NativeTable.NativeTable<Nat, { customer : Text; town : Text }> = orders.view();
-    ignore v
-  };
-
-  public func otherType() : async () {
-    let v : NativeTable.NativeTable<Nat, { amount : Int }> = orders.view();
-    ignore v
-  };
-
-  public func notOption() : async () {
-    let v : NativeTable.NativeTable<Nat, { note : Text }> = orders.view();
-    ignore v
-  };
-
   // The keys of the rows whose city is `city`, in the index's order
   func inCity(city : Text) : [Nat] {
     let ks = orders.indexEntries(["city"], ?[#text(city)], ?[#text(city)]);
@@ -332,9 +317,6 @@ actor {
 //CALL ingress getChanged "DIDL\x00\x00"
 //CALL ingress getOld "DIDL\x00\x00"
 //CALL ingress scanOld "DIDL\x00\x00"
-//CALL ingress missingField "DIDL\x00\x00"
-//CALL ingress otherType "DIDL\x00\x00"
-//CALL ingress notOption "DIDL\x00\x00"
 //CALL ingress addOnView "DIDL\x00\x00"
 //CALL ingress evolveView "DIDL\x00\x00"
 //CALL ingress get "DIDL\x00\x00"

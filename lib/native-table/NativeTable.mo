@@ -152,10 +152,10 @@ module {
   /// fields of `R`, each with the same name and type, and every read of the view reads only those
   /// fields of the row. Field names given to its calls can be any field of `R`, and `fieldTypes`
   /// lists the fields of `R`. `P` comes from the declared type, as for `evolve`; or give all three
-  /// types: `view<K, R, P>()`. Traps when `P` has a field `R` lacks, or a field of another type.
-  /// `remove` and `delete` on a view remove the whole row; `add`, `insert`, `update` and `evolve`
-  /// on a view trap. After `evolve`, make views from the table it returns.
-  public func view<K, R, P>(self : NativeTable<K, R>, codec : (implicit : Prim.NtCodec<(K, P)>)) : NativeTable<K, P> {
+  /// types: `view<K, R, P>()`. When `P` has a field `R` lacks, or a field of another type, the call
+  /// does not compile. `remove` and `delete` on a view remove the whole row; `add`, `insert`,
+  /// `update` and `evolve` on a view trap. After `evolve`, make views from the table it returns.
+  public func view<K, R, P>(self : NativeTable<K, R>, codec : (implicit : Prim.NtCodec<(K, P, R, ())>)) : NativeTable<K, P> {
     { id = self.id; codec = Prim.ntView(self.codec, codec); indexes = self.indexes }
   };
 

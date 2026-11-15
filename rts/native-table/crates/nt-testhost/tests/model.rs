@@ -60,9 +60,12 @@ use std::ops::Bound;
 use native_table::area::AreaRecord;
 use native_table::consts::{AREAS, GROUP_SLOTS};
 use native_table::index::secondary::Start;
-use native_table::schema::IndexDecl;
+use native_table::mem::{PageHost, Region};
+use native_table::schema::{IndexDecl, SchemaView};
 use native_table::table::filter::{Cond, Filter};
 use native_table::table::jobs::Ran;
+use native_table::table::layout::Ty;
+use native_table::table::read::Planned;
 use native_table::table::totals::Total;
 use native_table::table::{buffer, root, CellIn, CellOut, RowSink, Table, Upsert};
 use native_table::tree::Dir;
@@ -1112,6 +1115,21 @@ fn held(tb: &Table<'_, VecHost>) -> (u64, u64, u64) {
 
 // ---------------------------------------------------------------- the checker
 
+/// A read plan (`read::Planned`) of the columns `cols` of the table's schema version: each column's leaf as its
+/// leaf record holds it, its value past those of the leaves before it in a row image.
+fn plan(tb: &Table<'_, VecHost>, cols: &[usize]) -> Vec<Planned> {
+    let v = SchemaView::open(tb.host().get(Region::Page(tb.shape().page)).unwrap()).unwrap();
+    let (mut all, mut fixed, mut var) = (Vec::new(), 0, 0);
+    for o in 0..v.leaves {
+        let l = v.leaf(o).unwrap();
+        let (id, width, kind, code, flags) = (l.id, l.width, l.kind, l.code, l.flags);
+        all.push(Planned { id, ordinal: o, width, kind, code, flags, fixed, var });
+        let ty = Ty::of(&l).unwrap();
+        (fixed, var) = (fixed + ty.fixed_width() as u32, var + u32::from(ty.variable()));
+    }
+    cols.iter().map(|&c| *all.iter().find(|p| p.id == leaf(c)).unwrap()).collect()
+}
+
 /// Every read of the table against the model.
 /// Some columns of the row or every one, dropped ones excepted, in any order, the key's now and then.
 fn some_cols(s: &Schema, r: &mut XorShift) -> Vec<usize> {
@@ -1163,7 +1181,11 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         let mut out = Rows::new(tb, s, r);
         assert!(tb.get_leaves(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &leaves, &mut out).unwrap());
         assert!(tb.get_rid_leaves(*rid, &leaves, &mut out).unwrap());
-        assert!(out.out == [want.clone(), want], "columns {cols:?} of {k:?}");
+        // And through a read plan of them.
+        let (key, places) = (plan(tb, &[0])[0], plan(tb, &cols));
+        assert!(tb.get_planned(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &key, &places, &mut out).unwrap());
+        assert!(tb.get_rid_planned(*rid, &places, &mut out).unwrap());
+        assert!(out.out == [want.clone(), want.clone(), want.clone(), want], "columns {cols:?} of {k:?}");
     }
     for _ in 0..5 {
         let k = Key(s.cols[0].kind, value(r, s.cols[0].kind));
@@ -1172,6 +1194,8 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
         assert_eq!(found, m.contains_key(&k), "get {k:?}");
         let found = tb.get_leaves(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &[leaf(0)], &mut out).unwrap();
         assert_eq!(found, m.contains_key(&k), "get_leaves {k:?}");
+        let found = tb.get_planned(&mut scratch, &mut Src::new(&key_cells(s, &k.1)), &plan(tb, &[0])[0], &[], &mut out);
+        assert_eq!(found.unwrap(), m.contains_key(&k), "get_planned {k:?}");
     }
     for &rid in dead.iter().rev().take(20) {
         let mut out = Rows::new(tb, s, r);
@@ -1195,6 +1219,11 @@ fn check(tb: &Table<'_, VecHost>, s: &Schema, m: &Model, dead: &[u64], r: &mut X
             .map(|(rid, e)| (*rid, cols.iter().map(|&c| (leaf(c), e.1[c].clone())).collect()))
             .collect();
         assert!(out.out == exp, "a cell scan of columns {cols:?} with {f:?}");
+        let (places, mut out, mut next) = (plan(tb, &cols), Rows::new(tb, s, r), Some(0));
+        while let Some(n) = next {
+            next = tb.scan_planned(&places, f, n, limit, &mut out).unwrap();
+        }
+        assert!(out.out == exp, "a planned scan of columns {cols:?} with {f:?}");
     };
     cell_scan(None, &|_| true, r);
 

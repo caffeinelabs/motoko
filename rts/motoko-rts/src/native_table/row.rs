@@ -29,6 +29,7 @@ use ::native_table::key::{
 };
 use ::native_table::table::cell::{leb_value, put_sleb128, put_uleb128};
 use ::native_table::table::filter::Cond;
+use ::native_table::table::read::Planned;
 use ::native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use ::native_table::value::ty;
 use ::native_table::{Fault, ImageId, PageHost};
@@ -1607,6 +1608,56 @@ impl<'a> Places<'a> for Picked<'a> {
     }
 }
 
+/// The fields of a view read through its plan (`Table::get_planned`): the table hands over one cell per field of
+/// the view, in the view's order, and the type codes of field i lie in the table's layout at the place the plan
+/// holds.
+pub struct InPlan<'a> {
+    table: &'a [u8],
+    /// Per cell, the u32 offset and length of its type codes in `table`.
+    codes: &'a [u32],
+    plan: &'a [Planned],
+    /// 1 when the cells are the view's fields alone, 0 when the key's comes first.
+    shift: usize,
+}
+
+impl<'a> InPlan<'a> {
+    fn codes_of(&self, i: usize) -> Option<&'a [u8]> {
+        let at = *self.codes.get(2 * i)? as usize;
+        let n = *self.codes.get(2 * i + 1)? as usize;
+        self.table.get(at..at + n)
+    }
+
+    /// The field of the view that reads column `column`.
+    fn field(&self, column: usize) -> Option<usize> {
+        self.plan
+            .iter()
+            .position(|p| (p.id >> 16) as usize == column)
+    }
+}
+
+impl<'a> Places<'a> for InPlan<'a> {
+    #[inline(always)]
+    fn next(&mut self, at: usize, _column: usize) -> Option<(usize, &'a [u8])> {
+        Some((at + self.shift, self.codes_of(at)?))
+    }
+
+    fn kept(&self, _: usize) -> bool {
+        true
+    }
+
+    fn position(&self, column: usize) -> usize {
+        self.field(column).map_or(DROPPED, |i| i + self.shift)
+    }
+
+    fn reset(&mut self) {}
+
+    fn codes(&self, column: usize) -> &'a [u8] {
+        self.field(column)
+            .and_then(|i| self.codes_of(i))
+            .unwrap_or(&[])
+    }
+}
+
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
 /// of the key type, the row as a record whose hash list is the codec's labels, or as the one
 /// scalar. Every value is built as compiled code builds it, and every new object goes through
@@ -1764,6 +1815,59 @@ impl<'a, M: Memory> RowOut<'a, M> {
             pending_len: 0,
             _layout: core::marker::PhantomData,
         }
+    }
+}
+
+impl<'a, M: Memory> RowOut<'a, M, InPlan<'a>> {
+    /// Rows of a view read through its plan: `codes` holds the place of each field's type codes in the table's
+    /// layout `table`, the row a record with `labels` as its hash list, or the one scalar. Traps when `labels`
+    /// does not have one label per field of the view, or none for a view of a scalar.
+    pub unsafe fn planned(
+        mem: *mut M,
+        table: &'a [u8],
+        codes: &'a [u32],
+        plan: &'a [Planned],
+        labels: Value,
+        out: Out,
+    ) -> RowOut<'a, M, InPlan<'a>> {
+        // The plan holds the key's leaf first: the view's fields alone for a row.
+        let (shift, plan, codes) = match out {
+            Out::Row => (1, &plan[1..], &codes[2..]),
+            _ => (0, plan, codes),
+        };
+        let n = codes.len() / 2 - (1 - shift);
+        if tag_of(labels) != Some(TAG_BLOB_B) {
+            mismatch();
+        }
+        let record = labels.as_blob().len().as_usize() == n * size_of::<u64>();
+        if !record && (labels.as_blob().len().as_usize() != 0 || n != 1) {
+            mismatch();
+        }
+        RowOut {
+            mem,
+            out,
+            fields: InPlan {
+                table,
+                codes,
+                plan,
+                shift,
+            },
+            next: 0,
+            columns: plan.len(),
+            labels: record.then_some(labels),
+            record: core::ptr::null_mut(),
+            value: Value::from_scalar(0),
+            key: Value::from_scalar(0),
+            rid: 0,
+            pending: core::ptr::null_mut(),
+            pending_len: 0,
+            _layout: core::marker::PhantomData,
+        }
+    }
+
+    /// The leaves the plan reads, the key's first when the key is built.
+    pub fn plan(&self) -> &'a [Planned] {
+        self.fields.plan
     }
 }
 

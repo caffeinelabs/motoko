@@ -52,3 +52,9 @@ ignore makes<Nat, { name : Text; town : Text }, { name : Text }>();
 ignore makes<Nat, { name : Nat }, { name : Text }>();
 ignore makes<Nat, { note : Text }, { note : ?Text }>();
 ignore makes<Nat, Int, Nat>();
+
+// A view reads a field the row lacks, or has with another type
+func viewed<K, P, R>(c : (implicit : Prim.NtCodec<(K, P, R, ())>)) : Prim.NtCodec<(K, P, R, ())> = c;
+ignore viewed<Nat, { customer : Text; town : Text }, { customer : Text; note : ?Text }>();
+ignore viewed<Nat, { amount : Int }, { amount : Nat }>();
+ignore viewed<Nat, { note : Text }, { note : ?Text }>();

@@ -593,6 +593,45 @@ impl<'h, H: PageHost> Table<'h, H> {
         Ok(true)
     }
 
+    /// The row with key k, handed to `out` with the leaves of `plan` in plan order, as `get_leaves` hands a
+    /// view's leaves, without looking a leaf up (`read::Planned`); `false` when there is none. The key's cell is
+    /// that of the key's one leaf `key_leaf`, and a Text key is not checked as UTF-8 when it fits `KEY_STACK`
+    /// bytes. The plan must be of this table's schema.
+    pub fn get_planned<S: Scratch, K: RowSource + ?Sized, O: RowSink>(
+        &self,
+        scratch: &mut S,
+        key: &mut K,
+        key_leaf: &read::Planned,
+        plan: &[read::Planned],
+        out: &mut O,
+    ) -> Result<bool, Fault> {
+        let mut kb = [0u8; KEY_STACK];
+        let l = key_leaf.leaf()?;
+        if !l.key || self.shape.key_leaves != 1 {
+            return Err(Fault::BadValue { leaf: l.id });
+        }
+        let mut s = SliceSink::new(&mut kb);
+        let e = match cell::enc_key(&mut s, &l, &row::checked_cell(key, &l)?) {
+            Ok(()) => s.len,
+            Err(Fault::Scratch { .. }) => usize::MAX,
+            Err(e) => return Err(e),
+        };
+        let e = match kb.get(..e) {
+            Some(e) => e,
+            None => self.key_in(key, &mut kb, scratch)?,
+        };
+        let read = |rid, row: &read::Live| read::emit_planned(&*self.host, &self.shape, plan, row, rid, out);
+        Ok(self.read_key::<false, _, _>(e, &mut Path::new(), read)?.is_some())
+    }
+
+    /// The row with rid `rid`, handed to `out` as `get_planned` hands it; `false` when no live row has it.
+    pub fn get_rid_planned<S: RowSink>(&self, rid: u64, plan: &[read::Planned], out: &mut S) -> Result<bool, Fault> {
+        let found = read::live(&*self.host, self.root, rid);
+        let Some(row) = found.as_ref().map_err(|e| *e)? else { return Ok(false) };
+        read::emit_planned(&*self.host, &self.shape, plan, row, rid, out)?;
+        Ok(true)
+    }
+
     /// The rows whose cells of secondary index `index`'s parts encode to the key the cells of `key` give (by
     /// leaf id, as a row's): one descent of the index's tree. A key of any length: one longer than `KEY_STACK` is
     /// encoded into `scratch`. `BadRef` when the table has no secondary index `index`.
@@ -1159,6 +1198,19 @@ impl<'h, H: PageHost> Table<'h, H> {
         out: &mut S,
     ) -> Result<Option<u64>, Fault> {
         filter::cells(&*self.host, self.root, &self.shape, leaves, f, next, limit, out)
+    }
+
+    /// `scan_cells`, with the leaves of the read plan `plan` (`read::Planned`), each found once for the plan. The
+    /// plan must be of this table's schema.
+    pub fn scan_planned<S: RowSink>(
+        &self,
+        plan: &[read::Planned],
+        f: Option<&filter::Filter<'_>>,
+        next: u64,
+        limit: u64,
+        out: &mut S,
+    ) -> Result<Option<u64>, Fault> {
+        filter::planned(&*self.host, self.root, &self.shape, plan, f, next, limit, out)
     }
 
     /// The live rows below rid `before`, newest first, at most `limit` of them, each handed to `out` whole, as

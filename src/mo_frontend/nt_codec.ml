@@ -36,6 +36,15 @@
    of R's layout, the key's 0 included, so the runtime finds them without their
    names.
 
+   The codec of a view of a table of R that reads the fields of a P (`viewed`)
+   has the layout of P, and in place of `labels` the codec hash of R's layout,
+   then 16 bytes per field of P, in label-hash order: the u16 position of its
+   column in R's layout, the u16 length and the u32 offset there of its type
+   codes, the u32 offset of its value in the fixed part of a row image and the
+   u32 number of the row's values held as items before it (`row_cell`); then
+   the labels of P. So a table of R whose row type never changed reads each
+   field at its place.
+
    Other types, and types with type parameters, are rejected with a message
    that names the key, the row or the field.
 *)
@@ -236,33 +245,77 @@ let blobs k r : (string * string, string) result =
     List.iter (fun c -> Buffer.add_int64_le labels (Int64.of_int32 c.hash)) row;
   Ok (layout key row, Buffer.contents labels)
 
+(* P's field [c] found among R's columns [row] by name: its column and position in R's layout,
+   the key's 0 included; or why R's has another type, which with [widen] may be an Int (an option
+   of one) where P's is a Nat (an option of one), since a Nat value is an Int value *)
+let column_of ~widen p r row (c : column) =
+  let typ t = match T.normalize t with
+    | T.Obj (_, fs, _) -> (List.find (fun (f : T.field) -> f.T.lab = c.name) fs).T.typ
+    | _ -> t in
+  let what = if c.name = "" then "row" else Printf.sprintf "field `%s`" c.name in
+  match List.find_index (fun (d : column) -> d.name = c.name) row with
+  | None -> reject what (typ p) "the table's row has no field of that name"
+  | Some i ->
+    let d = List.nth row i in
+    match c.codes, d.codes with
+    | cs, ds when cs = ds -> Ok (d, i + 1)
+    | ([0x0A], [0x0B] | [0x20; 0x0A], [0x20; 0x0B]) when widen -> Ok (d, i + 1)
+    | _ -> reject what (typ p) (Printf.sprintf "the table's has type %s" (T.string_of_typ (typ r)))
+
 (* The layout and positions Blobs of a write that can create a row of type [r]
    from the fields of a [p], under key type [k], or why the types are not
    accepted: a row of [r] must be made from a [p] (`makes`), and each field of
    [p] must be a field of [r] of the same name and type, or a Nat (an option of
-   one) where [r]'s is an Int (an option of one), since a Nat value is an Int
-   value *)
+   one) where [r]'s is an Int (an option of one) *)
 let placed k p r : (string * string, string) result =
   let open Lib.Result.Syntax in
   let* () = makes p r in
   let* key = key_codes k in
   let* (given, _) = row_columns p in
   let* (row, _) = row_columns r in
-  let place (c : column) =
-    let typ t = match T.normalize t with
-      | T.Obj (_, fs, _) -> (List.find (fun (f : T.field) -> f.T.lab = c.name) fs).T.typ
-      | _ -> t in
-    let what = if c.name = "" then "row" else Printf.sprintf "field `%s`" c.name in
-    match List.find_index (fun (d : column) -> d.name = c.name) row with
-    | None -> reject what (typ p) "the table's row has no field of that name"
-    | Some i ->
-      let d = List.nth row i in
-      match c.codes, d.codes with
-      | cs, ds when cs = ds -> Ok (d, i + 1)
-      (* A Nat, or an option of one, where the table's is an Int, or an option of one *)
-      | [0x0A], [0x0B] | [0x20; 0x0A], [0x20; 0x0B] -> Ok (d, i + 1)
-      | _ -> reject what (typ p) (Printf.sprintf "the table's has type %s" (T.string_of_typ (typ r))) in
-  let* placed = map_ok place given in
+  let* placed = map_ok (column_of ~widen:true p r row) given in
   let positions = Buffer.create 16 in
   List.iter (fun (_, i) -> Buffer.add_int32_le positions (Int32.of_int i)) placed;
   Ok (layout key (List.map fst placed), Buffer.contents positions)
+
+(* The bytes a value of the type codes [codes] takes in the fixed part of a row
+   image, and whether it is held as an item: the native-table crate's rules for
+   a scalar, an option of one, or an array, held as a Blob *)
+let row_cell codes =
+  match (match codes with c :: cs when c = option_code -> cs | cs -> cs) with
+  | (0x01 | 0x02 | 0x06) :: _ -> (1, false)
+  | (0x03 | 0x07) :: _ -> (2, false)
+  | (0x04 | 0x08 | 0x0E) :: _ -> (4, false)
+  | (0x05 | 0x09 | 0x0D) :: _ -> (8, false)
+  | (0x0A | 0x0B) :: _ -> (16, true)
+  | 0x11 :: _ -> (30, false)
+  | _ -> (0, true)
+
+(* The layout and places Blobs of a view of a table of key type [k] and row
+   type [r] that reads the fields of a [p], or why the types are not accepted:
+   each field of [p] must be a field of [r] of the same name and type *)
+let viewed k p r : (string * string, string) result =
+  let open Lib.Result.Syntax in
+  let* key = key_codes k in
+  let* (given, is_record) = row_columns p in
+  let* (row, _) = row_columns r in
+  let* fields = map_ok (column_of ~widen:false p r row) given in
+  (* Per column of R's layout, the key's first: the offset of its type codes
+     there, and the place of its value in a row image; a key that is a tuple
+     has a value per part *)
+  let key_values = match key with c :: _ :: _ :: parts when c = tuple_code -> List.map (fun c -> [c]) parts | _ -> [key] in
+  let step (at, fixed, items) (c, values) =
+    let add (fixed, items) codes = let (w, item) = row_cell codes in (fixed + w, items + Bool.to_int item) in
+    let (fixed', items') = List.fold_left add (fixed, items) values in
+    ((at + String.length (entry c), fixed', items'), (at, fixed, items)) in
+  let columns = (unnamed key, key_values) :: List.map (fun c -> (c, [c.codes])) row in
+  let (_, places) = List.fold_left_map step (20, 0, 0) columns in
+  let b = Buffer.create 64 in
+  Buffer.add_string b (String.sub (layout key row) 8 8);
+  fields |> List.iter (fun ((d : column), i) ->
+    let (at, fixed, items) = List.nth places i in
+    Buffer.add_uint16_le b i;
+    Buffer.add_uint16_le b (List.length d.codes);
+    List.iter (fun x -> Buffer.add_int32_le b (Int32.of_int x)) [at; fixed; items]);
+  if is_record then List.iter (fun c -> Buffer.add_int64_le b (Int64.of_int32 c.hash)) given;
+  Ok (layout key given, Buffer.contents b)

@@ -315,7 +315,7 @@ error[M0119]: object field cancelTimer is not contained in expected type
                 named : NtCodec<(K, P, R)>, k : K, fields : P) ->
         Bool;
     ntView :
-      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
+      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P, R, ())>) ->
         NtCodec<(K, P)>;
     ntWalk :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

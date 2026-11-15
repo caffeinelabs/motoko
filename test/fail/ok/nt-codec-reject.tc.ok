@@ -17,3 +17,6 @@ nt-codec-reject.mo:51.65-51.67: type error [M0279], native table field `town` ha
 nt-codec-reject.mo:52.51-52.53: type error [M0279], native table field `name` has type Nat, but the table's has type Text
 nt-codec-reject.mo:53.53-53.55: type error [M0279], native table field `note` has type Text, but the table's has type ?Text
 nt-codec-reject.mo:54.28-54.30: type error [M0279], native table row has type Int, but the table's has type Nat
+nt-codec-reject.mo:58.88-58.90: type error [M0279], native table field `town` has type Text, but the table's row has no field of that name
+nt-codec-reject.mo:59.55-59.57: type error [M0279], native table field `amount` has type Int, but the table's has type Nat
+nt-codec-reject.mo:60.54-60.56: type error [M0279], native table field `note` has type Text, but the table's has type ?Text

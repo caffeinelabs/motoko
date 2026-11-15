@@ -1964,7 +1964,9 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
 (** The built-in implicit for a hole of type [Prim.NtCodec<(K, R)>]: a call of the privileged
     [Prim.@ntCodec<(K, R)>(layout, labels)], with both Blobs computed from K and R, or why K and R
     are not accepted. For [Prim.NtCodec<(K, P, R)>], the codec of a write that can create a row
-    of R from the fields of a P (`Nt_codec.placed`). [None] when the hole has another type. *)
+    of R from the fields of a P (`Nt_codec.placed`); for [Prim.NtCodec<(K, P, R, ())>], the codec
+    of a view of a table of R that reads the fields of a P (`Nt_codec.viewed`). [None] when the
+    hole has another type. *)
 let nt_codec_candidate hole_typ =
   let open Lib.Option.Syntax in
   let* arg = match T.normalize hole_typ with
@@ -1973,6 +1975,7 @@ let nt_codec_candidate hole_typ =
   let+ blobs = match T.normalize arg with
     | T.Tup [k; r] -> Some (Nt_codec.blobs k r)
     | T.Tup [k; p; r] -> Some (Nt_codec.placed k p r)
+    | T.Tup [k; p; r; u] when T.eq u T.unit -> Some (Nt_codec.viewed k p r)
     | _ -> None in
   blobs |> Result.map (fun (layout, labels) ->
     let mk e = e @? no_region in
