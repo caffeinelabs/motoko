@@ -8,7 +8,8 @@ import NativeTableCells "mo:native-table/NativeTableCells";
 // and a view of a scalar row. Its scans and index walks give the same rows as the table's, with
 // the view's fields; its counts, sums, extremes, filters and cells name any field of the table;
 // delete on a view removes the whole row. Add and evolve on a view, and a view made before an
-// evolve trap, and change nothing.
+// evolve trap, and change nothing. Each iterator's variant of a row count gives the iterator's
+// first rows, no more.
 // update sets some fields of a row and keeps the others, in packed rows and rows of the open
 // group, with long values, and in a table whose row type changed; the index on a changed field
 // moves and the totals change by the difference; a Nat is taken for an Int. upsert inserts a row,
@@ -136,6 +137,42 @@ actor {
     );
     Prim.debugPrint(debug_show (names.minEntry(["city"]), cities.maxEntry(["city"])));
     Prim.debugPrint(debug_show (sameCounts.entries().next(), sameCounts.values().next()))
+  };
+
+  // Whether `part` gives the first `n` values of `whole`, or all of them when there are fewer, and no more
+  func prefix<A>(whole : { next : () -> ?A }, part : { next : () -> ?A }, n : Nat, eq : (A, A) -> Bool) : Bool {
+    var i = 0;
+    loop {
+      switch (if (i < n) whole.next() else null, part.next()) {
+        case (null, null) { return true };
+        case (?x, ?y) { if (not eq(x, y)) return false; i += 1 };
+        case _ { return false }
+      }
+    }
+  };
+
+  // Each iterator's variant of a row count, on the table and on a view
+  public query func firsts() : async () {
+    let (basel, amounts) = (?[#text("Basel")], #range { low = ?#incl(#nat(700)); high = null });
+    let entry = func(a : (Nat, Order), b : (Nat, Order)) : Bool = a == b;
+    let named = func(a : (Nat, Name), b : (Nat, Name)) : Bool = a == b;
+    var alike = 0;
+    for (n in [0, 1, 63, 64, 65, 5_000].values()) {
+      let checks = [
+        prefix(orders.entries(), orders.firstEntries(n), n, entry),
+        prefix(orders.keys(), orders.firstKeys(n), n, func(a : Nat, b : Nat) : Bool = a == b),
+        prefix(orders.values(), orders.firstValues(n), n, func(a : Order, b : Order) : Bool = a == b),
+        prefix(counts.reverseEntries(), counts.firstReverseEntries(n), n, func(a : (Text, Nat), b : (Text, Nat)) : Bool = a == b),
+        prefix(orders.entriesWhere("amount", amounts), orders.firstEntriesWhere("amount", amounts, n), n, entry),
+        prefix(orders.indexEntries(["city"], basel, basel), orders.firstIndexEntries(["city"], basel, basel, n), n, entry),
+        prefix(orders.indexEntriesAt(["city"], null, null, 7), orders.firstIndexEntriesAt(["city"], null, null, 7, n), n, entry),
+        prefix(orders.reverseIndexEntries(["city"], null, basel), orders.firstReverseIndexEntries(["city"], null, basel, n), n, entry),
+        prefix(names.reverseIndexEntriesAt(["city"], null, null, 9), names.firstReverseIndexEntriesAt(["city"], null, null, 9, n), n, named),
+        prefix(names.entries(), names.firstEntries(n), n, named),
+      ];
+      for (c in checks.values()) { if c { alike += 1 } }
+    };
+    Prim.debugPrint(debug_show alike)
   };
 
   // The calls that name fields name any field of the table on a view
@@ -311,6 +348,7 @@ actor {
 //CALL ingress put "DIDL\x00\x00"
 //CALL ingress get "DIDL\x00\x00"
 //CALL ingress reads "DIDL\x00\x00"
+//CALL ingress firsts "DIDL\x00\x00"
 //CALL ingress named "DIDL\x00\x00"
 //CALL ingress getOld "DIDL\x00\x00"
 //CALL ingress change "DIDL\x00\x00"

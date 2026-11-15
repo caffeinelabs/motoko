@@ -179,6 +179,10 @@ ignore people.update(1, { codes = ["CH", "DE", "FR"] })
 | `t.keys()`, `t.values()` | every key, every row |
 | `t.reverseEntries()` | every `(K, R)`, newest first |
 
+Each scan has a variant that gives its first `count` rows at most and reads no more:
+`t.firstEntries(count)`, `t.firstKeys(count)`, `t.firstValues(count)`,
+`t.firstReverseEntries(count)` and `t.firstEntriesWhere(field, filter, count)`.
+
 Scans go in the table's own order: the order the keys were first added, not key order. `add` over
 a key the table has, `update` and `upsert` keep a row's place; a key removed and added again comes
 last; after `clear` the order starts again. A row that stays in the table while a scan runs comes
@@ -230,6 +234,9 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
   costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
 - `removeIndexRange` costs less than removing the walk's rows one by one.
+- Each walk has a variant that gives its first `count` rows at most and reads no more, the
+  count last: `firstIndexEntries`, `firstReverseIndexEntries`, `firstIndexEntriesAt` and
+  `firstReverseIndexEntriesAt`. A page: `orders.firstIndexEntriesAt(["amount"], null, null, 50 * page, 50)`.
 
 ## Filters
 

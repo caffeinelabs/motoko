@@ -10,6 +10,8 @@ debug.print: (4_200, 4_200, 4_200, 4_200, 4_200, 1_400, 4_200, 100)
 debug.print: (?(0, {city = "Basel"; customer = "c0"}), ?(7, {city = "Chur"}))
 debug.print: (?("Basel", 3), ?3)
 ingress Completed: Reply: 0x4449444c0000
+debug.print: 60
+ingress Completed: Reply: 0x4449444c0000
 debug.print: (2_100, 3, true, true, true, true, true, true, true)
 debug.print: (2_799, ?(-4_199), 4_200)
 ingress Completed: Reply: 0x4449444c0000
