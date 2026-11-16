@@ -54,47 +54,61 @@ pub unsafe fn test() {
         let minus_one = bigint_sub(two_pow_i, one);
         let plus_one = bigint_add(two_pow_i, one);
 
-        test_bigint_leb128(minus_one);
-        test_bigint_leb128(two_pow_i);
-        test_bigint_leb128(plus_one);
+        test_bigint_leb128(minus_one, 256);
+        test_bigint_leb128(two_pow_i, 256);
+        test_bigint_leb128(plus_one, 256);
 
-        test_bigint_sleb128(minus_one);
-        test_bigint_sleb128(two_pow_i);
-        test_bigint_sleb128(plus_one);
-        test_bigint_sleb128(bigint_neg(minus_one));
-        test_bigint_sleb128(bigint_neg(two_pow_i));
-        test_bigint_sleb128(bigint_neg(plus_one));
+        test_bigint_sleb128(minus_one, 256);
+        test_bigint_sleb128(two_pow_i, 256);
+        test_bigint_sleb128(plus_one, 256);
+        test_bigint_sleb128(bigint_neg(minus_one), 256);
+        test_bigint_sleb128(bigint_neg(two_pow_i), 256);
+        test_bigint_sleb128(bigint_neg(plus_one), 256);
     }
+
+    // The largest values that Candid decoding accepts
+    let two_pow_255 = bigint_pow(two, bigint_of_word64(255));
+    let two_pow_256 = bigint_pow(two, bigint_of_word64(256));
+    test_bigint_leb128(bigint_sub(two_pow_256, one), 256);
+    test_bigint_leb128(bigint_sub(two_pow_255, one), 255);
+    test_bigint_sleb128(bigint_sub(two_pow_255, one), 256);
+    test_bigint_sleb128(bigint_neg(two_pow_255), 256);
+
+    // Long encodings, without a bound
+    let long = bigint_add(bigint_pow(two, bigint_of_word64(5000)), one);
+    test_bigint_leb128(long, 0);
+    test_bigint_sleb128(long, 0);
+    test_bigint_sleb128(bigint_neg(long), 0);
 
     set_bigint_heap(std::ptr::null_mut());
     reset_test_memory();
     drop(heap);
 }
 
-// Check leb128 encode/decode roundtrip
-unsafe fn test_bigint_leb128(n: Value) {
-    let mut buf = [0u8; 100];
+// Check leb128 encode/decode roundtrip, decoding with `bits` as the bound (0 for none)
+unsafe fn test_bigint_leb128(n: Value, bits: usize) {
     let s = bigint_leb128_size(n);
+    let mut buf = vec![0u8; s];
     let mut buf_ = Buf {
         ptr: buf.as_mut_ptr(),
-        end: buf.as_mut_ptr().add(100),
+        end: buf.as_mut_ptr().add(s),
     };
     bigint_leb128_encode(n, buf.as_mut_ptr());
-    let n2 = bigint_leb128_decode(&mut buf_ as *mut _);
+    let n2 = bigint_leb128_decode(&mut buf_ as *mut _, bits);
     assert!(bigint_eq(n, n2));
     assert_eq!(buf_.ptr.offset_from(buf.as_ptr()), s as isize);
 }
 
-// Check sleb128 encode/decode roundtrip
-unsafe fn test_bigint_sleb128(n: Value) {
-    let mut buf = [0u8; 100];
+// Check sleb128 encode/decode roundtrip, decoding with `bits` as the bound (0 for none)
+unsafe fn test_bigint_sleb128(n: Value, bits: usize) {
     let s = bigint_sleb128_size(n);
+    let mut buf = vec![0u8; s];
     bigint_sleb128_encode(n, buf.as_mut_ptr());
     let mut buf_ = Buf {
         ptr: buf.as_mut_ptr(),
-        end: buf.as_mut_ptr().add(100),
+        end: buf.as_mut_ptr().add(s),
     };
-    let n2 = bigint_sleb128_decode(&mut buf_ as *mut _);
+    let n2 = bigint_sleb128_decode(&mut buf_ as *mut _, bits);
     assert!(bigint_eq(n, n2));
     assert_eq!(buf_.ptr.offset_from(buf.as_ptr()), s as isize);
 }
