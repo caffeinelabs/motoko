@@ -6042,12 +6042,19 @@ module StableMem = struct
           get_mem_size env ^^
           set_size ^^
 
-          (* check within --max-stable-pages *)
+          (* check within --max-stable-pages, without wrapping:
+             size > max || pages > max - size
+             (size > max after an upgrade that lowered the limit) *)
+          let max = Int64.of_int !Flags.max_stable_pages in
           get_size ^^
-          get_pages ^^
-          G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) ^^
-          compile_unboxed_const (Int64.of_int (!Flags.max_stable_pages)) ^^
+          compile_unboxed_const max ^^
           compile_comparison I64Op.GtU ^^
+          get_pages ^^
+          compile_unboxed_const max ^^
+          get_size ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+          compile_comparison I64Op.GtU ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
           E.if1 I64Type
             begin
              compile_unboxed_const (-1L) ^^
