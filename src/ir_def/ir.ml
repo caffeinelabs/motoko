@@ -83,11 +83,10 @@ and exp' =
   | TryE of exp * case list * (id * Type.typ) option (* try/catch/cleanup *)
 
 (* Optional codec closures attached to a public actor method's FuncE.
-   `encoder : T -> Blob` replaces Candid serialization on reply.
-   `decoder : Blob -> T` would replace Candid deserialization on
-   ingress; not yet wired through desugaring/codegen.
-   See `.claude/plans/non-candid.md` for the full plan, including
-   the actor-level inheritance idea and the OpenAPI/Web2 motivation. *)
+   `encoder : (T1, ..., Tn) -> Blob` replaces Candid serialization on
+   reply; multiple results arrive as one tuple argument.
+   `decoder : Blob -> (A1, ..., Am)` replaces Candid deserialization on
+   ingress; it returns the method's arguments as a sequence. *)
 and codecs = { encoder : exp option; decoder : exp option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }

@@ -159,12 +159,12 @@ and t_exp' context exp =
   | FuncE (x, T.Local, c, typbinds, pat, typs,
       ({ it = AsyncE _; _} as async), _enc) ->
     FuncE (x, T.Local, c, typbinds, pat, typs,
-      t_async context async, { encoder = None; decoder = None })
+      t_async context async, no_codecs)
   | FuncE (x, T.Local, c, typbinds, pat, typs,
       ({it = BlockE (ds, ({ it = AsyncE _; _} as async)); _} as wrapper), _enc) ->
     (* GH issue #3910 *)
     FuncE (x, T.Local, c, typbinds, pat, typs,
-      { wrapper with it = BlockE (ds, t_async context async) }, { encoder = None; decoder = None })
+      { wrapper with it = BlockE (ds, t_async context async) }, no_codecs)
   | FuncE (x, (T.Shared _ as s), c, typbinds, pat, typs,
       ({ it = AsyncE _;_ } as body), enc) ->
     FuncE (x, s, c, typbinds, pat, typs,
@@ -178,12 +178,12 @@ and t_exp' context exp =
         _
       }, _enc) ->
     FuncE (x, s, c, typbinds, pat, typs,
-      blockE [letP wild_pat (t_async context body)] unitE, { encoder = None; decoder = None })
+      blockE [letP wild_pat (t_async context body)] unitE, no_codecs)
   | FuncE (x, s, c, typbinds, pat, typs, exp1, _enc) ->
     assert (not (T.is_local_async_func (typ exp)));
     assert (not (T.is_shared_func (typ exp)));
     let context' = LabelEnv.singleton Return Label in
-    FuncE (x, s, c, typbinds, pat, typs, t_exp context' exp1, { encoder = None; decoder = None })
+    FuncE (x, s, c, typbinds, pat, typs, t_exp context' exp1, no_codecs)
   | ActorE (ds, ids, { meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, t) ->
     ActorE (t_decs context ds, ids,
       { meta;

@@ -370,7 +370,7 @@ let transform prog =
       begin
         match s with
         | Local ->
-          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, { encoder = None; decoder = None })
+          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, no_codecs)
         | Shared s' ->
           begin
             match c, exp with
@@ -428,7 +428,7 @@ let transform prog =
                 e --> tupE [] in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp', { encoder = None; decoder = None })
+              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp', no_codecs)
             | (Returns | Replies), _ -> assert false
           end
       end

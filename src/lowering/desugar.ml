@@ -168,7 +168,7 @@ and exp' at note = function
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
-    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e), I.{ encoder = None; decoder = None })
+    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e), no_codecs)
   (* Primitive functions in the prelude have particular shapes *)
   | S.CallE (None, {it=S.AnnotE ({it=S.PrimE p;_}, _);note;_}, _, (_, e))
     when Lib.String.chop_prefix "num_conv" p <> None ->
@@ -1245,7 +1245,7 @@ and dec' d =
           note = Note.{ def with typ = rng_typ } }
     in
     let fn = {
-      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body, I.{ encoder = None; decoder = None });
+      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body, no_codecs);
       at = at;
       note = Note.{ def with typ = fun_typ }
     } in

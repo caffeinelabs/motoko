@@ -12,6 +12,10 @@ open Type
 *)
 
 
+(* Codecs *)
+
+val no_codecs : codecs
+
 (* Field names *)
 
 val nameN : string -> Type.lab

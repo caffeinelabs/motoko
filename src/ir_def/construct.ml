@@ -193,19 +193,20 @@ let cps_awaitE s cont_typ e1 e2 =
     }
   | _ -> assert false
 
-let ic_replyE ts e =
-  (match ts with
+let assert_reply_typ ts e =
+  match ts with
   | [t] -> assert (T.sub (e.note.Note.typ) t)
-  | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ)));
+  | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ))
+
+let ic_replyE ts e =
+  assert_reply_typ ts e;
   { it = PrimE (ICReplyPrim (ts, None), [e]);
     at = no_region;
     note = Note.{ def with typ = T.unit; eff = eff e }
   }
 
 let ic_reply_encE ts enc e =
-  (match ts with
-  | [t] -> assert (T.sub (e.note.Note.typ) t)
-  | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ)));
+  assert_reply_typ ts e;
   { it = PrimE (ICReplyPrim (ts, Some enc), [e]);
     at = no_region;
     note = Note.{ def with typ = T.unit; eff = eff e }
