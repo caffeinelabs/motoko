@@ -20,7 +20,7 @@ actor a {
     };
 
     Cycles.add<system>(2_000_000_000_000);
-    let testActor = await TestActor.TestActor(1234567890123456789012345678901234567890, "Test actor", Prim.Array_tabulate<Nat>(100_000, func(index) { index }));
+    let testActor = await TestActor.TestActor(123456789012345678901234567890123456789, "Test actor", Prim.Array_tabulate<Nat>(100_000, func(index) { index }));
     let testStabilization = useIncrementalStabilization(testActor);
     await testActor.print();
     await testStabilization.__motoko_stabilize_before_upgrade();
