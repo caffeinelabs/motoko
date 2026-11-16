@@ -39,6 +39,9 @@ pub unsafe extern "C" fn leb128_decode(buf: *mut Buf) -> usize {
 }
 
 /// Returns `None` on overflow
+///
+/// Kept out of line: inlined into the many `idl.rs` call sites it costs ~5 KB of RTS.
+#[inline(never)]
 pub unsafe fn leb128_decode_checked(buf: *mut Buf) -> Option<usize> {
     let mut result = 0;
     let mut shift = 0;
@@ -84,6 +87,9 @@ pub unsafe extern "C" fn sleb128_decode(buf: *mut Buf) -> isize {
 }
 
 /// Returns `None` on overflow
+///
+/// Kept out of line: inlined into the many `idl.rs` call sites it costs ~5 KB of RTS.
+#[inline(never)]
 pub unsafe fn sleb128_decode_checked(buf: *mut Buf) -> Option<isize> {
     let mut result = 0;
     let mut shift = 0;
