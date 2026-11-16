@@ -41,7 +41,7 @@ assert ?{a = true; b = 137} == (from_candid(to_candid({a = true; b = 137; c = 42
 assert null == (from_candid(to_candid({a = true; b = 137})) : ?{a : Bool; b : Nat; c : Nat}); // subtype failure
 
 // arrays
-let big = 340282366920938463463374607431768211455; // 2^128 - 1, the largest Nat that Candid decoding accepts
+let big = 115792089237316195423570985008687907853269984665640564039457584007913129639935; // 2^256 - 1, the largest Nat that Candid decoding accepts
 assert ?[] == (from_candid(to_candid([])) : ?[Nat]);
 assert ?[1] == (from_candid(to_candid([1])) : ?[Nat]);
 assert ?[1, 2] == (from_candid(to_candid([1, 2])) : ?[Nat]);

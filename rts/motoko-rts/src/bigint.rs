@@ -594,10 +594,10 @@ unsafe fn leb128_decode_bignum(buf: *mut Buf, signed: bool) -> mp_int {
     i
 }
 
-const CANDID_NUMBER_TOO_LARGE: &str = "Nat or Int value does not fit in 128 bits";
+const CANDID_NUMBER_TOO_LARGE: &str = "Nat or Int value does not fit in 256 bits";
 
 /// Decodes LEB128 data to a natural number. A non-zero `bits` bounds the value to that many bits:
-/// Candid input must fit in 128 bits, so the compiler passes 128 for a `Nat` and 127 for an `Int`
+/// Candid input must fit in 256 bits, so the compiler passes 256 for a `Nat` and 255 for an `Int`
 /// sent as `nat`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_decode(buf: *mut Buf, bits: usize) -> Value {
@@ -656,7 +656,7 @@ pub unsafe extern "C" fn bigint_leb128_decode_word64(
 }
 
 /// Decodes SLEB128 data to an integer. A non-zero `bits` bounds the value to the range of a signed
-/// integer of that many bits: Candid input must fit in 128 bits, so the compiler passes 128.
+/// integer of that many bits: Candid input must fit in 256 bits, so the compiler passes 256.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_decode(buf: *mut Buf, bits: usize) -> Value {
     let i = leb128_decode_bignum(buf, true);

@@ -54,25 +54,25 @@ pub unsafe fn test() {
         let minus_one = bigint_sub(two_pow_i, one);
         let plus_one = bigint_add(two_pow_i, one);
 
-        test_bigint_leb128(minus_one, 128);
-        test_bigint_leb128(two_pow_i, 128);
-        test_bigint_leb128(plus_one, 128);
+        test_bigint_leb128(minus_one, 256);
+        test_bigint_leb128(two_pow_i, 256);
+        test_bigint_leb128(plus_one, 256);
 
-        test_bigint_sleb128(minus_one, 128);
-        test_bigint_sleb128(two_pow_i, 128);
-        test_bigint_sleb128(plus_one, 128);
-        test_bigint_sleb128(bigint_neg(minus_one), 128);
-        test_bigint_sleb128(bigint_neg(two_pow_i), 128);
-        test_bigint_sleb128(bigint_neg(plus_one), 128);
+        test_bigint_sleb128(minus_one, 256);
+        test_bigint_sleb128(two_pow_i, 256);
+        test_bigint_sleb128(plus_one, 256);
+        test_bigint_sleb128(bigint_neg(minus_one), 256);
+        test_bigint_sleb128(bigint_neg(two_pow_i), 256);
+        test_bigint_sleb128(bigint_neg(plus_one), 256);
     }
 
     // The largest values that Candid decoding accepts
-    let two_pow_127 = bigint_pow(two, bigint_of_word64(127));
-    let two_pow_128 = bigint_pow(two, bigint_of_word64(128));
-    test_bigint_leb128(bigint_sub(two_pow_128, one), 128);
-    test_bigint_leb128(bigint_sub(two_pow_127, one), 127);
-    test_bigint_sleb128(bigint_sub(two_pow_127, one), 128);
-    test_bigint_sleb128(bigint_neg(two_pow_127), 128);
+    let two_pow_255 = bigint_pow(two, bigint_of_word64(255));
+    let two_pow_256 = bigint_pow(two, bigint_of_word64(256));
+    test_bigint_leb128(bigint_sub(two_pow_256, one), 256);
+    test_bigint_leb128(bigint_sub(two_pow_255, one), 255);
+    test_bigint_sleb128(bigint_sub(two_pow_255, one), 256);
+    test_bigint_sleb128(bigint_neg(two_pow_255), 256);
 
     // Long encodings, without a bound
     let long = bigint_add(bigint_pow(two, bigint_of_word64(5000)), one);

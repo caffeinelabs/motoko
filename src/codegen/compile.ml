@@ -8399,7 +8399,7 @@ module Serialization = struct
       in
 
 
-      (* Candid input must fit in 128 bits, as a Nat or as an Int, where the sign takes a bit.
+      (* Candid input must fit in 256 bits, as a Nat or as an Int, where the sign takes a bit.
          Restored stable variables are not bounded. *)
       let get_max_bits bits =
         get_rel_buf_opt ^^ compile_test I64Op.Eqz ^^
@@ -8411,19 +8411,19 @@ module Serialization = struct
       | Prim Nat ->
         with_prim_typ t
         begin
-          BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 128L) false
+          BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 256L) false
         end
       | Prim Int ->
         (* Subtyping with nat *)
         check_prim_typ (Prim Nat) ^^
         E.if1 I64Type
           begin
-            BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 127L) false
+            BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 255L) false
           end
           begin
             with_prim_typ t
             begin
-              BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 128L) true
+              BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 256L) true
             end
           end
       | Prim Float32 ->
