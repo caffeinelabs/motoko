@@ -1,5 +1,15 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * Breaking change: Candid decoding rejects a `Nat` of 2^128 or more and an
+    `Int` outside -2^127 to 2^127 - 1, trapping with "IDL error: Nat or Int
+    value does not fit in 128 bits". This applies to arguments, replies and
+    `from_candid`; restoring stable variables is unaffected. Large numbers
+    decode faster (#6504).
+
 ## 2.2.2 (2026-11-13)
 
 * motoko (`moc`)
