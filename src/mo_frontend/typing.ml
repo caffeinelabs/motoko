@@ -4669,6 +4669,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
            let _, c, _, ts1, ts2 = T.as_func typ in
            (match c with
             | T.Promises -> check_vis_parenthetical par_env ts1 (T.seq ts2) par
+            | T.Returns -> check_vis_parenthetical ~oneway:true par_env ts1 (T.seq ts2) par
             | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
          | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
       | Syntax.Public (_, Some par), _ ->
@@ -4717,7 +4718,7 @@ and check_parenthetical env typ_opt = function
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
      if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
 
-and check_vis_parenthetical env arg_typs ret_typ par =
+and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
   (* Direction is method → codec: the method's signature drives the
      expected encoder/decoder types. An alternative we may want to
      explore later is the inverse — deriving the method's input type
@@ -4736,6 +4737,9 @@ and check_vis_parenthetical env arg_typs ret_typ par =
     | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields
     | _ -> []
   in
+  if oneway && List.mem "encoder" labs_in_par then
+    local_error env par.at "M0280"
+      "oneway method never replies, so it cannot have an encoder";
   let expected_fields = List.filter_map (fun lab ->
     Option.map (fun typ -> (lab, typ)) (List.assoc_opt lab known)
   ) labs_in_par in

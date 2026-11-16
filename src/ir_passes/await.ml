@@ -176,9 +176,10 @@ and t_exp' context exp =
             ({ it = AsyncE _; _} as body)); _ }],
          ({ it = PrimE (TupPrim, []); _ } as unitE));
         _
-      }, _enc) ->
+      }, codecs) ->
+    (* oneway: only the decoder can apply (typing rejects an encoder) *)
     FuncE (x, s, c, typbinds, pat, typs,
-      blockE [letP wild_pat (t_async context body)] unitE, no_codecs)
+      blockE [letP wild_pat (t_async context body)] unitE, codecs)
   | FuncE (x, s, c, typbinds, pat, typs, exp1, _enc) ->
     assert (not (T.is_local_async_func (typ exp)));
     assert (not (T.is_shared_func (typ exp)));

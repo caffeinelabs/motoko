@@ -428,7 +428,7 @@ let transform prog =
                 e --> tupE [] in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp', no_codecs)
+              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp', codecs)
             | (Returns | Replies), _ -> assert false
           end
       end

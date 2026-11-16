@@ -27,6 +27,9 @@ actor {
 
   // raw UTF-8 in and out
   public (with decoder = text; encoder = utf8) func shout(t : Text) : async Text = t # "!";
+
+  // raw decimal in, oneway (no reply to encode)
+  public (with decoder = decimal) func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) };
 };
 
 //SKIP run
@@ -36,3 +39,4 @@ actor {
 //CALL ingress greet "DIDL\x00\x01\x71\x05world"
 //CALL ingress double "21"
 //CALL ingress shout "hey"
+//CALL ingress triple "14"
