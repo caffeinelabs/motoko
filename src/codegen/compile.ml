@@ -6382,6 +6382,17 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr moc_stable_mem_grow_fi))
     });
 
+    let moc_region_max_blocks_fi =
+      E.add_fun env "moc_region_max_blocks" (
+        Func.of_body env [] [I64Type]
+          (fun env -> compile_unboxed_const (Int64.of_int !Flags.max_region_blocks))
+        )
+    in
+    E.add_export env (nr {
+      name = Lib.Utf8.decode "moc_region_max_blocks";
+      edesc = nr (FuncExport (nr moc_region_max_blocks_fi))
+    });
+
     let moc_stable_mem_get_size_fi =
       E.add_fun env "moc_stable_mem_get_size" (
         Func.of_body env [] [I64Type]
