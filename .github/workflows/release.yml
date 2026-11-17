@@ -25,22 +25,23 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (for tag->master validation)
+      - name: Checkout (for tag->v1 validation)
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.sha }}
 
-      - name: Abort if tag is not on master
+      # v1 is the 1.x maintenance branch, so 1.x releases are tagged on it
+      - name: Abort if tag is not on v1
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         run: |
           set -euo pipefail
-          git fetch origin master
-          if git merge-base --is-ancestor "${GITHUB_SHA}" "origin/master"; then
-            echo "Tag commit ${GITHUB_SHA} is reachable from master."
+          git fetch origin v1
+          if git merge-base --is-ancestor "${GITHUB_SHA}" "origin/v1"; then
+            echo "Tag commit ${GITHUB_SHA} is reachable from v1."
           else
-            echo "Error: Tag commit ${GITHUB_SHA} is not on master. Aborting workflow."
+            echo "Error: Tag commit ${GITHUB_SHA} is not on v1. Aborting workflow."
             exit 1
           fi
 
@@ -174,7 +175,7 @@ jobs:
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
-          repositories: motoko,node-motoko
+          repositories: motoko
 
       - name: Upload Release Assets
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
@@ -185,13 +186,7 @@ jobs:
           file_glob: true
           body: ${{ needs.changelog.outputs.release_body || 'Draft release created for testing purposes' }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
-
-      - name: Notify node-motoko of new release
-        if: ${{ github.event_name == 'push' }}
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          repository: caffeinelabs/node-motoko
-          event-type: motoko-release
-          client-payload: '{"version": "${{ github.ref_name }}"}'
+          # GitHub lists releases newest first, and `mops toolchain update` takes the
+          # first one that is not a prerelease, which would move 2.x users back to 1.x
+          prerelease: true
+          make_latest: false

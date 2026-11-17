@@ -1,11 +1,13 @@
 # Motoko compiler changelog
 
-## Next
+## 1.16.2 (2026-11-17)
 
 * motoko (`moc`)
 
-  * Candid decoding of large `Nat` and `Int` values is faster and allocates
-    less (#6505).
+  * Candid decoding of a `Nat` or `Int` takes time proportional to the length
+    of its encoding. Before, the time grew with the square of the length, so
+    a single number encoded in about 100 KB used up the instruction limit of
+    an update call (#6505).
 
 ## 1.16.1 (2026-09-16)
 

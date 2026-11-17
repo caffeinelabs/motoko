@@ -10,8 +10,9 @@ on:
     # Rerun on PR title change
     # On PR merge: push tag to start release
     types: [opened, edited, synchronize, reopened, closed]
+    # v1 is the 1.x maintenance branch, released from here
     branches:
-    - master
+    - v1
     paths:
     - Changelog.md
 
