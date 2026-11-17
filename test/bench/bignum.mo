@@ -31,11 +31,9 @@ actor Bignum {
   };
 
   public func candid() : async () {
-    // Candid input must fit in 256 bits
-    let numbers = Array_tabulate<Nat>(arr.size(), func i = arr[i] % 2 ** 256);
     let (size0, perf0) = counters();
-    let ser = to_candid(numbers);
-    arr1 := from_candid(ser);
+    let ser = to_candid (Array_tabulate<Nat>(arr.size(), func i = arr[i]));
+    arr1 := from_candid (ser);
     let (size1, perf1) = counters();
     debugPrint(debug_show { size = size1 - size0; cycles = perf1 - perf0 });
   };

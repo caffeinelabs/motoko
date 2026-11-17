@@ -1196,11 +1196,11 @@ module RTS = struct
     add_rts_import "bigint_abs" [I64Type] [I64Type];
     add_rts_import "bigint_leb128_size" [I64Type] [I64Type];
     add_rts_import "bigint_leb128_encode" [I64Type; I64Type] [];
-    add_rts_import "bigint_leb128_decode" [I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_leb128_decode" [I64Type] [I64Type];
     add_rts_import "bigint_leb128_decode_word64" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "bigint_sleb128_size" [I64Type] [I64Type];
     add_rts_import "bigint_sleb128_encode" [I64Type; I64Type] [];
-    add_rts_import "bigint_sleb128_decode" [I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_sleb128_decode" [I64Type] [I64Type];
     add_rts_import "bigint_sleb128_decode_word64" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "leb128_encode" [I64Type; I64Type] [];
     add_rts_import "sleb128_encode" [I64Type; I64Type] [];
@@ -3052,11 +3052,9 @@ sig
   (* given a ReadBuf on stack, consume bytes from it,
      deserializing to a numeric object
      and leave it on the stack (vanilla).
-     The second code argument pushes the number of bits the value may take,
-     counting the sign bit if signed, or 0 for no bound.
      The boolean argument is true if the value to be read is signed.
    *)
-  val compile_load_from_data_buf : E.t -> G.t -> G.t -> bool -> G.t
+  val compile_load_from_data_buf : E.t -> G.t -> bool -> G.t
 
   (* constant *)
   val constant : E.t -> Big_int.big_int -> E.shared_value
@@ -3540,7 +3538,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
     | false -> get_data_buf ^^ E.call_rts env "bigint_leb128_decode_word64"
     | true -> get_data_buf ^^ E.call_rts env "bigint_sleb128_decode_word64"
 
-  let compile_load_from_data_buf env get_data_buf get_max_bits signed =
+  let compile_load_from_data_buf env get_data_buf signed =
     (* see Note [speculating for short (S)LEB encoded bignums] *)
     ReadBuf.speculative_read_word64 env get_data_buf ^^
     let set_a, get_a = new_local env "a" in
@@ -3552,7 +3550,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
     compile_test I64Op.Eqz ^^
     E.if1 I64Type
       begin
-        Num.compile_load_from_data_buf env get_data_buf get_max_bits signed
+        Num.compile_load_from_data_buf env get_data_buf signed
       end
       begin
         get_a ^^
@@ -3695,9 +3693,9 @@ module BigNumLibtommath : BigNumType = struct
     get_n ^^ get_buf ^^ E.call_rts env "bigint_sleb128_encode" ^^
     get_n ^^ E.call_rts env "bigint_sleb128_size"
 
-  let compile_load_from_data_buf env get_data_buf get_max_bits = function
-    | false -> get_data_buf ^^ get_max_bits ^^ E.call_rts env "bigint_leb128_decode"
-    | true -> get_data_buf ^^ get_max_bits ^^ E.call_rts env "bigint_sleb128_decode"
+  let compile_load_from_data_buf env get_data_buf = function
+    | false -> get_data_buf ^^ E.call_rts env "bigint_leb128_decode"
+    | true -> get_data_buf ^^ E.call_rts env "bigint_sleb128_decode"
 
   let constant env n =
     (* See enum mp_sign *)
@@ -8517,31 +8515,25 @@ module Serialization = struct
       in
 
 
-      (* Candid input must fit in 256 bits, as a Nat or as an Int, where the sign takes a bit.
-         Restored stable variables are not bounded. *)
-      let get_max_bits bits =
-        get_rel_buf_opt ^^ compile_test I64Op.Eqz ^^
-        E.if1 I64Type (compile_unboxed_const 0L) (compile_unboxed_const bits) in
-
       (* Now the actual deserialization *)
       begin match t with
       (* Primitive types *)
       | Prim Nat ->
         with_prim_typ t
         begin
-          BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 256L) false
+          BigNum.compile_load_from_data_buf env get_data_buf false
         end
       | Prim Int ->
         (* Subtyping with nat *)
         check_prim_typ (Prim Nat) ^^
         E.if1 I64Type
           begin
-            BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 255L) false
+            BigNum.compile_load_from_data_buf env get_data_buf false
           end
           begin
             with_prim_typ t
             begin
-              BigNum.compile_load_from_data_buf env get_data_buf (get_max_bits 256L) true
+              BigNum.compile_load_from_data_buf env get_data_buf true
             end
           end
       | Prim Float32 ->

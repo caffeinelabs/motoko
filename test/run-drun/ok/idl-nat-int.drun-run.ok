@@ -4,18 +4,4 @@ Ok: Reply: 0x4449444c00017d2a
 Ok: Reply: 0x4449444c00017d2a
 Ok: Reply: 0x4449444c016d7d0100022a19
 Ok: Reply: 0x4449444c016d7d0100022a19
-Ok: Reply: 0x4449444c00017dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f
-Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'IDL error: Nat or Int value does not fit in 256 bits'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 Ok: Reply: 0x4449444c00017d00
-Ok: Reply: 0x4449444c00017d80808080808080808080808080808080808080808080808080808080808080808080808008
-Ok: Reply: 0x4449444c00017dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff07
-Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'IDL error: Nat or Int value does not fit in 256 bits'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
-Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'IDL error: Nat or Int value does not fit in 256 bits'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
-Ok: Reply: 0x4449444c00017dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff07
-Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'IDL error: Nat or Int value does not fit in 256 bits'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
-Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'IDL error: Nat or Int value does not fit in 256 bits'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
