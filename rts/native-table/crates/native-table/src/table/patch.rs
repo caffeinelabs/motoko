@@ -253,8 +253,14 @@ pub enum Data<'a> {
     Null,
     /// A VE in two pieces, written one after the other.
     Ve(&'a [u8], &'a [u8]),
-    Chain { head: u64, len: u64 },
-    Long { img: Image, len: u64 },
+    Chain {
+        head: u64,
+        len: u64,
+    },
+    Long {
+        img: Image,
+        len: u64,
+    },
 }
 
 impl Data<'_> {

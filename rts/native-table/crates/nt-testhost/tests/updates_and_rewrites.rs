@@ -1062,7 +1062,8 @@ fn patch_position_maps() {
     let (mut r, mut model, mut next_key, mut units) = (XorShift(0x3A9), Rows::new(), 0u64, Units::default());
     fill_group(&mut tb, &mut r, &mut model, &mut next_key);
     run_all(&mut tb, &mut units);
-    let keys: Vec<u64> = model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).take(300).collect();
+    let keys: Vec<u64> =
+        model.iter().filter(|(_, (rid, _))| rid / GROUP_SLOTS == 0).map(|(k, _)| *k).take(300).collect();
     for round in 0..3 {
         let used = nt_testhost::used_blocks(tb.host(), tb.root(), 0);
         for (i, k) in keys.iter().enumerate() {
@@ -1236,7 +1237,11 @@ fn growing_a_buffered_row_past_the_tail_blocks_room() {
     let (mut tb, _) = Table::create(&mut h, 1, &schema(&[t::scalar(ty::NAT), t::scalar(ty::TEXT)]).0).unwrap();
     let mut model = Rows::new();
     for k in 0..3u64 {
-        put_row(&mut tb, &mut model, vec![(id(0), V::U(k)), (id(1), V::Bytes(vec![b'a'; [1, 1_500, 1_500][k as usize]]))]);
+        put_row(
+            &mut tb,
+            &mut model,
+            vec![(id(0), V::U(k)), (id(1), V::Bytes(vec![b'a'; [1, 1_500, 1_500][k as usize]]))],
+        );
     }
     let images = |tb: &Table<'_, VecHost>| AreaRecord::read(tb.host(), tb.root(), IMAGE_AREA).unwrap().pages;
     let pages = images(&tb);

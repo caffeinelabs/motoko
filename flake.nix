@@ -210,6 +210,7 @@
         check-rts-formatting = import ./nix/check-rts-formatting.nix { inherit pkgs; };
         check-grammar = import ./nix/check-grammar.nix { inherit pkgs; };
         check-error-codes = import ./nix/check-error-codes.nix { inherit pkgs; };
+        check-native-table = import ./nix/check-native-table.nix { inherit pkgs; };
       };
 
       nix-update = nix-update-flake.packages.${system}.default;
