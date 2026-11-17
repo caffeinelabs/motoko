@@ -717,7 +717,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let state = fresh_var "state" (T.Mut (T.Opt mem_ty)) in
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
-  let candid = build_candid ts obj_typ in
+  let candid = build_candid ts (Mo_idl.Mo_to_idl.without_methods (S.codec_method_names es) obj_typ) in
   let sig_, stable_type, migration =
     if chain <> [] then begin
       (* --enhanced-migration: generates upgrade-time IR for the migration chain.

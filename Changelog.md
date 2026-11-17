@@ -8,7 +8,9 @@
     Candid on the wire for that actor method: `encoder : T -> Blob` produces
     the reply, and `decoder : Blob -> args` reads the arguments from the raw
     message data. Either can be given alone; both must be effect-free. A
-    oneway method never replies, so it takes only a `decoder` (#6467).
+    oneway method never replies, so it takes only a `decoder`. Methods with
+    a codec are left out of the generated `.did` and the `candid:service`
+    metadata (#6467).
 
 ## 2.2.3 (2026-11-17)
 
