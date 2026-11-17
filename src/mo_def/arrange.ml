@@ -226,8 +226,9 @@ module Make (Cfg : Config) = struct
     | Var   -> Atom "Var"
 
   and vis v = match v.it with
-    | Public None -> Atom "Public"
-    | Public (Some m) -> "Public" $$ [Atom m]
+    | Public (None, None) -> Atom "Public"
+    | Public (depr, par) ->
+      "Public" $$ Option.(to_list (map (fun m -> Atom m) depr) @ to_list (map exp par))
     | Private -> Atom "Private"
     | System -> Atom "System"
 

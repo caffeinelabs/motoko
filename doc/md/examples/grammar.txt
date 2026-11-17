@@ -348,16 +348,16 @@
     'var'? <id> (':' <typ>)? '=' <exp>
 
 <dec_field> ::= 
-    <vis> <stab> <dec>
+    <dec>
+    <stab_some> <dec>
+    <vis> <stab_some>? <dec>
 
 <vis> ::= 
-    <empty>
     'private'
-    'public'
+    <parenthetical>? 'public'
     'system'
 
-<stab> ::= 
-    <empty>
+<stab_some> ::= 
     'stable'
     'transient'
 
