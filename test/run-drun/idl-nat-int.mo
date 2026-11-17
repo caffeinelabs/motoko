@@ -9,7 +9,7 @@ actor {
   };
   public query func natural(n : Nat) : async Nat {
     n
-  };
+  }
 }
 
 // with Nat
