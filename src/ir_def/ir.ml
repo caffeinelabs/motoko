@@ -58,6 +58,9 @@ and pat_field' = {name : Type.lab; pat : pat}
 (* Like id, but with a type attached *)
 type arg = (string, Type.typ) annotated_phrase
 
+(* a typed variable (reference) *)
+type var = id * Type.typ
+
 (* Expressions *)
 
 type exp = exp' phrase
@@ -90,8 +93,7 @@ and exp' =
    reply (async lowering applies it); multiple results arrive as one tuple.
    `decoder : Blob -> (A1, ..., Am)` replaces Candid deserialization on
    ingress (codegen applies it); it returns the arguments as a sequence. *)
-and codecs = { encoder : codec_ref option; decoder : codec_ref option }
-and codec_ref = id * Type.typ
+and codecs = { encoder : var option; decoder : var option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
 
