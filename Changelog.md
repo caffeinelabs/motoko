@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * Candid decoding of variants with many cases is faster (#6513).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
