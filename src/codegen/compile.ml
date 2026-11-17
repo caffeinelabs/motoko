@@ -12880,26 +12880,24 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICArgDataPrim, [] ->
     SR.Vanilla, IC.arg_data env
 
-  | ICReplyPrim (ts, enc_opt), [e] ->
+  | ICReplyPrim ts, [e] ->
     SR.unit, begin match E.mode env with
     | Flags.ICMode ->
-      begin match enc_opt with
-      | None ->
-        compile_exp_vanilla env ae e ^^
-        (* TODO: We can try to avoid the boxing and pass the arguments to
-          serialize individually *)
-        Serialization.serialize env ts
-      | Some enc_exp ->
-        (* user-supplied `encoder : T -> Blob` replaces Candid on the reply *)
-        let set_enc, get_enc = new_local env "encoder" in
-        compile_exp_vanilla env ae enc_exp ^^
-        set_enc ^^
-        get_enc ^^ Closure.prepare_closure_call env ^^
-        compile_exp_vanilla env ae e ^^
-        get_enc ^^
-        Closure.call_closure env 1 1 ^^
-        Blob.as_ptr_len env
-      end ^^
+      compile_exp_vanilla env ae e ^^
+      (* TODO: We can try to avoid the boxing and pass the arguments to
+        serialize individually *)
+      Serialization.serialize env ts ^^
+      IC.reply_with_data env
+    | _ ->
+      E.trap_with env "cannot reply when running locally"
+    end
+
+  | ICReplyRawPrim, [e] ->
+    (* the Blob produced by a method's `encoder` is the reply, verbatim *)
+    SR.unit, begin match E.mode env with
+    | Flags.ICMode ->
+      compile_exp_vanilla env ae e ^^
+      Blob.as_ptr_len env ^^
       IC.reply_with_data env
     | _ ->
       E.trap_with env "cannot reply when running locally"
@@ -13228,7 +13226,8 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
       | Type.Promises -> assert false in
     let return_arity = List.length return_tys in
     let mk_body env1 ae1 = compile_exp_as env1 ae1 (StackRep.of_arity return_arity) e in
-    let decoder = Option.map (fun dec_exp env ae -> compile_exp_vanilla env ae dec_exp) codecs.decoder in
+    let decoder = Option.map (fun (i, t) env ae ->
+      compile_exp_vanilla env ae Construct.(varE (var i t))) codecs.decoder in
     FuncDec.lit env ~decoder ae x sort control captured args mk_body return_tys exp.at
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     SR.unit,
@@ -13656,7 +13655,8 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
         then fatal "internal error: const \"%s\": captures \"%s\", not found in static environment\n" name v
       ) (Freevars.M.keys (Freevars.exp e));
       compile_exp_as env ae (StackRep.of_arity (List.length return_tys)) e in
-    let decoder = Option.map (fun dec_exp env ae -> compile_exp_vanilla env ae dec_exp) codecs.decoder in
+    let decoder = Option.map (fun (i, t) env ae ->
+      compile_exp_vanilla env ae Construct.(varE (var i t))) codecs.decoder in
     FuncDec.closed env ~decoder sort control name args mk_body fun_rhs return_tys exp.at
   | BlockE (decs, e) ->
     let (extend, fill1) = compile_const_decs env pre_ae decs in

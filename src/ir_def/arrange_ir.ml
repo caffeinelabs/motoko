@@ -27,8 +27,8 @@ let rec exp e = match e.it with
   | DefineE (i, m, e1)  -> "DefineE" $$ [id i; mut m; exp e1]
   | FuncE (x, s, c, tp, as_, ts, e, codecs) ->
     "FuncE" $$ [Atom x; func_sort s; control c] @ List.map typ_bind tp @ args as_ @ [ typ (Type.seq ts); exp e]
-      @ (match codecs.encoder with None -> [] | Some enc_exp -> [Atom "encoder:"; exp enc_exp])
-      @ (match codecs.decoder with None -> [] | Some dec_exp -> [Atom "decoder:"; exp dec_exp])
+      @ (match codecs.encoder with None -> [] | Some (i, _) -> [Atom "encoder:"; id i])
+      @ (match codecs.decoder with None -> [] | Some (i, _) -> [Atom "decoder:"; id i])
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     "SelfCallE" $$ [typ (Type.seq ts); exp exp_f; exp exp_k; exp exp_r; exp exp_c]
   | ActorE (ds, fs, u, t) -> "ActorE"  $$ List.map dec ds @ fields fs @ [system u; typ t]
@@ -117,7 +117,8 @@ and prim = function
   | CPSAsync (Type.Cmp, t) -> "CPSAsync*" $$ [typ t]
   | ICArgDataPrim     -> Atom "ICArgDataPrim"
   | ICPerformGC       -> Atom "ICPerformGC"
-  | ICReplyPrim (ts, enc) -> "ICReplyPrim" $$ List.map typ ts @ (match enc with None -> [] | Some enc_exp -> [Atom "encoder:"; exp enc_exp])
+  | ICReplyPrim ts    -> "ICReplyPrim" $$ List.map typ ts
+  | ICReplyRawPrim    -> Atom "ICReplyRawPrim"
   | ICRejectPrim      -> Atom "ICRejectPrim"
   | ICCallerPrim      -> Atom "ICCallerPrim"
   | ICCallPrim        -> Atom "ICCallPrim"

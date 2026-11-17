@@ -366,7 +366,7 @@ let transform prog =
     | DefineE (id, mut ,exp1) ->
       DefineE (id, mut, t_exp exp1)
     | FuncE (x, s, c, typbinds, args, ret_tys, exp, codecs) ->
-      let enc = codecs.encoder in
+      let codecs = map_codecs Fun.id t_typ codecs in
       begin
         match s with
         | Local ->
@@ -390,15 +390,17 @@ let transform prog =
                 | t -> assert false in
               let k =
                 let v = fresh_var "v" t1 in
-                [v] -->* (match Option.map t_exp enc with
+                [v] -->* (match codecs.encoder with
                   | None -> ic_replyE ret_tys (varE v)
-                  | Some enc' -> ic_reply_encE ret_tys enc' (varE v)) in
+                  | Some (enc, t_enc) ->
+                    ic_reply_rawE (callE (varE (var enc t_enc)) [] (varE v))) in
               let r =
                 let e = fresh_var "e" catch in
                 e --> ic_rejectE (errorMessageE (varE e)) in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp', codecs)
+              (* the encoder now lives in the reply continuation *)
+              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp', { codecs with encoder = None })
             (* oneway, always with `ignore(async _)` body *)
             | Returns,
               { it = BlockE (

@@ -1,0 +1,3 @@
+# codecs in an actor class, closing over the class parameter
+install $ID parenthetical-codec-class/C.mo "DIDL\x00\x01\x71\x06hello,"
+ingress $ID greet "world"

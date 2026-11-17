@@ -4659,8 +4659,8 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
        actor-fields by name (e.g. `(with encoder; decoder)` punning to
        locally-defined `encoder` / `decoder` funcs), so the env we
        hand to `check_vis_parenthetical` must include the actor's
-       full scope, not just the outer-context env. *)
-    let par_env = adjoin_vals env scope.Scope.val_env in
+       full scope (values and types), not just the outer-context env. *)
+    let par_env = adjoin env scope in
     List.iter (fun df ->
       match df.it.vis.it, df.it.dec.it with
       | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->

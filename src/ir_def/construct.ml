@@ -88,6 +88,7 @@ let primE prim es =
     | ShowPrim _ -> T.text
     | ICArgDataPrim -> T.blob
     | ICReplyPrim _
+    | ICReplyRawPrim
     | ICRejectPrim -> T.Non
     | ICCallerPrim -> T.caller
     | ICStableWrite _ -> T.unit
@@ -193,21 +194,18 @@ let cps_awaitE s cont_typ e1 e2 =
     }
   | _ -> assert false
 
-let assert_reply_typ ts e =
-  match ts with
-  | [t] -> assert (T.sub (e.note.Note.typ) t)
-  | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ))
-
 let ic_replyE ts e =
-  assert_reply_typ ts e;
-  { it = PrimE (ICReplyPrim (ts, None), [e]);
+  (match ts with
+  | [t] -> assert (T.sub (e.note.Note.typ) t)
+  | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ)));
+  { it = PrimE (ICReplyPrim ts, [e]);
     at = no_region;
     note = Note.{ def with typ = T.unit; eff = eff e }
   }
 
-let ic_reply_encE ts enc e =
-  assert_reply_typ ts e;
-  { it = PrimE (ICReplyPrim (ts, Some enc), [e]);
+let ic_reply_rawE e =
+  assert (T.sub e.note.Note.typ T.blob);
+  { it = PrimE (ICReplyRawPrim, [e]);
     at = no_region;
     note = Note.{ def with typ = T.unit; eff = eff e }
   }
@@ -701,10 +699,10 @@ let close_typ_binds cs tbs =
 let forall tbs e =
  let cs = List.map (fun tb -> tb.it.con) tbs in
  match e.it, e.note.Note.typ with
- | FuncE (n, s, c1, [], xs, ts, exp, enc),
+ | FuncE (n, s, c1, [], xs, ts, exp, codecs),
    T.Func (_, c2, [], ts1, ts2) ->
    { e with
-     it = FuncE(n, s, c1, tbs, xs, ts, exp, enc);
+     it = FuncE(n, s, c1, tbs, xs, ts, exp, codecs);
      note = Note.{ e.note with
        typ = T.Func(s, c2, close_typ_binds cs tbs,
          List.map (T.close cs) ts1,
@@ -716,8 +714,8 @@ let forall tbs e =
 (* changing display name of e.g. local lambda *)
 let named displ e =
   match e.it with
-  | FuncE (_, s, c1, [], xs, ts, exp, enc)
-    -> { e with it = FuncE (displ, s, c1, [], xs, ts, exp, enc) }
+  | FuncE (_, s, c1, [], xs, ts, exp, codecs)
+    -> { e with it = FuncE (displ, s, c1, [], xs, ts, exp, codecs) }
   | _ -> assert false
 
 

@@ -539,7 +539,7 @@ and call_system_func_opt ?(decoders = []) name es obj_typ =
                   | T.Func(T.Local, _, [], [], ts) ->
                     (* a method with a `decoder` sees its arguments through it, not Candid *)
                     let decode = match List.assoc_opt tf.T.lab decoders with
-                      | Some dec -> callE (exp dec) [] (varE arg)
+                      | Some (i, t) -> callE (varE (var i t)) [] (varE arg)
                       | None -> primE (Ir.DeserializePrim ts) [varE arg] in
                     tagE tf.T.lab
                       T.(funcE ("$"^tf.lab) Local Returns [] [] ts decode)
@@ -682,35 +682,55 @@ and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
   | S.IncludeD (_, _, _, note), _ ->
     (* same order as `build_stabs`: [imports; mixin parameters; mixin decs] *)
     let { S.imports; decs; _ } = Option.get !note in
-    let import_codecs = List.map (fun _ -> (None, None)) imports in
-    import_codecs @ (None, None) :: List.concat_map build_codecs decs
+    (* the include's own methods get their codecs where it is desugared *)
+    List.map (fun _ -> (None, None)) imports @ (None, None)
+    :: List.map (fun _ -> (None, None)) (List.concat_map build_codecs decs)
   | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
     [(find_encoder_in_par par, find_decoder_in_par par)]
   | _ -> [(None, None)]
+
+(* Each codec expression becomes an ordinary actor-level `let`, and the
+   method's FuncE only refers to it, so all IR passes treat the codec like
+   any other code. `attach_codecs pairs ds` (with `pairs` aligned to `ds`,
+   see `build_codecs`) returns the methods with codec references, and adds
+   the codec `let`s to `pending_codec_ds`; `build_actor` appends those to the
+   actor's declarations (so they don't disturb its alignment with `stabs`). *)
+and pending_codec_ds : I.dec list ref = ref []
+
+and attach_codecs pairs (ds : I.dec list) : I.dec list * I.dec list =
+  let hoisted = ref [] in
+  let hoist m what src =
+    let e = exp src in
+    let v = fresh_var (m ^ "$" ^ what) e.note.Note.typ in
+    hoisted := letD v e :: !hoisted;
+    (id_of_var v, typ_of_var v) in
+  let ds = List.map2 (fun (enc_opt, dec_opt) d ->
+    match enc_opt, dec_opt, d.it with
+    | None, None, _ -> d
+    | _, _, I.LetD ({ it = I.VarP m; _ } as p, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, _); _ } as fe)) ->
+      let codecs = I.{ encoder = Option.map (hoist m "encoder") enc_opt;
+                       decoder = Option.map (hoist m "decoder") dec_opt } in
+      { d with it = I.LetD (p, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs) }) }
+    | _ -> d
+  ) pairs ds in
+  ds, List.rev !hoisted
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
   let codec_pairs = List.concat_map build_codecs es in
+  let saved_codec_ds = !pending_codec_ds in
+  pending_codec_ds := [];
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
-  let ds = List.map2 (fun (enc_opt, dec_opt) d ->
-    match enc_opt, dec_opt, d.it with
-    | None, None, _ -> d
-    | _, _, I.LetD (v, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, codecs); _ } as fe)) ->
-      let merge cur src = match cur with
-        | Some _ -> cur
-        | None -> Option.map exp src in
-      let codecs' = I.{ encoder = merge codecs.encoder enc_opt;
-                        decoder = merge codecs.decoder dec_opt } in
-      { d with it = I.LetD (v, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs') }) }
-    | _ -> d
-  ) codec_pairs ds in
-  (* methods with a `decoder` (source expression), for `system func inspect`;
-     desugared afresh there, as IR nodes must not be shared *)
-  let decoders = List.filter_map (fun ((_, dec_opt), (d : I.dec)) ->
-    match dec_opt, d.it with
-    | Some dec, I.LetD ({ it = I.VarP v; _ }, _) -> Some (v, dec)
-    | _ -> None) (List.combine codec_pairs ds) in
+  let ds, own_codec_ds = attach_codecs codec_pairs ds in
+  (* codecs of included mixins were hoisted while desugaring `ds` *)
+  let codec_ds = !pending_codec_ds @ own_codec_ds in
+  pending_codec_ds := saved_codec_ds;
+  (* methods with a `decoder`, for `system func inspect` *)
+  let decoders = List.filter_map (fun (d : I.dec) -> match d.it with
+    | I.LetD ({ it = I.VarP m; _ }, { it = I.FuncE (_, _, _, _, _, _, _, { I.decoder = Some r; _ }); _ }) ->
+      Some (m, r)
+    | _ -> None) ds in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
@@ -957,7 +977,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
                ) mem_fields vs)
             mem_ty)) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (runtime_info_d @ ds', runtime_info_f @ fs,
+  I.(ActorE (runtime_info_d @ ds' @ codec_ds, runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =
@@ -1213,7 +1233,10 @@ and dec' d =
 
     (* TODO: Fix the positions on the generated let here *)
     let ir_decs = List.concat_map dec (List.map (fun df -> df.it.S.dec) decs) in
+    let ir_decs, codec_ds = attach_codecs (List.concat_map build_codecs decs) ir_decs in
     let renamed_decs, _ = Subst_var.decs rho ir_decs in
+    (* the codecs see the mixin's parameters and imports, renamed like its decs *)
+    pending_codec_ds := !pending_codec_ds @ fst (Subst_var.decs rho codec_ds);
     List.map (fun d -> d.it) renamed_imports @ (letP renamed_pat (exp args)).it :: List.map (fun d -> d.it) renamed_decs
 
   | S.ClassD (exp_opt, sp, s, id, tbs, p, _t_opt, self_id, dfs) ->
