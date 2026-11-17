@@ -19,7 +19,7 @@ inputs:
     description: "Whether this is a fork PR"
   token:
     required: true
-    description: "Token for pushing commits"
+    description: "GitHub App token that pushes the `test/bench` commit"
 
 runs:
   using: "composite"
@@ -36,6 +36,15 @@ runs:
         fi
         git switch ${{ inputs.head_ref }}
         git branch --show-current
+      shell: bash
+
+    # `add-and-commit` uses `github_token` only for API calls; the push uses
+    # git's own credentials.
+    - name: Push as the GitHub App
+      if: ${{ inputs.is_fork == 'false' }}
+      env:
+        TOKEN: ${{ inputs.token }}
+      run: git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}"
       shell: bash
 
     - name: Commit `test/bench` changes
