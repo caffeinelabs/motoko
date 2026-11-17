@@ -858,8 +858,8 @@ let rec check_exp env (exp:Ir.exp) : unit =
       ) in
     fun_ty <: t;
     (* codecs refer to actor-level bindings of (at least) the expected types *)
+    check (codec_ids codecs = [] || T.is_shared_sort sort) "codec on a non-shared function";
     let check_codec what (i, t_ref) t_want =
-      check (T.is_shared_sort sort) "codec on a non-shared function";
       (match T.Env.find_opt i env.vals with
        | None -> error env exp.at "unbound %s %s" what i
        | Some { typ; _ } -> typ <: t_ref);

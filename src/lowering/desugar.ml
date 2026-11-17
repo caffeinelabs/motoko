@@ -662,42 +662,39 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     import_stabs @
     (* Transient stability for binding the mixin parameters *)
     flex ::
-    List.concat_map build_stabs decs
+    List.concat_map build_stabs decs @
+    (* Transient stability for the mixin's hoisted codecs *)
+    List.init (codec_count (List.concat_map build_codecs decs)) (fun _ -> flex)
   | _ -> [df.it.S.stab]
 
-and find_codec_in_par lab par =
-  S.(match par.it with
-     | ObjE (_, fields) ->
-        List.find_opt (fun (ef : exp_field) -> ef.it.id.it = lab) fields
-        |> Option.map (fun (ef : exp_field) -> ef.it.exp)
-     | _ -> None)
-
-and find_encoder_in_par par = find_codec_in_par "encoder" par
-and find_decoder_in_par par = find_codec_in_par "decoder" par
+(* Codecs. Each codec expression becomes an ordinary `let` (`m$encoder`,
+   `m$decoder`) at the end of the declarations of its actor or included
+   mixin, and the method's FuncE only refers to it, so all IR passes treat the
+   codec like any other code. Like `build_stabs`, `build_codecs` yields one
+   entry per IR declaration, including the hoisted codec `let`s. *)
+and codec_count pairs =
+  List.fold_left (fun n (enc, dec) -> n + Bool.to_int (enc <> None) + Bool.to_int (dec <> None)) 0 pairs
 
 and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
+  let none _ = (None, None) in
   match df.it.S.dec.it, df.it.S.vis.it with
   | S.TypD _, _ -> []
   | S.MixinD _, _ -> assert false
   | S.IncludeD (_, _, _, note), _ ->
-    (* same order as `build_stabs`: [imports; mixin parameters; mixin decs] *)
+    (* same order as `build_stabs`: [imports; mixin parameters; mixin decs;
+       their codecs]; the mixin's methods get their codecs when the include
+       is desugared *)
     let { S.imports; decs; _ } = Option.get !note in
-    (* the include's own methods get their codecs where it is desugared *)
-    List.map (fun _ -> (None, None)) imports @ (None, None)
-    :: List.map (fun _ -> (None, None)) (List.concat_map build_codecs decs)
+    let pairs = List.concat_map build_codecs decs in
+    List.map none imports @ none () :: List.map none pairs
+    @ List.init (codec_count pairs) none
   | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
-    [(find_encoder_in_par par, find_decoder_in_par par)]
+    [S.par_codecs par]
   | _ -> [(None, None)]
 
-(* Each codec expression becomes an ordinary actor-level `let`, and the
-   method's FuncE only refers to it, so all IR passes treat the codec like
-   any other code. `attach_codecs pairs ds` (with `pairs` aligned to `ds`,
-   see `build_codecs`) returns the methods with codec references, and adds
-   the codec `let`s to `pending_codec_ds`; `build_actor` appends those to the
-   actor's declarations (so they don't disturb its alignment with `stabs`). *)
-and pending_codec_ds : I.dec list ref = ref []
-
-and attach_codecs pairs (ds : I.dec list) : I.dec list * I.dec list =
+(* `attach_codecs pairs ds` (`pairs` aligned with `ds`) refers the methods to
+   their codecs and appends the codec `let`s *)
+and attach_codecs pairs (ds : I.dec list) : I.dec list =
   let hoisted = ref [] in
   let hoist m what src =
     let e = exp src in
@@ -711,22 +708,19 @@ and attach_codecs pairs (ds : I.dec list) : I.dec list * I.dec list =
       let codecs = I.{ encoder = Option.map (hoist m "encoder") enc_opt;
                        decoder = Option.map (hoist m "decoder") dec_opt } in
       { d with it = I.LetD (p, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs) }) }
-    | _ -> d
+    | _ -> assert false (* typing admits codecs only on `let m = func …` *)
   ) pairs ds in
-  ds, List.rev !hoisted
+  ds @ List.rev !hoisted
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let fs = build_fields obj_typ in
-  let stabs = List.concat_map build_stabs es in
   let codec_pairs = List.concat_map build_codecs es in
-  let saved_codec_ds = !pending_codec_ds in
-  pending_codec_ds := [];
+  let flex = Some (S.Flexible @@ no_region) in
+  let stabs = List.concat_map build_stabs es @ List.init (codec_count codec_pairs) (fun _ -> flex) in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
-  let ds, own_codec_ds = attach_codecs codec_pairs ds in
-  (* codecs of included mixins were hoisted while desugaring `ds` *)
-  let codec_ds = !pending_codec_ds @ own_codec_ds in
-  pending_codec_ds := saved_codec_ds;
-  (* methods with a `decoder`, for `system func inspect` *)
+  let ds = attach_codecs codec_pairs ds in
+  (* methods with a `decoder`, for `system func inspect` (mixin methods keep
+     their names: `Subst_var` only renames the mixin's parameters/imports) *)
   let decoders = List.filter_map (fun (d : I.dec) -> match d.it with
     | I.LetD ({ it = I.VarP m; _ }, { it = I.FuncE (_, _, _, _, _, _, _, { I.decoder = Some r; _ }); _ }) ->
       Some (m, r)
@@ -977,7 +971,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
                ) mem_fields vs)
             mem_ty)) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (runtime_info_d @ ds' @ codec_ds, runtime_info_f @ fs,
+  I.(ActorE (runtime_info_d @ ds', runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =
@@ -1233,10 +1227,9 @@ and dec' d =
 
     (* TODO: Fix the positions on the generated let here *)
     let ir_decs = List.concat_map dec (List.map (fun df -> df.it.S.dec) decs) in
-    let ir_decs, codec_ds = attach_codecs (List.concat_map build_codecs decs) ir_decs in
+    (* incl. the mixin's codecs, which see its (renamed) parameters and imports *)
+    let ir_decs = attach_codecs (List.concat_map build_codecs decs) ir_decs in
     let renamed_decs, _ = Subst_var.decs rho ir_decs in
-    (* the codecs see the mixin's parameters and imports, renamed like its decs *)
-    pending_codec_ds := !pending_codec_ds @ fst (Subst_var.decs rho codec_ds);
     List.map (fun d -> d.it) renamed_imports @ (letP renamed_pat (exp args)).it :: List.map (fun d -> d.it) renamed_decs
 
   | S.ClassD (exp_opt, sp, s, id, tbs, p, _t_opt, self_id, dfs) ->

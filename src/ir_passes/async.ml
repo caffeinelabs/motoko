@@ -370,7 +370,7 @@ let transform prog =
       begin
         match s with
         | Local ->
-          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, no_codecs)
+          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, codecs)
         | Shared s' ->
           begin
             match c, exp with

@@ -44,7 +44,7 @@ let check_decs msgs (decs : dec list) =
          | T.Obj (T.Actor, _, _) ->
            (match List.find_opt (fun (t', ms) -> T.eq t t' && List.mem_assoc m.it ms) !actors with
             | Some (_, ms) ->
-              let has_decoder, has_encoder = List.assoc m.it ms in
+              let has_encoder, has_decoder = List.assoc m.it ms in
               let warn what =
                 Diag.add_msg msgs (Diag.warning_message e.at "M0281" "type"
                   (Printf.sprintf "this call %s; use a raw call instead" what)) in

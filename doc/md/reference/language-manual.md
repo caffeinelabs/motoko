@@ -484,7 +484,9 @@ public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text {
 
 -   A oneway method (`: ()`) never replies, so it accepts only a `decoder`; an `encoder` on it is rejected.
 
--   Codecs only take effect in compiled canisters. The interpreters (`moc -r`) have no wire format and ignore them.
+-   A codec expression is evaluated once, after the actor's other declarations (and again after each upgrade), much like a `transient let`; a `decoder = v` given by a `var` uses the value `v` has at that point.
+
+-   Codecs only take effect in compiled canisters. The interpreter (`moc -r`) has no wire format and ignores them.
 
 -   In `system func inspect`, the `msg` decoding function of a method with a `decoder` applies that `decoder` (see [inspect](#inspect)); if it traps, the message is declined.
 
