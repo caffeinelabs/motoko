@@ -7,6 +7,8 @@ ingress Completed: Reply: 0x666e
 ingress Completed: Reply: 0x4449444c00017d06
 ingress Completed: Reply: 0x736576656e37
 ingress Completed: Reply: 0x6f6b
+ingress Completed: Reply: 0x6669786564
+ingress Completed: Reply: 0x6f6b
 ingress Completed: Reply: 0x6d697821
 ingress Completed: Reply: 0x3432
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'empty'.

@@ -40,6 +40,9 @@ actor {
   // a unit result: the encoder takes no argument (a fixed, crafted reply)
   func crafted() : Blob = "ok";
   public (with encoder = crafted) func unit() : async () {};
+  public (with encoder = func () : Blob = "fixed") func unitLambda() : async () {};
+  transient let craftedCodecs = { encoder = crafted };
+  public (craftedCodecs with) func unitBase() : async () {};
 }
 
 //SKIP run
@@ -53,6 +56,8 @@ actor {
 //CALL ingress pair "abc"
 //CALL ingress two "DIDL\x00\x00"
 //CALL ingress unit "DIDL\x00\x00"
+//CALL ingress unitLambda "DIDL\x00\x00"
+//CALL ingress unitBase "DIDL\x00\x00"
 //CALL ingress tagged "DIDL\x00\x00"
 //CALL ingress count "DIDL\x00\x00"
 //CALL ingress size ""
