@@ -6,8 +6,8 @@
 
   * Candid decoding of a `Nat` or `Int` takes time proportional to the length
     of its encoding. Before, the time grew with the square of the length, so
-    a single argument with about 100 KB of digits used up a call's
-    instruction limit (#6505).
+    a single number encoded in about 100 KB used up the instruction limit of
+    an update call (#6505).
 
 ## 1.16.1 (2026-09-16)
 
