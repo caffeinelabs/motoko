@@ -1185,8 +1185,8 @@ module RTS = struct
     add_rts_import "sleb128_encode" [I64Type; I64Type] [];
     add_rts_import "utf8_valid" [I64Type; I64Type] [I32Type];
     add_rts_import "utf8_validate" [I64Type; I64Type] [];
-    add_rts_import "skip_leb128" [I64Type] [];
     add_rts_import "skip_any" [I64Type; I64Type; I32Type; I32Type] [];
+    add_rts_import "find_variant_case" [I64Type; I64Type; I32Type; I32Type] [];
     add_rts_import "find_field" [I64Type; I64Type; I64Type; I32Type; I64Type] [I32Type];
     add_rts_import "skip_fields" [I64Type; I64Type; I64Type; I64Type] [];
     add_rts_import "remember_continuation" [I64Type] [I64Type];
@@ -8677,11 +8677,14 @@ module Serialization = struct
           compile_comparison I64Op.LtU ^^
           E.else_trap_with env "IDL error: variant index out of bounds" ^^
 
-          (* Zoom past the previous entries *)
-          get_tagidx ^^ from_0_to_n env (fun _ ->
-            get_typ_buf ^^ E.call_rts env "skip_leb128" ^^
-            get_typ_buf ^^ E.call_rts env "skip_leb128"
-          ) ^^
+          (* Move to the entry of the tag, unless it is the first *)
+          get_tagidx ^^
+          E.if0
+            (get_typ_buf ^^ get_typtbl ^^
+             get_idltyp ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+             get_tagidx ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+             E.call_rts env "find_variant_case")
+            G.nop ^^
 
           (* Now read the tag *)
           let (set_tag, get_tag) = new_local env "tag" in

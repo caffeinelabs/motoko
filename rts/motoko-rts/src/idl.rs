@@ -207,8 +207,8 @@ unsafe fn parse_idl_header<M: Memory>(
     // Let the caller know about the table size
     *typtbl_size_out = n_types as usize;
 
-    // Allocate the type table to be passed out
-    let typtbl: *mut *mut u8 = alloc(mem, Words(n_types as usize)) as *mut _;
+    // Allocate the type table to be passed out, after a word for the index of variant cases
+    let typtbl: *mut *mut u8 = (alloc(mem, Words(n_types as usize + 1)) as *mut *mut u8).add(1);
 
     // Set up a limited buffer to detect absurd type tables
     let full_end = if extended {
@@ -337,6 +337,8 @@ unsafe fn parse_idl_header<M: Memory>(
         }
     }
 
+    index_variant_cases(mem, typtbl, n_types as usize, (*buf).end);
+
     // Now read the main types
     *main_types_out = (*buf).ptr;
     for _ in 0..leb128_decode(buf) {
@@ -345,6 +347,61 @@ unsafe fn parse_idl_header<M: Memory>(
     }
 
     *typtbl_out = typtbl;
+}
+
+/// Indexes the cases of the variant types in `typtbl`, so that `variant_case` takes constant time.
+/// The index has a word per type, pointing to the cases of a variant type, then a word per case,
+/// pointing to its tag in the type table. The word before `typtbl` points to the index.
+unsafe fn index_variant_cases<M: Memory>(
+    mem: &mut M,
+    typtbl: *mut *mut u8,
+    n_types: usize,
+    end: *mut u8,
+) {
+    let mut n_cases = 0;
+    for t in 0..n_types {
+        let mut tb = Buf {
+            ptr: *typtbl.add(t),
+            end,
+        };
+        if sleb128_decode(&mut tb) == IDL_CON_variant {
+            n_cases += leb128_decode(&mut tb) as usize;
+        }
+    }
+    if n_cases == 0 {
+        *typtbl.sub(1) = core::ptr::null_mut();
+        return;
+    }
+    let index = alloc(mem, Words(n_types + n_cases)) as *mut *mut *mut u8;
+    let mut cases = index.add(n_types) as *mut *mut u8;
+    for t in 0..n_types {
+        let mut tb = Buf {
+            ptr: *typtbl.add(t),
+            end,
+        };
+        if sleb128_decode(&mut tb) == IDL_CON_variant {
+            *index.add(t) = cases;
+            for _ in 0..leb128_decode(&mut tb) {
+                *cases = tb.ptr;
+                cases = cases.add(1);
+                skip_leb128(&mut tb);
+                skip_leb128(&mut tb);
+            }
+        }
+    }
+    *typtbl.sub(1) = index as *mut u8;
+}
+
+/// The type table entry of case `i` of the variant type `t`, starting at the tag.
+unsafe fn variant_case(typtbl: *mut *mut u8, t: i32, i: u32) -> *mut u8 {
+    let index = *typtbl.sub(1) as *mut *mut *mut u8;
+    *(*index.add(t as usize)).add(i as usize)
+}
+
+/// Moves `tb` to the type table entry of case `i` of the variant type `t`.
+#[unsafe(no_mangle)]
+unsafe extern "C" fn find_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u32) {
+    (*tb).ptr = variant_case(typtbl, t, i);
 }
 
 // used for opt, bool, references...
@@ -477,9 +534,8 @@ unsafe extern "C" fn skip_any(buf: *mut Buf, typtbl: *mut *mut u8, t: i32, depth
                 if i >= n {
                     idl_trap_with("skip_any: variant tag too large");
                 }
-                for _ in 0..i {
-                    skip_leb128(&mut tb);
-                    skip_leb128(&mut tb);
+                if i > 0 {
+                    tb.ptr = variant_case(typtbl, t, i);
                 }
                 skip_leb128(&mut tb);
                 let it = sleb128_decode(&mut tb);
