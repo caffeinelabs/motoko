@@ -77,6 +77,9 @@ jobs:
           fetch-depth: 0
           # fetch PR commit, not predicted merge commit
           ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          # The performance action pushes with the app token. A push as
+          # `github-actions[bot]` would hold the new commit's CI for approval.
+          persist-credentials: false
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
