@@ -4661,19 +4661,20 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
        hand to `check_vis_parenthetical` must include the actor's
        full scope (values and types), not just the outer-context env. *)
     let par_env = adjoin env scope in
+    let not_endpoint par =
+      local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods" in
     List.iter (fun df ->
       match df.it.vis.it, df.it.dec.it with
       | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
         (match T.Env.find_opt id.it scope.Scope.val_env with
-         | Some (typ, _, _) when T.is_func typ ->
+         | Some (typ, _, _) when (s = T.Actor || s = T.Mixin) && T.is_shared_func typ ->
            let _, c, _, ts1, ts2 = T.as_func typ in
            (match c with
             | T.Promises -> check_vis_parenthetical par_env ts1 (T.seq ts2) par
             | T.Returns -> check_vis_parenthetical ~oneway:true par_env ts1 (T.seq ts2) par
-            | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
-         | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
-      | Syntax.Public (_, Some par), _ ->
-        warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods"
+            | T.Replies -> not_endpoint par)
+         | _ -> not_endpoint par)
+      | Syntax.Public (_, Some par), _ -> not_endpoint par
       | _ -> ()
     ) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;

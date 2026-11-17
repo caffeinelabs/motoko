@@ -230,6 +230,7 @@ let error_codes : (string * string option) list =
     "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
     "M0279", None; (* Field in a codec parenthetical must be effect-free *)
     "M0280", None; (* Oneway method cannot have an encoder *)
+    "M0282", None; (* Parenthetical on something other than a public actor method *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

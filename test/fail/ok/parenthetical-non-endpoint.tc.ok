@@ -1,0 +1,2 @@
+parenthetical-non-endpoint.mo:4.10-4.43: type error [M0282], a parenthetical is only allowed on public actor methods
+parenthetical-non-endpoint.mo:8.10-8.36: type error [M0282], a parenthetical is only allowed on public actor methods

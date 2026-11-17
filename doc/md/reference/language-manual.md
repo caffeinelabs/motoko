@@ -472,7 +472,7 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 
 #### Message codecs
 
-A `public` actor method may carry a parenthetical with the attributes `encoder` and `decoder`, which replace Candid on the wire for that method:
+A `public` actor method may carry a parenthetical with the attributes `encoder` and `decoder`, which replace Candid on the wire for that method (a parenthetical on any other `public` declaration is an error):
 
 ```motoko no-repl
 public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text { t # "!" };
