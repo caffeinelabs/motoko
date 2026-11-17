@@ -478,7 +478,7 @@ A `public` actor method may carry a parenthetical with the attributes `encoder` 
 public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text { t # "!" };
 ```
 
--   For a method `(A1, …, Am) -> async T`, `decoder : Blob -> (A1, …, Am)` reads the arguments from the raw message data, and `encoder : T -> Blob` produces the raw reply (multiple results arrive as one tuple).
+-   For a method `(A1, …, Am) -> async T`, `decoder : Blob -> (A1, …, Am)` reads the arguments from the raw message data, and `encoder : T -> Blob` produces the raw reply (multiple results arrive as one tuple; for `async ()`, it is `encoder : () -> Blob`, a fixed reply).
 
 -   Either attribute can be given alone; the other direction then stays Candid. Both expressions must be effect-free.
 

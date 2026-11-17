@@ -37,7 +37,9 @@ actor {
   // several arguments, several results, unit result
   public (with decoder = func (b : Blob) : (Text, Nat) = (text(b), b.size())) func pair(t : Text, n : Nat) : async Nat { t.size() + n };
   public (with encoder = func ((t, n) : (Text, Nat)) : Blob = Prim.encodeUtf8(t # debug_show(n))) func two() : async (Text, Nat) { ("seven", 7) };
-  public (with encoder = func (_ : ()) : Blob = "ok") func unit() : async () {};
+  // a unit result: the encoder takes no argument (a fixed, crafted reply)
+  func crafted() : Blob = "ok";
+  public (with encoder = crafted) func unit() : async () {};
 }
 
 //SKIP run

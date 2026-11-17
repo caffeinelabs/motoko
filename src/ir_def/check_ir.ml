@@ -865,8 +865,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
        | Some { typ; _ } -> typ <: t_ref);
       t_ref <: t_want in
     Option.iter (fun r ->
-      let enc_dom = T.seq (List.map (T.close cs) ret_tys) in
-      check_codec "encoder" r (T.Func (T.Local, T.Returns, [], [enc_dom], [T.blob]))
+      let enc_dom = match ret_tys with
+        | [] -> [] (* unit result: no argument *)
+        | _ -> [T.seq (List.map (T.close cs) ret_tys)] in
+      check_codec "encoder" r (T.Func (T.Local, T.Returns, [], enc_dom, [T.blob]))
     ) codecs.encoder;
     Option.iter (fun r ->
       check_codec "decoder" r (T.Func (T.Local, T.Returns, [], [T.blob], List.map (T.close cs) ts1))

@@ -4727,11 +4727,14 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
      the encoder's input type, then checking the method signature
      against those — which would let users pin codec types and have
      the method fall in line. *)
-  let encoder_typ = T.Func (T.Local, T.Returns, [], [ret_typ], [T.blob]) in
+  (* for a unit result, the encoder takes no argument: a fixed, crafted reply *)
+  let encoder_dom = if T.eq ret_typ T.unit then [] else [ret_typ] in
+  let encoder_typ = T.Func (T.Local, T.Returns, [], encoder_dom, [T.blob]) in
   (* the decoder yields the method's arguments as a sequence, one stack value each in codegen *)
   let decoder_typ = T.Func (T.Local, T.Returns, [], [T.blob], arg_typs) in
   let known = [
-    ("encoder", encoder_typ);
+    (* on a oneway, an encoder is rejected (M0280) whatever its type *)
+    ("encoder", if oneway then T.Any else encoder_typ);
     ("decoder", decoder_typ);
   ] in
   match par.it with
@@ -4747,7 +4750,6 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
         "oneway method never replies, so it cannot have an encoder";
     List.iter (fun { T.lab; typ; _ } ->
       match List.assoc_opt lab known with
-      | Some _ when oneway && lab = "encoder" -> () (* M0280 above *)
       | Some want ->
         if not (sub env par.at typ want) then
           local_error env par.at "M0214"
