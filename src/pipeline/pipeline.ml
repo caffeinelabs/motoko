@@ -218,6 +218,7 @@ let infer_prog
     let open Diag.Syntax in
     let* t_sscope = r in
     let* () = Definedness.check_prog prog in
+    let* () = Codec_calls.check_prog prog in
     Diag.return t_sscope)
 
 let check_lib ~stable_baseline_sig senv pkg_opt lib : Scope.scope Diag.result =
@@ -228,6 +229,7 @@ let check_lib ~stable_baseline_sig senv pkg_opt lib : Scope.scope Diag.result =
     let* sscope = Typing.check_lib ~stable_baseline_sig senv pkg_opt lib in
     phase "Definedness" (Filename.basename filename);
     let* () = Definedness.check_lib lib in
+    let* () = Codec_calls.check_lib lib in
     Diag.return sscope)
 
 let lib_of_prog f prog : Syntax.lib  =

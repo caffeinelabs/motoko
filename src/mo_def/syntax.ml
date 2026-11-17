@@ -284,18 +284,21 @@ let is_public vis = match vis.it with Public _ -> true | _ -> false
 let is_private vis = match vis.it with Private -> true | _ -> false
 
 (* Public actor methods whose parenthetical gives an `encoder` or a `decoder`
-   (including those of included mixins). They don't speak Candid, so they
-   are left out of the Candid interface. *)
-let rec codec_method_names (dfs : dec_field list) : string list =
-  let is_codec (ef : exp_field) = ef.it.id.it = "encoder" || ef.it.id.it = "decoder" in
+   (including those of included mixins), as `(name, (has_decoder, has_encoder))`.
+   They don't speak Candid, so they are left out of the Candid interface. *)
+let rec codec_methods (dfs : dec_field list) : (string * (bool * bool)) list =
+  let has lab efs = List.exists (fun (ef : exp_field) -> ef.it.id.it = lab) efs in
   List.concat_map (fun df ->
     match df.it.dec.it, df.it.vis.it with
     | IncludeD (_, _, _, note), _ ->
-      (match !note with Some n -> codec_method_names n.decs | None -> [])
+      (match !note with Some n -> codec_methods n.decs | None -> [])
     | LetD ({ it = VarP id; _ }, { it = FuncE _; _ }, _),
-      Public (_, Some { it = ObjE (_, efs); _ }) when List.exists is_codec efs ->
-      [id.it]
+      Public (_, Some { it = ObjE (_, efs); _ })
+      when has "decoder" efs || has "encoder" efs ->
+      [(id.it, (has "decoder" efs, has "encoder" efs))]
     | _ -> []) dfs
+
+let codec_method_names dfs = List.map fst (codec_methods dfs)
 
 (* Program (pre unit detection) *)
 

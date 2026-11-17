@@ -10,7 +10,8 @@
     message data. Either can be given alone; both must be effect-free. A
     oneway method never replies, so it takes only a `decoder`. Methods with
     a codec are left out of the generated `.did` and the `candid:service`
-    metadata (#6467).
+    metadata, and typed calls to them from the same compilation unit warn
+    (M0281); codecs are meant for Web2 clients, so use raw calls (#6467).
 
 ## 2.2.3 (2026-11-17)
 
