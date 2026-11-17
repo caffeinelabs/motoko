@@ -7,7 +7,8 @@
   * `public (with encoder = e; decoder = d) func m(…) : async T` replaces
     Candid on the wire for that actor method: `encoder : T -> Blob` produces
     the reply, and `decoder : Blob -> args` reads the arguments from the raw
-    message data. Either can be given alone; both must be effect-free. A
+    message data. Either can be given alone; both must be effect-free, and a
+    base record can share them between methods (`public (codecs with) …`). A
     oneway method never replies, so it takes only a `decoder`. Methods with
     a codec are left out of the generated `.did` and the `candid:service`
     metadata, and typed calls to them from the same compilation unit warn

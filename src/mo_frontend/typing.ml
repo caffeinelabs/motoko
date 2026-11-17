@@ -4733,6 +4733,32 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
     ("encoder", encoder_typ);
     ("decoder", decoder_typ);
   ] in
+  match par.it with
+  | ObjE (_ :: _, _) ->
+    (* A base supplies attributes shared by several methods. Infer the whole
+       parenthetical, then check the codecs it ends up with. *)
+    let fs = match T.promote (infer_exp env par) with
+      | T.Obj (_, fs, _) -> fs
+      | _ -> [] in
+    let labs = List.map (fun f -> f.T.lab) fs in
+    if oneway && List.mem "encoder" labs then
+      local_error env par.at "M0280"
+        "oneway method never replies, so it cannot have an encoder";
+    List.iter (fun { T.lab; typ; _ } ->
+      match List.assoc_opt lab known with
+      | Some _ when oneway && lab = "encoder" -> () (* M0280 above *)
+      | Some want ->
+        if not (sub env par.at typ want) then
+          local_error env par.at "M0214"
+            "field %s in parenthetical is declared with type%a\ninstead of expected type%a" lab
+            display_typ typ
+            display_typ want
+      | None ->
+        warn env par.at "M0212" "unrecognised attribute %s in parenthetical" lab
+    ) fs;
+    if par.note.note_eff <> T.Triv then
+      local_error env par.at "M0279" "parenthetical must be effect-free"
+  | _ ->
   let labs_in_par = match par.it with
     | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields
     | _ -> []

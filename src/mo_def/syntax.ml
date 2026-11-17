@@ -283,12 +283,24 @@ and import' = pat * string * resolved_import ref
 let is_public vis = match vis.it with Public _ -> true | _ -> false
 let is_private vis = match vis.it with Private -> true | _ -> false
 
-(* The `encoder` and `decoder` given by the parenthetical of a `public` method *)
+(* The `encoder` and `decoder` given by the (type-checked) parenthetical of a
+   `public` method: an explicit field, or else the projection of the whole
+   parenthetical when a base provides it (`public (codecs with) func …`) *)
 let par_codecs (par : exp) : exp option * exp option =
   let find lab = match par.it with
-    | ObjE (_, efs) ->
-      List.find_opt (fun (ef : exp_field) -> ef.it.id.it = lab) efs
-      |> Option.map (fun (ef : exp_field) -> ef.it.exp)
+    | ObjE (bases, efs) ->
+      (match List.find_opt (fun (ef : exp_field) -> ef.it.id.it = lab) efs with
+       | Some ef -> Some ef.it.exp
+       | None when bases = [] -> None
+       | None ->
+         match Type.promote par.note.note_typ with
+         | Type.Obj (_, fs, _) ->
+           Option.map (fun t ->
+             { it = DotE (par, lab @@ par.at, ref None);
+               at = par.at;
+               note = { note_typ = t; note_eff = Type.Triv } })
+             (Type.lookup_val_field_opt lab fs)
+         | _ -> None)
     | _ -> None in
   (find "encoder", find "decoder")
 

@@ -482,6 +482,14 @@ public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text {
 
 -   Either attribute can be given alone; the other direction then stays Candid. Both expressions must be effect-free.
 
+-   A base record shares codecs between methods, with explicit fields taking precedence:
+
+    ```motoko no-repl
+    transient let codecs = { encoder = utf8; decoder = text };
+    public (codecs with) func shout(t : Text) : async Text { t # "!" };
+    public (codecs with encoder = quoted) func echo(t : Text) : async Text { t };
+    ```
+
 -   A oneway method (`: ()`) never replies, so it accepts only a `decoder`; an `encoder` on it is rejected.
 
 -   A codec expression is evaluated once, after the actor's other declarations (and again after each upgrade), much like a `transient let`; a `decoder = v` given by a `var` uses the value `v` has at that point.

@@ -11,6 +11,6 @@ cat "$out/main.did"
 
 echo "--- candid:service ---"
 moc -o "$out/main.wasm" -c "$src/main.mo"
-for m in plain plainMixed encoded decoded both mixed; do
+for m in plain plainMixed encoded decoded both mixed based; do
   echo "$m: $(grep -ac "$m: (" "$out/main.wasm")"
 done
