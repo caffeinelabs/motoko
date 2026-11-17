@@ -498,7 +498,7 @@ and build_fields obj_typ =
 and with_self i typ decs =
   let_no_shadow (var i typ) (selfRefE typ) decs
 
-and call_system_func_opt name es obj_typ =
+and call_system_func_opt ?(decoders = []) name es obj_typ =
   List.find_map (fun es ->
     match es.it with
     | { S.vis = { it = S.System; _ };
@@ -537,9 +537,12 @@ and call_system_func_opt name es obj_typ =
                 (tf.T.lab,
                   match tf.T.typ with
                   | T.Func(T.Local, _, [], [], ts) ->
+                    (* a method with a `decoder` sees its arguments through it, not Candid *)
+                    let decode = match List.assoc_opt tf.T.lab decoders with
+                      | Some dec -> callE (exp dec) [] (varE arg)
+                      | None -> primE (Ir.DeserializePrim ts) [varE arg] in
                     tagE tf.T.lab
-                      T.(funcE ("$"^tf.lab) Local Returns [] [] ts
-                        (primE (Ir.DeserializePrim ts) [varE arg]))
+                      T.(funcE ("$"^tf.lab) Local Returns [] [] ts decode)
                   | _ -> assert false))
                 (T.as_variant msg_typ))
                (* Trap early, refusing all other messages,
@@ -702,6 +705,12 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
       { d with it = I.LetD (v, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs') }) }
     | _ -> d
   ) codec_pairs ds in
+  (* methods with a `decoder` (source expression), for `system func inspect`;
+     desugared afresh there, as IR nodes must not be shared *)
+  let decoders = List.filter_map (fun ((_, dec_opt), (d : I.dec)) ->
+    match dec_opt, d.it with
+    | Some dec, I.LetD ({ it = I.VarP v; _ }, _) -> Some (v, dec)
+    | _ -> None) (List.combine codec_pairs ds) in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
@@ -972,7 +981,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
               (unitE())
           | None -> tupE []);
        inspect =
-         (match call_system_func_opt "inspect" es obj_typ with
+         (match call_system_func_opt ~decoders "inspect" es obj_typ with
           | Some call -> call
           | None -> tupE []);
        low_memory =

@@ -147,6 +147,8 @@ actor Counter {
 }
 ```
 
+Each `msg` case is a function that decodes the message's arguments on demand. For a method declared with a `decoder` (see [message codecs](../reference/language-manual.md#message-codecs)), it applies that `decoder` to `arg` instead of decoding Candid; a `decoder` that traps on malformed input therefore declines the message.
+
 ## `heartbeat()`
 
 :::caution
