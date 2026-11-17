@@ -226,9 +226,11 @@ module Make (Cfg : Config) = struct
     | Var   -> Atom "Var"
 
   and vis v = match v.it with
-    | Public (None, None) -> Atom "Public"
     | Public (depr, par) ->
-      "Public" $$ Option.(to_list (map (fun m -> Atom m) depr) @ to_list (map exp par))
+      let depr = Option.(to_list (map (fun m -> Atom m) depr)) in
+      (match if par = None then depr else parenthetical par depr with
+       | [] -> Atom "Public"
+       | args -> "Public" $$ args)
     | Private -> Atom "Private"
     | System -> Atom "System"
 
