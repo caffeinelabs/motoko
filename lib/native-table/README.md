@@ -29,7 +29,8 @@ import NativeTable "mo:native-table/NativeTable"
   64 MiB at once, and the tables grow by 64 MiB whenever they fill what they have.
 - Tables survive upgrades that keep main memory. An upgrade by graph copy traps while a table exists
   (see Traps). A canister with tables must not move to a compiler release without native tables:
-  there, graph copy does not trap but drops every table.
+  there, graph copy does not trap but drops every table, and a table value kept from before can
+  name a table of the same types made afterwards.
 - A stable table's key type cannot change in an upgrade. Its row type changes through `evolve` in the
   upgrade's migration function (see Change the row type at upgrade).
 
