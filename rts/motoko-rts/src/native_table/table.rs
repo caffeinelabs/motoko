@@ -785,6 +785,10 @@ pub unsafe fn nt_walk<M: Memory>(
     let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
+    // A view's picks name field positions, so its row is built from the layout in field order,
+    // before that layout is replaced by the one in column order.
+    let picked =
+        view.map(|picks| RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Entry));
     if let Some(map) = map {
         layout = map.layout(&mut *mem, &layout);
     }
@@ -863,13 +867,10 @@ pub unsafe fn nt_walk<M: Memory>(
             }
         }
     }
-    match (view, map) {
+    match (picked, map) {
         (None, None) => rows_of(&table, rids, n, &mut row, rows),
         (None, Some(map)) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
-        (Some(picks), _) => {
-            let mut row = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Entry);
-            rows_of(&table, rids, n, &mut row, rows)
-        }
+        (Some(mut picked), _) => rows_of(&table, rids, n, &mut picked, rows),
     }
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);

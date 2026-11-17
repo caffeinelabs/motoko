@@ -97,6 +97,11 @@ actor {
   let old = NativeTable.empty<Nat, Old>().build();
   var changed : ?NativeTable.NativeTable<Nat, New> = null;
 
+  // evolve adds code, whose label sorts before tags, so tags is no longer in its first column
+  type Tagged = { name : Text; tags : [Text] };
+  type Coded = { name : Text; code : ?Nat; tags : [Text] };
+  let tagged = NativeTable.empty<Nat, Tagged>().createIndex(["name"]).build();
+
   // 10,000 codes: an array far past a row's inline limit, which a read gets in pieces
   func longCodes() : [Text] = Prim.Array_tabulate<Text>(10_000, func(i) = "code-" # debug_show i);
 
@@ -231,6 +236,18 @@ actor {
     }
   };
 
+  // A view walks an index of a table whose columns no longer follow its fields, and reads tags
+  // with the elements' own type
+  public func changedWalk() : async () {
+    tagged.add(1, { name = "a"; tags = ["x", "y"] });
+    let t : NativeTable.NativeTable<Nat, Coded> = tagged.evolve();
+    t.add(2, { name = "b"; code = ?5; tags = ["z"] });
+    let v : NativeTable.NativeTable<Nat, { tags : [Text] }> = t.view();
+    for (k, r) in v.indexEntries(["name"], null, null) {
+      Prim.debugPrint(debug_show (k, r))
+    }
+  };
+
   public func otherElement() : async () {
     switch changed {
       case ?t {
@@ -282,6 +299,7 @@ actor {
 //CALL ingress check "DIDL\x00\x00"
 //CALL ingress change "DIDL\x00\x00"
 //CALL ingress changedRows "DIDL\x00\x00"
+//CALL ingress changedWalk "DIDL\x00\x00"
 //CALL ingress otherElement "DIDL\x00\x00"
 //CALL ingress size "DIDL\x00\x00"
 //CALL ingress indexOnArray "DIDL\x00\x00"
