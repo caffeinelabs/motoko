@@ -28,6 +28,11 @@ actor {
   // raw UTF-8 in and out
   public (with decoder = text; encoder = utf8) func shout(t : Text) : async Text = t # "!";
 
+  // queries: raw UTF-8 in and out; Candid in, raw UTF-8 out; composite
+  public (with decoder = text; encoder = utf8) query func peek(t : Text) : async Text { t # "?" };
+  public (with encoder = utf8) query func hello() : async Text { "hi" };
+  public (with decoder = text; encoder = utf8) composite query func echo(t : Text) : async Text { t # t };
+
   // raw decimal in, oneway (no reply to encode)
   public (with decoder = decimal) func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) };
 };
@@ -40,3 +45,7 @@ actor {
 //CALL ingress double "21"
 //CALL ingress shout "hey"
 //CALL ingress triple "14"
+//CALL query peek "hey"
+//CALL ingress peek "hey"
+//CALL query hello "DIDL\x00\x00"
+//CALL query echo "ab"
