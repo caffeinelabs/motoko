@@ -45,5 +45,6 @@ M0269 (W) Deprecate `.vals()` in favor of `.values()`
 M0270 (W) Deprecate `system func preupgrade`/`postupgrade`
 M0276 (E) Comparison at a type with a single value
 M0278 (E) File in the migration directory is not a migration module
+M0281 (W) Typed call to an actor method with an `encoder` or `decoder`
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)
