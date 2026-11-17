@@ -612,8 +612,13 @@ module Make (Cfg : Config) = struct
     let open Syntax in
     let open Source in
     match v.it with
-    | Public (None, _) -> js_string "Public"
-    | Public (Some m, _) -> to_js_object "Public" [| js_string m |]
+    | Public (depr, par) ->
+        let depr = Option.(to_list (map js_string depr)) in
+        let args =
+          if par = None then Array.of_list depr else parenthetical par depr
+        in
+        if Array.length args = 0 then js_string "Public"
+        else to_js_object "Public" args
     | Private -> js_string "Private"
     | System -> js_string "System"
 

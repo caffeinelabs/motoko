@@ -1081,8 +1081,9 @@ vis :
   | PRIVATE { Private @@ at $sloc }
   | par=parenthetical_opt PUBLIC {
     let at_pub = at $loc($2) in
-    let trivia = Trivia.find_trivia !triv_table at_pub in
-    let depr = Trivia.deprecated_of_trivia_info trivia in
+    (* `@deprecated` goes above the parenthetical, or else right before `public` *)
+    let depr_at r = Trivia.deprecated_of_trivia_info (Trivia.find_trivia !triv_table r) in
+    let depr = match depr_at (at $sloc) with None -> depr_at at_pub | d -> d in
     Public (depr, par) @@ at_pub }
   | SYSTEM { System @@ at $sloc }
 

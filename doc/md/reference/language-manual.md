@@ -449,7 +449,7 @@ For `<shared-pat>`, an absent `<pat>?` is shorthand for the wildcard pattern `_`
   <vis>? <stab>? <dec>                           field
 
 <vis> ::=                                      field visibility
-  public
+  <parenthetical>? public
   private
   system
 
@@ -469,6 +469,8 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 -   Visibility `system` extends `private` with access by the run-time system.
 
 -   Visibility `system` may only appear on `func` declarations that are actor fields, and **must not** appear anywhere else.
+
+-   A `<parenthetical>` before `public` holds attributes of the declaration and is type-checked in the scope of the enclosing object, module or actor. No attribute is recognised yet, so any field in it is an error (M0212).
 
 The **stability** qualifier `<stab>` determines the **upgrade** behavior of actor fields:
 

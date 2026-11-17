@@ -14,12 +14,33 @@ actor {
   (codecs with)
   public query func peek() : async Text { "" };
 
+  // each erroneous parenthetical is reported
   (with encoder = unbound)
   public func broken() : async () {};
 
+  (with decoder = unbound2)
+  public func broken2() : async () {};
+
   module M {
-    (with deprecated = "")
-    public let x = 1
+    /// @deprecated use `y`
+    (with)
+    public let x = 1;
+
+    (with)
+    /// @deprecated use `x`
+    public let y = 2
+  };
+
+  transient let _ = M.x + M.y;
+
+  class C() {
+    (with)
+    public let c = 0
+  };
+
+  transient let o = object {
+    (with)
+    public let p = 0
   };
 
   func local() {};

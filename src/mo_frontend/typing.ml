@@ -4659,7 +4659,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     let par_env = adjoin { env with async = C.NullCap } scope in
     List.iter (fun df ->
       match df.it.vis.it with
-      | Public (_, Some par) -> check_pub_parenthetical par_env par
+      | Public (_, Some par) -> recover (check_pub_parenthetical par_env) par
       | _ -> ()
     ) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
