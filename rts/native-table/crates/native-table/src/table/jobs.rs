@@ -205,7 +205,7 @@ pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<Ran, Faul
     let ran = if queued(&*h, tbl)? {
         compaction(h, tbl, shape)?
     } else if root::u64_at(&*h, tbl, root::PARK_FIRST)? != 0 {
-        super::clear::step(h, tbl, shape)?;
+        super::clear::step(h, tbl)?;
         Ran::Free
     } else if root::u8_at(&*h, tbl, root::FREEING)? & SWEEP != 0 {
         crate::area::sweep_step(h, tbl)?;
