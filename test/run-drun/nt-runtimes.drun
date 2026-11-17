@@ -25,3 +25,14 @@ upgrade $ID nt-runtimes/plain.mo ""
 ingress $ID check "DIDL\x00\x00"
 upgrade $ID nt-runtimes/tables.mo ""
 ingress $ID check "DIDL\x00\x00"
+# Release 2.2.1 allows graph copy while a table exists, and its graph copy frees the store's
+# partitions for the heap but leaves the word that names the store. The runtime with native tables
+# takes that store for gone: the old table's id names no table, and a new table gets a store of
+# its own
+upgrade $ID nt-runtimes/plain-2.2.1.wasm ""
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+upgrade $ID nt-runtimes/plain-2.2.1.wasm ""
+upgrade $ID nt-runtimes/tables.mo ""
+ingress $ID check "DIDL\x00\x00"
+ingress $ID makeTable "DIDL\x00\x00"
+ingress $ID check "DIDL\x00\x00"

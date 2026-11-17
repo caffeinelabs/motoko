@@ -666,6 +666,16 @@ impl PartitionedHeap {
         start_address
     }
 
+    /// Whether `address` starts a partition that `take_store_partition` took.
+    pub fn is_store_partition(&self, address: usize) -> bool {
+        let index = address / PARTITION_SIZE;
+        if address % PARTITION_SIZE != 0 || index == 0 || index >= self.number_of_partitions {
+            return false;
+        }
+        let partition = self.get_partition(index);
+        !partition.free && !partition.temporary && partition.static_size == PARTITION_SIZE
+    }
+
     /// The returned bitmap address is guaranteed to be 64-bit-aligned.
     unsafe fn allocate_bitmap<M: Memory>(&mut self, mem: &mut M) -> *mut u8 {
         if self.bitmap_allocation_pointer % PARTITION_SIZE == 0 {
