@@ -9727,7 +9727,7 @@ module FuncDec = struct
       (G.nop)
       (message_cleanup env (Type.Shared Type.Write))
 
-  let compile_const_message outer_env ?(decoder=None) outer_ae sort control args mk_body ret_tys at : E.func_with_names =
+  let compile_const_message outer_env ?decoder outer_ae sort control args mk_body ret_tys at : E.func_with_names =
     let ae0 = VarEnv.mk_fun_ae outer_ae in
     Func.of_body outer_env [] [] (fun env -> G.with_region at (
       message_start env sort ^^
@@ -9764,12 +9764,12 @@ module FuncDec = struct
     ))
 
   (* Compile a closed function declaration (captures no local variables) *)
-  let closed pre_env ?(decoder=None) sort control name args mk_body fun_rhs ret_tys at =
+  let closed pre_env ?decoder sort control name args mk_body fun_rhs ret_tys at =
     if Type.is_shared_sort sort
     then begin
       let (fi, fill) = E.reserve_fun pre_env name in
       ( Const.Message fi, fun env ae ->
-        fill (compile_const_message env ~decoder ae sort control args mk_body ret_tys at)
+        fill (compile_const_message env ?decoder ae sort control args mk_body ret_tys at)
       )
     end else begin
       assert (control = Type.Returns);
@@ -9848,14 +9848,14 @@ module FuncDec = struct
         get_clos
       else assert false (* no first class shared functions *)
 
-  let lit env ?(decoder=None) ae name sort control free_vars args mk_body ret_tys at =
+  let lit env ?decoder ae name sort control free_vars args mk_body ret_tys at =
     let captured = List.filter (VarEnv.needs_capture ae) free_vars in
 
     if ae.VarEnv.lvl = VarEnv.TopLvl then assert (captured = []);
 
     if captured = []
     then
-      let (ct, fill) = closed env ~decoder sort control name args mk_body Const.Complicated ret_tys at in
+      let (ct, fill) = closed env ?decoder sort control name args mk_body Const.Complicated ret_tys at in
       fill env ae;
       (SR.Const ct, G.nop)
     else closure env ae sort control name captured args mk_body ret_tys at
@@ -13227,7 +13227,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let return_arity = List.length return_tys in
     let mk_body env1 ae1 = compile_exp_as env1 ae1 (StackRep.of_arity return_arity) e in
     let decoder = Option.map (fun (i, _) env ae -> Var.get_val_vanilla env ae i) codecs.decoder in
-    FuncDec.lit env ~decoder ae x sort control captured args mk_body return_tys exp.at
+    FuncDec.lit env ?decoder ae x sort control captured args mk_body return_tys exp.at
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     SR.unit,
     let (set_future, get_future) = new_local env "future" in
@@ -13655,7 +13655,7 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
       ) (Freevars.M.keys (Freevars.exp e));
       compile_exp_as env ae (StackRep.of_arity (List.length return_tys)) e in
     let decoder = Option.map (fun (i, _) env ae -> Var.get_val_vanilla env ae i) codecs.decoder in
-    FuncDec.closed env ~decoder sort control name args mk_body fun_rhs return_tys exp.at
+    FuncDec.closed env ?decoder sort control name args mk_body fun_rhs return_tys exp.at
   | BlockE (decs, e) ->
     let (extend, fill1) = compile_const_decs env pre_ae decs in
     let ae' = extend pre_ae in

@@ -10,7 +10,6 @@ module Set = Idllib.Resolve_import.Set
 
 module Scope = Mo_frontend.Scope
 
-(* use a functor to allocate temporary shared state *)
 (* The actor type without the given methods (see `Syntax.codec_method_names`) *)
 let without_methods names t =
   if names = [] then t else
@@ -18,6 +17,7 @@ let without_methods names t =
   | Obj (s, fs, tfs) -> Obj (s, List.filter (fun f -> not (List.mem f.lab names)) fs, tfs)
   | t -> t
 
+(* use a functor to allocate temporary shared state *)
 module MakeState() = struct
 
   let env = ref Env.empty
