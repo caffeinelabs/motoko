@@ -5,7 +5,7 @@
 * motoko (`moc`)
 
   * A parenthetical before `public` holds attributes of the declaration,
-    on its own line if you like (#6512). On an actor method,
+    on its own line if you like. On an actor method,
     `(with encoder = e; decoder = d) public func m(…) : async T` replaces
     Candid on the wire for that method: `encoder : T -> Blob` produces
     the reply, and `decoder : Blob -> args` reads the arguments from the raw
