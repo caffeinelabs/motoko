@@ -1,2 +1,5 @@
-parenthetical-non-endpoint.mo:4.3-4.36: type error [M0282], a parenthetical is only allowed on public actor methods
-parenthetical-non-endpoint.mo:9.3-9.29: type error [M0282], a parenthetical is only allowed on public actor methods
+parenthetical-non-endpoint.mo:5.3-5.36: type error [M0282], a parenthetical is only allowed on public actor methods, not on a `type`
+parenthetical-non-endpoint.mo:10.3-10.37: type error [M0282], a parenthetical is only allowed on public actor methods, not on a module function
+parenthetical-non-endpoint.mo:18.5-18.39: type error [M0282], a parenthetical is only allowed on public actor methods, not on a `var`
+parenthetical-non-endpoint.mo:20.5-20.39: type error [M0282], a parenthetical is only allowed on public actor methods, not on a `let`
+parenthetical-non-endpoint.mo:15.3-15.29: type error [M0282], a parenthetical is only allowed on public actor methods, not on a `type`

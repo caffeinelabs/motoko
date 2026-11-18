@@ -4661,8 +4661,26 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
        hand to `check_vis_parenthetical` must include the actor's
        full scope (values and types), not just the outer-context env. *)
     let par_env = adjoin { env with async = C.NullCap } scope in
-    let not_endpoint par =
-      local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods" in
+    (* M0282 names what the parenthetical is on, when it can tell *)
+    let not_endpoint (dec : dec) par =
+      let fun_of = function
+        | T.Module -> "a module function"
+        | T.Object -> "an object function"
+        | _ -> "a function" in
+      let kind = match dec.it with
+        | TypD _ -> Some "a `type`"
+        | VarD _ -> Some "a `var`"
+        | ClassD _ -> Some "a class"
+        | ExpD _ -> Some "an expression"
+        | LetD ({ it = VarP id; _ }, _, _) ->
+          (match T.Env.find_opt id.it scope.Scope.val_env with
+           | Some (typ, _, _) when T.is_func (T.promote typ) -> Some (fun_of s)
+           | _ -> Some "a `let`")
+        | LetD _ -> Some "a `let`"
+        | MixinD _ | IncludeD _ -> None in
+      match kind with
+      | Some k -> local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods, not on %s" k
+      | None -> local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods" in
     (* `recover`: each erroneous parenthetical is reported *)
     List.iter (recover (fun df ->
       match df.it.vis.it, df.it.dec.it with
@@ -4673,9 +4691,9 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
            (match c with
             | T.Promises -> check_vis_parenthetical par_env ts1 (T.seq ts2) par
             | T.Returns -> check_vis_parenthetical ~oneway:true par_env ts1 (T.seq ts2) par
-            | T.Replies -> not_endpoint par)
-         | _ -> not_endpoint par)
-      | Syntax.Public (_, Some par), _ -> not_endpoint par
+            | T.Replies -> not_endpoint df.it.dec par)
+         | _ -> not_endpoint df.it.dec par)
+      | Syntax.Public (_, Some par), _ -> not_endpoint df.it.dec par
       | _ -> ()
     )) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;

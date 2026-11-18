@@ -1,8 +1,20 @@
-error[M0282]: a parenthetical is only allowed on public actor methods
-    ┌─ parenthetical-non-endpoint.mo:4:3
-  4 │    (with encoder = undefinedInMixin)
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `type`
+    ┌─ parenthetical-non-endpoint.mo:5:3
+  5 │    (with encoder = undefinedInMixin)
     │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-error[M0282]: a parenthetical is only allowed on public actor methods
-    ┌─ parenthetical-non-endpoint.mo:9:3
-  9 │    (with encoder = undefined)
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a module function
+    ┌─ parenthetical-non-endpoint.mo:10:3
+ 10 │    (with decoder = undefinedInModule)
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `var`
+    ┌─ parenthetical-non-endpoint.mo:18:5
+ 18 │      (with decoder = undefinedInObject)
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `let`
+    ┌─ parenthetical-non-endpoint.mo:20:5
+ 20 │      (with encoder = undefinedInObject)
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `type`
+    ┌─ parenthetical-non-endpoint.mo:15:3
+ 15 │    (with encoder = undefined)
     │    ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
