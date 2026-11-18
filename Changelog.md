@@ -16,7 +16,8 @@
     whole, and a key can be a tuple of 2 to 7 scalars. Scans go in the order
     keys were first added. Also: `upsert`, `append`, `clear`, `reverseEntries`,
     `withoutNullRows`, unique indexes with `tryAdd`, counts by an index's first fields,
-    `indexEntriesAt`, `reverseIndexEntriesAt` and `removeIndexRange`, and
+    `indexEntriesAt`, `reverseIndexEntriesAt`, `removeIndexRange`, the
+    `first…` variants of scans and walks that read only the rows asked for, and
     upkeep that gives back pages removed rows left empty. The compiler
     supplies a table's codec from its key and row types and rejects types a
     table cannot have with the new error M0279; `moc.js` rejects a program

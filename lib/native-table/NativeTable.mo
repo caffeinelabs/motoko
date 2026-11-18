@@ -152,10 +152,10 @@ module {
   /// fields of `R`, each with the same name and type, and every read of the view reads only those
   /// fields of the row. Field names given to its calls can be any field of `R`, and `fieldTypes`
   /// lists the fields of `R`. `P` comes from the declared type, as for `evolve`; or give all three
-  /// types: `view<K, R, P>()`. Traps when `P` has a field `R` lacks, or a field of another type.
-  /// `remove` and `delete` on a view remove the whole row; `add`, `insert`, `update` and `evolve`
-  /// on a view trap. After `evolve`, make views from the table it returns.
-  public func view<K, R, P>(self : NativeTable<K, R>, codec : (implicit : Prim.NtCodec<(K, P)>)) : NativeTable<K, P> {
+  /// types: `view<K, R, P>()`. When `P` has a field `R` lacks, or a field of another type, the call
+  /// does not compile. `remove` and `delete` on a view remove the whole row; `add`, `insert`,
+  /// `update` and `evolve` on a view trap. After `evolve`, make views from the table it returns.
+  public func view<K, R, P>(self : NativeTable<K, R>, codec : (implicit : Prim.NtCodec<(K, P, R, ())>)) : NativeTable<K, P> {
     { id = self.id; codec = Prim.ntView(self.codec, codec); indexes = self.indexes }
   };
 
@@ -276,6 +276,22 @@ module {
     }
   };
 
+  /// The values of the batches `fetch` hands back from the place `from` on, in order, `count` of
+  /// them at most: each fetch asks for no more than are still to come. `fetch` gets the place to go
+  /// on from and the most values to hand back, and returns a batch and the place after it, or null
+  /// after the last batch.
+  func first<T, P>(count : Nat, from : P, fetch : (P, Nat64) -> ([T], ?P)) : { next : () -> ?T } {
+    var left = count;
+    let values = batches<T, P>([], if (count == 0) null else ?from, func at = fetch(at, if (left < 63) Prim.natToNat64(left + 1) else batch));
+    object {
+      public func next() : ?T {
+        if (left == 0) return null;
+        left -= 1;
+        values.next()
+      }
+    }
+  };
+
   /// The keys and rows of the table, in the table's own order: the order their keys were first
   /// added, not key order. `add` over a key the table has, `update` and `upsert` keep a row's
   /// place; a key removed and added again comes last. Every row that stays in the table while the
@@ -284,9 +300,19 @@ module {
     batches<(K, R), Nat64>([], ?0, func from = Prim.ntScanEntries(self.id, self.codec, null, from, batch))
   };
 
+  /// `entries`, its first `count` rows at most: the table reads no more rows.
+  public func firstEntries<K, R>(self : NativeTable<K, R>, count : Nat) : { next : () -> ?(K, R) } {
+    first<(K, R), Nat64>(count, 0, func(from, n) = Prim.ntScanEntries(self.id, self.codec, null, from, n))
+  };
+
   /// The keys of the table, in the order of `entries`. It reads no field of the rows.
   public func keys<K, R>(self : NativeTable<K, R>) : { next : () -> ?K } {
     batches<K, Nat64>([], ?0, func from = Prim.ntScanKeys(self.id, self.codec, from, batch))
+  };
+
+  /// `keys`, its first `count` keys at most: the table reads no more rows.
+  public func firstKeys<K, R>(self : NativeTable<K, R>, count : Nat) : { next : () -> ?K } {
+    first<K, Nat64>(count, 0, func(from, n) = Prim.ntScanKeys(self.id, self.codec, from, n))
   };
 
   /// The rows of the table, in the order of `entries`.
@@ -294,10 +320,20 @@ module {
     batches<R, Nat64>([], ?0, func from = Prim.ntScanValues(self.id, self.codec, from, batch))
   };
 
+  /// `values`, its first `count` rows at most: the table reads no more rows.
+  public func firstValues<K, R>(self : NativeTable<K, R>, count : Nat) : { next : () -> ?R } {
+    first<R, Nat64>(count, 0, func(from, n) = Prim.ntScanValues(self.id, self.codec, from, n))
+  };
+
   /// The keys and rows of the table newest first: the order of `entries` reversed. Every row that
   /// stays in the table while the iterator runs comes exactly once.
   public func reverseEntries<K, R>(self : NativeTable<K, R>) : { next : () -> ?(K, R) } {
     batches<(K, R), Nat64>([], ?0xFFFF_FFFF_FFFF_FFFF, func from = Prim.ntScanBack(self.id, self.codec, from, batch))
+  };
+
+  /// `reverseEntries`, its first `count` rows at most: the table reads no more rows.
+  public func firstReverseEntries<K, R>(self : NativeTable<K, R>, count : Nat) : { next : () -> ?(K, R) } {
+    first<(K, R), Nat64>(count, 0xFFFF_FFFF_FFFF_FFFF, func(from, n) = Prim.ntScanBack(self.id, self.codec, from, n))
   };
 
   /// The scalar type of a type code in the table's layout.
@@ -439,6 +475,26 @@ module {
     )
   };
 
+  /// `walk`, its first `count` rows at most: each call asks the table for no more rows than are
+  /// still to come.
+  func walkFirst<K, R>(self : NativeTable<K, R>, index : [Text], reverse : Bool, from : ?[Cell], to : ?[Cell], offset : Nat, count : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    let (start, key) : (Nat64, [Cell]) = switch from {
+      case null { (0, []) }
+      case ?key { (2, key) }
+    };
+    let nth : Nat64 = if offset < 0x4000_0000 or offset < 0x2000_0000_0000_0000 { Prim.natToNat64(offset) } else { 0x2000_0000_0000_0000 };
+    first<(K, R), Blob>(
+      count,
+      "",
+      func(token, n) {
+        let (rows, after) = Prim.ntWalk(self.id, self.codec, self.indexes, index, reverse, start | nth << 2, key, to, token, n);
+        (rows, rest(after))
+      },
+    )
+  };
+
   /// The keys and rows of the table in the order of the index on `index`, keys rising, the rows
   /// of one key in the table's own order: from the key `from` on, or from the first, up to the
   /// key `to`, or to the last, both included. A key has one cell per field of the index, in its
@@ -450,12 +506,27 @@ module {
     walk(self, index, false, from, to, 0)
   };
 
+  /// `indexEntries`, its first `count` rows at most: the table reads no more rows.
+  public func firstIndexEntries<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], count : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walkFirst(self, index, false, from, to, 0, count)
+  };
+
   /// As `indexEntries`, from its `offset`-th row on, 0 its first. The rows before it are counted in
   /// the index, not read, so a page of a walk costs about the same at any offset.
   public func indexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat) : {
     next : () -> ?(K, R)
   } {
     walk(self, index, false, from, to, offset)
+  };
+
+  /// `indexEntriesAt`, its first `count` rows at most: a page of the walk, and the table reads no
+  /// more rows.
+  public func firstIndexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat, count : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walkFirst(self, index, false, from, to, offset, count)
   };
 
   /// As `indexEntries`, keys falling: from the key `from` down, or from the last, to the key `to`,
@@ -466,11 +537,25 @@ module {
     walk(self, index, true, from, to, 0)
   };
 
+  /// `reverseIndexEntries`, its first `count` rows at most: the table reads no more rows.
+  public func firstReverseIndexEntries<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], count : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walkFirst(self, index, true, from, to, 0, count)
+  };
+
   /// As `reverseIndexEntries`, from its `offset`-th row on, as `indexEntriesAt`.
   public func reverseIndexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat) : {
     next : () -> ?(K, R)
   } {
     walk(self, index, true, from, to, offset)
+  };
+
+  /// `reverseIndexEntriesAt`, its first `count` rows at most: the table reads no more rows.
+  public func firstReverseIndexEntriesAt<K, R>(self : NativeTable<K, R>, index : [Text], from : ?[Cell], to : ?[Cell], offset : Nat, count : Nat) : {
+    next : () -> ?(K, R)
+  } {
+    walkFirst(self, index, true, from, to, offset, count)
   };
 
   /// Removes the rows `indexEntries(index, from, to)` gives, with their index entries, in one call;
@@ -525,6 +610,11 @@ module {
   } {
     let (first, next) = Prim.ntScanEntries(self.id, self.codec, ?(field, filter), 0 : Nat64, batch);
     batches<(K, R), Nat64>(first, next, func from = Prim.ntScanEntries(self.id, self.codec, ?(field, filter), from, batch))
+  };
+
+  /// `entriesWhere`, its first `count` matching rows at most: the table reads no more rows.
+  public func firstEntriesWhere<K, R>(self : NativeTable<K, R>, field : Text, filter : Filter, count : Nat) : { next : () -> ?(K, R) } {
+    first<(K, R), Nat64>(count, 0, func(from, n) = Prim.ntScanEntries(self.id, self.codec, ?(field, filter), from, n))
   };
 
   /// The number of rows whose field `field` meets `filter`.

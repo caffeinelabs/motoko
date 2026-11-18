@@ -29,6 +29,7 @@ use ::native_table::key::{
 };
 use ::native_table::table::cell::{leb_value, put_sleb128, put_uleb128};
 use ::native_table::table::filter::Cond;
+use ::native_table::table::read::Planned;
 use ::native_table::table::{CellIn, CellOut, RowSink, RowSource, Table};
 use ::native_table::value::ty;
 use ::native_table::{Fault, ImageId, PageHost};
@@ -54,7 +55,6 @@ use crate::types::{
     TAG_BITS64_S, TAG_BITS64_U, TAG_BLOB_B, TAG_BLOB_P, TAG_BLOB_T, TAG_CONCAT, TAG_OBJECT,
     TAG_VARIANT, TRUE_VALUE, Tag, Value, Variant, Words,
 };
-use crate::utf8::utf8_valid;
 
 /// The low bits of a compact Nat or Int.
 const COMPACT_TAG: usize = 0b10;
@@ -1005,7 +1005,6 @@ pub unsafe fn key_cells<M: Memory>(
                 pos = or_trap(dec_bytes(key, pos, &mut out, image));
                 let b = out.written();
                 if code == ty::TEXT {
-                    check_utf8(b);
                     (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b))
                 } else {
                     (CELL_BLOB, blob_of(mem, TAG_BLOB_B, b))
@@ -1148,13 +1147,6 @@ pub(super) unsafe fn pair<M: Memory>(mem: &mut M, a: Value, b: Value) -> Value {
     allocation_barrier(v)
 }
 
-/// Checks that the bytes of a Text read from a table are UTF-8.
-unsafe fn check_utf8(b: &[u8]) {
-    if !utf8_valid(b.as_ptr() as *const _, b.len()) {
-        rts_trap_with("native table: stored text is not UTF-8");
-    }
-}
-
 /// The `NtCell` of cell `v` of a column of scalar type `code`, an option when `optional`:
 /// `#null_` for null, `#nat` for a value of a Nat type or Char, `#int` for one of an Int type, and
 /// the case of its own type for any other value; `None` for a cell that is not of the column's
@@ -1177,10 +1169,7 @@ unsafe fn cell_value<M: Memory>(
         }
         (ty::INT, CellOut::Int(b)) => (CELL_INT, int_of_sleb(b)),
         (ty::F64, CellOut::F64(f)) => (CELL_FLOAT, box64(mem, TAG_BITS64_F, f.to_bits())),
-        (ty::TEXT, CellOut::Bytes(b)) => {
-            check_utf8(b);
-            (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b))
-        }
+        (ty::TEXT, CellOut::Bytes(b)) => (CELL_TEXT, blob_of(mem, TAG_BLOB_T, b)),
         (ty::BLOB, CellOut::Bytes(b)) => (CELL_BLOB, blob_of(mem, TAG_BLOB_B, b)),
         (ty::PRINCIPAL, CellOut::Bytes(b)) => (CELL_PRINCIPAL, blob_of(mem, TAG_BLOB_P, b)),
         _ => return None,
@@ -1204,10 +1193,7 @@ unsafe fn value_of<M: Memory>(mem: &mut M, code: u8, optional: bool, v: CellOut)
         (ty::INT, CellOut::I64(n)) => int_from_isize(n as isize),
         (ty::INT, CellOut::Int(b)) => int_of_sleb(b),
         (ty::F64, CellOut::F64(f)) => box64(mem, TAG_BITS64_F, f.to_bits()),
-        (ty::TEXT, CellOut::Bytes(b)) => {
-            check_utf8(b);
-            blob_of(mem, TAG_BLOB_T, b)
-        }
+        (ty::TEXT, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_T, b),
         (ty::BLOB, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_B, b),
         (ty::PRINCIPAL, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_P, b),
         _ => return None,
@@ -1453,10 +1439,7 @@ impl<M: Memory, H: PageHost> RowSink for CellRows<'_, '_, M, H> {
                 let (case, payload) = match self.types[at].0 {
                     ty::NAT => (CELL_NAT, nat_of_leb(bytes)),
                     ty::INT => (CELL_INT, int_of_sleb(bytes)),
-                    ty::TEXT => {
-                        check_utf8(bytes);
-                        (CELL_TEXT, *slot)
-                    }
+                    ty::TEXT => (CELL_TEXT, *slot),
                     _ => (CELL_BLOB, *slot),
                 };
                 *slot = variant_of(mem, case, payload);
@@ -1507,6 +1490,12 @@ pub trait Places<'a> {
     /// The type codes of the key.
     fn key_codes(&self) -> &'a [u8] {
         self.codes(0)
+    }
+    /// The array whose bytes `b` are as `array_cell` writes them, of elements of the type codes
+    /// `element` (`array_of_ve`).
+    #[inline(always)]
+    unsafe fn array_of<M: Memory>(&mut self, mem: &mut M, element: &[u8], b: &[u8]) -> Value {
+        array_of_ve(mem, element, b)
     }
 }
 
@@ -1586,8 +1575,6 @@ pub struct Picked<'a> {
     picks: Picks<'a>,
     /// The key's type codes, when the key's cell comes first.
     key: Option<&'a [u8]>,
-    /// The columns of the table's layout, where the picks' positions are.
-    table: Entries<'a>,
 }
 
 impl<'a> Places<'a> for Picked<'a> {
@@ -1618,8 +1605,7 @@ impl<'a> Places<'a> for Picked<'a> {
 
     fn codes(&self, column: usize) -> &'a [u8] {
         let pick = self.picks.get(self.position(column).wrapping_sub(1));
-        let entry = pick.and_then(|(p, _)| self.table.clone().nth(p));
-        entry.map_or(&[], |e| e.codes)
+        pick.map_or(&[], |(_, codes)| codes)
     }
 
     fn leaves(&self) -> Option<&'a [u32]> {
@@ -1629,6 +1615,154 @@ impl<'a> Places<'a> for Picked<'a> {
     fn key_codes(&self) -> &'a [u8] {
         self.key.unwrap_or(&[])
     }
+}
+
+/// The fields of a view read through its plan (`Table::get_planned`): the table hands over one cell per field of
+/// the view, in the view's order, and the type codes of field i lie in the table's layout at the place the plan
+/// holds.
+pub struct InPlan<'a> {
+    table: &'a [u8],
+    /// Per cell, the u32 offset and length of its type codes in `table`.
+    codes: &'a [u32],
+    plan: &'a [Planned],
+    /// 1 when the cells are the view's fields alone, 0 when the key's comes first.
+    shift: usize,
+    /// The hash lists of record elements made in this read, by the address of the element's type codes.
+    labels: [(usize, Value); 4],
+}
+
+impl<'a> InPlan<'a> {
+    fn codes_of(&self, i: usize) -> Option<&'a [u8]> {
+        let at = *self.codes.get(2 * i)? as usize;
+        let n = *self.codes.get(2 * i + 1)? as usize;
+        self.table.get(at..at + n)
+    }
+
+    /// The field of the view that reads column `column`.
+    fn field(&self, column: usize) -> Option<usize> {
+        self.plan
+            .iter()
+            .position(|p| (p.id >> 16) as usize == column)
+    }
+}
+
+impl<'a> Places<'a> for InPlan<'a> {
+    #[inline(always)]
+    fn next(&mut self, at: usize, _column: usize) -> Option<(usize, &'a [u8])> {
+        Some((at + self.shift, self.codes_of(at)?))
+    }
+
+    fn kept(&self, _: usize) -> bool {
+        true
+    }
+
+    fn position(&self, column: usize) -> usize {
+        self.field(column).map_or(DROPPED, |i| i + self.shift)
+    }
+
+    fn reset(&mut self) {}
+
+    fn codes(&self, column: usize) -> &'a [u8] {
+        self.field(column)
+            .and_then(|i| self.codes_of(i))
+            .unwrap_or(&[])
+    }
+
+    unsafe fn array_of<M: Memory>(&mut self, mem: &mut M, element: &[u8], b: &[u8]) -> Value {
+        planned_array(mem, &mut self.labels, element, b)
+    }
+}
+
+/// `array_of_ve` for a view read through its plan: the fields of a record element are found once
+/// for every element, a Nat or an Int of at most 9 bytes is read in 64 bits, and the hash list of
+/// a record element is made once a read, kept in `labels` by the address of `element`.
+unsafe fn planned_array<M: Memory>(
+    mem: &mut M,
+    labels: &mut [(usize, Value); 4],
+    element: &[u8],
+    b: &[u8],
+) -> Value {
+    let (n, at) = rd_uleb(b, 0, ImageId::Runtime).unwrap_or_else(|_| malformed_array());
+    // Every element takes a byte at least.
+    if n > b.len() as u64 {
+        malformed_array();
+    }
+    let (n, mut at) = (n as usize, at as usize);
+    let (record, parts) = element_parts(element);
+    if !record || n == 0 {
+        let array = alloc_array(mem, TAG_ARRAY_I, n);
+        for i in 0..n {
+            let x = planned_part(mem, element, b, &mut at);
+            array.as_array().initialize(i, x, mem);
+        }
+        if at != b.len() {
+            malformed_array();
+        }
+        return allocation_barrier(array);
+    }
+    let (mut found, mut hash) = ([&[][..]; 16], [0u32; 16]);
+    let mut k = 0;
+    for e in parts {
+        if k == 16 {
+            return array_of_ve(mem, element, b);
+        }
+        (found[k], hash[k]) = (e.codes, e.hash);
+        k += 1;
+    }
+    let key = element.as_ptr() as usize;
+    let slot = labels
+        .iter()
+        .position(|&(a, _)| a == key || a == 0)
+        .unwrap_or(key % 4);
+    if labels[slot].0 != key {
+        let v = alloc_blob(mem, TAG_BLOB_B, Bytes(k * size_of::<u64>()));
+        let h = v.as_blob_mut().payload_addr() as *mut u64;
+        for (i, x) in hash[..k].iter().enumerate() {
+            h.add(i).write_unaligned(u64::from(*x));
+        }
+        labels[slot] = (key, allocation_barrier(v));
+    }
+    let array = alloc_array(mem, TAG_ARRAY_I, n);
+    for i in 0..n {
+        let v = new_object(mem, labels[slot].1);
+        let fields = (v.get_ptr() as *mut Object).payload_addr();
+        for (j, codes) in found[..k].iter().enumerate() {
+            *fields.add(j) = planned_part(mem, codes, b, &mut at);
+        }
+        array.as_array().initialize(i, allocation_barrier(v), mem);
+    }
+    if at != b.len() {
+        malformed_array();
+    }
+    allocation_barrier(array)
+}
+
+/// `part_of_ve`, a Nat or an Int of at most 9 bytes read in 64 bits.
+#[inline(always)]
+unsafe fn planned_part<M: Memory>(mem: &mut M, codes: &[u8], b: &[u8], at: &mut usize) -> Value {
+    let (code, optional) = match codes {
+        [ty::OPTION, c] => (*c, true),
+        [c] => (*c, false),
+        _ => return part_of_ve(mem, codes, b, at),
+    };
+    if matches!(code, ty::NAT | ty::INT) && (!optional || b.get(*at) == Some(&1)) {
+        let s = *at + usize::from(optional);
+        let mut v = 0u64;
+        for i in 0..9 {
+            let Some(&x) = b.get(s + i) else { break };
+            v |= u64::from(x & 0x7F) << (7 * i);
+            if x < 0x80 {
+                *at = s + i + 1;
+                return if code == ty::NAT {
+                    nat_of_u64(v)
+                } else {
+                    let shift = 64 - 7 * (i as u32 + 1);
+                    int_from_isize(((v << shift) as i64 >> shift) as isize)
+                };
+            }
+        }
+    }
+    part_of_ve(mem, codes, b, at)
 }
 
 /// Rows read from a table, one after the other, each built as Motoko values: the key as a value
@@ -1776,12 +1910,7 @@ impl<'a, M: Memory> RowOut<'a, M> {
         RowOut {
             mem,
             out,
-            fields: Picked {
-                leaves,
-                picks,
-                key,
-                table: layout.entries(),
-            },
+            fields: Picked { leaves, picks, key },
             next: 0,
             columns: width,
             labels: (record && out != Out::Key).then_some(labels),
@@ -1793,6 +1922,60 @@ impl<'a, M: Memory> RowOut<'a, M> {
             pending_len: 0,
             _layout: core::marker::PhantomData,
         }
+    }
+}
+
+impl<'a, M: Memory> RowOut<'a, M, InPlan<'a>> {
+    /// Rows of a view read through its plan: `codes` holds the place of each field's type codes in the table's
+    /// layout `table`, the row a record with `labels` as its hash list, or the one scalar. Traps when `labels`
+    /// does not have one label per field of the view, or none for a view of a scalar.
+    pub unsafe fn planned(
+        mem: *mut M,
+        table: &'a [u8],
+        codes: &'a [u32],
+        plan: &'a [Planned],
+        labels: Value,
+        out: Out,
+    ) -> RowOut<'a, M, InPlan<'a>> {
+        // The plan holds the key's leaf first: the view's fields alone for a row.
+        let (shift, plan, codes) = match out {
+            Out::Row => (1, &plan[1..], &codes[2..]),
+            _ => (0, plan, codes),
+        };
+        let n = codes.len() / 2 - (1 - shift);
+        if tag_of(labels) != Some(TAG_BLOB_B) {
+            mismatch();
+        }
+        let record = labels.as_blob().len().as_usize() == n * size_of::<u64>();
+        if !record && (labels.as_blob().len().as_usize() != 0 || n != 1) {
+            mismatch();
+        }
+        RowOut {
+            mem,
+            out,
+            fields: InPlan {
+                table,
+                codes,
+                plan,
+                shift,
+                labels: [(0, NULL_POINTER); 4],
+            },
+            next: 0,
+            columns: plan.len(),
+            labels: record.then_some(labels),
+            record: core::ptr::null_mut(),
+            value: Value::from_scalar(0),
+            key: Value::from_scalar(0),
+            rid: 0,
+            pending: core::ptr::null_mut(),
+            pending_len: 0,
+            _layout: core::marker::PhantomData,
+        }
+    }
+
+    /// The leaves the plan reads, the key's first when the key is built.
+    pub fn plan(&self) -> &'a [Planned] {
+        self.fields.plan
     }
 }
 
@@ -1853,7 +2036,7 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
         };
         match v {
             CellOut::Null if optional => Some(NULL_POINTER),
-            CellOut::Bytes(b) => Some(array_of_ve(&mut *self.mem, element, b)),
+            CellOut::Bytes(b) => Some(self.fields.array_of(&mut *self.mem, element, b)),
             CellOut::Arg { len } => Some(self.later((column as u32) << 16, ty::LIST, len)),
             _ => None,
         }
@@ -1929,9 +2112,9 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
     /// The array of `column`, of an array type, whose bytes are `bytes`.
     #[cold]
     #[inline(never)]
-    unsafe fn long_array(&self, column: usize, bytes: &[u8]) -> Value {
+    unsafe fn long_array(&mut self, column: usize, bytes: &[u8]) -> Value {
         match array_type(self.fields.codes(column)) {
-            Some((_, element)) => array_of_ve(&mut *self.mem, element, bytes),
+            Some((_, element)) => self.fields.array_of(&mut *self.mem, element, bytes),
             None => rts_trap_with("native table: malformed layout"),
         }
     }
@@ -1951,7 +2134,6 @@ impl<'a, M: Memory, F: Places<'a>> RowOut<'a, M, F> {
             match code {
                 ty::NAT => *slot = nat_of_leb(bytes),
                 ty::INT => *slot = int_of_sleb(bytes),
-                ty::TEXT => check_utf8(bytes),
                 ty::LIST => *slot = self.long_array((leaf >> 16) as usize, bytes),
                 _ => {}
             }
@@ -2010,10 +2192,7 @@ impl<'a, M: Memory, F: Places<'a>> RowSink for RowOut<'a, M, F> {
                 (ty::INT, CellOut::I64(n)) => int_from_isize(n as isize),
                 (ty::INT, CellOut::Int(b)) => int_of_sleb(b),
                 (ty::F64, CellOut::F64(f)) => box64(mem, TAG_BITS64_F, f.to_bits()),
-                (ty::TEXT, CellOut::Bytes(b)) => {
-                    check_utf8(b);
-                    blob_of(mem, TAG_BLOB_T, b)
-                }
+                (ty::TEXT, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_T, b),
                 (ty::BLOB, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_B, b),
                 (ty::PRINCIPAL, CellOut::Bytes(b)) => blob_of(mem, TAG_BLOB_P, b),
                 (ty::NAT | ty::INT | ty::TEXT | ty::BLOB, CellOut::Arg { len }) => {

@@ -10,34 +10,36 @@
 //! of the column's name and the name (the key has none).
 //!
 //! The layout of a view (`view_layout`) is the layout of the table it reads, then the byte `VIEW`,
-//! which no column entry starts with, then 4 bytes per field of the view's row: the u16 position
-//! of the field in the table's layout, then its first two type codes, padded with 0; then the u32
-//! offset of the `VIEW` byte. So a call made with a view's codec finds the table's layout where a
-//! table's codec has it: a call that checks only the layout's header reads the table's. A table's
-//! layout ends with the name of its last column, ASCII letters, digits and underscores, or with a
-//! column that has none, whose label hash and name length are 0; so its last 4 bytes, read as a
-//! u32, are 0 or at least 0x30000000, never the offset of a `VIEW` byte in it (`Layout::of`).
+//! which no column entry starts with, then 8 bytes per field of the view's row: the u16 position
+//! of the field in the table's layout, the u16 length of its type codes and the u32 offset of them
+//! in the table's layout; then the u32 offset of the `VIEW` byte. So a call made with a view's
+//! codec finds the table's layout where a table's codec has it: a call that checks only the
+//! layout's header reads the table's. A table's layout ends with the name of its last column,
+//! ASCII letters, digits and underscores, or with a column that has none, whose label hash and
+//! name length are 0; so its last 4 bytes, read as a u32, are 0 or at least 0x30000000, never the
+//! offset of a `VIEW` byte in it (`Layout::of`).
 
 use ::native_table::Fault;
 use ::native_table::fault::bounds;
 use ::native_table::mem::{rd_u8, rd_u16, rd_u32, rd_u64};
 use ::native_table::schema::{
-    self, Column, ColumnType, DECL_BYTES, IndexDecl, LEAF_NULLABLE, Leaf, LeafSink, SchemaParts,
-    SchemaView, flatten, list_end, node, tuple_end, write_schema,
+    self, Column, ColumnType, DECL_BYTES, IndexDecl, LEAF_KEY, LEAF_NULLABLE, Leaf, LeafSink,
+    SchemaParts, SchemaView, flatten, list_end, node, tuple_end, write_schema,
 };
+use ::native_table::table::read::Planned;
 use ::native_table::value::ty;
 
 use crate::barriers::allocation_barrier;
 use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
-use crate::types::{Bytes, TAG_BLOB_B, Value};
+use crate::types::{Bytes, NULL_POINTER, TAG_BLOB_B, Value};
 
 const MAGIC: &[u8] = b"NTCD";
 const VERSION: u32 = 1;
 /// The byte after the table's layout in a view's layout.
 const VIEW: u8 = 0xFF;
 /// The bytes of a field of a view.
-const PICK: usize = 4;
+const PICK: usize = 8;
 /// Bytes before the first column.
 const HEADER: usize = 20;
 /// The schema version of a new table, which added every column.
@@ -210,7 +212,7 @@ impl<'a> Layout<'a> {
         let table = Self::view_table(bytes)?;
         let picks = &bytes[table.len() + 1..bytes.len() - 4];
         let layout = Self::header(table)?;
-        (picks.len() % PICK == 0).then_some((layout, Picks { picks }))
+        (picks.len() % PICK == 0).then_some((layout, Picks { picks, table }))
     }
 
     /// The bytes of the table's layout in a view's layout `bytes`, or `None` when `bytes` is not a
@@ -301,6 +303,8 @@ impl<'a> Layout<'a> {
 #[derive(Clone, Copy, Default)]
 pub struct Picks<'a> {
     picks: &'a [u8],
+    /// The table's layout, where the type codes of the fields are.
+    table: &'a [u8],
 }
 
 impl<'a> Picks<'a> {
@@ -314,8 +318,12 @@ impl<'a> Picks<'a> {
         let p = self
             .picks
             .get(PICK.wrapping_mul(i)..PICK.wrapping_mul(i.wrapping_add(1)))?;
-        let n = if p[2] == ty::OPTION { 2 } else { 1 };
-        Some((usize::from(u16::from_le_bytes([p[0], p[1]])), &p[2..2 + n]))
+        let n = usize::from(u16::from_le_bytes([p[2], p[3]]));
+        let at = u32::from_le_bytes([p[4], p[5], p[6], p[7]]) as usize;
+        Some((
+            usize::from(u16::from_le_bytes([p[0], p[1]])),
+            self.table.get(at..at + n)?,
+        ))
     }
 }
 
@@ -408,11 +416,151 @@ pub unsafe fn view_layout<M: Memory>(mem: &mut M, codec: &[u8], view: &Layout) -
         let p = u16::try_from(p).unwrap_or_else(|_| rts_trap_with(bounds(p as u64).text()));
         let at = start + 1 + PICK * i;
         out[at..at + 2].copy_from_slice(&p.to_le_bytes());
-        let codes = &e.codes[..e.codes.len().min(2)];
-        out[at + 2..at + 2 + codes.len()].copy_from_slice(codes);
+        let n = u16::try_from(e.codes.len())
+            .unwrap_or_else(|_| rts_trap_with("native table: malformed layout"));
+        let codes = e.codes.as_ptr() as usize - table.as_ptr() as usize;
+        out[at + 2..at + 4].copy_from_slice(&n.to_le_bytes());
+        out[at + 4..at + 8].copy_from_slice(&(codes as u32).to_le_bytes());
     }
     out[size - 4..].copy_from_slice(&(start as u32).to_le_bytes());
     allocation_barrier(blob)
+}
+
+/// The head of a view's read plan (`placed_view`): `PLAN_MARK`, the codec hash of the table's layout, and the
+/// number of `Planned` leaves after it, the key's and then one per field of the view, in the view's order. Then,
+/// per leaf, the u32 offset and the u32 length of its type codes in the table's layout.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PlanHead {
+    pub mark: u64,
+    pub hash: u64,
+    pub n: u64,
+}
+
+/// The mark of a read plan of this runtime's form.
+const PLAN_MARK: u64 = 0x4E54_504C_414E_0002;
+
+/// The bytes of the place of a field the compiler records in the codec of a view: as a field of a view's layout
+/// (`PICK` bytes), then the u32 offset of its value in a row image's fixed region and the u32 number of the
+/// row's items before it.
+const PLACE: usize = 16;
+
+/// The leaf of column `column` of the type codes `codes`, as the schema of a table of the layout makes it
+/// (`schema::flatten`), its value past `fixed` bytes of a row image's fixed region and after `var` items; `None`
+/// for a key that is a tuple, which has a leaf per part.
+fn planned(column: usize, codes: &[u8], fixed: u32, var: u32) -> Option<Planned> {
+    let nullable = codes.first() == Some(&ty::OPTION);
+    let code = match *codes.get(usize::from(nullable))? {
+        ty::LIST => ty::BLOB,
+        c if scalar(c) => c,
+        _ => return None,
+    };
+    let ordinal = u16::try_from(column).ok()?;
+    let flags = if nullable { LEAF_NULLABLE } else { 0 } | if column == 0 { LEAF_KEY } else { 0 };
+    let (id, kind, width) = (u32::from(ordinal) << 16, node::SCALAR, 0);
+    Some(Planned {
+        id,
+        ordinal,
+        width,
+        kind,
+        code,
+        flags,
+        fixed,
+        var,
+    })
+}
+
+/// The layout and the read plan of a view of the table of `layout`, whose bytes are `table`, with the `n` fields
+/// whose places the compiler recorded in `places` (`Nt_codec.viewed`), in two new Blobs. The plan is that of a
+/// table of this layout whose row type never changed, made in one pass over the view's fields; null for a key
+/// that is a tuple. Traps for a place that is not one of a field of `layout`.
+pub unsafe fn placed_view<M: Memory>(
+    mem: &mut M,
+    table: &[u8],
+    layout: &Layout,
+    places: &[u8],
+    n: usize,
+) -> (Value, Value) {
+    let start = table.len();
+    let size = start + 1 + PICK * n + 4;
+    let view = alloc_blob(mem, TAG_BLOB_B, Bytes(size));
+    let out = core::slice::from_raw_parts_mut(view.as_blob_mut().payload_addr(), size);
+    out[..start].copy_from_slice(table);
+    out[start] = VIEW;
+    out[size - 4..].copy_from_slice(&(start as u32).to_le_bytes());
+    let key = layout.entries().next().map_or(&[][..], |e| e.codes);
+    let mut plan = planned(0, key, 0, 0).map(|leaf| {
+        let head = size_of::<PlanHead>();
+        let blob = alloc_blob(
+            mem,
+            TAG_BLOB_B,
+            Bytes(head + (n + 1) * (size_of::<Planned>() + 8)),
+        );
+        let at = blob.as_blob_mut().payload_addr();
+        let head = PlanHead {
+            mark: PLAN_MARK,
+            hash: layout.hash,
+            n: n as u64 + 1,
+        };
+        core::ptr::write_unaligned(at as *mut PlanHead, head);
+        let leaves = at.add(size_of::<PlanHead>()) as *mut Planned;
+        leaves.write(leaf);
+        let codes = leaves.add(n + 1) as *mut u32;
+        codes.write((key.as_ptr() as usize - table.as_ptr() as usize) as u32);
+        codes.add(1).write(key.len() as u32);
+        (blob, leaves, codes)
+    });
+    for i in 0..n {
+        let Some(place) = places.get(8 + PLACE * i..8 + PLACE * (i + 1)) else {
+            rts_trap_with("native table: malformed layout")
+        };
+        let pick = Picks {
+            picks: &place[..PICK],
+            table,
+        };
+        let Some((p, codes)) = pick
+            .get(0)
+            .filter(|&(p, _)| (1..layout.columns).contains(&p))
+        else {
+            rts_trap_with("native table: malformed layout")
+        };
+        out[start + 1 + PICK * i..start + 1 + PICK * (i + 1)].copy_from_slice(&place[..PICK]);
+        let (fixed, var) = (u32_at(place, PICK), u32_at(place, PICK + 4));
+        plan = plan.and_then(|(blob, leaves, at)| {
+            leaves.add(i + 1).write(planned(p, codes, fixed?, var?)?);
+            at.add(2 * i + 2)
+                .write((codes.as_ptr() as usize - table.as_ptr() as usize) as u32);
+            at.add(2 * i + 3).write(codes.len() as u32);
+            Some((blob, leaves, at))
+        });
+    }
+    let plan = plan.map_or(NULL_POINTER, |(blob, _, _)| allocation_barrier(blob));
+    (allocation_barrier(view), plan)
+}
+
+/// The read plan in the Blob `plan` (`placed_view`): its head, its leaves and the places of their type codes;
+/// `None` for a plan of another form.
+pub unsafe fn plan_of<'a>(plan: Value) -> Option<(PlanHead, &'a [Planned], &'a [u32])> {
+    let blob = plan.as_blob();
+    let at = blob.payload_const();
+    let head = core::ptr::read_unaligned(at as *const PlanHead);
+    let n = head.n as usize;
+    let size = size_of::<PlanHead>() + n * (size_of::<Planned>() + 8);
+    if blob.len().as_usize() != size || head.mark != PLAN_MARK || n == 0 {
+        return None;
+    }
+    let leaves = at.add(size_of::<PlanHead>()) as *const Planned;
+    let codes = leaves.add(n) as *const u32;
+    Some((
+        head,
+        core::slice::from_raw_parts(leaves, n),
+        core::slice::from_raw_parts(codes, 2 * n),
+    ))
+}
+
+/// The bytes of the table's layout in the codec layout `bytes`, a table's or a view's.
+pub fn table_bytes(bytes: &[u8]) -> &[u8] {
+    Layout::table(bytes).map_or(bytes, |(_, t)| t)
 }
 
 /// The column entries of a layout, in order.

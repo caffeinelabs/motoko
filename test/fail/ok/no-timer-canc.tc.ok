@@ -315,7 +315,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
                 named : NtCodec<(K, P, R)>, k : K, fields : P) ->
         Bool;
     ntView :
-      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) ->
+      <K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P, R, ())>) ->
         NtCodec<(K, P)>;
     ntWalk :
       <K, R>(id : Nat64, codec : NtCodec<(K, R)>, indexes : [([Text], Nat)],

@@ -367,6 +367,33 @@ impl Image {
     }
 }
 
+/// The block entries of `img` when they lie in a radix array of one level: the bytes of its root block, read once
+/// for many reads of the image (`block`); empty for any other image.
+pub fn radix_entries<'h, H: PageHost + ?Sized>(h: &'h H, img: &Image) -> &'h [u8] {
+    match img.blocks {
+        Blocks::Radix(r) if r.height == 1 && r.check().is_ok() => h.get(Region::Block(r.root)).unwrap_or(&[]),
+        _ => &[],
+    }
+}
+
+/// The page that holds block `k` of the image `img`, whole, its entry found in `entries` when they hold the image's
+/// block list (`radix_entries`); `None` past the image's blocks and for a block never written.
+pub fn block<'h, H: PageHost + ?Sized>(
+    h: &'h H,
+    img: &Image,
+    entries: &[u8],
+    k: u64,
+) -> Result<Option<&'h [u8]>, Fault> {
+    if k >= img.block_count() {
+        return Ok(None);
+    }
+    let p = if entries.is_empty() { img.entry(h, k)? } else { rd_u64(entries, k.wrapping_mul(8))? };
+    if p == 0 {
+        return Ok(None);
+    }
+    Ok(Some(h.get(Region::Page(p))?))
+}
+
 /// Reads one image's bytes, to the extent image storage needs: a read of image offset o resolves block k = o >> 16
 /// through the record or reference and checks o + len ≤ length, and o + len inside the block, before it
 /// forms the range. Each failure is `Corrupt { image: id, kind: Bounds, offset: o }`, a missing

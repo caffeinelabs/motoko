@@ -291,10 +291,11 @@ func ntEvolve<K, R1, R2>(id : Nat64, codec : NtCodec<(K, R1)>, next : NtCodec<(K
   (prim "nt_evolve" : (Nat64, NtCodec<(K, R1)>, NtCodec<(K, R2)>) -> Bool)(id, codec, next)
 };
 
-// The codec of a view of the table of `codec` with the row type of `viewed`, whose fields are
-// fields of R of the same names and types: a read with it reads only those fields
-func ntView<K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P)>) : NtCodec<(K, P)> {
-  (prim "nt_view" : (NtCodec<(K, R)>, NtCodec<(K, P)>) -> NtCodec<(K, P)>)(codec, viewed)
+// The codec of a view of the table of `codec` with the row type P of `viewed`, whose fields are
+// fields of R of the same names and types (the compiler gives a codec `viewed` only when they are,
+// each field's place in R's row recorded): a read with it reads only those fields
+func ntView<K, R, P>(codec : NtCodec<(K, R)>, viewed : NtCodec<(K, P, R, ())>) : NtCodec<(K, P)> {
+  (prim "nt_view" : (NtCodec<(K, R)>, NtCodec<(K, P, R, ())>) -> NtCodec<(K, P)>)(codec, viewed)
 };
 
 // Sets the fields of `fields`, a value of the row type of `named`, in the row `k` has: each field

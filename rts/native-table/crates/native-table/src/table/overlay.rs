@@ -19,13 +19,32 @@ pub struct Sealed {
     pub meta: GroupMeta,
     /// The patch directory (0: none).
     pub dir: u64,
+    /// The leaf ordinals below 256 with patches when the group was opened, as bits (`page::P_PATCHED`, one word for
+    /// a group of up to 64 leaves; all set for the words not read and for a group page that keeps none).
+    pub patched: [u64; 4],
+}
+
+impl Sealed {
+    /// Whether leaf ordinal `o` had no patch in the group when it was opened: its image cells are its values.
+    pub fn clean(&self, o: u16) -> bool {
+        self.dir == 0 || self.patched.get(usize::from(o / 64)).is_some_and(|w| w >> (o % 64) & 1 == 0)
+    }
 }
 
 /// The group whose page is `pg`.
+#[inline(always)]
 pub fn sealed<H: PageHost + ?Sized>(h: &H, pg: u64) -> Result<Sealed, Fault> {
     let gv = GroupView::open(h, pg)?;
-    let dir = crate::mem::rd_u64(h.get(Region::Block(pg))?, page::P_PATCH_DIR)?;
-    Ok(Sealed { page: pg, meta: gv.meta(), dir })
+    let b = h.get(Region::Block(pg))?;
+    let dir = crate::mem::rd_u64(b, page::P_PATCH_DIR)?;
+    let mut patched = [u64::MAX; 4];
+    if dir != 0 && crate::mem::rd_u16(b, page::P_FLAGS)? & page::PF_PATCHED != 0 {
+        let words = if gv.meta().l > 64 { 4 } else { 1 };
+        for (i, w) in (0u64..words).zip(patched.iter_mut()) {
+            *w = crate::mem::rd_u64(b, page::P_PATCHED.wrapping_add(i.wrapping_mul(8)))?;
+        }
+    }
+    Ok(Sealed { page: pg, meta: gv.meta(), dir, patched })
 }
 
 /// Whether every row of the sealed group whose page is `pg` holds null for leaf ordinal `o`, which schema version

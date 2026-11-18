@@ -21,8 +21,10 @@ actor {
     history : [{ amount : Nat; since : Int; note : ?Text }]
   };
 
+  type Named = { name : Text; codes : [Text]; scores : [?Nat]; history : [{ amount : Nat; since : Int; note : ?Text }] };
+
   let people = NativeTable.empty<Nat, Person>().createIndex(["name"]).build();
-  let names : NativeTable.NativeTable<Nat, { name : Text; codes : [Text] }> = people.view();
+  let names : NativeTable.NativeTable<Nat, Named> = people.view();
 
   type Kinds = {
     bools : [Bool];
@@ -163,6 +165,8 @@ actor {
     Prim.debugPrint(debug_show (people.size(), people.get(1), names.get(2), people.get(4_199)))
   };
 
+  func named(r : Person) : Named = { name = r.name; codes = r.codes; scores = r.scores; history = r.history };
+
   // Every row read back by get, through the view, by a scan, by keys and by an index walk
   public func check() : async () {
     var got = 0;
@@ -173,16 +177,14 @@ actor {
     while i < 4_200 {
       let r = expected(i);
       if people.get(i) == ?r { got += 1 };
-      let named = { name = r.name; codes = r.codes };
-      if names.get(i) == ?named { viewed += 1 };
+      if names.get(i) == ?named(r) { viewed += 1 };
       i += 1
     };
     for (k, r) in people.entries() {
       if r == expected(k) { scanned += 1 }
     };
     for (k, r) in names.entries() {
-      let named = { name = expected(k).name; codes = expected(k).codes };
-      if r == named { scanned += 1 }
+      if r == named(expected(k)) { scanned += 1 }
     };
     for _ in people.keys() { keys += 1 };
     let walk = people.indexEntries(["name"], ?[#text "renamed"], null);

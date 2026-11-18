@@ -1,9 +1,10 @@
 //! The group page (area 0): a sealed group's one mutable block. {magic `NTGP` u32 @0; `FORMAT_TABLE` u16 @4;
 //! flags u16 @6 (bit 0 compacted image; bit 1 compaction queued; bit 2 patches present; bit 3 huge values
-//! present; bit 4 believed; bit 5 quarantined); group number u64 @8; group image record 80 B @16; positions
-//! p u16 @96; live rows u16 @98; dead positions still stored u16 @100; zero u16 @102; schema version u32
-//! @104; long-value list entries u32 @108; patch directory u64 @112; long-value list u64 @120; live bitmap
-//! 512 B @128; zero u64 @640 and @648; extremes block u64 @656 (0: none); bytes 664–4,095 unused}.
+//! present; bit 4 believed; bit 5 quarantined; bit 6 patched leaves kept); group number u64 @8; group image
+//! record 80 B @16; positions p u16 @96; live rows u16 @98; dead positions still stored u16 @100; zero u16
+//! @102; schema version u32 @104; long-value list entries u32 @108; patch directory u64 @112; long-value list
+//! u64 @120; live bitmap 512 B @128; zero u64 @640 and @648; extremes block u64 @656 (0: none); patched leaves
+//! 32 B @664 (written with the patch directory); bytes 696–4,095 unused}.
 //!
 //! **Long-value list** (area 0, zero-filled when allocated): {magic `NTLL` u32 @0; `FORMAT_TABLE` u16 @4; zero
 //! u16 @6; next block u64 @8; first list index u32 @16; entries in this block u32 @20; zero u64 @24; 168
@@ -27,13 +28,18 @@ pub const P_LV_LIST: u64 = 120;
 pub const P_BITMAP: u64 = 128;
 /// The group's extremes block (`extremes`), 0 when it has none.
 pub const P_EXT: u64 = 656;
-/// The end of the page's fields before its unused bytes.
+/// The end of the fields a new group page writes; the patched leaves (`P_PATCHED`) follow them, written with the
+/// group's patch directory.
 pub const P_FIELDS: u64 = 664;
+/// The leaf ordinals below 256 with a patch unit, a bit each: zeroed and valid (`PF_PATCHED`) from the moment the
+/// group's patch directory is made.
+pub const P_PATCHED: u64 = 664;
 
 pub const PF_COMPACTED: u16 = 1;
 pub const PF_QUEUED: u16 = 2;
 pub const PF_PATCHES: u16 = 4;
 pub const PF_HUGE: u16 = 8;
+pub const PF_PATCHED: u16 = 64;
 
 /// Long-value list blocks.
 pub const LV_NEXT: u64 = 8;

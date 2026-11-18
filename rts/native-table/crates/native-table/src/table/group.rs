@@ -301,8 +301,8 @@ pub struct Cur<'h> {
 /// image read. `Tables::default()` holds neither.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Tables<'h> {
-    dir: &'h [u8],
-    segs: &'h [u8],
+    pub(crate) dir: &'h [u8],
+    pub(crate) segs: &'h [u8],
 }
 
 /// Entry `i` of `n` bytes of a table `t` read in one piece, when `t` holds it.

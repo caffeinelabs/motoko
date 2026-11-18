@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 use native_table::area::{AreaRecord, IMAGE_AREA};
 use native_table::consts::{COMPACT_DEAD, GROUP_SLOTS, HUGE_VALUE, LONG_VALUE, PATCH_UNITS_PER_DIR};
 use native_table::fault::Fault;
-use native_table::mem::{rd_u16, rd_u32, rd_u64};
+use native_table::mem::{put_u16, put_u64, rd_u16, rd_u32, rd_u64};
 use native_table::schema::SchemaView;
 use native_table::table::group::GroupView;
 use native_table::table::jobs::Ran;
@@ -755,6 +755,11 @@ fn patch_units_over_255() {
             assert_eq!(d, want, "unit {} takes directory block {want}", unit + 1);
             assert!(changed <= 8, "a patch write changes few blocks: {changed}");
         }
+        // Leaf ordinals 1 to 600 have units: the group page keeps the bits of those below 256, in four words.
+        let b = tb.host().get(Region::Block(pg)).unwrap();
+        assert_ne!(rd_u16(b, page::P_FLAGS).unwrap() & page::PF_PATCHED, 0);
+        let words: Vec<u64> = (0..4).map(|i| rd_u64(b, page::P_PATCHED + 8 * i).unwrap()).collect();
+        assert_eq!(words, [u64::MAX << 1, u64::MAX, u64::MAX, u64::MAX]);
         assert_eq!(dirs[253], 1);
         assert_eq!(dirs[254], 2, "the 255th unit takes a new directory block");
         assert_eq!(dirs[507], 2);
@@ -1510,4 +1515,42 @@ fn option_bool_set_after_null() {
     tb.upsert(&mut key_scratch(), &mut Src::new(&[(id(0), V::U(3)), (id(1), V::Bool(false))])).unwrap();
     assert_eq!(get_row(&tb, 3).unwrap().1[1], (id(1), V::Bool(false)));
     assert_eq!(get_row(&tb, 2).unwrap().1[1], (id(1), V::Bool(true)));
+}
+
+/// A sealed group page keeps one bit per leaf ordinal below 256 that has a patch unit: zeroed when the group's
+/// first patch makes its patch directory, set when a leaf's unit is made. A read takes a leaf whose bit is clear
+/// from the image. A group page that keeps no bits, as one written before they were kept, reads every leaf
+/// through the patches, and a patch to it keeps none.
+#[test]
+fn patched_leaves_of_a_sealed_group() {
+    let (img, _) = schema(&[t::scalar(ty::NAT), t::scalar(ty::NAT), t::scalar(ty::TEXT), t::scalar(ty::NAT)]);
+    let mut h = VecHost::new(FILLS[0]);
+    let (mut tb, _) = Table::create(&mut h, 1, &img).unwrap();
+    let mut model = BTreeMap::new();
+    let mut k = 0u64;
+    while seals(&tb) == 0 {
+        let row = vec![(id(0), V::U(k)), (id(1), V::U(k % 7)), (id(2), V::text("x")), (id(3), V::U(1))];
+        put_row(&mut tb, &mut model, row);
+        k += 1;
+    }
+    let (_, pg) = sealed_groups(&tb)[0];
+    let bits = |tb: &Table<'_, VecHost>| {
+        let b = tb.host().get(Region::Block(pg)).unwrap();
+        (rd_u16(b, page::P_FLAGS).unwrap() & page::PF_PATCHED != 0, rd_u64(b, page::P_PATCHED).unwrap())
+    };
+    assert!(!bits(&tb).0, "a packed group keeps no bits");
+    set_cell(&mut tb, &mut model, 3, id(2), V::text("a longer text"));
+    assert_eq!(bits(&tb), (true, 1 << 2));
+    set_cell(&mut tb, &mut model, 5, id(1), V::U(1 << 40));
+    assert_eq!(bits(&tb), (true, 1 << 1 | 1 << 2));
+    check_reads(&tb, &model);
+    // As a group page written before the bits were kept: no flag, and bits that would say no leaf has a patch.
+    let b = tb.host_mut().get_mut(Region::Block(pg)).unwrap();
+    let flags = rd_u16(b, page::P_FLAGS).unwrap();
+    put_u16(b, page::P_FLAGS, flags & !page::PF_PATCHED).unwrap();
+    put_u64(b, page::P_PATCHED, 0).unwrap();
+    check_reads(&tb, &model);
+    set_cell(&mut tb, &mut model, 7, id(3), V::U(1 << 40));
+    assert_eq!(bits(&tb), (false, 0));
+    check_reads(&tb, &model);
 }

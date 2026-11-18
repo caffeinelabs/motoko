@@ -512,6 +512,13 @@ impl Shape {
     /// The ordinal of the leaf with id `id`.
     pub fn ordinal_of<H: PageHost + ?Sized>(&self, h: &H, id: u32) -> Result<Option<u64>, Fault> {
         let b = h.get(Region::Page(self.page))?;
+        // Where a table whose columns never changed has it: part j of the key at j, column c after the key's
+        // other parts.
+        let c = u64::from(id >> 16);
+        let o = if c == 0 { u64::from(id & 0xFFFF) } else { c.wrapping_add(self.key_leaves).wrapping_sub(1) };
+        if o < self.leaves && rd_u32(b, self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES)))? == id {
+            return Ok(Some(o));
+        }
         for o in 0..self.leaves {
             let at = self.leaves_at.wrapping_add(o.wrapping_mul(LEAF_BYTES));
             if rd_u32(b, at)? == id {

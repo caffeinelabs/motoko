@@ -128,7 +128,7 @@ for (id, o) in names.indexEntries(["amount"], ?[#nat(100)], null) { /* … */ }
   lists the table's fields.
 - `view` takes `P` from the declared type, as `evolve` does; or give all three types:
   `orders.view<Nat, Order, Name>()`.
-- It traps when `P` has a field `R` lacks, or a field of another type.
+- When `P` has a field `R` lacks, or a field of another type, `view` does not compile (M0279).
 - A view of no field, `NativeTable<K, {}>`, reads only the keys: its index walks and scans read
   no field of the row, and `entriesWhere` only the filtered field. `keys()` reads only the keys,
   on a table too.
@@ -183,6 +183,10 @@ ignore people.update(1, { codes = ["CH", "DE", "FR"] })
 | `t.keys()`, `t.values()` | every key, every row |
 | `t.reverseEntries()` | every `(K, R)`, newest first |
 
+Each scan has a variant that gives its first `count` rows at most and reads no more:
+`t.firstEntries(count)`, `t.firstKeys(count)`, `t.firstValues(count)`,
+`t.firstReverseEntries(count)` and `t.firstEntriesWhere(field, filter, count)`.
+
 Scans go in the table's own order: the order the keys were first added, not key order. `add` over
 a key the table has, `update` and `upsert` keep a row's place; a key removed and added again comes
 last; after `clear` the order starts again. A row that stays in the table while a scan runs comes
@@ -236,6 +240,9 @@ for (id, o) in orders.reverseIndexEntries(["city", "placed"], ?[#text("Zurich"),
 - `indexEntriesAt` and `reverseIndexEntriesAt` do not read the rows before `offset`, so a page
   costs about the same at any offset: `orders.indexEntriesAt(["amount"], null, null, 64 * page)`.
 - `removeIndexRange` costs less than removing the walk's rows one by one.
+- Each walk has a variant that gives its first `count` rows at most and reads no more, the
+  count last: `firstIndexEntries`, `firstReverseIndexEntries`, `firstIndexEntriesAt` and
+  `firstReverseIndexEntriesAt`. A page: `orders.firstIndexEntriesAt(["amount"], null, null, 50 * page, 50)`.
 
 ## Filters
 
@@ -388,8 +395,8 @@ Each message starts with `native table: `.
 
 | Message | Raised by | When |
 |---|---|---|
-| `the row type has no field of that name` | `build`; `view`, `update`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex`, in the view's row type or in `fields`, or given to the call |
-| `a field has another type than the table's` | `view`, `update`, `append` | a field of the view's row type, or of `fields`, that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
+| `the row type has no field of that name` | `build`; `update`, `append`; `sum`, `sumCount`, `avg`, `min`, `max`, `entriesWhere`, `countWhere`, `sumWhere` | a field name that the row lacks: in a field list given to `createIndex` or in `fields`, or given to the call |
+| `a field has another type than the table's` | `update`, `append` | a field of `fields` that the row has with another type; `update` takes a `Nat` for an `Int` field and a `?Nat` for an `?Int` field |
 | `append takes array fields only` | `append` | a field of `fields` that is not an array field |
 | `a key that is a tuple is not one cell` | `NativeTableCells.cells` | `key` is true and the table's key is a tuple |
 | `a field of an array type has no index, filter or total` | `build`; `entriesWhere`, `countWhere`, `sumWhere`; `sum`, `sumCount`, `avg`, `min`, `max` | an array field in a field list given to `createIndex`, or given to the call |

@@ -21,6 +21,7 @@ use ::native_table::index::secondary::Start;
 use ::native_table::mem::{put, put_u64, rd_u64};
 use ::native_table::schema::{IndexDecl, SchemaView};
 use ::native_table::table::filter::Filter;
+use ::native_table::table::read::Planned;
 use ::native_table::table::totals::Total;
 use ::native_table::table::{
     CellIn, CellOut, RowSink, RowSource, Table, Upsert, buffer, indexes, root,
@@ -31,13 +32,13 @@ use ::native_table::{Budget, Fault, PageHost, Region, Scratch, Wake};
 use motoko_rts_macros::ic_mem_fn;
 
 use super::layout::{
-    Layout, Picks, SCHEMA_VERSION, array_type, evolved_image, merge, schema_image, scratch,
-    view_layout,
+    Layout, Picks, PlanHead, SCHEMA_VERSION, array_type, evolved_image, merge, placed_view,
+    plan_of, schema_image, scratch, table_bytes, view_layout,
 };
 use super::row::{
     CellRows, Cells, Map, Out, Places, RowOut, cells, column_type, compact, filter_cond,
     int_of_i128, int_of_twos, key, key_cell, key_cells, nat_of_u64, nat64_of, or_trap, pair,
-    text_bytes, update_cells,
+    scalar, text_bytes, update_cells,
 };
 use super::store::StoreHost;
 use crate::barriers::allocation_barrier;
@@ -45,7 +46,7 @@ use crate::memory::{Memory, alloc_array, alloc_blob};
 use crate::persistence::native_store_location;
 use crate::rts_trap_with;
 use crate::text::text_compare;
-use crate::types::{Bytes, NULL_POINTER, TAG_ARRAY_I, TAG_BLOB_B, TRUE_VALUE, Value};
+use crate::types::{Bytes, NULL_POINTER, TAG_ARRAY_I, TAG_ARRAY_T, TAG_BLOB_B, TRUE_VALUE, Value};
 
 /// The host word that holds the codec hash, with `CHANGED` mixed in (XOR) once the table's row
 /// type has changed.
@@ -469,15 +470,53 @@ unsafe fn put_row<M: Memory>(
 
 /// The codec of a view of the table of `codec`, a table's codec or a view's, with the row type of
 /// the codec `viewed`, a record whose fields are fields of the table's row, of the same names and
-/// types, or the table's scalar row: a pair, as every codec is, of the view's layout
-/// (`view_layout`) and the hash list of the view's row type. A read with it reads only the view's
-/// fields. Traps when the table's row has no field of a name of `viewed`'s, or has it with
-/// another type.
+/// types, or the table's scalar row: an array, as every codec is, of the view's layout, the hash
+/// list of the view's row type and, for a view of a table's codec, the view's read plan. The
+/// compiler records in `viewed` the place of each field in the table's row (`Nt_codec.viewed`);
+/// `view_layout` finds them by name in a view of a view. A read with it reads only the view's
+/// fields.
 #[ic_mem_fn(ic_only)]
 pub unsafe fn nt_view<M: Memory>(mem: &mut M, codec: Value, viewed: Value) -> Value {
-    let view = checked_layout_of(viewed);
-    let layout = view_layout(mem, blob_bytes(codec.as_array().get(0)), &view);
-    pair(mem, layout, labels_of(viewed))
+    let bytes = blob_bytes(codec.as_array().get(0));
+    let places = blob_bytes(viewed.as_array().get(1));
+    let n = header_of(viewed).columns().saturating_sub(1);
+    let Some(hashes) = places.get(8 + 16 * n..) else {
+        rts_trap_with("native table: malformed layout")
+    };
+    let labels = alloc_blob(mem, TAG_BLOB_B, Bytes(hashes.len()));
+    let at = labels.as_blob_mut().payload_addr();
+    core::ptr::copy_nonoverlapping(hashes.as_ptr(), at, hashes.len());
+    let labels = allocation_barrier(labels);
+    let (layout, plan) = match Layout::of(bytes) {
+        Some(table) if places.get(..8) == Some(&table.hash.to_le_bytes()[..]) => {
+            placed_view(mem, bytes, &table, places, n)
+        }
+        _ => (
+            view_layout(mem, bytes, &checked_layout_of(viewed)),
+            NULL_POINTER,
+        ),
+    };
+    let codec = alloc_array(mem, TAG_ARRAY_T, 2 + usize::from(plan != NULL_POINTER));
+    for (i, x) in [layout, labels, plan]
+        .into_iter()
+        .take(codec.as_array().len())
+        .enumerate()
+    {
+        codec.as_array().initialize(i, x, mem);
+    }
+    allocation_barrier(codec)
+}
+
+/// The read plan of the view's codec `codec` (`nt_view`) and the bytes of the table's layout;
+/// `None` for a codec that holds none.
+#[inline(always)]
+unsafe fn codec_plan<'a>(codec: Value) -> Option<(PlanHead, &'a [Planned], &'a [u32], &'a [u8])> {
+    let a = codec.as_array();
+    if a.len() != 3 {
+        return None;
+    }
+    let (head, plan, codes) = plan_of(a.get(2))?;
+    Some((head, plan, codes, table_bytes(blob_bytes(a.get(0)))))
 }
 
 /// The row key `k` has, built as a value of the row type, or null.
@@ -524,6 +563,9 @@ unsafe fn get<'a, M: Memory, F: Places<'a>>(
 #[cold]
 #[inline(never)]
 unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Value {
+    if let Some(row) = get_planned(mem, id, codec, k) {
+        return row;
+    }
     let (layout, picks) = view_of(codec);
     let one;
     let mut k = key!(mem, &layout, k, one);
@@ -532,6 +574,34 @@ unsafe fn get_view<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> V
     let map = root_block(&host, id, &layout);
     let mut row = RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Row);
     get(mem, &mut host, id, &mut k, &mut row)
+}
+
+/// `get_view` through the view's read plan, for a table whose row type never changed: the key's
+/// cell is made for the plan's key leaf, and no layout is read. `None` for a view with no plan,
+/// and for a table whose row type has changed.
+#[inline(always)]
+unsafe fn get_planned<M: Memory>(mem: &mut M, id: u64, codec: Value, k: Value) -> Option<Value> {
+    let (head, plan, codes, bytes) = codec_plan(codec)?;
+    let one = [scalar(mem, plan[0].code, k)];
+    let mut k = Cells::new(&one);
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    let Some(block) = host.root(id) else {
+        rts_trap_with("native table: not a table of this key and row type");
+    };
+    if rd_u64(block, CODEC_HASH) != Ok(head.hash) {
+        return None;
+    }
+    let mut row = RowOut::planned(mem, bytes, codes, plan, labels_of(codec), Out::Row);
+    let fields = row.plan();
+    let table = table_at(&mut host, id);
+    let mut scratch = BlobScratch { mem };
+    let found = table.get_planned(&mut scratch, &mut k, &plan[0], fields, &mut row);
+    Some(if or_trap(found) {
+        row.finish(&table)
+    } else {
+        NULL_POINTER
+    })
 }
 
 /// Removes the row key `k` has; 1 when `k` had one, else 0. A step of maintenance runs first when
@@ -785,10 +855,9 @@ pub unsafe fn nt_walk<M: Memory>(
     let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
-    // A view's picks name field positions, so its row is built from the layout in field order,
-    // before that layout is replaced by the one in column order.
-    let picked =
-        view.map(|picks| RowOut::picked(mem, &layout, picks, map, labels_of(codec), Out::Entry));
+    // A view's picks name field positions, so its rows are built from the layout in field order,
+    // which the one in column order replaces below.
+    let field_layout = layout;
     if let Some(map) = map {
         layout = map.layout(&mut *mem, &layout);
     }
@@ -867,10 +936,10 @@ pub unsafe fn nt_walk<M: Memory>(
             }
         }
     }
-    match (picked, map) {
+    match (view, map) {
         (None, None) => rows_of(&table, rids, n, &mut row, rows),
         (None, Some(map)) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
-        (Some(mut picked), _) => rows_of(&table, rids, n, &mut picked, rows),
+        (Some(picks), _) => view_rows(mem, &table, codec, &field_layout, picks, map, rids, n, rows),
     }
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);
@@ -880,6 +949,35 @@ pub unsafe fn nt_walk<M: Memory>(
         blob_of_parts(mem, &[], &[])
     };
     pair(mem, array, token)
+}
+
+/// `rows_of` for a view's codec `codec`, whose fields are `picks` in the table's layout `layout`,
+/// `map` the table's map when its row type has changed: through the view's read plan when the
+/// table's row type never changed. Out of line, so a walk of a table runs as before.
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+unsafe fn view_rows<'a, M: Memory>(
+    mem: *mut M,
+    table: &Table<'_, StoreHost<'_, M>>,
+    codec: Value,
+    layout: &Layout<'a>,
+    picks: Picks<'a>,
+    map: Option<Map>,
+    rids: *const u64,
+    n: usize,
+    rows: *mut Value,
+) {
+    let Some((_, plan, codes, bytes)) = codec_plan(codec).filter(|_| map.is_none()) else {
+        let mut row = RowOut::picked(mem, layout, picks, map, labels_of(codec), Out::Entry);
+        return rows_of(table, rids, n, &mut row, rows);
+    };
+    let mut row = RowOut::planned(mem, bytes, codes, plan, labels_of(codec), Out::Entry);
+    for i in 0..n {
+        if !or_trap(table.get_rid_planned(*rids.add(i), plan, &mut row)) {
+            rts_trap_with("native table: an index names a row the table does not have");
+        }
+        rows.add(i).write(row.finish(table));
+    }
 }
 
 /// The rows of the `n` row ids at `rids` of `table`, built by `row` at the start of `rows`.
@@ -1216,7 +1314,10 @@ unsafe fn scan_view<M: Memory>(
 ) -> Value {
     let (mut layout, picks) = match what {
         1 => (header_of(codec), Picks::default()),
-        _ => view_of(codec),
+        _ => match scan_planned(mem, id, codec, what, filter, next, limit) {
+            Some(rows) => return rows,
+            None => view_of(codec),
+        },
     };
     let out = scan_out(what);
     let limit = limit.min(BATCH_LIMIT) as usize;
@@ -1231,6 +1332,42 @@ unsafe fn scan_view<M: Memory>(
     let filter = filter_opt(&mut *mem, &layout, filter);
     let (rest, n) = scan(&mut host, id, filter.as_ref(), what, next, limit, rows, row);
     batch(&mut *mem, rows, n, rest)
+}
+
+/// `scan_view` of the rows (`what` 0 or 2) through the view's read plan, for a table whose row type
+/// never changed; `None` for any other scan, a view with no plan, and a table whose row type has
+/// changed.
+#[inline(never)]
+unsafe fn scan_planned<M: Memory>(
+    mem: &mut M,
+    id: u64,
+    codec: Value,
+    what: u64,
+    filter: Value,
+    next: u64,
+    limit: u64,
+) -> Option<Value> {
+    let (head, plan, codes, bytes) = codec_plan(codec).filter(|_| what == 0 || what == 2)?;
+    let layout = Layout::header(bytes)?;
+    let mem: *mut M = mem;
+    let mut host = StoreHost::new(&mut *mem, native_store_location());
+    if rd_u64(host.root(id)?, CODEC_HASH) != Ok(head.hash) {
+        return None;
+    }
+    let limit = limit.min(BATCH_LIMIT) as usize;
+    let rows = scratch::<Value, M>(&mut *mem, limit);
+    let row = RowOut::planned(mem, bytes, codes, plan, labels_of(codec), scan_out(what));
+    let fields = row.plan();
+    let filter = filter_opt(&mut *mem, &layout, filter);
+    let table = table_at(&mut host, id);
+    let mut m = Matches {
+        row,
+        table: &table,
+        rows,
+        n: 0,
+    };
+    let rest = or_trap(table.scan_planned(fields, filter.as_ref(), next, limit as u64, &mut m));
+    Some(batch(&mut *mem, rows, m.n, rest))
 }
 
 /// Added to `nt_scan`'s `what`: the rows come newest first.
