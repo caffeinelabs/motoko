@@ -1033,7 +1033,8 @@ and check_typ' env typ : T.typ =
   | AsyncT (s, typ0, typ) ->
     let t0 = check_typ env typ0 in
     let t = check_typ env typ in
-    if not env.pre && not (T.shared t) then
+    (* only a future's result crosses a message boundary; a computation runs in its awaiter *)
+    if not env.pre && s = T.Fut && not (T.shared t) then
       error_shared env t typ.at
         "M0033" "async has non-shared content type%a"
         display_typ_expand t;
@@ -2944,7 +2945,7 @@ and infer_exp'' env exp : T.typ =
         scopes = T.ConEnv.add c exp.at env.scopes } in
     let t = infer_exp env' exp1 in
     let t' = T.open_ [t1] (T.close [c] t)  in
-    if not (T.shared t') then
+    if s = T.Fut && not (T.shared t') then
       error_shared env t' exp1.at "M0033" "async type has non-shared content type%a"
         display_typ_expand t';
     T.Async (s, t1, t')

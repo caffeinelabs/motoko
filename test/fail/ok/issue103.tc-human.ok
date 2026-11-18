@@ -34,3 +34,40 @@ is or contains non-shared type
     ┌─ issue103.mo:24:29
  24 │    func invalid4 () : (async ({foo : () -> Nat})) {
     │                              ^^^^^^^^^^^^^^^^^^^ 
+error[M0033]: async type has non-shared content type
+  [var Nat]
+type
+  [var Nat]
+is or contains non-shared type
+  var Nat
+    ┌─ issue103.mo:33:18
+ 33 │      ignore async { await* cell() }
+    │                   ^^^^^^^^^^^^^^^^^ 
+error[M0033]: async has non-shared content type
+  T
+    ┌─ issue103.mo:39:35
+ 39 │    func invalid6<T>(x : T) : async T { x }
+    │                                    ^ 
+error[M0032]: shared function has non-shared return type
+  [var Nat]
+type
+  [var Nat]
+is or contains non-shared type
+  var Nat
+    ┌─ issue103.mo:44:21
+ 44 │    func invalid7(f : shared () -> async [var Nat]) {}
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  async*<$> [var Nat]
+type
+  async*<$> [var Nat]
+is or contains non-shared type
+  async*<$> [var Nat]
+    ┌─ issue103.mo:49:28
+ 49 │    func invalid8(f : shared (async* [var Nat]) -> ()) {}
+    │                             ^^^^^^^^^^^^^^^^^^ 
+error[M0173]: to_candid argument must have shared type, but instead has non-shared type
+  async*<$> [var Nat]
+    ┌─ issue103.mo:53:48
+ 53 │    func invalid9(c : async* [var Nat]) : Blob { to_candid (c) }
+    │                                                 ^^^^^^^^^^^^^ 

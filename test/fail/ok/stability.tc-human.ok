@@ -67,6 +67,11 @@ error[M0131]: variable wrong is declared stable but has non-stable type
     ┌─ stability.mo:50:15
  50 │     stable let wrong = module {}; // reject
     │                ^^^^^ 
+error[M0131]: variable comp is declared stable but has non-stable type
+  ?(async*<$> [var Nat])
+    ┌─ stability.mo:51:14
+ 51 │    stable var comp : ?(async* [var Nat]) = null // reject
+    │               ^^^^ 
 error[M0019]: stable variable names foo and nxnnbkddcv in actor type have colliding hashes
     ┌─ stability.mo:26:15
  26 │     stable var nxnnbkddcv = (); // reject due to collision

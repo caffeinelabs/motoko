@@ -111,3 +111,25 @@ because of incompatible async scopes:
     ┌─ illegal-await.mo:38:20
  38 │      await Rec(n-1, a)
     │                     ^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-53.10
+  scope $@anon-async-55.12 is illegal-await.mo:55.12-55.29
+  scope $@anon-async-53.10 is illegal-await.mo:53.10-56.4
+    ┌─ illegal-await.mo:55:26
+ 55 │      ignore async { await f } // illegal: f belongs to the outer async
+    │                           ^ 
+help: start of scope $@anon-async-55.12 mentioned in error at illegal-await.mo:55.20-55.27
+    ┌─ illegal-await.mo:55:12
+ 55 │      ignore async { await f } // illegal: f belongs to the outer async
+    │             ^ 
+help: end of scope $@anon-async-55.12 mentioned in error at illegal-await.mo:55.20-55.27
+    ┌─ illegal-await.mo:55:28
+ 55 │      ignore async { await f } // illegal: f belongs to the outer async
+    │                             ^ 
+help: start of scope $@anon-async-53.10 mentioned in error at illegal-await.mo:55.20-55.27
+    ┌─ illegal-await.mo:53:10
+ 53 │    ignore async {
+    │           ^ 
+help: end of scope $@anon-async-53.10 mentioned in error at illegal-await.mo:55.20-55.27
+    ┌─ illegal-await.mo:56:3
+ 56 │    }
+    │    ^ 

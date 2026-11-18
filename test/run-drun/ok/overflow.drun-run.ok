@@ -10,4 +10,6 @@ debug.print: ok 7
 debug.print: ok 8
 debug.print: ok 9
 debug.print: ok 10
+debug.print: ok 11: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: left shift result too large'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Completed: Reply: 0x4449444c0000

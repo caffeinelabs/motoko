@@ -1,0 +1,7 @@
+install $ID var-array-mismatch/version0.mo ""
+upgrade $ID var-array-mismatch/version0.mo ""
+upgrade $ID var-array-mismatch/version1.mo ""
+reinstall $ID var-array-mismatch/version1.mo ""
+upgrade $ID var-array-mismatch/version1.mo ""
+upgrade $ID var-array-mismatch/version0.mo ""
+upgrade $ID var-array-mismatch/version2.mo ""

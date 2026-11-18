@@ -18,7 +18,7 @@ sidebar:
 | M0030 | Type field does not exist in type. | ```type Person = { name : Text }; func getName(p : Person) : Nat { p.age }``` | The field `age` doesn't exist in the `Person` type. |
 | M0031 | Shared function has non-shared parameter type. | ```public shared func process(obj : { var count : Nat }) { ... }``` | Shared functions cannot have mutable types as parameters. |
 | M0032 | Shared function has non-shared return type. | ```public shared func getData() : { var data : [Nat] } { ... }``` | Shared functions cannot return mutable types. |
-| M0033 | Async has non-shared content type. | ```async { var counter = 0 }``` | Async blocks cannot contain mutable [state](../fundamentals/actors/state.md). |
+| M0033 | Async has non-shared content type. | ```async { [var 0] }``` | A future's result must be shared. For a local computation with a non-shared result, use `async*`. |
 | M0036 | Invalid return type for shared query function. | ```public shared query func getUsers() : async [User] { ... }``` | Query functions cannot return async types. |
 | M0038 | Misplaced await. | ```func compute() { let x = await promise; }``` | `await` can only be used in an async function or block. |
 | M0045 | Wrong number of type arguments. | ```func process<T>(x : Array<T, Nat>) { ... }``` | `Array` type expects one type parameter, not two. |

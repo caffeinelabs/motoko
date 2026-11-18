@@ -66,6 +66,12 @@ actor a {
     }} catch e {
         Prim.debugPrint("ok 10");
     };
+    try {await async {
+        ignore Prim.shiftLeft(1, 2_147_483_648);
+        Prim.debugPrint("not ok 11");
+    }} catch e {
+        Prim.debugPrint("ok 11: " # Prim.errorMessage(e));
+    };
   }
 };
 a.go(); //OR-CALL ingress go "DIDL\x00\x00"

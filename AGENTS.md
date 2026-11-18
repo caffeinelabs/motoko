@@ -38,6 +38,20 @@ vendored under `test/*-stub`.
   there shall be none. `assert false` only for genuinely impossible cases —
   a new `assert false`/`failwith`/non-exhaustive `match` reachable from valid
   Motoko input is a bug.
+- **moc 2 syntax for new Motoko code**: every `.mo` line a change adds or
+  modifies (prelude, tests, samples, doc examples) is already in moc 2 syntax,
+  so `mo-fmt --syntax moc2` would leave it unchanged. Lines you don't touch can
+  stay as they are, and tests about legacy syntax itself are exempt. In
+  practice: unparenthesized heads (`if c {`, `while i < n {`, `switch x {`) and
+  case patterns (`case ?x {`); braced `if`/`else`/`case`/`catch`/`try` bodies;
+  no `;` after a block's last item; `do { … }` for a block after `await`,
+  `ignore`, `assert`, or `let … else`. Also write calls as `f(x)`, never
+  `f x`, which the formatter only enforces in control heads. To check, run
+  [`mo-fmt`](https://github.com/caffeinelabs/tree-sitter-motoko) (also
+  installable with `mops toolchain`) with `--syntax moc2 --check`. It can't
+  parse the prelude's `@` names, so check a copy with them renamed.
+  [doc/md/moc-v2-migration.md](doc/md/moc-v2-migration.md) covers the
+  language changes behind the syntax.
 - **Tests are expectation-based**: a test `foo.mo` pairs with `ok/foo.*.ok`
   files regenerated via `test-runner -b -a <dir>` (or `run-test -a foo.mo` for a
   single file). Changing compiler output without updating the paired `.ok`

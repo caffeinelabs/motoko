@@ -1,8 +1,67 @@
 # Motoko compiler changelog
 
-## Next
+## 2.2.2 (2026-11-13)
 
 * motoko (`moc`)
+
+  * bugfix: Candid subtype checks on shared function and actor references
+    now handle records correctly. A missing `opt` field that sorts before the
+    remaining fields no longer causes a spurious "incompatible function type"
+    trap, and records with differently named fields are no longer wrongly
+    accepted (#6498).
+
+  * bugfix: `Prim.shiftRight` by 2^31 or more returns 0 instead of a wrong
+    value, and `Prim.shiftLeft` of a nonzero value traps with "left shift
+    result too large" when the result would have 2^31 or more bits, instead
+    of returning a wrong value. The interpreter agrees and no longer hangs
+    on large shift amounts (#6423).
+
+  * perf: a `switch` on a tuple, such as `switch (a, b)` or
+    `switch (f())`, no longer allocates the tuple on the heap when every case
+    is a tuple pattern (or a wildcard). Neither does a projection from a
+    tuple-returning call like `f().0` (#6486).
+
+  * bugfix: a canister with more than about 20,000 constant values (for example,
+    that many distinct text literals), or with an array literal of more than
+    about 18,500 constant elements, now installs instead of failing with
+    `IC0505` (function complexity exceeds the maximum allowed) (#6490).
+
+## 2.2.1 (2026-11-03)
+
+* motoko (`moc`)
+
+  * bugfix: the upgrade check of enhanced orthogonal persistence now rejects
+    changing a record field between `var f : [T]` and `f : [var T]`, `Char`
+    to or from `Nat32`, and `()` to or from `Null` (or to `?T`). It used to
+    accept these upgrades, after which the new code misread the old heap. The
+    first upgrade from `moc` 2.2.0 or earlier still accepts them, as the
+    stable type those releases stored doesn't tell them apart. Before that
+    upgrade, run `moc --stable-compatible`, which rejects them: for example,
+    a stored `Nat32` read as a `Char` can become an invalid code point (a
+    surrogate or one above `0x10FFFF`), and a `var [T]` field read as
+    `[var T]` reads the heap out of bounds. Once upgraded, a canister whose
+    stable type contains `[var T]`, `Char`, or `()` (including tags without
+    payload, such as `#on`) fails to downgrade to `moc` 2.2.0 or earlier with
+    `Memory-incompatible program upgrade` (#6452).
+
+## 2.2.0 (2026-11-02)
+
+* motoko (`moc`)
+
+  * bugfix: `cancelTimer` cancels a one-shot timer whose job is waiting to be
+    retried after a failed dispatch, and `cancelTimer(0)` no longer cancels
+    such a retry. A recurring timer no longer runs an extra time after its job
+    could not be dispatched because the call queue was full (#6449).
+
+  * bugfix: a late `await` of a future whose reply callback trapped now
+    terminates the awaiting computation even if the message that runs its
+    `finally` clauses can't be sent (for example, out of cycles) or is
+    rejected. Previously the `catch` ran and execution continued (#6471).
+
+  * feat: `async*` computations can now have non-shared result types,
+    including type parameters, so generic helpers such as
+    `retry<T>(call : () -> async* T) : async* T` compile. Futures
+    (`async T`) and shared functions still require shared types (#6477).
 
   * bugfix: `Prim.shiftLeft` on `Nat` (`Nat.bitshiftLeft`) returns the right
     result when it exceeds 2^61. Compiled code took a fast path for operands

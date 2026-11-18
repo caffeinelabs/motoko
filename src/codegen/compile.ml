@@ -410,9 +410,10 @@ module E = struct
      Alllocated in the dynamic heap on program initialization/upgrade.
      Identified by the index position in this list and accessed via the runtime system.
      Registered as GC root set and replaced on program upgrade.
+     Each entry holds the source line that added it, whether it is small, and its allocation.
   *)
   and object_pool = {
-    objects: (int * object_allocation) Table.t ref;
+    objects: (int * bool * object_allocation) Table.t ref;
     frozen: bool ref;
   }
   and t = {
@@ -730,9 +731,15 @@ module E = struct
         sv
       | Vanilla _ -> sv
 
-  let object_pool_add (env : t) line (allocation : t -> G.t) : int64 =
+  (* Objects with at most this many fields are small: their allocation costs at most about
+     1,100 complexity points, so start-up can run 128 of them in one function, far below the
+     IC's limit of 1,000,000, instead of giving each a function of its own. *)
+  let small_object_fields = 16
+
+  (* [small] is required, so that no costly allocation is built inline by default. *)
+  let object_pool_add ~small (env : t) line (allocation : t -> G.t) : int64 =
     if !(env.object_pool.frozen) then raise (Invalid_argument "Object pool frozen");
-    let index, t = Table.add !(env.object_pool.objects) (line, allocation) in
+    let index, t = Table.add !(env.object_pool.objects) (line, small, allocation) in
     env.object_pool.objects := t;
     Int64.of_int index
 
@@ -741,7 +748,7 @@ module E = struct
 
   let object_pool_report (env : t) : unit =
     let e = ref StringEnv.empty in
-    List.iter (fun (l, _) ->
+    List.iter (fun (l, _, _) ->
         let line = Int.to_string l in
         e := StringEnv.add line
                (match StringEnv.find_opt line (!e) with
@@ -757,8 +764,11 @@ module E = struct
       Printf.eprintf "\npool report = %s" profile
     end
 
-  let iterate_object_pool (env : t) f =
-    G.concat_mapi f (List.map (fun (l, a) -> a) (Table.to_list !(env.object_pool.objects)))
+  (* The pool's allocations with their indices and smallness, in consecutive chunks of at most [n]. *)
+  let chunk_object_pool (env : t) n =
+    Table.to_list !(env.object_pool.objects)
+    |> List.mapi (fun index (_, small, allocation) -> (index, small, allocation))
+    |> Lib.List.chunks n
 
   let collect_garbage env force =
     let name = "incremental_gc" in
@@ -2130,16 +2140,16 @@ module Tagged = struct
     get_object ^^
     allocation_barrier env
 
-  let shared_object line env allocation =
-    let index = E.object_pool_add env line allocation in
+  let shared_object ~small line env allocation =
+    let index = E.object_pool_add ~small env line allocation in
     E.SharedObject index
 
   let materialize_shared_value env = function
   | E.Vanilla vanilla -> compile_unboxed_const vanilla
   | E.SharedObject index -> Heap.get_static_variable env index
 
-  let share env allocation =
-    materialize_shared_value env (shared_object __LINE__ env allocation)
+  let share ~small env allocation =
+    materialize_shared_value env (shared_object ~small __LINE__ env allocation)
 
 end (* Tagged *)
 
@@ -2171,7 +2181,7 @@ module MutBox = struct
     Tagged.store_field env field
 
   let add_global_mutbox env =
-    E.object_pool_add env __LINE__ alloc
+    E.object_pool_add ~small:true env __LINE__ alloc
 end
 
 
@@ -2247,10 +2257,10 @@ module Opt = struct
       )
 
   let constant env = function
-  | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
+  | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object ~small:true __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
   | E.Vanilla value -> E.Vanilla value (* not null and no `Opt` object *)
   | shared_value ->
-    Tagged.shared_object __LINE__ env (fun env ->
+    Tagged.shared_object ~small:true __LINE__ env (fun env ->
       let materialized_value = Tagged.materialize_shared_value env shared_value in
       inject env Type.Any materialized_value (* potentially wrap in new `Opt` *)
     )
@@ -2438,7 +2448,7 @@ module Closure = struct
 
   let constant env get_fi =
     let fi = Wasm.I64_convert.extend_i32_u (E.add_fun_ptr env (get_fi ())) in
-    Tagged.shared_object __LINE__ env (fun env -> Tagged.obj env Tagged.Closure [
+    Tagged.shared_object ~small:true __LINE__ env (fun env -> Tagged.obj env Tagged.Closure [
       compile_unboxed_const fi;
       compile_unboxed_const 0L
     ])
@@ -2483,7 +2493,7 @@ module BoxedWord64 = struct
     then
       E.Vanilla (BitTagged.tag_const pty i)
     else
-      Tagged.shared_object __LINE__ env (fun env -> compile_box env pty (compile_unboxed_const i))
+      Tagged.shared_object ~small:true __LINE__ env (fun env -> compile_box env pty (compile_unboxed_const i))
 
   let box env pty =
     Func.share_code1 Func.Never env
@@ -2844,7 +2854,7 @@ module Float = struct
     Tagged.(sanity_check_tag __LINE__ env (Bits64 F)) ^^
     Tagged.load_field_float64 env payload_field
 
-  let constant env f = Tagged.shared_object __LINE__ env (fun env ->
+  let constant env f = Tagged.shared_object ~small:true __LINE__ env (fun env ->
     compile_unboxed_const f ^^
     box env)
 
@@ -3697,11 +3707,10 @@ module BigNumLibtommath : BigNumType = struct
     ] @ limbs
     in
 
-    Tagged.shared_object __LINE__ env (fun env ->
+    let words = StaticBytes.as_words payload in
+    Tagged.shared_object ~small:(List.length words <= E.small_object_fields) __LINE__ env (fun env ->
       (*TODO: Why isn't this just loaded from a segment? *)
-      let instructions =
-        let words = StaticBytes.as_words payload in
-        List.map compile_unboxed_const words in
+      let instructions = List.map compile_unboxed_const words in
       Tagged.obj env Tagged.BigInt instructions
     )
 
@@ -3826,7 +3835,7 @@ module Blob = struct
     get_blob
 
   let constant env sort payload : E.shared_value =
-    Tagged.shared_object __LINE__ env (fun env ->
+    Tagged.shared_object ~small:true __LINE__ env (fun env ->
       let blob_length = Int64.of_int (String.length payload) in
       let segment_index = E.add_static env StaticBytes.[Bytes payload] in
       load_data_segment env sort segment_index (compile_unboxed_const blob_length)
@@ -4154,7 +4163,7 @@ module Object = struct
   let constant env (fs : (string * E.shared_value) list) =
     let materialize_fields = List.map (fun (name, value) -> (name, fun env -> Tagged.materialize_shared_value env value)) fs in
     let allocation = object_builder env materialize_fields in
-    Tagged.shared_object __LINE__ env allocation
+    Tagged.shared_object ~small:(List.length fs <= E.small_object_fields) __LINE__ env allocation
 
   (* This is for non-recursive objects, i.e. ObjNewE *)
   (* The instructions in the field already create the indirection if needed *)
@@ -4508,11 +4517,48 @@ module Arr = struct
      ([ compile_unboxed_const (Wasm.I64.of_int_u (List.length element_instructions))
       ] @ element_instructions)
 
+  (* An element of an array literal: code computing it, or a constant. *)
+  type element = Code of G.t | Shared of E.shared_value
+
+  (* Most constant elements written by one function, as the IC rejects a function with
+     complexity over 1,000,000 (about 18,500 constant element writes). *)
+  let chunk_size = 128
+
+  (* Compile an array literal. Beyond [chunk_size] elements, the constant elements are written by
+     functions of at most [chunk_size] each, and the others are computed in place, in order. *)
+  let lit_elements env sort elements =
+    if List.length elements <= chunk_size then
+      lit env sort (List.map (function
+        | Code code -> code
+        | Shared value -> Tagged.materialize_shared_value env value) elements)
+    else
+      let length = Wasm.I64.of_int_u (List.length elements) in
+      let field index = Int64.add header_size (Wasm.I64.of_int_u index) in
+      let indexed = List.mapi (fun index element -> (index, element)) elements in
+      let (set_array, get_array) = new_local env "array" in
+      Tagged.alloc env (Int64.add header_size length) Tagged.(Array sort) ^^
+      set_array ^^
+      get_array ^^ compile_unboxed_const length ^^ Heap.store_field len_field ^^
+      (indexed
+      |> List.filter_map (function (index, Shared value) -> Some (index, value) | _ -> None)
+      |> Lib.List.chunks chunk_size
+      |> G.concat_map (fun chunk ->
+        let write_chunk = E.add_fun env "array_elements" (Func.of_body env ["array", I64Type] [] (fun env ->
+          chunk |> G.concat_map (fun (index, value) ->
+            G.i (LocalGet (nr 0l)) ^^
+            Tagged.materialize_shared_value env value ^^
+            Heap.store_field (field index)))) in
+        get_array ^^ G.i (Call (nr write_chunk)))) ^^
+      (indexed
+      |> G.concat_map (function
+        | (index, Code code) -> get_array ^^ code ^^ Heap.store_field (field index)
+        | _ -> G.nop)) ^^
+      get_array ^^
+      Tagged.allocation_barrier env
+
   let constant env sort elements =
-    Tagged.shared_object __LINE__ env (fun env ->
-      let materialized_elements = List.map (fun element -> Tagged.materialize_shared_value env element) elements in
-      lit env sort materialized_elements
-    )
+    Tagged.shared_object ~small:(List.length elements <= E.small_object_fields) __LINE__ env (fun env ->
+      lit_elements env sort (List.map (fun value -> Shared value) elements))
 
   (* Does not initialize the fields! *)
   (* Note: Post allocation barrier must be applied after initialization *)
@@ -6499,7 +6545,7 @@ module StackRep = struct
   | Const.Unit -> E.Vanilla (Tuple.unit_vanilla_lit env)
   | Const.Tag (tag, value) ->
       let payload = build_constant env value in
-      Tagged.shared_object __LINE__ env (fun env ->
+      Tagged.shared_object ~small:true __LINE__ env (fun env ->
         let materialized_payload = Tagged.materialize_shared_value env payload in
         Variant.inject env tag materialized_payload
       )
@@ -7016,19 +7062,19 @@ module Serialization = struct
     | None -> assert false
 
   let get_global_candid_data env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.candid_data_segment) (get_candid_data_length env)
     )
 
   let get_global_type_offsets env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.type_offsets_segment) (get_type_offsets_length env)
     )
 
   let get_global_idl_types env =
-    Tagged.share env (fun env ->
+    Tagged.share ~small:true env (fun env ->
       let descriptor = get_global_type_descriptor env in
       Blob.load_data_segment env Tagged.B E.(descriptor.idl_types_segment) (get_idl_types_length env)
     )
@@ -7250,14 +7296,23 @@ module Serialization = struct
     | Candid
     | Persistence
 
+  (* Persistence tells `Char` from `Nat32` and `()` from `Null`, as their runtime values differ, see Note [persistence type descriptor] *)
   let to_idl_prim mode = let open Type in function
-    | Prim Null | Tup [] -> Some 1l
+    | Prim Null -> Some 1l
+    | Tup [] ->
+      (match mode with
+      | Candid -> Some 1l
+      | Persistence -> None)
     | Prim Bool -> Some 2l
     | Prim Nat -> Some 3l
     | Prim Int -> Some 4l
     | Prim Nat8 -> Some 5l
     | Prim Nat16 -> Some 6l
-    | Prim (Nat32|Char) -> Some 7l
+    | Prim Nat32 -> Some 7l
+    | Prim Char ->
+      (match mode with
+      | Candid -> Some 7l
+      | Persistence -> Some 132l)
     | Prim Nat64 -> Some 8l
     | Prim Int8 -> Some 9l
     | Prim Int16 -> Some 10l
@@ -7290,7 +7345,34 @@ module Serialization = struct
   (* only used for memory compatibility checks *)
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
+  let idl_var_vec  = -133l
 
+  (*
+  Note [persistence type descriptor]
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Types whose values are represented differently in memory need different persistence descriptors.
+  On upgrade, the RTS compares the stored and the new descriptor (`memory_compatible` in rts/motoko-rts/src/idl.rs)
+  and lets the new program read the old values in place, so a shared encoding makes it misread them.
+  Candid mode can share encodings, as its values are decoded into fresh objects. Hence, unlike there:
+
+   * `[var t]` is `idl_var_vec t`, while a `var [t]` field is `alias (vec t)`.
+     A `[var t]` field points to the array, a `var [t]` field to a `MutBox` that points to the array.
+   * `Char` has its own code: its 21-bit code point is shifted left by 43 bits, a `Nat32` by 32, and their tags differ.
+   * `()` is the empty `idl_tuple`: its value is the `unit_tag` scalar, while `null` is the `null_vanilla_pointer`.
+
+  For example, the type `{var f : [Nat]; g : [var Nat]}` yields these type table entries,
+  with codes before their LEB128 encoding and fields sorted by hash:
+
+    0: record {f : 1; g : 3}   -20 2 <hash f> 1 <hash g> 3
+    1: alias 2                   1 2                           var [Nat]
+    2: vec nat                 -19 -3                          [Nat]
+    3: var_vec nat            -133 -3                          [var Nat]
+
+  Persistence descriptors start with "EOP1". Descriptors stored by older compilers start with "DIDL"
+  and encode each pair above alike, so the RTS accepts either reading of those.
+  This relies on each encoding meaning a subset of what it meant in those descriptors, unless the encoding is new.
+  *)
 
   (* TODO: use record *)
   let type_desc env mode ts :
@@ -7314,7 +7396,10 @@ module Serialization = struct
           | Tup ts -> List.iter go ts
           | Obj (_, fs, _) ->
             List.iter (fun f -> go f.typ) fs
-          | Array (Mut t) -> go (Array t)
+          | Array (Mut t) ->
+            (match mode with
+            | Candid -> go (Array t)
+            | Persistence -> go t)
           | Array t -> go t
           | Opt t -> go t
           | Variant vs -> List.iter (fun f -> go f.typ) vs
@@ -7402,7 +7487,9 @@ module Serialization = struct
           add_idx f.typ
         ) (sort_by_hash fs)
       | Array (Mut t) ->
-        add_sleb128 idl_alias; add_idx (Array t)
+        (match mode with
+        | Candid -> add_sleb128 idl_alias; add_idx (Array t)
+        | Persistence -> add_sleb128 idl_var_vec; add_idx t)
       | Array t ->
         add_sleb128 idl_vec; add_idx t
       | Opt t ->
@@ -7446,7 +7533,9 @@ module Serialization = struct
          add_sleb128 idl_weak; add_idx t
       | _ -> assert false in
 
-    Buffer.add_string buf "DIDL";
+    Buffer.add_string buf (match mode with
+      | Candid -> "DIDL"
+      | Persistence -> "EOP1");
     add_leb128 (List.length typs);
     let offsets = List.map (fun typ ->
       let offset = Buffer.length buf in
@@ -8945,7 +9034,7 @@ or
    for all other occurrences of v, where offset is the relative position of the
    above occurrences from this reference.
 
-We map Motoko types to this as follows:
+We map Motoko types to this as follows (persistence descriptors differ, see Note [persistence type descriptor]):
 
   e([var t]) = alias e([t]) = alias vec e(t)
   e({var field : t}) = record { field : alias e(t) }
@@ -9543,12 +9632,22 @@ module GCRoots = struct
       let length = Int64.of_int (E.object_pool_size env) in
       compile_unboxed_const length ^^
       E.call_rts env "initialize_static_variables" ^^
-      E.iterate_object_pool env (fun index allocation ->
-      Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
-            compile_unboxed_const (Int64.of_int index) ^^
-            allocation env ^^
-              E.call_rts env "set_static_variable")
-      )
+      (* Chunked, as the IC rejects a function with complexity over 1,000,000 (about 20,000 calls).
+         Chunks are small so that modest programs, and so ordinary tests, already span several.
+         Small allocations run inline, so that the IC's limit of 50,000 functions per module does
+         not limit their number; larger ones keep a function of their own. *)
+      (E.chunk_object_pool env 128
+      |> G.concat_mapi (fun chunk allocations ->
+        Func.share_code0 Func.Always env (Printf.sprintf "initialize_root_array_%i" chunk) [] (fun env ->
+          allocations
+          |> G.concat_map (fun (index, small, allocation) ->
+            Func.share_code0 (if small then Func.Never else Func.Always) env (Printf.sprintf "alloc_%i" index) [] (fun env ->
+              compile_unboxed_const (Int64.of_int index) ^^
+              allocation env ^^
+                E.call_rts env "set_static_variable")
+          )
+        )
+      ))
     )
 end (* GCRoots *)
 
@@ -11610,8 +11709,25 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.concat_map (compile_exp_vanilla env ae) es
   | ProjPrim n, [e1] ->
     SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^ (* offset to tuple (an array) *)
-    Tuple.load_n env (Int64.of_int n)
+    (* Ask for the tuple unboxed, so that e.g. `f().0` does not allocate it.
+       Only take it if it comes that way: a tuple that is boxed anyway (e.g.
+       a variable) is cheaper to project with a single load. *)
+    let arity = match Type.promote e1.note.Note.typ with
+      | Type.Tup ts -> List.length ts
+      | _ -> 1 (* e.g. None *) in
+    begin match compile_exp_with_hint env ae (Some (StackRep.of_arity arity)) e1 with
+    | SR.UnboxedTuple k, code1 ->
+      (* The components are on the stack, the last one on top *)
+      let (set_x, get_x) = new_local env "proj" in
+      code1 ^^
+      G.table (k - 1 - n) (fun _ -> G.i Drop) ^^ (* those after n *)
+      set_x ^^
+      G.table n (fun _ -> G.i Drop) ^^ (* those before n *)
+      get_x
+    | sr, code1 ->
+      code1 ^^ StackRep.adjust env sr SR.Vanilla ^^ (* offset to tuple (an array) *)
+      Tuple.load_n env (Int64.of_int n)
+    end
 
   | OptPrim, [e] ->
     SR.Vanilla,
@@ -11638,7 +11754,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | ArrayPrim (m, t), es ->
     SR.Vanilla,
-    Arr.lit env Tagged.(if m = Ir.Var then M else I) (List.map (compile_exp_vanilla env ae) es)
+    Arr.lit_elements env Tagged.(if m = Ir.Var then M else I) (List.map (fun e ->
+      match compile_exp_with_hint env ae (Some SR.Vanilla) e with
+      | SR.Const c, _ when e.note.Note.const -> Arr.Shared (StackRep.build_constant env c)
+      | sr, code -> Arr.Code (code ^^ StackRep.adjust env sr SR.Vanilla)) es)
   | IdxPrim, [e1; e2] ->
     SR.Vanilla,
     compile_array_index env ae e1 e2 ^^
@@ -12908,6 +13027,18 @@ and single_case e (cs : Ir.case list) =
 
 and known_tag_pat p = TagP ("", p)
 
+(* A switch on a tuple need not allocate the tuple when every case is a
+   tuple pattern or a wildcard, i.e. no case binds the tuple as a whole.
+   Then return its arity. *)
+and tuple_switch_arity e (cs : Ir.case list) =
+  match Type.promote e.note.Note.typ with
+  | Type.Tup ts ->
+    let is_tuple_or_wild (c : case) = match c.it.pat.it with
+      | TupP _ -> true
+      | _ -> Ir_utils.is_irrefutable_nonbinding c.it.pat in
+    if List.for_all is_tuple_or_wild cs then Some (List.length ts) else None
+  | _ -> None
+
 and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
@@ -13007,15 +13138,34 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     )
 
   | SwitchE (e, cs) ->
-    let code1 = compile_exp_vanilla env ae e in
-    let (set_i, get_i) = new_local env "switch_in" in
+    let cs = simplify_cases e cs in
+    (* The scrutinee is kept in locals, as every case needs to look at it.
+       A tuple that no case binds as a whole gets one local per component and
+       is never allocated (as in `let (x, y) = e`); anything else gets a
+       single local. fill_case matches a case's pattern against the locals. *)
+    let scrut_code, fill_case =
+      match tuple_switch_arity e cs with
+      | Some n ->
+        let locals = Lib.List.table n (fun _ -> new_local env "switch_in") in
+        let set_locals = G.concat_map fst (List.rev locals) in (* last is on top *)
+        let fill_case ae1 pat = match pat.it with
+          | TupP ps ->
+            List.map2 (fun (_, get_i) p -> CannotFail get_i ^^^ fill_pat env ae1 p) locals ps
+            |> List.fold_left (^^^) (CannotFail G.nop)
+          | _ -> CannotFail G.nop (* wildcard *) in
+        compile_exp_as env ae (SR.UnboxedTuple n) e ^^ set_locals, fill_case
+      | None ->
+        let (set_i, get_i) = new_local env "switch_in" in
+        let fill_case ae1 pat = CannotFail get_i ^^^ fill_pat env ae1 pat in
+        compile_exp_vanilla env ae e ^^ set_i, fill_case
+    in
 
     (* compile subexpressions and collect the provided stack reps *)
     let codes = List.map (fun {it={pat; exp=e}; _} ->
-      let (ae1, pat_code) = compile_pat_local env ae pat in
+      let ae1 = alloc_pat_local env ae pat in
       let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-      (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
-      ) (simplify_cases e cs) in
+      (sr, fill_case ae1 pat ^^^ CannotFail rhs_code)
+      ) cs in
 
     (* Use the expected stackrep, if given, else infer from the branches *)
     let final_sr = match sr_hint with
@@ -13025,7 +13175,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
     final_sr,
     (* Run scrut *)
-    code1 ^^ set_i ^^
+    scrut_code ^^
     (* Run rest in block to exit from *)
     MultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->

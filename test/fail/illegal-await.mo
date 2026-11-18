@@ -46,3 +46,12 @@ do {
     await t;
   }
 };
+
+// A future that escapes a computation belongs to the scope that awaited the computation
+
+do {
+  ignore async {
+    let f = await* async* { async { 1 } };
+    ignore async { await f } // illegal: f belongs to the outer async
+  }
+}

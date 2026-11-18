@@ -1,0 +1,8 @@
+# APPLICATION-SUBNET
+# (system subnets charge no cycles, so the self-call could always be sent)
+
+install $ID await-trapped-bail/await-trapped-bail.mo ""
+ingress $ID setup "DIDL\x00\x00"
+ingress $ID go "DIDL\x00\x00"
+add_cycles $ID 10_000_000_000_000
+query $ID check "DIDL\x00\x00"

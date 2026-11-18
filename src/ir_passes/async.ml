@@ -46,7 +46,8 @@ let t_async_fut t =
   Func (Local, Returns, [], [fulfillT t; failT; bailT],
         [sum [
              ("suspend", unit);
-             ("schedule", Func(Local, Returns, [], [], []))]])
+             ("schedule", Func(Local, Returns, [], [], []));
+             ("bail", Func(Local, Returns, [], [], []))]])
 
 let t_async_cmp t =
   Func (Local, Returns, [], [fulfillT t; failT; bailT], [])
@@ -230,6 +231,7 @@ let transform prog =
           (* unit answer type, from await in `async {}` *)
           (ensureNamed (t_exp krb) (fun vkrb ->
             let schedule = fresh_var "schedule" (Func(Local, Returns, [], [], [])) in
+            let bail = fresh_var "bail" (Func(Local, Returns, [], [], [])) in
             switch_variantE (t_exp a -*- varE vkrb)
               [ ("suspend", wildP,
                   unitE()); (* suspend *)
@@ -242,7 +244,18 @@ let transform prog =
                      letE v
                        (selfcallE [] (ic_replyE [] (unitE())) (varE schedule) (projE (varE vkrb) 1)
                           ([] -->* (projE (varE vkrb) 2 -*- unitE ())))
-                       (check_call_perform_status (varE v) (fun e -> projE (varE vkrb) 1 -*- e))))
+                       (check_call_perform_status (varE v) (fun e -> projE (varE vkrb) 1 -*- e))));
+                ("bail", varP bail,
+                  (if short then (* bail out immediately *)
+                     varE bail -*- unitE ()
+                   else (* bail out later, even if the self-call can't be sent or is rejected *)
+                     (* the cleanup is a no-op, so that `bail` runs exactly once *)
+                     let v = fresh_var "call" unit in
+                     let e = fresh_var "e" catch in
+                     letE v
+                       (selfcallE [] (ic_replyE [] (unitE())) (varE bail) (e --> (varE bail -*- unitE ()))
+                          ([] -->* unitE ()))
+                       (check_call_perform_status (varE v) (fun _ -> varE bail -*- unitE ()))))
               ]
               unit
           )).it

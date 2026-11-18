@@ -217,11 +217,21 @@ let prim trap =
 
   | "lsh_Nat" -> fun _ v k ->
     (match as_tup v with
-     | [x; shift] -> k (Int Numerics.Int.(mul (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
+     | [x; shift] ->
+       let x, shift = Int.to_big_int (as_int x), Nat32.to_big_int (as_nat32 shift) in
+       (* Same bound as the RTS, whose libtommath counts bits in a 32-bit `int`.
+          The amount stays a big_int until bounded, as `int` is 32-bit in moc.js. *)
+       if Big_int.sign_big_int x = 0 then k (Int Int.zero)
+       else if Big_int.(gt_big_int (add_int_big_int (num_bits_big_int x) shift) (big_int_of_int 0x7FFF_FFFF))
+       then trap.trap "left shift result too large"
+       else k (Int (Int.of_big_int (Big_int.shift_left_big_int x (Big_int.int_of_big_int shift))))
      | _ -> failwith "lsh_Nat")
   | "rsh_Nat" -> fun _ v k ->
     (match as_tup v with
-     | [x; shift] -> k (Int Numerics.Int.(div (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
+     | [x; shift] ->
+       let x, shift = Int.to_big_int (as_int x), Nat32.to_big_int (as_nat32 shift) in
+       if Big_int.(ge_big_int shift (big_int_of_int (num_bits_big_int x))) then k (Int Int.zero)
+       else k (Int (Int.of_big_int (Big_int.shift_right_big_int x (Big_int.int_of_big_int shift))))
      | _ -> failwith "rsh_Nat")
 
   | "explode_Nat16" -> fun _ v k ->

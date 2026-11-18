@@ -32,6 +32,7 @@ sig
   val group : ('a -> 'a -> bool) -> 'a list -> 'a list list
   val replicate : 'a -> int -> 'a list
   val split_at : int -> 'a list -> ('a list * 'a list)
+  val chunks : int -> 'a list -> 'a list list
   val split3 : ('a * 'b * 'c) list -> ('a list * 'b list * 'c list)
   val mapi2 : (int -> 'a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
 
