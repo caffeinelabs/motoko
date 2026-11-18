@@ -4718,7 +4718,7 @@ and check_parenthetical env typ_opt = function
        | None -> () in
      List.iter check_lab attrs_flds;
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
-     if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
+     if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute `%s` in parenthetical" (List.hd unrecognised);
 
 and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
   (* Direction is method → codec: the method's signature drives the
@@ -4760,7 +4760,7 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
             display_typ typ
             display_typ want
       | None ->
-        warn env par.at "M0212" "unrecognised attribute %s in parenthetical" lab
+        warn env par.at "M0212" "unrecognised attribute `%s` in parenthetical" lab
     ) fs;
     if par.note.note_eff <> T.Triv then
       local_error env par.at "M0279" "parenthetical must be effect-free"
@@ -4779,7 +4779,7 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
     (fun lab -> not (List.mem_assoc lab known)) labs_in_par in
   List.iter (fun lab ->
     warn env par.at "M0212"
-      "unrecognised attribute %s in parenthetical" lab
+      "unrecognised attribute `%s` in parenthetical" lab
   ) unrecognised;
   if labs_in_par = [] then
     warn env par.at "M0211" "redundant empty parenthetical note";
@@ -5149,7 +5149,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
               map (fun {T.lab; _} -> lab))
     in
     if unrecognised <> [] then
-      warn env exp.at "M0212" "unrecognised attribute %s in parenthetical note"
+      warn env exp.at "M0212" "unrecognised attribute `%s` in parenthetical note"
         (List.hd unrecognised);
 
 

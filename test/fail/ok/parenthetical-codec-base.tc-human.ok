@@ -9,7 +9,7 @@ error[M0280]: oneway method never replies, so it cannot have an encoder
     ┌─ parenthetical-codec-base.mo:14:3
  14 │    (encoding with)
     │    ^^^^^^^^^^^^^^^ 
-error[M0212]: unrecognised attribute colour in parenthetical
+error[M0212]: unrecognised attribute `colour` in parenthetical
     ┌─ parenthetical-codec-base.mo:18:3
  18 │    (extra with)
     │    ^^^^^^^^^^^^ 
