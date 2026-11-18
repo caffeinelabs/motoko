@@ -4746,6 +4746,8 @@ and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
       | T.Obj (_, fs, _) -> fs
       | _ -> [] in
     let labs = List.map (fun f -> f.T.lab) fs in
+    if labs = [] then
+      warn env par.at "M0211" "redundant empty parenthetical note";
     if oneway && List.mem "encoder" labs then
       local_error env par.at "M0280"
         "oneway method never replies, so it cannot have an encoder";
