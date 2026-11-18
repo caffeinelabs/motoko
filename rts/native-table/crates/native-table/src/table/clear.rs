@@ -12,8 +12,9 @@
 //!
 //! A step works on the first park block, in phases:
 //! 0. the groups, one a step: a sealed group's images (its rows, its long values, its patches' values) go back,
-//!    as a compaction's drop frees them, and the open group's long values; their area-0 blocks are freed onto the
-//!    old area 0's free stack, the root holding the old record for the step;
+//!    as a compaction's drop frees them; their area-0 blocks are freed onto the old area 0's free stack, the root
+//!    holding the old record for the step. The open group's long values went back before the park
+//!    (`free_open_longs`), while the table's shape still fit its rows;
 //! 1. area 1's pages, `PAGES` a step (in phases 1 and 2, a zero entry is a page a sweep gave back, passed over);
 //! 2. area 0's pages but the root block's page, `PAGES` a step. A page whose blocks may hold the page list's own
 //!    radix blocks (index 1 and the multiples of 512: the list's blocks are taken from the page whose append
@@ -86,7 +87,7 @@ pub fn link<H: PageHost>(h: &mut H, tbl: u64, p: Parked) -> Result<(), Fault> {
 }
 
 /// One step of giving back the first park block's structures.
-pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault> {
+pub fn step<H: PageHost>(h: &mut H, tbl: u64) -> Result<(), Fault> {
     let park = root::u64_at(&*h, tbl, root::PARK_FIRST)?;
     let (at, phase) = {
         let b = h.get(Region::Block(park))?;
@@ -94,7 +95,7 @@ pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault
     };
     let next = match phase {
         0 if at < root::u64_at(&*h, park, root::NEXT_GROUP)? => {
-            group(h, tbl, shape, park, at)?;
+            group(h, tbl, park, at)?;
             Some(at.wrapping_add(1))
         }
         0 => None,
@@ -112,31 +113,36 @@ pub fn step<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault
     }
 }
 
-/// Gives back group g's images and long values, as the park block's directory names it.
-fn group<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape, park: u64, g: u64) -> Result<(), Fault> {
+/// Gives back the long values of the open group's rows, when one of them held one, before `park`. Its rows are
+/// read with the table's shape, which a later `evolve` changes, so they go now: at most one group's rows.
+pub fn free_open_longs<H: PageHost>(h: &mut H, tbl: u64, shape: &Shape) -> Result<(), Fault> {
+    let tail = root::u64_at(&*h, tbl, root::TAIL)?;
+    let flags = buffer::u64_of(&*h, tail, buffer::H_FLAGS)?;
+    if flags & buffer::OPEN_LONG == 0 {
+        return Ok(());
+    }
+    let d = buffer::u64_of(&*h, tail, buffer::B_DESC)?;
+    for k in 0..buffer::u16_of(&*h, d, buffer::D_BLOCKS)? {
+        let b = buffer::u64_of(&*h, d, buffer::D_RECORDS.wrapping_add(k.wrapping_mul(16)))?;
+        for s in 0..buffer::u16_of(&*h, b, buffer::B_SLOTS)? {
+            if let Some(loc) = buffer::slot_row(&*h, b, s)? {
+                write::free_longs(h, tbl, shape, loc)?;
+            }
+        }
+    }
+    put_u64(h.get_mut(Region::Block(tail))?, buffer::H_FLAGS, flags & !buffer::OPEN_LONG)
+}
+
+/// Gives back group g's images, as the park block's directory names it. The open group, unsealed, has nothing
+/// left to give back here: `free_open_longs` gave back its long values before the clear parked it.
+fn group<H: PageHost>(h: &mut H, tbl: u64, park: u64, g: u64) -> Result<(), Fault> {
     let e = root::directory(&*h, park)?.get(&*h, g)?;
-    if e == 0 {
+    if e == 0 || e & DESC_BIT != 0 {
         return Ok(());
     }
     let now = AreaRecord::read(&*h, tbl, 0)?;
     AreaRecord::read(&*h, park, 0)?.write(h, tbl, 0)?;
-    if e & DESC_BIT == 0 {
-        drain::free_group_page(h, tbl, e)?;
-    } else {
-        // The open group, unsealed: its rows' long values, when one of them held one.
-        let tail = root::u64_at(&*h, park, root::TAIL)?;
-        if buffer::u64_of(&*h, tail, buffer::H_FLAGS)? & buffer::OPEN_LONG != 0 {
-            let d = e & !DESC_BIT;
-            for k in 0..buffer::u16_of(&*h, d, buffer::D_BLOCKS)? {
-                let b = buffer::u64_of(&*h, d, buffer::D_RECORDS.wrapping_add(k.wrapping_mul(16)))?;
-                for s in 0..buffer::u16_of(&*h, b, buffer::B_SLOTS)? {
-                    if let Some(loc) = buffer::slot_row(&*h, b, s)? {
-                        write::free_longs(h, tbl, shape, loc)?;
-                    }
-                }
-            }
-        }
-    }
+    drain::free_group_page(h, tbl, e)?;
     now.write(h, tbl, 0)
 }
 

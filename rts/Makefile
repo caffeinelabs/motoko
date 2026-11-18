@@ -312,6 +312,7 @@ format:
 	cargo fmt --verbose --manifest-path motoko-rts/Cargo.toml
 	cargo fmt --verbose --manifest-path motoko-rts-tests/Cargo.toml
 	cargo fmt --verbose --manifest-path motoko-rts-macros/Cargo.toml
+	cargo fmt --verbose --manifest-path native-table/Cargo.toml --all
 
 clean:
 	rm -rf \

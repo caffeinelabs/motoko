@@ -420,8 +420,11 @@ unsafe fn array_cell<'a, M: Memory>(mem: &mut M, codes: &[u8], v: Value) -> Cell
     if optional && v == NULL_POINTER {
         return CellIn::Null;
     }
-    if tag_of(v) != Some(TAG_ARRAY_I) {
-        mismatch();
+    // Between increments, the incremental GC leaves a long array it is visiting with a slice tag.
+    match tag_of(v) {
+        Some(tag)
+            if types::is_array_or_slice_tag(tag) && types::base_array_tag(tag) == TAG_ARRAY_I => {}
+        _ => mismatch(),
     }
     let array = v.as_array();
     let (record, parts) = element_parts(element);

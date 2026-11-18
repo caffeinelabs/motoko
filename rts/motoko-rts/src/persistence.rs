@@ -70,8 +70,9 @@ struct PersistentMetadata {
     migration_functions: Value,
     /// Address of the native-table store's state page, 0 while no store exists. Every runtime
     /// has this field, also one without native tables, so a canister keeps its tables when it
-    /// switches runtimes across upgrades. It is the last field and the version is unchanged: an
-    /// upgrade from a runtime without the field reads 0, since the metadata reserve is zero there.
+    /// switches runtimes across upgrades. It is the last field and the version is unchanged. A
+    /// runtime without the field never writes it, not even when graph copy reinitializes the
+    /// metadata and frees the store's partitions, so `initialize_memory` checks it on upgrade.
     native_store: usize,
 }
 
@@ -154,6 +155,12 @@ pub unsafe fn initialize_memory<M: Memory>() {
             // This is the first upgrade from a version of the RTS without migration functions support.
             // We need to initialize the migration functions array to NULL_POINTER.
             (*metadata).migration_functions = NULL_POINTER;
+        }
+        // A runtime without native tables leaves the word as it was when its graph copy frees
+        // the store's partitions for the heap: such a store is gone, and its pages are heap memory.
+        let store = (*metadata).native_store;
+        if store != 0 && !crate::gc::incremental::get_partitioned_heap().is_store_partition(store) {
+            (*metadata).native_store = 0;
         }
     } else {
         metadata.initialize::<M>();

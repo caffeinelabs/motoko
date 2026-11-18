@@ -278,6 +278,7 @@ impl<'h, H: PageHost> Table<'h, H> {
     pub fn clear(&mut self) -> Result<Wake, Fault> {
         let uid = root::u64_at(&*self.host, self.root, root::UID)?;
         let flags = root::u8_at(&*self.host, self.root, root::FLAGS)?;
+        clear::free_open_longs(&mut *self.host, self.root, &self.shape)?;
         let parked = clear::park(&mut *self.host, self.root)?;
         self.init(uid)?;
         root::set_u8(&mut *self.host, self.root, root::FLAGS, flags)?;

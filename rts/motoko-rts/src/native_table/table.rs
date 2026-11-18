@@ -855,6 +855,9 @@ pub unsafe fn nt_walk<M: Memory>(
     let mut row = RowOut::new(mem, &layout, labels_of(codec), out);
     let mut host = StoreHost::new(&mut *mem, native_store_location());
     let map = root_block(&host, id, &layout);
+    // A view's picks name field positions, so its rows are built from the layout in field order,
+    // which the one in column order replaces below.
+    let field_layout = layout;
     if let Some(map) = map {
         layout = map.layout(&mut *mem, &layout);
     }
@@ -936,7 +939,7 @@ pub unsafe fn nt_walk<M: Memory>(
     match (view, map) {
         (None, None) => rows_of(&table, rids, n, &mut row, rows),
         (None, Some(map)) => rows_of(&table, rids, n, &mut row.mapped(map), rows),
-        (Some(picks), _) => view_rows(mem, &table, codec, &layout, picks, map, rids, n, rows),
+        (Some(picks), _) => view_rows(mem, &table, codec, &field_layout, picks, map, rids, n, rows),
     }
     let mem = &mut *mem;
     let array = array_of(mem, rows, n);

@@ -4,7 +4,9 @@ A `NativeTable<K, R>` maps keys of type `K` to rows of type `R`. Its rows live i
 pages, outside the garbage-collected heap, and survive upgrades with the actor.
 
 - `K`: a scalar (`Nat`, `Int`, `Nat8`–`Nat64`, `Int8`–`Int64`, `Float`, `Bool`, `Char`, `Text`,
-  `Blob` or `Principal`), or a tuple of 2 to 7 of them: `NativeTable<(Text, Nat), Item>`.
+  `Blob` or `Principal`), or a tuple of 2 to 7 of them: `NativeTable<(Text, Nat), Item>`. A `Float`
+  key is one key for `0.0` and `-0.0`, and one for every NaN of one sign: `get(-0.0)` finds the row
+  of `0.0`, but `add`, `insert` and `tryAdd` of `-0.0` while `0.0` has a row trap (see Traps).
 - `R`: a scalar, or a record of immutable fields, each a scalar, an immutable array, or an option of
   either. An array's elements are scalars, options of scalars, or records whose fields are those
   (see Arrays in rows).
@@ -26,7 +28,9 @@ import NativeTable "mo:native-table/NativeTable"
 - Tables live in their own part of Wasm memory, taken in steps of 64 MiB: the first table takes
   64 MiB at once, and the tables grow by 64 MiB whenever they fill what they have.
 - Tables survive upgrades that keep main memory. An upgrade by graph copy traps while a table exists
-  (see Traps).
+  (see Traps). A canister with tables must not move to a compiler release without native tables:
+  there, graph copy does not trap but drops every table, and a table value kept from before can
+  name a table of the same types made afterwards.
 - A stable table's key type cannot change in an upgrade. Its row type changes through `evolve` in the
   upgrade's migration function (see Change the row type at upgrade).
 
@@ -186,7 +190,9 @@ Each scan has a variant that gives its first `count` rows at most and reads no m
 Scans go in the table's own order: the order the keys were first added, not key order. `add` over
 a key the table has, `update` and `upsert` keep a row's place; a key removed and added again comes
 last; after `clear` the order starts again. A row that stays in the table while a scan runs comes
-exactly once, even when other rows are added or removed in between. For key order, walk an index.
+exactly once, even when other rows are added or removed in between. Scans, walks and filters fetch
+rows 64 at a time, so a row comes as it was when its batch was fetched, even when it was changed or
+removed before the iterator handed it out. For key order, walk an index.
 
 ## Read through an index
 
@@ -373,7 +379,8 @@ actor {
   once 1,024 of its rows are removed).
 - `evolve` only adds and drops fields: it does not rename a field or change a field's type.
 - It traps, changing nothing, when a field keeps its name but changes its type, when a new field is
-  not an option, or when the row type is a scalar or becomes one. The key type cannot change.
+  not an option, or when a scalar row type changes, to a record or to another scalar, or a record
+  row type becomes a scalar. The key type cannot change.
 - `evolve` takes the new row type from the migration's declared result type, as in the example:
   `let t = old.orders.evolve()` alone does not compile. To write the types out, give all three:
   `old.orders.evolve<Nat, OldOrder, Order>()`.
@@ -399,6 +406,7 @@ Each message starts with `native table: `.
 | `no index on these fields` | `count`, `indexEntries`, `reverseIndexEntries`, `indexEntriesAt`, `reverseIndexEntriesAt`, `removeIndexRange`, `minEntry`, `maxEntry`, `groupCounts` | a field list the table was not built with an index on |
 | `index key does not match the index's fields` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a key with the wrong number of cells, or a cell of the wrong kind; in a filter, a cell of the wrong kind, `#null_` for a field that is not an option, or `#null_` as a range end |
 | `index key value out of range` | the index reads; `entriesWhere`, `countWhere`, `sumWhere` | a cell, of a key or a filter, outside its field's range, for example `#nat(300)` for a `Nat8` |
+| `value refused by its column` | `add`, `insert`, `tryAdd` | a `Float` key, or a `Float` part of a tuple key, equal to the key of a row the table has but with other bits: `-0.0` while `0.0` has a row, or another NaN of the same sign |
 | `a field changes its type` | `evolve` | a field keeps its name but changes its type |
 | `a new field is not an option` | `evolve` | a field the old row type lacks is not of an option type |
 | `a row that is a scalar cannot change` | `evolve` | the old or the new row type is a scalar, and the two differ |

@@ -5,7 +5,8 @@
 //! their extremes records, without a row read; on a table that had no integer field, whose groups have no
 //! extremes record, min, max and filters on an added one skip those groups; after a drop that shrinks the
 //! integer fields' totals, rows that fit a block only under the smaller totals area are stored in place and
-//! read back, and the sums hold.
+//! read back, and the sums hold. A change right after `clear`, before maintenance has given back the cleared
+//! open group's long values, leaves maintenance and writes working, for an added and a dropped field.
 
 use std::ops::Bound;
 
@@ -426,5 +427,41 @@ fn after_a_drop_shrinks_the_totals_rows_that_fit_only_under_the_smaller_area_are
         for (c, s) in (0..21u32).zip(sums) {
             assert_eq!(tb.sum(id(c), &mut buf).unwrap(), (Total::Small(s), 5_300), "field {c}");
         }
+    }
+}
+
+#[test]
+fn a_change_right_after_clear_leaves_maintenance_and_writes_working() {
+    let col = |ty: Vec<u8>, dropped: u32| VCol { ty, added: 1, dropped, default: None };
+    let opt_text = || t::opt(t::scalar(ty::TEXT));
+    let v1 = [col(t::scalar(ty::NAT), 0), col(opt_text(), 0), col(opt_text(), 0)];
+    let mut added = v1.to_vec();
+    added.push(VCol { ty: t::opt(t::scalar(ty::NAT)), added: 2, dropped: 0, default: None });
+    let dropped = [col(t::scalar(ty::NAT), 0), col(opt_text(), 2), col(opt_text(), 0)];
+    // The cells of a row written after the change: null in a dropped field, and in the added one.
+    let after = |more: bool| {
+        let mut r = vec![(id(0), V::U(9)), (id(1), V::Null), (id(2), V::Bytes(vec![b'z'; 70_000]))];
+        if more {
+            r.push((id(3), V::Null));
+        }
+        r
+    };
+    for (v2, more) in [(&added[..], true), (&dropped[..], false)] {
+        let (img1, _) = schema_versioned(1, &v1, &[]);
+        let (img2, _) = schema_versioned(2, v2, &[]);
+        let mut h = VecHost::new(FILLS[0]);
+        let (mut tb, _) = Table::create(&mut h, 1, &img1).unwrap();
+        // Rows past the inline limit: the open group holds long values.
+        for k in 0..3u64 {
+            let long = |b: u8| V::Bytes(vec![b; 70_000]);
+            tb.upsert(&mut scratch(), &mut Src::new(&[(id(0), V::U(k)), (id(1), long(b'x')), (id(2), long(b'y'))]))
+                .unwrap();
+        }
+        assert_eq!(tb.clear().unwrap(), Wake::Later);
+        tb.evolve(&img2).unwrap();
+        assert!(tb.write_step().is_ok());
+        assert_eq!(tb.maintain(&TestBudget::new(u64::MAX)).unwrap(), Progress::Done);
+        tb.upsert(&mut scratch(), &mut Src::new(&after(more))).unwrap();
+        assert_eq!(tb.len().unwrap(), 1);
     }
 }

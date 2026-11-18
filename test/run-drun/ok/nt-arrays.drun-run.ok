@@ -29,6 +29,9 @@ debug.print: (2, {age = 41; codes = null; history = null; name = "Bo"})
 debug.print: (3, {age = 7; codes = null; history = ?[{amount = 5}, {amount = 6}]; name = "Cy"})
 debug.print: (?{codes = ?["a", "b"]; history = null}, ?{codes = null; history = null}, ?{codes = null; history = ?[{amount = 5}, {amount = 6}]})
 ingress Completed: Reply: 0x4449444c0000
+debug.print: (1, {tags = ["x", "y"]})
+debug.print: (2, {tags = ["z"]})
+ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: native table: a field changes its type'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 debug.print: (3, ?(+78))
