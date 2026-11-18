@@ -7,5 +7,6 @@ actor class C(prefix : Text) {
     case null { Prim.trap("not UTF-8") }
   };
 
-  public (with decoder = text; encoder = func (t : Text) : Blob = Prim.encodeUtf8(prefix # t)) func greet(name : Text) : async Text { name }
+  (with decoder = text; encoder = func (t : Text) : Blob = Prim.encodeUtf8(prefix # t))
+  public func greet(name : Text) : async Text { name }
 }

@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 
-// `public (with encoder; decoder)` replaces Candid on the wire, per method and per direction
+// `(with encoder; decoder) public func` replaces Candid on the wire, per method and per direction
 actor {
   func utf8(t : Text) : Blob = Prim.encodeUtf8 t;
 
@@ -20,21 +20,28 @@ actor {
   };
 
   // Candid in, raw UTF-8 out
-  public (with encoder = utf8) func greet(name : Text) : async Text = "hello " # name;
+  (with encoder = utf8)
+  public func greet(name : Text) : async Text = "hello " # name;
 
   // raw decimal in, Candid out
-  public (with decoder = decimal) func double(n : Nat) : async Nat = 2 * n;
+  (with decoder = decimal)
+  public func double(n : Nat) : async Nat = 2 * n;
 
   // raw UTF-8 in and out
-  public (with decoder = text; encoder = utf8) func shout(t : Text) : async Text = t # "!";
+  (with decoder = text; encoder = utf8)
+  public func shout(t : Text) : async Text = t # "!";
 
   // queries: raw UTF-8 in and out; Candid in, raw UTF-8 out; composite
-  public (with decoder = text; encoder = utf8) query func peek(t : Text) : async Text { t # "?" };
-  public (with encoder = utf8) query func hello() : async Text { "hi" };
-  public (with decoder = text; encoder = utf8) composite query func echo(t : Text) : async Text { t # t };
+  (with decoder = text; encoder = utf8)
+  public query func peek(t : Text) : async Text { t # "?" };
+  (with encoder = utf8)
+  public query func hello() : async Text { "hi" };
+  (with decoder = text; encoder = utf8)
+  public composite query func echo(t : Text) : async Text { t # t };
 
   // raw decimal in, oneway (no reply to encode)
-  public (with decoder = decimal) func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) };
+  (with decoder = decimal)
+  public func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) };
 };
 
 //SKIP run

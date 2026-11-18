@@ -6,6 +6,6 @@ because the type
   Text
  is not compatible with type 
   Nat
-    ┌─ parenthetical-decoder-mismatch.mo:4:52
-  4 │    public (with decoder = func (_ : Blob) : ?Text = ?"oops") func go(_ : ?Nat) : async () {};
-    │                                                     ^^^^^^^ 
+    ┌─ parenthetical-decoder-mismatch.mo:4:45
+  4 │    (with decoder = func (_ : Blob) : ?Text = ?"oops")
+    │                                              ^^^^^^^ 

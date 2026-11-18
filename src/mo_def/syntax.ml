@@ -285,7 +285,7 @@ let is_private vis = match vis.it with Private -> true | _ -> false
 
 (* The `encoder` and `decoder` given by the (type-checked) parenthetical of a
    `public` method: an explicit field, or else the projection of the whole
-   parenthetical when a base provides it (`public (codecs with) func …`) *)
+   parenthetical when a base provides it (`(codecs with) public func …`) *)
 let par_codecs (par : exp) : exp option * exp option =
   let find lab = match par.it with
     | ObjE (bases, efs) ->

@@ -9,9 +9,12 @@ actor A {
     case null { Prim.trap("not UTF-8") }
   };
 
-  public (with decoder = text) func decoded(t : Text) : async Text { t };
-  public (with encoder = utf8) func encoded(t : Text) : async Text { t };
-  public (with decoder = text; encoder = utf8) func both(t : Text) : async Text { t };
+  (with decoder = text)
+  public func decoded(t : Text) : async Text { t };
+  (with encoder = utf8)
+  public func encoded(t : Text) : async Text { t };
+  (with decoder = text; encoder = utf8)
+  public func both(t : Text) : async Text { t };
   public func plain(t : Text) : async Text { t };
 
   // not called: these would fail at runtime

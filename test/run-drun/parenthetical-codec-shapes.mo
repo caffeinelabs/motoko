@@ -13,36 +13,46 @@ actor {
   };
 
   // a module member as encoder
-  public (with encoder = Prim.encodeUtf8) func hello() : async Text { "hello" };
+  (with encoder = Prim.encodeUtf8)
+  public func hello() : async Text { "hello" };
 
   // lambdas using `Prim.trap`, `debug_show` and structural equality
-  public (with decoder = func (b : Blob) : Nat {
+  (with decoder = func (b : Blob) : Nat {
     if (b == ("" : Blob)) { Prim.trap("empty") };
     b.size()
-  }; encoder = func (n : Nat) : Blob = Prim.encodeUtf8(debug_show(n))) func size(n : Nat) : async Nat { n };
+  }; encoder = func (n : Nat) : Blob = Prim.encodeUtf8(debug_show(n)))
+  public func size(n : Nat) : async Nat { n };
 
   // a codec mentioning an actor-local type
   type Count = Nat;
-  public (with encoder = func (n : Count) : Blob = Prim.encodeUtf8(debug_show(n + 1))) func count() : async Count { 41 };
+  (with encoder = func (n : Count) : Blob = Prim.encodeUtf8(debug_show(n + 1)))
+  public func count() : async Count { 41 };
 
   // a non-constant codec value
   func mkDecoder(k : Nat) : Blob -> Nat = func (b : Blob) : Nat { k * b.size() };
   transient let scaled = mkDecoder(10);
-  public (with decoder = scaled) func scale(n : Nat) : async Nat { n };
+  (with decoder = scaled)
+  public func scale(n : Nat) : async Nat { n };
 
   // a shared function type in the signature
-  public (with encoder = func (_ : shared () -> async ()) : Blob = "fn") func callback() : async (shared () -> async ()) { ping };
+  (with encoder = func (_ : shared () -> async ()) : Blob = "fn")
+  public func callback() : async (shared () -> async ()) { ping };
   public func ping() : async () {};
 
   // several arguments, several results, unit result
-  public (with decoder = func (b : Blob) : (Text, Nat) = (text(b), b.size())) func pair(t : Text, n : Nat) : async Nat { t.size() + n };
-  public (with encoder = func ((t, n) : (Text, Nat)) : Blob = Prim.encodeUtf8(t # debug_show(n))) func two() : async (Text, Nat) { ("seven", 7) };
+  (with decoder = func (b : Blob) : (Text, Nat) = (text(b), b.size()))
+  public func pair(t : Text, n : Nat) : async Nat { t.size() + n };
+  (with encoder = func ((t, n) : (Text, Nat)) : Blob = Prim.encodeUtf8(t # debug_show(n)))
+  public func two() : async (Text, Nat) { ("seven", 7) };
   // a unit result: the encoder takes no argument (a fixed, crafted reply)
   func crafted() : Blob = "ok";
-  public (with encoder = crafted) func unit() : async () {};
-  public (with encoder = func () : Blob = "fixed") func unitLambda() : async () {};
+  (with encoder = crafted)
+  public func unit() : async () {};
+  (with encoder = func () : Blob = "fixed")
+  public func unitLambda() : async () {};
   transient let craftedCodecs = { encoder = crafted };
-  public (craftedCodecs with) func unitBase() : async () {};
+  (craftedCodecs with)
+  public func unitBase() : async () {};
 }
 
 //SKIP run

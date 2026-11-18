@@ -11,10 +11,14 @@ actor {
   };
 
   public func plain(t : Text) : async Text { t };
-  public (with encoder = utf8) func encoded(t : Text) : async Text { t };
-  public (with decoder = text) func decoded(t : Text) : async Text { t };
-  public (with decoder = text; encoder = utf8) query func both(t : Text) : async Text { t };
+  (with encoder = utf8)
+  public func encoded(t : Text) : async Text { t };
+  (with decoder = text)
+  public func decoded(t : Text) : async Text { t };
+  (with decoder = text; encoder = utf8)
+  public query func both(t : Text) : async Text { t };
 
   transient let codecs = { decoder = text };
-  public (codecs with) func based(t : Text) : async Text { t }
+  (codecs with)
+  public func based(t : Text) : async Text { t }
 }

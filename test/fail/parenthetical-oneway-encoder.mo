@@ -3,6 +3,8 @@
 actor {
   func none(_ : ()) : Blob = "";
   func nothing(_ : Blob) : Nat = 0;
-  public (with encoder = none) func ping() : () {};
-  public (with decoder = nothing) func poke(_ : Nat) : () {}
+  (with encoder = none)
+  public func ping() : () {};
+  (with decoder = nothing)
+  public func poke(_ : Nat) : () {}
 }

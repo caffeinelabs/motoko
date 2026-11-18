@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 
-// A base record shares codecs between methods: `public (codecs with) func …`;
+// A base record shares codecs between methods: `(codecs with) public func …`;
 // explicit fields override the base.
 actor {
   func text(b : Blob) : Text = switch (Prim.decodeUtf8(b)) {
@@ -11,9 +11,12 @@ actor {
 
   transient let codecs = { decoder = text; encoder = utf8 };
 
-  public (codecs with) func shout(t : Text) : async Text { t # "!" };
-  public (codecs with) query func peek(t : Text) : async Text { t # "?" };
-  public (codecs with encoder = func (t : Text) : Blob = utf8("<" # t # ">")) func wrap(t : Text) : async Text { t };
+  (codecs with)
+  public func shout(t : Text) : async Text { t # "!" };
+  (codecs with)
+  public query func peek(t : Text) : async Text { t # "?" };
+  (codecs with encoder = func (t : Text) : Blob = utf8("<" # t # ">"))
+  public func wrap(t : Text) : async Text { t };
 }
 
 //SKIP run

@@ -472,10 +472,11 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 
 #### Message codecs
 
-A `public` actor method may carry a parenthetical with the attributes `encoder` and `decoder`, which replace Candid on the wire for that method (a parenthetical on any other `public` declaration is an error):
+A `public` actor method may be preceded by a parenthetical with the attributes `encoder` and `decoder`, which replace Candid on the wire for that method. The parenthetical is type-checked in the scope of the actor, so it can name the actor's own fields. A parenthetical before any other `public` declaration is an error (M0282).
 
 ```motoko no-repl
-public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text { t # "!" };
+(with encoder = utf8; decoder = text)
+public func shout(t : Text) : async Text { t # "!" };
 ```
 
 -   For a method `(A1, …, Am) -> async T`, `decoder : Blob -> (A1, …, Am)` reads the arguments from the raw message data, and `encoder : T -> Blob` produces the raw reply (multiple results arrive as one tuple; for `async ()`, it is `encoder : () -> Blob`, a fixed reply).
@@ -486,8 +487,12 @@ public (with encoder = utf8; decoder = text) func shout(t : Text) : async Text {
 
     ```motoko no-repl
     transient let codecs = { encoder = utf8; decoder = text };
-    public (codecs with) func shout(t : Text) : async Text { t # "!" };
-    public (codecs with encoder = quoted) func echo(t : Text) : async Text { t };
+
+    (codecs with)
+    public func shout(t : Text) : async Text { t # "!" };
+
+    (codecs with encoder = quoted)
+    public func echo(t : Text) : async Text { t };
     ```
 
 -   A oneway method (`: ()`) never replies, so it accepts only a `decoder`; an `encoder` on it is rejected.

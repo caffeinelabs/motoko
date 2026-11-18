@@ -1,4 +1,4 @@
 error[M0280]: oneway method never replies, so it cannot have an encoder
-    ┌─ parenthetical-oneway-encoder.mo:6:10
-  6 │    public (with encoder = none) func ping() : () {};
-    │           ^^^^^^^^^^^^^^^^^^^^^ 
+    ┌─ parenthetical-oneway-encoder.mo:6:3
+  6 │    (with encoder = none)
+    │    ^^^^^^^^^^^^^^^^^^^^^ 

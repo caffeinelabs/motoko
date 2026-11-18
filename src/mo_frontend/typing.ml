@@ -4660,10 +4660,11 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
        locally-defined `encoder` / `decoder` funcs), so the env we
        hand to `check_vis_parenthetical` must include the actor's
        full scope (values and types), not just the outer-context env. *)
-    let par_env = adjoin env scope in
+    let par_env = adjoin { env with async = C.NullCap } scope in
     let not_endpoint par =
       local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods" in
-    List.iter (fun df ->
+    (* `recover`: each erroneous parenthetical is reported *)
+    List.iter (recover (fun df ->
       match df.it.vis.it, df.it.dec.it with
       | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
         (match T.Env.find_opt id.it scope.Scope.val_env with
@@ -4676,7 +4677,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
          | _ -> not_endpoint par)
       | Syntax.Public (_, Some par), _ -> not_endpoint par
       | _ -> ()
-    ) dec_fields;
+    )) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in

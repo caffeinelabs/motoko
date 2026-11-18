@@ -4,12 +4,16 @@
 
 * motoko (`moc`)
 
-  * `public (with encoder = e; decoder = d) func m(…) : async T` replaces
-    Candid on the wire for that actor method: `encoder : T -> Blob` produces
+  * A parenthetical before `public` holds attributes of the declaration,
+    on its own line if you like (#6512). On an actor method,
+    `(with encoder = e; decoder = d) public func m(…) : async T` replaces
+    Candid on the wire for that method: `encoder : T -> Blob` produces
     the reply, and `decoder : Blob -> args` reads the arguments from the raw
-    message data. Either can be given alone; both must be effect-free, and a
-    base record can share them between methods (`public (codecs with) …`). A
-    oneway method never replies, so it takes only a `decoder`. Methods with
+    message data. Either can be given alone; both must be effect-free, and
+    a base record can share them between methods
+    (`(codecs with) public func …`). A oneway method never replies, so it
+    takes only a `decoder`. A parenthetical before any other `public`
+    declaration is an error (M0282). Methods with
     a codec are left out of the generated `.did` and the `candid:service`
     metadata, and typed calls to them from the same compilation unit warn
     (M0281); codecs are meant for Web2 clients, so use raw calls. In

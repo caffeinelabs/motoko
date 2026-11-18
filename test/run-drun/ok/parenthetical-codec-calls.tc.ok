@@ -1,4 +1,4 @@
-parenthetical-codec-calls.mo:19.18-19.32: warning [M0281], this call sends Candid to method decoded, whose `decoder` expects its own wire format; use a raw call instead
-parenthetical-codec-calls.mo:20.18-20.32: warning [M0281], this call expects Candid back from method encoded, whose `encoder` replies in its own wire format; use a raw call instead
-parenthetical-codec-calls.mo:21.18-21.29: warning [M0281], this call sends Candid to method both, whose `decoder` expects its own wire format; use a raw call instead
-parenthetical-codec-calls.mo:21.18-21.29: warning [M0281], this call expects Candid back from method both, whose `encoder` replies in its own wire format; use a raw call instead
+parenthetical-codec-calls.mo:22.18-22.32: warning [M0281], this call sends Candid to method decoded, whose `decoder` expects its own wire format; use a raw call instead
+parenthetical-codec-calls.mo:23.18-23.32: warning [M0281], this call expects Candid back from method encoded, whose `encoder` replies in its own wire format; use a raw call instead
+parenthetical-codec-calls.mo:24.18-24.29: warning [M0281], this call sends Candid to method both, whose `decoder` expects its own wire format; use a raw call instead
+parenthetical-codec-calls.mo:24.18-24.29: warning [M0281], this call expects Candid back from method both, whose `encoder` replies in its own wire format; use a raw call instead

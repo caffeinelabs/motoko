@@ -2,14 +2,14 @@ error[M0214]: field decoder in parenthetical is declared with type
   Blob -> Nat
 instead of expected type
   Blob -> (t : Text)
-    ┌─ parenthetical-codec-base.mo:9:10
-  9 │    public (wrong with) func m(t : Text) : async () {};
-    │           ^^^^^^^^^^^^ 
+    ┌─ parenthetical-codec-base.mo:9:3
+  9 │    (wrong with)
+    │    ^^^^^^^^^^^^ 
 error[M0280]: oneway method never replies, so it cannot have an encoder
-    ┌─ parenthetical-codec-base.mo:12:10
- 12 │    public (encoding with) func ping() : () {};
-    │           ^^^^^^^^^^^^^^^ 
+    ┌─ parenthetical-codec-base.mo:13:3
+ 13 │    (encoding with)
+    │    ^^^^^^^^^^^^^^^ 
 error[M0212]: unrecognised attribute colour in parenthetical
-    ┌─ parenthetical-codec-base.mo:15:10
- 15 │    public (extra with) func n(_ : Nat) : async () {};
-    │           ^^^^^^^^^^^^ 
+    ┌─ parenthetical-codec-base.mo:17:3
+ 17 │    (extra with)
+    │    ^^^^^^^^^^^^ 

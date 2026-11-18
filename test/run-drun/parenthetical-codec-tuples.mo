@@ -4,11 +4,14 @@
 import Prim "mo:⛔";
 actor {
   // a single tuple-typed parameter
-  public (with decoder = func (b : Blob) : ((Nat, Nat)) = ((b.size(), 2 * b.size()))) func tup(p : (Nat, Nat)) : async Nat { p.0 + p.1 };
+  (with decoder = func (b : Blob) : ((Nat, Nat)) = ((b.size(), 2 * b.size())))
+  public func tup(p : (Nat, Nat)) : async Nat { p.0 + p.1 };
   // a tuple parameter next to another
-  public (with decoder = func (b : Blob) : ((Nat, Nat), Nat) = ((b.size(), 1), 10)) func mixed(p : (Nat, Nat), q : Nat) : async Nat { p.0 + p.1 + q };
+  (with decoder = func (b : Blob) : ((Nat, Nat), Nat) = ((b.size(), 1), 10))
+  public func mixed(p : (Nat, Nat), q : Nat) : async Nat { p.0 + p.1 + q };
   // a nested tuple result
-  public (with encoder = func ((p, t) : ((Nat, Nat), Text)) : Blob = Prim.encodeUtf8(debug_show(p.0 + p.1) # t)) func nested() : async ((Nat, Nat), Text) { ((3, 4), "x") };
+  (with encoder = func ((p, t) : ((Nat, Nat), Text)) : Blob = Prim.encodeUtf8(debug_show(p.0 + p.1) # t))
+  public func nested() : async ((Nat, Nat), Text) { ((3, 4), "x") };
 
   // `inspect` sees the decoded tuples too
   system func inspect({ msg : { #tup : () -> ((Nat, Nat)); #mixed : () -> ((Nat, Nat), Nat); #nested : () -> () } }) : Bool {

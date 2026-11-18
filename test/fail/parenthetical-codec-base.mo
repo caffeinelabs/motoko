@@ -6,11 +6,14 @@ actor {
   func blob(_ : Text) : Blob = "";
 
   transient let wrong = { decoder = count };
-  public (wrong with) func m(t : Text) : async () {};
+  (wrong with)
+  public func m(t : Text) : async () {};
 
   transient let encoding = { encoder = blob };
-  public (encoding with) func ping() : () {};
+  (encoding with)
+  public func ping() : () {};
 
   transient let extra = { decoder = count; colour = "red" };
-  public (extra with) func n(_ : Nat) : async () {};
+  (extra with)
+  public func n(_ : Nat) : async () {};
 }

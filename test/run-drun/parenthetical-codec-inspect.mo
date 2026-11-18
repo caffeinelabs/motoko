@@ -11,11 +11,13 @@ actor {
     case null { Prim.trap("not UTF-8") }
   };
 
-  public (with decoder = text) func shout(t : Text) : async () {
+  (with decoder = text)
+  public func shout(t : Text) : async () {
     Prim.debugPrint(t # "!")
   };
 
-  public (with decoder = text) query func look(t : Text) : async Nat { t.size() };
+  (with decoder = text)
+  public query func look(t : Text) : async Nat { t.size() };
 
   public func plain(n : Nat) : async () {
     Prim.debugPrint(debug_show(n))
