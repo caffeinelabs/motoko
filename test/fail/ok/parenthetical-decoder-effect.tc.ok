@@ -1,0 +1,2 @@
+parenthetical-decoder-effect.mo:4.32-4.40: type error [M0037], misplaced async expression; try enclosing in an async function
+parenthetical-decoder-effect.mo:4.9-4.72: type error [M0279], field decoder in parenthetical must be effect-free

@@ -283,6 +283,43 @@ and import' = pat * string * resolved_import ref
 let is_public vis = match vis.it with Public _ -> true | _ -> false
 let is_private vis = match vis.it with Private -> true | _ -> false
 
+(* The `encoder` and `decoder` given by the (type-checked) parenthetical of a
+   `public` method: an explicit field, or else the projection of the whole
+   parenthetical when a base provides it (`(codecs with) public func …`) *)
+let par_codecs (par : exp) : exp option * exp option =
+  let find lab = match par.it with
+    | ObjE (bases, efs) ->
+      (match List.find_opt (fun (ef : exp_field) -> ef.it.id.it = lab) efs with
+       | Some ef -> Some ef.it.exp
+       | None when bases = [] -> None
+       | None ->
+         match Type.promote par.note.note_typ with
+         | Type.Obj (_, fs, _) ->
+           Option.map (fun t ->
+             { it = DotE (par, lab @@ par.at, ref None);
+               at = par.at;
+               note = { note_typ = t; note_eff = Type.Triv } })
+             (Type.lookup_val_field_opt lab fs)
+         | _ -> None)
+    | _ -> None in
+  (find "encoder", find "decoder")
+
+(* Public actor methods with an `encoder` or a `decoder` (including those of
+   included mixins), as `(name, (has_encoder, has_decoder))`. They don't speak
+   Candid, so they are left out of the Candid interface. *)
+let rec codec_methods (dfs : dec_field list) : (string * (bool * bool)) list =
+  List.concat_map (fun df ->
+    match df.it.dec.it, df.it.vis.it with
+    | IncludeD (_, _, _, note), _ ->
+      (match !note with Some n -> codec_methods n.decs | None -> [])
+    | LetD ({ it = VarP id; _ }, { it = FuncE _; _ }, _), Public (_, Some par) ->
+      (match par_codecs par with
+       | None, None -> []
+       | enc, dec -> [(id.it, (enc <> None, dec <> None))])
+    | _ -> []) dfs
+
+let codec_method_names dfs = List.map fst (codec_methods dfs)
+
 (* Program (pre unit detection) *)
 
 type prog_note = { filename : string; trivia : Trivia.triv_table }

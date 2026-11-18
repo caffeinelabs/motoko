@@ -168,7 +168,7 @@ and exp' at note = function
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
-    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e))
+    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e), no_codecs)
   (* Primitive functions in the prelude have particular shapes *)
   | S.CallE (None, {it=S.AnnotE ({it=S.PrimE p;_}, _);note;_}, _, (_, e))
     when Lib.String.chop_prefix "num_conv" p <> None ->
@@ -498,7 +498,7 @@ and build_fields obj_typ =
 and with_self i typ decs =
   let_no_shadow (var i typ) (selfRefE typ) decs
 
-and call_system_func_opt name es obj_typ =
+and call_system_func_opt ?(decoders = []) name es obj_typ =
   List.find_map (fun es ->
     match es.it with
     | { S.vis = { it = S.System; _ };
@@ -537,9 +537,12 @@ and call_system_func_opt name es obj_typ =
                 (tf.T.lab,
                   match tf.T.typ with
                   | T.Func(T.Local, _, [], [], ts) ->
+                    (* a method with a `decoder` sees its arguments through it, not Candid *)
+                    let decode = match List.assoc_opt tf.T.lab decoders with
+                      | Some (i, t) -> callE (varE (var i t)) [] (varE arg)
+                      | None -> primE (Ir.DeserializePrim ts) [varE arg] in
                     tagE tf.T.lab
-                      T.(funcE ("$"^tf.lab) Local Returns [] [] ts
-                        (primE (Ir.DeserializePrim ts) [varE arg]))
+                      T.(funcE ("$"^tf.lab) Local Returns [] [] ts decode)
                   | _ -> assert false))
                 (T.as_variant msg_typ))
                (* Trap early, refusing all other messages,
@@ -659,13 +662,69 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     import_stabs @
     (* Transient stability for binding the mixin parameters *)
     flex ::
-    List.concat_map build_stabs decs
+    List.concat_map build_stabs decs @
+    (* Transient stability for the mixin's hoisted codecs *)
+    List.init (codec_count (List.concat_map build_codecs decs)) (fun _ -> flex)
   | _ -> [df.it.S.stab]
+
+(* Codecs. Each codec expression becomes an ordinary `let` (`m$encoder`,
+   `m$decoder`) at the end of the declarations of its actor or included
+   mixin, and the method's FuncE only refers to it, so all IR passes treat the
+   codec like any other code. Like `build_stabs`, `build_codecs` yields one
+   entry per IR declaration, including the hoisted codec `let`s. *)
+and codec_count pairs =
+  List.fold_left (fun n (enc, dec) -> n + Bool.to_int (enc <> None) + Bool.to_int (dec <> None)) 0 pairs
+
+and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
+  let none _ = (None, None) in
+  match df.it.S.dec.it, df.it.S.vis.it with
+  | S.TypD _, _ -> []
+  | S.MixinD _, _ -> assert false
+  | S.IncludeD (_, _, _, note), _ ->
+    (* same order as `build_stabs`: [imports; mixin parameters; mixin decs;
+       their codecs]; the mixin's methods get their codecs when the include
+       is desugared *)
+    let { S.imports; decs; _ } = Option.get !note in
+    let pairs = List.concat_map build_codecs decs in
+    List.map none imports @ none () :: List.map none pairs
+    @ List.init (codec_count pairs) none
+  | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
+    [S.par_codecs par]
+  | _ -> [(None, None)]
+
+(* `attach_codecs pairs ds` (`pairs` aligned with `ds`) refers the methods to
+   their codecs and appends the codec `let`s *)
+and attach_codecs pairs (ds : I.dec list) : I.dec list =
+  let hoisted = ref [] in
+  let hoist m what src =
+    let e = exp src in
+    let v = fresh_var (m ^ "$" ^ what) e.note.Note.typ in
+    hoisted := letD v e :: !hoisted;
+    (id_of_var v, typ_of_var v) in
+  let ds = List.map2 (fun (enc_opt, dec_opt) d ->
+    match enc_opt, dec_opt, d.it with
+    | None, None, _ -> d
+    | _, _, I.LetD ({ it = I.VarP m; _ } as p, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, _); _ } as fe)) ->
+      let codecs = I.{ encoder = Option.map (hoist m "encoder") enc_opt;
+                       decoder = Option.map (hoist m "decoder") dec_opt } in
+      { d with it = I.LetD (p, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs) }) }
+    | _ -> assert false (* typing admits codecs only on `let m = func …` *)
+  ) pairs ds in
+  ds @ List.rev !hoisted
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let fs = build_fields obj_typ in
-  let stabs = List.concat_map build_stabs es in
+  let codec_pairs = List.concat_map build_codecs es in
+  let flex = Some (S.Flexible @@ no_region) in
+  let stabs = List.concat_map build_stabs es @ List.init (codec_count codec_pairs) (fun _ -> flex) in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
+  let ds = attach_codecs codec_pairs ds in
+  (* methods with a `decoder`, for `system func inspect` (mixin methods keep
+     their names: `Subst_var` only renames the mixin's parameters/imports) *)
+  let decoders = List.filter_map (fun (d : I.dec) -> match d.it with
+    | I.LetD ({ it = I.VarP m; _ }, { it = I.FuncE (_, _, _, _, _, _, _, { I.decoder = Some r; _ }); _ }) ->
+      Some (m, r)
+    | _ -> None) ds in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
@@ -681,7 +740,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let state = fresh_var "state" (T.Mut (T.Opt mem_ty)) in
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
-  let candid = build_candid ts obj_typ in
+  let candid = build_candid ts (Mo_idl.Mo_to_idl.without_methods (S.codec_method_names es) obj_typ) in
   let sig_, stable_type, migration =
     if chain <> [] then begin
       (* --enhanced-migration: generates upgrade-time IR for the migration chain.
@@ -936,7 +995,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
               (unitE())
           | None -> tupE []);
        inspect =
-         (match call_system_func_opt "inspect" es obj_typ with
+         (match call_system_func_opt ~decoders "inspect" es obj_typ with
           | Some call -> call
           | None -> tupE []);
        low_memory =
@@ -1168,6 +1227,8 @@ and dec' d =
 
     (* TODO: Fix the positions on the generated let here *)
     let ir_decs = List.concat_map dec (List.map (fun df -> df.it.S.dec) decs) in
+    (* incl. the mixin's codecs, which see its (renamed) parameters and imports *)
+    let ir_decs = attach_codecs (List.concat_map build_codecs decs) ir_decs in
     let renamed_decs, _ = Subst_var.decs rho ir_decs in
     List.map (fun d -> d.it) renamed_imports @ (letP renamed_pat (exp args)).it :: List.map (fun d -> d.it) renamed_decs
 
@@ -1209,7 +1270,7 @@ and dec' d =
           note = Note.{ def with typ = rng_typ } }
     in
     let fn = {
-      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body);
+      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body, no_codecs);
       at = at;
       note = Note.{ def with typ = fun_typ }
     } in

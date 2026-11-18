@@ -4655,13 +4655,47 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
             "a shared function cannot be private"
       ) dec_fields;
     end;
-    (* a parenthetical before `public` sees the object's own fields *)
+    (* Parentheticals on public actor methods can reference sibling
+       actor-fields by name (e.g. `(with encoder; decoder)` punning to
+       locally-defined `encoder` / `decoder` funcs), so the env we
+       hand to `check_vis_parenthetical` must include the actor's
+       full scope (values and types), not just the outer-context env. *)
     let par_env = adjoin { env with async = C.NullCap } scope in
-    List.iter (fun df ->
-      match df.it.vis.it with
-      | Public (_, Some par) -> recover (check_pub_parenthetical par_env) par
+    (* M0282 names what the parenthetical is on, when it can tell *)
+    let not_endpoint (dec : dec) par =
+      let fun_of = function
+        | T.Module -> "a module function"
+        | T.Object -> "an object function"
+        | _ -> "a function" in
+      let kind = match dec.it with
+        | TypD _ -> Some "a `type`"
+        | VarD _ -> Some "a `var`"
+        | ClassD _ -> Some "a class"
+        | ExpD _ -> Some "an expression"
+        | LetD ({ it = VarP id; _ }, _, _) ->
+          (match T.Env.find_opt id.it scope.Scope.val_env with
+           | Some (typ, _, _) when T.is_func (T.promote typ) -> Some (fun_of s)
+           | _ -> Some "a `let`")
+        | LetD _ -> Some "a `let`"
+        | MixinD _ | IncludeD _ -> None in
+      match kind with
+      | Some k -> local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods, not on %s" k
+      | None -> local_error env par.at "M0282" "a parenthetical is only allowed on public actor methods" in
+    (* `recover`: each erroneous parenthetical is reported *)
+    List.iter (recover (fun df ->
+      match df.it.vis.it, df.it.dec.it with
+      | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
+        (match T.Env.find_opt id.it scope.Scope.val_env with
+         | Some (typ, _, _) when (s = T.Actor || s = T.Mixin) && T.is_shared_func typ ->
+           let _, c, _, ts1, ts2 = T.as_func typ in
+           (match c with
+            | T.Promises -> check_vis_parenthetical par_env ts1 (T.seq ts2) par
+            | T.Returns -> check_vis_parenthetical ~oneway:true par_env ts1 (T.seq ts2) par
+            | T.Replies -> not_endpoint df.it.dec par)
+         | _ -> not_endpoint df.it.dec par)
+      | Syntax.Public (_, Some par), _ -> not_endpoint df.it.dec par
       | _ -> ()
-    ) dec_fields;
+    )) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
@@ -4702,14 +4736,83 @@ and check_parenthetical env typ_opt = function
        | None -> () in
      List.iter check_lab attrs_flds;
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
-     if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
+     if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute `%s` in parenthetical" (List.hd unrecognised);
 
-(* No attribute of a `public` declaration is recognised yet *)
-and check_pub_parenthetical env par =
-  match T.promote (infer_exp env par) with
-  | T.Obj (_, [], _) -> warn env par.at "M0211" "redundant empty parenthetical note"
-  | T.Obj (_, f :: _, _) -> warn env par.at "M0212" "unrecognised attribute %s in parenthetical" f.T.lab
-  | _ -> ()
+and check_vis_parenthetical ?(oneway = false) env arg_typs ret_typ par =
+  (* Direction is method → codec: the method's signature drives the
+     expected encoder/decoder types. An alternative we may want to
+     explore later is the inverse — deriving the method's input type
+     from the decoder's output type and the method's output type from
+     the encoder's input type, then checking the method signature
+     against those — which would let users pin codec types and have
+     the method fall in line. *)
+  (* for a unit result, the encoder takes no argument: a fixed, crafted reply *)
+  let encoder_dom = if T.eq ret_typ T.unit then [] else [ret_typ] in
+  let encoder_typ = T.Func (T.Local, T.Returns, [], encoder_dom, [T.blob]) in
+  (* the decoder yields the method's arguments as a sequence, one stack value each in codegen *)
+  let decoder_typ = T.Func (T.Local, T.Returns, [], [T.blob], arg_typs) in
+  let known = [
+    (* on a oneway, an encoder is rejected (M0280) whatever its type *)
+    ("encoder", if oneway then T.Any else encoder_typ);
+    ("decoder", decoder_typ);
+  ] in
+  match par.it with
+  | ObjE (_ :: _, _) ->
+    (* A base supplies attributes shared by several methods. Infer the whole
+       parenthetical, then check the codecs it ends up with. *)
+    let fs = match T.promote (infer_exp env par) with
+      | T.Obj (_, fs, _) -> fs
+      | _ -> [] in
+    let labs = List.map (fun f -> f.T.lab) fs in
+    if labs = [] then
+      warn env par.at "M0211" "redundant empty parenthetical note";
+    if oneway && List.mem "encoder" labs then
+      local_error env par.at "M0280"
+        "oneway method never replies, so it cannot have an encoder";
+    List.iter (fun { T.lab; typ; _ } ->
+      match List.assoc_opt lab known with
+      | Some want ->
+        if not (sub env par.at typ want) then
+          local_error env par.at "M0214"
+            "field %s in parenthetical is declared with type%a\ninstead of expected type%a" lab
+            display_typ typ
+            display_typ want
+      | None ->
+        warn env par.at "M0212" "unrecognised attribute `%s` in parenthetical" lab
+    ) fs;
+    if par.note.note_eff <> T.Triv then
+      local_error env par.at "M0279" "parenthetical must be effect-free"
+  | _ ->
+  let labs_in_par = match par.it with
+    | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields
+    | _ -> []
+  in
+  if oneway && List.mem "encoder" labs_in_par then
+    local_error env par.at "M0280"
+      "oneway method never replies, so it cannot have an encoder";
+  let expected_fields = List.filter_map (fun lab ->
+    Option.map (fun typ -> (lab, typ)) (List.assoc_opt lab known)
+  ) labs_in_par in
+  let unrecognised = List.filter
+    (fun lab -> not (List.mem_assoc lab known)) labs_in_par in
+  List.iter (fun lab ->
+    warn env par.at "M0212"
+      "unrecognised attribute `%s` in parenthetical" lab
+  ) unrecognised;
+  if labs_in_par = [] then
+    warn env par.at "M0211" "redundant empty parenthetical note";
+  let expected = T.obj T.Object expected_fields in
+  check_exp env expected par;
+  (match par.it with
+   | ObjE (_, fields) ->
+     List.iter (fun (ef : exp_field) ->
+       if ef.it.exp.note.note_eff <> T.Triv then
+         local_error env ef.at "M0279"
+           "field %s in parenthetical must be effect-free" ef.it.id.it
+     ) fields
+   | _ ->
+     if par.note.note_eff <> T.Triv then
+       local_error env par.at "M0279" "parenthetical must be effect-free")
 
 and check_system_fields env sort scope tfs dec_fields =
   List.iter (fun df ->
@@ -5064,7 +5167,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
               map (fun {T.lab; _} -> lab))
     in
     if unrecognised <> [] then
-      warn env exp.at "M0212" "unrecognised attribute %s in parenthetical note"
+      warn env exp.at "M0212" "unrecognised attribute `%s` in parenthetical note"
         (List.hd unrecognised);
 
 

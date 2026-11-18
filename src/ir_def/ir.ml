@@ -58,6 +58,9 @@ and pat_field' = {name : Type.lab; pat : pat}
 (* Like id, but with a type attached *)
 type arg = (string, Type.typ) annotated_phrase
 
+(* a typed variable (reference) *)
+type var = id * Type.typ
+
 (* Expressions *)
 
 type exp = exp' phrase
@@ -76,11 +79,21 @@ and exp' =
   | DeclareE of id * Type.typ * exp            (* local promise *)
   | DefineE of id * mut * exp                  (* promise fulfillment *)
   | FuncE of                                   (* function *)
-      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp
+      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp * codecs
   | SelfCallE of Type.typ list * exp * exp * exp * exp (* essentially ICCallPrim (FuncE shared…) *)
   | ActorE of dec list * field list * system * Type.typ (* actor *)
   | NewObjE of Type.obj_sort * field list * Type.typ     (* make an object *)
   | TryE of exp * case list * (id * Type.typ) option (* try/catch/cleanup *)
+
+(* Optional codecs of a public actor method's FuncE, as references to
+   actor-level bindings (desugaring hoists the codec expressions into
+   ordinary `let`s, so every pass handles them as usual; passes that rename
+   or collect variables must also see these references).
+   `encoder : (T1, ..., Tn) -> Blob` replaces Candid serialization on
+   reply (async lowering applies it); multiple results arrive as one tuple.
+   `decoder : Blob -> (A1, ..., Am)` replaces Candid deserialization on
+   ingress (codegen applies it); it returns the arguments as a sequence. *)
+and codecs = { encoder : var option; decoder : var option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
 
@@ -180,6 +193,7 @@ and prim =
   | CPSAsync of Type.async_sort * Type.typ
   | ICPerformGC
   | ICReplyPrim of Type.typ list
+  | ICReplyRawPrim                    (* reply with the given Blob, verbatim *)
   | ICRejectPrim
   | ICCallerPrim
   | ICCallPrim
@@ -329,6 +343,7 @@ let map_prim t_typ t_lab p =
   | CPSAwait (s, t) -> CPSAwait (s, t_typ t)
   | CPSAsync (s, t) -> CPSAsync (s, t_typ t)
   | ICReplyPrim ts -> ICReplyPrim (List.map t_typ ts)
+  | ICReplyRawPrim
   | ICArgDataPrim
   | ICPerformGC
   | ICRejectPrim
@@ -340,3 +355,11 @@ let map_prim t_typ t_lab p =
   | ICStableWrite t -> ICStableWrite (t_typ t)
   | ICStableRead t -> ICStableRead (t_typ t)
   | ICStableStore t -> ICStableStore (t_typ t)
+
+(* Codec references *)
+
+let map_codecs f_id t_typ { encoder; decoder } =
+  let f = Option.map (fun (i, t) -> (f_id i, t_typ t)) in
+  { encoder = f encoder; decoder = f decoder }
+
+let codec_ids { encoder; decoder } = List.filter_map (Option.map fst) [encoder; decoder]

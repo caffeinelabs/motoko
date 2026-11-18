@@ -459,6 +459,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       | NumConvWrapPrim (t1, t2), vs ->
         let arg = match vs with [v] -> v | _ -> V.Tup vs in
         k (Prim.num_conv_wrap_prim { Prim.trap = trap exp.at "%s" } t1 t2 arg)
+      | ICReplyRawPrim, [_] ->
+        trap exp.at "raw replies (from an `encoder`) are not supported by the interpreter"
       | ICReplyPrim ts, [v1] ->
         assert (not env.flavor.has_async_typ);
         let reply = Option.get env.replies in
@@ -578,14 +580,14 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         last_region := exp.at; (* in case the following throws *)
         let vc = context env in
         f (V.Tup[vc; kv; rv; cv]) (V.Tup []) k)))
-  | FuncE (x, (T.Shared _ as sort), (T.Replies as control), _typbinds, args, ret_typs, e) ->
+  | FuncE (x, (T.Shared _ as sort), (T.Replies as control), _typbinds, args, ret_typs, e, _enc) ->
     assert (not env.flavor.has_async_typ);
     let cc = { sort; control; n_args = List.length args; n_res = List.length ret_typs } in
     let f = interpret_message env exp.at x args
       (fun env' -> interpret_exp env' e) in
     let v = make_message env x cc f in
     k v
-  | FuncE (x, sort, control, _typbinds, args, ret_typs, e) ->
+  | FuncE (x, sort, control, _typbinds, args, ret_typs, e, _codecs) ->
     let cc = { sort; control; n_args = List.length args; n_res = List.length ret_typs } in
     let f = interpret_func env exp.at sort x args
       (fun env' -> interpret_exp env' e) in

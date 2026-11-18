@@ -1,0 +1,7 @@
+parenthetical-codec-base.mo:10.3-10.15: type error [M0214], field decoder in parenthetical is declared with type
+  Blob -> Nat
+instead of expected type
+  Blob -> (t : Text)
+parenthetical-codec-base.mo:14.3-14.18: type error [M0280], oneway method never replies, so it cannot have an encoder
+parenthetical-codec-base.mo:18.3-18.15: type error [M0212], unrecognised attribute `colour` in parenthetical
+parenthetical-codec-base.mo:22.3-22.15: warning [M0211], redundant empty parenthetical note

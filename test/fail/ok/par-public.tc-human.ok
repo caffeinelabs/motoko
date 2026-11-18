@@ -7,11 +7,11 @@ warning[M0211]: redundant empty parenthetical note
     ┌─ par-public.mo:2:34
   2 │    public func baz() : async () = (with) async { };
     │                                   ^^^^^^ 
-warning[M0211]: redundant empty parenthetical note
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `let`
     ┌─ par-public.mo:26:5
  26 │      (with)
     │      ^^^^^^ 
-warning[M0211]: redundant empty parenthetical note
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `let`
     ┌─ par-public.mo:29:5
  29 │      (with)
     │      ^^^^^^ 
@@ -25,11 +25,11 @@ warning[M0154]: field y is deprecated
  34 │    transient let _ = M.x + M.y;
     │                            ^^^ 
     = note: use `x`
-warning[M0211]: redundant empty parenthetical note
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `let`
     ┌─ par-public.mo:37:5
  37 │      (with)
     │      ^^^^^^ 
-warning[M0211]: redundant empty parenthetical note
+error[M0282]: a parenthetical is only allowed on public actor methods, not on a `let`
     ┌─ par-public.mo:42:5
  42 │      (with)
     │      ^^^^^^ 
@@ -37,18 +37,10 @@ error[M0210]: misplaced parenthetical (this call does not send a message)
     ┌─ par-public.mo:49:3
  49 │    (with cycles = 1) local()
     │    ^^^^^^^^^^^^^^^^^ 
-error[M0212]: unrecognised attribute encoder in parenthetical
-    ┌─ par-public.mo:8:3
-  8 │    (with encoder = utf8)
-    │    ^^^^^^^^^^^^^^^^^^^^^ 
 warning[M0211]: redundant empty parenthetical note
     ┌─ par-public.mo:11:3
  11 │    (with)
     │    ^^^^^^ 
-error[M0212]: unrecognised attribute encoder in parenthetical
-    ┌─ par-public.mo:14:3
- 14 │    (codecs with)
-    │    ^^^^^^^^^^^^^ 
 error[M0057]: unbound variable unbound
     ┌─ par-public.mo:18:19
  18 │    (with encoder = unbound)

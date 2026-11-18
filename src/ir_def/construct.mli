@@ -12,6 +12,10 @@ open Type
 *)
 
 
+(* Codecs *)
+
+val no_codecs : codecs
+
 (* Field names *)
 
 val nameN : string -> Type.lab
@@ -54,6 +58,7 @@ val awaitE : await_sort -> exp -> exp
 val cps_asyncE : async_sort -> typ -> typ -> exp -> exp
 val cps_awaitE : await_sort -> typ -> exp -> exp -> exp
 val ic_replyE : typ list -> exp -> exp
+val ic_reply_rawE : exp -> exp
 val ic_rejectE : exp -> exp
 val ic_callE : exp -> exp -> exp -> exp -> exp -> exp
 val ic_call_rawE : exp -> exp -> exp -> exp -> exp -> exp -> exp

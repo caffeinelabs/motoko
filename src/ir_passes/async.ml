@@ -365,11 +365,12 @@ let transform prog =
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->
       DefineE (id, mut, t_exp exp1)
-    | FuncE (x, s, c, typbinds, args, ret_tys, exp) ->
+    | FuncE (x, s, c, typbinds, args, ret_tys, exp, codecs) ->
+      let codecs = map_codecs Fun.id t_typ codecs in
       begin
         match s with
         | Local ->
-          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp)
+          FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, codecs)
         | Shared s' ->
           begin
             match c, exp with
@@ -389,13 +390,17 @@ let transform prog =
                 | t -> assert false in
               let k =
                 let v = fresh_var "v" t1 in
-                [v] -->* ic_replyE ret_tys (varE v) in
+                [v] -->* (match codecs.encoder with
+                  | None -> ic_replyE ret_tys (varE v)
+                  | Some (enc, t_enc) ->
+                    ic_reply_rawE (callE (varE (var enc t_enc)) [] (varE v))) in
               let r =
                 let e = fresh_var "e" catch in
                 e --> ic_rejectE (errorMessageE (varE e)) in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp')
+              (* the encoder now lives in the reply continuation *)
+              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp', { codecs with encoder = None })
             (* oneway, always with `ignore(async _)` body *)
             | Returns,
               { it = BlockE (
@@ -425,7 +430,7 @@ let transform prog =
                 e --> tupE [] in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp')
+              FuncE (x, Shared s', Returns, typbinds', args', ret_tys, exp', codecs)
             | (Returns | Replies), _ -> assert false
           end
       end

@@ -639,6 +639,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
       (* TODO: check against expected reply typ; note this may not be env.ret_tys. *)
       typ exp1 <: (T.seq ts);
       T.Non <: t
+    | ICReplyRawPrim, [exp1] ->
+      check (not (env.flavor.has_async_typ)) "ICReplyRawPrim in async flavor";
+      typ exp1 <: T.blob;
+      T.Non <: t
     | ICRejectPrim, [exp1] ->
       check (not (env.flavor.has_async_typ)) "ICRejectPrim in async flavor";
       typ exp1 <: T.text;
@@ -831,7 +835,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
           typ exp1 <: t0
     end;
     T.unit <: t
-  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp) ->
+  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp, codecs) ->
     let cs, tbs, ce = check_open_typ_binds env typ_binds in
     let ts = List.map (fun c -> T.Con(c, [])) cs in
     let env' = adjoin_cons env ce in
@@ -852,7 +856,23 @@ let rec check_exp env (exp:Ir.exp) : unit =
       ( sort, control
       , tbs, List.map (T.close cs) ts1, List.map (T.close cs) ret_tys
       ) in
-    fun_ty <: t
+    fun_ty <: t;
+    (* codecs refer to actor-level bindings of (at least) the expected types *)
+    check (codec_ids codecs = [] || T.is_shared_sort sort) "codec on a non-shared function";
+    let check_codec what (i, t_ref) t_want =
+      (match T.Env.find_opt i env.vals with
+       | None -> error env exp.at "unbound %s %s" what i
+       | Some { typ; _ } -> typ <: t_ref);
+      t_ref <: t_want in
+    Option.iter (fun r ->
+      let enc_dom = match ret_tys with
+        | [] -> [] (* unit result: no argument *)
+        | _ -> [T.seq (List.map (T.close cs) ret_tys)] in
+      check_codec "encoder" r (T.Func (T.Local, T.Returns, [], enc_dom, [T.blob]))
+    ) codecs.encoder;
+    Option.iter (fun r ->
+      check_codec "decoder" r (T.Func (T.Local, T.Returns, [], [T.blob], List.map (T.close cs) ts1))
+    ) codecs.decoder
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     check (not env.flavor.Ir.has_async_typ) "SelfCallE in async flavor";
     List.iter (check_typ env) ts;
@@ -911,7 +931,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
   then begin
     match exp.it with
     | VarE (Const, id) -> check_var "VarE" id
-    | FuncE (x, s, c, tp, as_ , ts, body) ->
+    | FuncE (x, s, c, tp, as_ , ts, body, _codecs) ->
       check (s = T.Local) "constant FuncE cannot be of shared sort";
       if env.lvl = NotTopLvl then
       Freevars.M.iter (fun v _ ->

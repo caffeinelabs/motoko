@@ -10,6 +10,13 @@ module Set = Idllib.Resolve_import.Set
 
 module Scope = Mo_frontend.Scope
 
+(* The actor type without the given methods (see `Syntax.codec_method_names`) *)
+let without_methods names t =
+  if names = [] then t else
+  match normalize t with
+  | Obj (s, fs, tfs) -> Obj (s, List.filter (fun f -> not (List.mem f.lab names)) fs, tfs)
+  | t -> t
+
 (* use a functor to allocate temporary shared state *)
 module MakeState() = struct
 
@@ -246,14 +253,14 @@ module MakeState() = struct
     | ProgU _ | ModuleU _ | MixinU _ -> None
     | ActorU (_, _, _, dfs) ->
        mixin_trivia := gather_mixin_trivia [] dfs;
-       Some (typ cub.note.note_typ)
+       Some (typ (without_methods (E.codec_method_names dfs) cub.note.note_typ))
     | ActorClassU (_, _, _, _, _, _, _, _, dfs) ->
        (match normalize cub.note.note_typ with
         | Func (Local, Returns, [tb], ts1, [t2]) ->
           let args = List.map arg_typ (List.map (open_ [Non]) ts1) in
           let (_, _, actor_typ) = as_async (normalize (open_ [Non] t2)) in
           mixin_trivia := gather_mixin_trivia [] dfs;
-          let actor = typ actor_typ in
+          let actor = typ (without_methods (E.codec_method_names dfs) actor_typ) in
           Some (I.ClassT (args, actor) @@ cub.at)
         | _ -> assert false
        )

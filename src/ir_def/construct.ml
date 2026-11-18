@@ -14,7 +14,7 @@ let nextN = "next"
 
 (* Identifiers *)
 
-type var = id * T.typ
+type var = Ir.var
 
 let var id typ = (id, typ)
 
@@ -40,6 +40,10 @@ let fresh_var name_base typ : var =
 
 let fresh_vars name_base ts =
   List.mapi (fun i t -> fresh_var (Printf.sprintf "%s%i" name_base i) t) ts
+
+(* Codec helpers *)
+
+let no_codecs : codecs = { encoder = None; decoder = None }
 
 (* type arguments *)
 
@@ -84,6 +88,7 @@ let primE prim es =
     | ShowPrim _ -> T.text
     | ICArgDataPrim -> T.blob
     | ICReplyPrim _
+    | ICReplyRawPrim
     | ICRejectPrim -> T.Non
     | ICCallerPrim -> T.caller
     | ICStableWrite _ -> T.unit
@@ -194,6 +199,13 @@ let ic_replyE ts e =
   | [t] -> assert (T.sub (e.note.Note.typ) t)
   | _ -> assert (T.sub (T.Tup ts) (e.note.Note.typ)));
   { it = PrimE (ICReplyPrim ts, [e]);
+    at = no_region;
+    note = Note.{ def with typ = T.unit; eff = eff e }
+  }
+
+let ic_reply_rawE e =
+  assert (T.sub e.note.Note.typ T.blob);
+  { it = PrimE (ICReplyRawPrim, [e]);
     at = no_region;
     note = Note.{ def with typ = T.unit; eff = eff e }
   }
@@ -327,7 +339,7 @@ let funcE name sort ctrl typ_binds args typs exp =
   let ts1 = List.map (function arg -> T.close cs arg.note) args in
   let ts2 = List.map (T.close cs) typs in
   let typ = T.Func(sort, ctrl, tbs, ts1, ts2) in
-  { it = FuncE(name, sort, ctrl, typ_binds, args, typs, exp);
+  { it = FuncE(name, sort, ctrl, typ_binds, args, typs, exp, no_codecs);
     at = no_region;
     note = Note.{ def with typ; eff = T.Triv };
   }
@@ -611,7 +623,8 @@ let unary_funcE name typ x exp =
        args,
        (* TODO: Assert invariant: retty has no free (unbound) DeBruijn indices -- Claudio *)
        ret_tys,
-       exp'
+       exp',
+       no_codecs
      );
     at = no_region;
     note = Note.{ def with typ }
@@ -629,7 +642,8 @@ let nary_funcE name typ xs exp =
         [],
         List.map arg_of_var xs,
         ret_tys,
-        exp
+        exp,
+        no_codecs
       );
     at = no_region;
     note = Note.{ def with typ }
@@ -685,10 +699,10 @@ let close_typ_binds cs tbs =
 let forall tbs e =
  let cs = List.map (fun tb -> tb.it.con) tbs in
  match e.it, e.note.Note.typ with
- | FuncE (n, s, c1, [], xs, ts, exp),
+ | FuncE (n, s, c1, [], xs, ts, exp, codecs),
    T.Func (_, c2, [], ts1, ts2) ->
    { e with
-     it = FuncE(n, s, c1, tbs, xs, ts, exp);
+     it = FuncE(n, s, c1, tbs, xs, ts, exp, codecs);
      note = Note.{ e.note with
        typ = T.Func(s, c2, close_typ_binds cs tbs,
          List.map (T.close cs) ts1,
@@ -700,8 +714,8 @@ let forall tbs e =
 (* changing display name of e.g. local lambda *)
 let named displ e =
   match e.it with
-  | FuncE (_, s, c1, [], xs, ts, exp)
-    -> { e with it = FuncE (displ, s, c1, [], xs, ts, exp) }
+  | FuncE (_, s, c1, [], xs, ts, exp, codecs)
+    -> { e with it = FuncE (displ, s, c1, [], xs, ts, exp, codecs) }
   | _ -> assert false
 
 

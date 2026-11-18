@@ -1,0 +1,13 @@
+--- .did ---
+service : {
+  plain: (t: text) -> (text);
+  plainMixed: () -> (nat);
+}
+--- candid:service ---
+plain: 1
+plainMixed: 1
+encoded: 0
+decoded: 0
+both: 0
+mixed: 0
+based: 0
