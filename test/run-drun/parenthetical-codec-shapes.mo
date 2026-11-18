@@ -7,7 +7,7 @@ import Mix "parenthetical-codec-shapes/Mix";
 actor {
   include Mix("mix");
 
-  func text(b : Blob) : Text = switch (Prim.decodeUtf8(b)) {
+  func text(b : Blob) : Text = switch Prim.decodeUtf8(b) {
     case ?t { t };
     case null { Prim.trap("not UTF-8") }
   };
@@ -18,7 +18,7 @@ actor {
 
   // lambdas using `Prim.trap`, `debug_show` and structural equality
   (with decoder = func (b : Blob) : Nat {
-    if (b == ("" : Blob)) { Prim.trap("empty") };
+    if b == ("" : Blob) { Prim.trap("empty") };
     b.size()
   }; encoder = func (n : Nat) : Blob = Prim.encodeUtf8(debug_show(n)))
   public func size(n : Nat) : async Nat { n };
@@ -52,7 +52,7 @@ actor {
   public func unitLambda() : async () {};
   transient let craftedCodecs = { encoder = crafted };
   (craftedCodecs with)
-  public func unitBase() : async () {};
+  public func unitBase() : async () {}
 }
 
 //SKIP run

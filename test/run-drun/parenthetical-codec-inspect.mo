@@ -25,9 +25,9 @@ actor {
 
   system func inspect({ msg : { #shout : () -> Text; #look : () -> Text; #plain : () -> Nat } }) : Bool {
     switch msg {
-      case (#shout f) { f().size() <= 5 };
-      case (#look f) { f().size() <= 5 };
-      case (#plain f) { f() < 100 }
+      case #shout(f) { f().size() <= 5 };
+      case #look(f) { f().size() <= 5 };
+      case #plain(f) { f() < 100 }
     }
   }
 }

@@ -20,5 +20,5 @@ actor {
 
   transient let empty = {};
   (empty with)
-  public func o() : async () {};
+  public func o() : async () {}
 }

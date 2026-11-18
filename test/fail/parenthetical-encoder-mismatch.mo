@@ -2,5 +2,5 @@
 // a `Nat -> Text` is rejected.
 actor {
   (with encoder = func (_ : Nat) : Text = "oops")
-  public func go() : async Nat = 42;
+  public func go() : async Nat = 42
 }

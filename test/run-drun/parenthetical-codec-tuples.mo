@@ -16,9 +16,9 @@ actor {
   // `inspect` sees the decoded tuples too
   system func inspect({ msg : { #tup : () -> ((Nat, Nat)); #mixed : () -> ((Nat, Nat), Nat); #nested : () -> () } }) : Bool {
     switch msg {
-      case (#tup f) { let (a, b) = f(); a + b < 20 };
-      case (#mixed f) { let ((a, _), q) = f(); a + q < 20 };
-      case (#nested _) { true }
+      case #tup(f) { let (a, b) = f(); a + b < 20 };
+      case #mixed(f) { let ((a, _), q) = f(); a + q < 20 };
+      case #nested(_) { true }
     }
   }
 }

@@ -2,18 +2,18 @@ import Prim "mo:⛔";
 
 // `(with encoder; decoder) public func` replaces Candid on the wire, per method and per direction
 actor {
-  func utf8(t : Text) : Blob = Prim.encodeUtf8 t;
+  func utf8(t : Text) : Blob = Prim.encodeUtf8(t);
 
-  func text(b : Blob) : Text = switch (Prim.decodeUtf8 b) {
-    case (?t) t;
-    case null Prim.trap "not UTF-8"
+  func text(b : Blob) : Text = switch Prim.decodeUtf8(b) {
+    case ?t { t };
+    case null { Prim.trap("not UTF-8") }
   };
 
   func decimal(b : Blob) : Nat {
     var n = 0;
-    for (c in text(b).chars()) {
-      let d = Prim.charToNat32 c;
-      if (d < 48 or d > 57) Prim.trap "not a decimal";
+    for c in text(b).chars() {
+      let d = Prim.charToNat32(c);
+      if d < 48 or d > 57 { Prim.trap("not a decimal") };
       n := n * 10 + Prim.nat32ToNat(d - 48)
     };
     n
@@ -41,8 +41,8 @@ actor {
 
   // raw decimal in, oneway (no reply to encode)
   (with decoder = decimal)
-  public func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) };
-};
+  public func triple(n : Nat) : () { Prim.debugPrint(debug_show(3 * n)) }
+}
 
 //SKIP run
 //SKIP run-low

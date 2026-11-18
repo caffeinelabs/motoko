@@ -2,11 +2,11 @@
 // (endpoints); on anything else it is an error (M0282).
 mixin() {
   (with encoder = undefinedInMixin)
-  public type U = Nat;
+  public type U = Nat
 };
 
 actor {
   (with encoder = undefined)
   public type T = Nat;
-  public func ok() : async () {};
+  public func ok() : async () {}
 }

@@ -2,5 +2,5 @@
 // a `Blob -> ?Text` is rejected.
 actor {
   (with decoder = func (_ : Blob) : ?Text = ?"oops")
-  public func go(_ : ?Nat) : async () {};
+  public func go(_ : ?Nat) : async () {}
 }
