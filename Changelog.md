@@ -4,6 +4,12 @@
 
 * motoko (`moc`)
 
+  * bugfix: growing stable regions now fails cleanly once all regions
+    together use the maximum of 32768 blocks (256 GiB), instead of
+    overwriting region metadata. This could only happen with
+    `--max-stable-pages` raised above 2^22. The new testing flag
+    `--max-region-blocks <n>` lowers the cap (#6515).
+
   * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
     bytes instead of decoding them to an arbitrary value (#6500).
 

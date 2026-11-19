@@ -38,6 +38,8 @@ let actor_idl_path : string option ref = ref None
 (* 100 GiB, expressed in 64KiB pages (16384 pages per GiB) *)
 let max_stable_pages_default = 100 * 16384
 let max_stable_pages : int ref = ref max_stable_pages_default
+let max_region_blocks_default = 32 * 1024 (* = the RTS block table size *)
+let max_region_blocks : int ref = ref max_region_blocks_default
 let measure_rts_stack = ref false
 let pre_ref : string option ref = ref None
 let post_ref : string option ref = ref None
