@@ -19,4 +19,11 @@ func _m3() : async () {
 };
 func _m4() : async* () {
   let _ = await* applyAsyncStar(5, func(_) : async* Int { -1 })
+};
+
+module Dot {
+  public func apply<T>(self : T, f : T -> Nat) : Nat = f(self)
+};
+func _m5() {
+  let _ = (5).apply(func(_) : Int { -1 }) // a contextual dot call
 }

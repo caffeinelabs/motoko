@@ -41,3 +41,10 @@ because the type
     ┌─ lambdas-no-variables-in-error.mo:21:57
  21 │    let _ = await* applyAsyncStar(5, func(_) : async* Int { -1 })
     │                                                          ^^^^^^ 
+error[M0095]: function return type
+  Int
+does not match expected return type
+  Nat
+    ┌─ lambdas-no-variables-in-error.mo:28:35
+ 28 │    let _ = (5).apply(func(_) : Int { -1 }) // a contextual dot call
+    │                                    ^^^^^^ 

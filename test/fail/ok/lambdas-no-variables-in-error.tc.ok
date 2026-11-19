@@ -26,3 +26,7 @@ because the type
   Int
  is not compatible with type 
   Nat
+lambdas-no-variables-in-error.mo:28.35-28.41: type error [M0095], function return type
+  Int
+does not match expected return type
+  Nat
