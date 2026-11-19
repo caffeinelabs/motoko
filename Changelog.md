@@ -10,6 +10,9 @@
     `--max-stable-pages` raised above 2^22. The new testing flag
     `--max-region-blocks <n>` lowers the cap (#6515).
 
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
