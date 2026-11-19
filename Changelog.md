@@ -1,5 +1,12 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
