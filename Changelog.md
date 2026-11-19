@@ -1,5 +1,14 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: A type that holds two or more different `weak` types now has
+    each of them checked. Before, every `weak` type after the first was
+    treated as the first, so subtyping, stability, type inference, and
+    upgrade compatibility skipped their content types (#NNNN).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)

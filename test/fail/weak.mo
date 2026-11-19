@@ -21,6 +21,28 @@ actor a {
     let bad = [alloc "hello", alloc {} ]; // weak T invariant, accept
   };
 
+  // A second weak type is checked like the first
+
+  let bad3 : (weak Blob, weak (() -> ())) = (alloc("" : Blob), alloc(func() {})); // reject, non-stable
+
+  do {
+    let p : (weak Blob, weak Text) = (alloc("" : Blob), alloc("a"));
+    let bad : (weak Blob, weak [Nat]) = p // reject
+  };
+
+  do {
+    let x = (alloc("" : Blob), alloc("a"));
+    let y = (alloc("" : Blob), alloc([1]));
+    let z = if wAlive { x } else { y };
+    let bad : (weak Blob, weak Text) = z // reject, lub is (weak Blob, weak Any)
+  };
+
+  do {
+    func second<T, U>(p : (weak T, weak U)) : weak U { p.1 };
+    let r = second(alloc("" : Blob), alloc("a"));
+    let bad : weak Nat = r // reject, U is Text
+  }
+
 };
 
 actor b  {
