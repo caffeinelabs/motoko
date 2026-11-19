@@ -1,0 +1,2 @@
+type R = record { wtfwfj : text; grygle : nat };
+service : { f : (R) -> () }

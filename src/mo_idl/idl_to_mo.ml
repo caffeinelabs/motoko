@@ -46,6 +46,17 @@ let is_tuple fs =
         | Unnamed id -> Lib.Uint32.to_int id = i
         | _ -> false) fs
 
+(* Motoko code tells fields apart by their 31-bit label hash, but distinct
+   Candid ids can still collide on it. *)
+let check_field_hashes at member kind (fs : M.field list) =
+  Lib.List.iter_pairs (fun (x : M.field) (y : M.field) ->
+    if Mo_types.Hash.hash x.M.lab = Mo_types.Hash.hash y.M.lab then
+      raise (UnsupportedCandidFeature
+        (Diag.error_message at "M0019" "import"
+          (Printf.sprintf "%s names %s and %s in Candid %s type have colliding hashes"
+            member x.M.lab y.M.lab kind)))
+  ) fs
+
 let rec check_typ' env occs t =
   match t.it with
   | PrimT p -> check_prim t.at p
@@ -70,15 +81,17 @@ let rec check_typ' env occs t =
        M.Tup (List.map (fun (f : typ_field) -> check_typ' env occs f.it.typ) fs)
      else
        let fs = List.map (check_field env occs) fs in
+       check_field_hashes t.at "field" "record" fs;
        M.Obj (M.Object, List.sort M.compare_field fs, [])
   | VariantT fs ->
      let fs = List.map (check_variant_field env occs) fs in
+     check_field_hashes t.at "tag" "variant" fs;
      M.Variant (List.sort M.compare_field fs)
   | FuncT (ms, ts1, ts2) ->
      let (s, c) = check_modes ms in
      M.Func (M.Shared s, c, [M.scope_bind], check_arg_typs env occs ts1, check_arg_typs env occs ts2)
   | ServT ms ->
-     let fs = List.map (check_meth env occs) ms in
+     let fs = check_meths env occs t.at ms in
      M.Obj (M.Actor, List.sort M.compare_field fs, [])
   | ClassT _ -> raise (UnsupportedCandidFeature
      (Diag.error_message t.at "M0162" "import" "Candid service constructor type not supported as Motoko type"))
@@ -98,11 +111,15 @@ and check_variant_field env occs f =
   | _ -> check_field env occs f
 and check_meth env occs (m: typ_meth) =
   M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; typ = check_typ' env occs m.it.meth; src = empty_src}
+and check_meths env occs at ms =
+  let fs = List.map (check_meth env occs) ms in
+  check_field_hashes at "method" "service" fs;
+  fs
 
 let actor_methods env occs actor =
   match actor with
-  | Some {it=ServT ms; _} ->
-    List.map (check_meth env occs) ms
+  | Some {it=ServT ms; at; _} ->
+    check_meths env occs at ms
   | Some {it=ClassT (ts1, t); at; _} ->
     (*@HACK: import service constructors as instantiated services *)
     (*TODO: fix dfx to derive the correct instantiated candid instead *)

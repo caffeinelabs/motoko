@@ -1,0 +1,5 @@
+error[M0153]: file idl-mo-hash-collision/aaaaa-aa.did uses Candid types without corresponding Motoko type
+    ┌─ idl-mo-hash-collision.mo:4:1
+  4 │  import A "ic:aaaaa-aa";
+    │  ^^^^^^^^^^^^^^^^^^^^^^ 
+aaaaa-aa.did:2.10-2.49: import error [M0019], tag names grygle and wtfwfj in Candid variant type have colliding hashes

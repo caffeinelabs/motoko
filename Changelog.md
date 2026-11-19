@@ -1,5 +1,15 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: Importing a Candid file now fails with error M0153 when two fields
+    of a record, two tags of a variant, or two methods of a service have
+    colliding Motoko hashes. Before, `moc` either crashed with an internal
+    error or, with the IR check off (as in `moc.js`), compiled code that could
+    read a value at the wrong type (#NNNN).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
