@@ -8,7 +8,7 @@
     together use the maximum of 32768 blocks (256 GiB), instead of
     overwriting region metadata. This could only happen with
     `--max-stable-pages` raised above 2^22. The new testing flag
-    `--max-region-blocks <n>` lowers the cap (#NNNN).
+    `--max-region-blocks <n>` lowers the cap (#6515).
 
 ## 2.2.3 (2026-11-17)
 
