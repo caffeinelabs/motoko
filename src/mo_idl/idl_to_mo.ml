@@ -48,14 +48,21 @@ let is_tuple fs =
 
 (* Motoko code tells fields apart by their 31-bit label hash, but distinct
    Candid ids can still collide on it. *)
-let check_field_hashes at member kind (fs : M.field list) =
-  Lib.List.iter_pairs (fun (x : M.field) (y : M.field) ->
-    if Mo_types.Hash.hash x.M.lab = Mo_types.Hash.hash y.M.lab then
-      raise (UnsupportedCandidFeature
-        (Diag.error_message at "M0019" "import"
-          (Printf.sprintf "%s names %s and %s in Candid %s type have colliding hashes"
-            member x.M.lab y.M.lab kind)))
-  ) fs
+let check_field_hashes at member kind fs =
+  let rec go = function
+    | (h1, l1) :: ((h2, l2) :: _ as rest) ->
+      if h1 = h2 then
+        raise (UnsupportedCandidFeature
+          (Diag.error_message at "M0019" "import"
+            (Printf.sprintf "%s names %s and %s in Candid %s type have colliding hashes"
+              member l1 l2 kind)));
+      go rest
+    | _ -> ()
+  in
+  fs
+  |> List.map (fun f -> (Mo_types.Hash.hash f.M.lab, f.M.lab))
+  |> List.stable_sort (fun (h1, _) (h2, _) -> Int32.compare h1 h2)
+  |> go
 
 let rec check_typ' env occs t =
   match t.it with
