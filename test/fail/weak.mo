@@ -41,6 +41,18 @@ actor a {
     func second<T, U>(p : (weak T, weak U)) : weak U { p.1 };
     let r = second(alloc("" : Blob), alloc("a"));
     let bad : weak Nat = r // reject, U is Text
+  };
+
+  do {
+    let p : [var (weak Blob, weak Text)] = [var (alloc("" : Blob), alloc("a"))];
+    let bad : [var (weak Blob, weak [Nat])] = p // reject, not equal
+  };
+
+  do {
+    let f : ((weak Blob, weak Text)) -> () = func(_) {};
+    let g : ((weak Blob, weak [Nat])) -> () = func(_) {};
+    let h = if wAlive { f } else { g };
+    let bad : ((weak Blob, weak Text)) -> () = h // reject, glb is (weak Blob, weak None)
   }
 
 };

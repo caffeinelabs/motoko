@@ -4,10 +4,12 @@
 
 * motoko (`moc`)
 
-  * bugfix: A type that holds two or more different `weak` types now has
-    each of them checked. Before, every `weak` type after the first was
-    treated as the first, so subtyping, stability, type inference, and
-    upgrade compatibility skipped their content types (#6517).
+  * bugfix: Different `weak` types are no longer treated as the same type.
+    Before, when one type, or one actor's stable variables, held two or
+    more different `weak` types, every one after the first was checked as
+    the first. Subtyping, stability, and upgrade compatibility then accepted
+    mismatched content types, inferred types could be wrong, and type
+    inference could fail with a spurious "bad instantiation" error (#6517).
 
 ## 2.2.3 (2026-11-17)
 
