@@ -5,3 +5,39 @@ does not have expected type
     ┌─ lambdas-no-variables-in-error.mo:3:28
   3 │  let r : Int = app(func j = -1, 1);
     │                             ^^ 
+error[M0095]: function return type
+  Int
+does not match expected return type
+  Nat
+    ┌─ lambdas-no-variables-in-error.mo:12:34
+ 12 │    let _ = apply(5, func(_) : Int { -1 }) // a supertype
+    │                                   ^^^^^^ 
+error[M0095]: function return type
+  Nat
+does not match expected return type
+  Text
+    ┌─ lambdas-no-variables-in-error.mo:15:38
+ 15 │    let _ = applyText(5, func(x) : Nat { x }) // an unrelated type
+    │                                       ^^^^^ 
+error[M0095]: function return type
+  async<$> Int
+does not match expected return type
+  async<$> Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+    ┌─ lambdas-no-variables-in-error.mo:18:51
+ 18 │    let _ = await applyAsync(5, func(_) : async Int { -1 })
+    │                                                    ^^^^^^ 
+error[M0095]: function return type
+  async*<$> Int
+does not match expected return type
+  async*<$> Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+    ┌─ lambdas-no-variables-in-error.mo:21:57
+ 21 │    let _ = await* applyAsyncStar(5, func(_) : async* Int { -1 })
+    │                                                          ^^^^^^ 
