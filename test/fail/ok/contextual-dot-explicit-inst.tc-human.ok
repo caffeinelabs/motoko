@@ -1,5 +1,5 @@
 error[M0096]: expression of type
-  {var v : Text}
+  Box.Box<Text> = {var v : Text}
 cannot produce expected type
   (self : Box.Box<Nat>)
 because the type 
@@ -7,11 +7,11 @@ because the type
  is not compatible with type 
   Nat
  in `v` (used by `Box.Box` in `(self : _)`)
-    ┌─ contextual-dot-explicit-inst.mo:17:15
- 17 │  let _ : Nat = b.get<Nat>(); // reject
+    ┌─ contextual-dot-explicit-inst.mo:21:15
+ 21 │  let _ : Nat = b.get<Nat>(); // reject
     │                ^ 
 error[M0096]: expression of type
-  {var v : Text}
+  Box.Box<Text> = {var v : Text}
 cannot produce expected type
   (self : Box.Box<Nat>)
 because the type 
@@ -19,11 +19,11 @@ because the type
  is not compatible with type 
   Nat
  in `v` (used by `Box.Box` in `(self : _)`)
-    ┌─ contextual-dot-explicit-inst.mo:18:1
- 18 │  b.set<Nat>(42); // reject
+    ┌─ contextual-dot-explicit-inst.mo:22:1
+ 22 │  b.set<Nat>(42); // reject
     │  ^ 
 error[M0096]: expression of type
-  {v : Nat}
+  Rec.Rec<Nat> = {v : Nat}
 cannot produce expected type
   (self : Rec.Rec<Text>)
 because the type 
@@ -31,8 +31,8 @@ because the type
  is not compatible with type 
   Text
  in `v` (used by `Rec.Rec` in `(self : _)`)
-    ┌─ contextual-dot-explicit-inst.mo:23:16
- 23 │  let _ : Text = r.get<Text>(); // reject
+    ┌─ contextual-dot-explicit-inst.mo:27:16
+ 27 │  let _ : Text = r.get<Text>(); // reject
     │                 ^ 
 error[M0096]: expression of type
   [var Nat]
@@ -43,6 +43,22 @@ because the type
  is not compatible with type 
   Int
  in `(self : _)`
-    ┌─ contextual-dot-explicit-inst.mo:26:1
- 26 │  a.store<Int>(-1); // reject, `[var Nat]` is not a `[var Int]`
+    ┌─ contextual-dot-explicit-inst.mo:30:1
+ 30 │  a.store<Int>(-1); // reject, `[var Nat]` is not a `[var Int]`
     │  ^ 
+error[M0096]: expression of type
+  X
+cannot produce expected type
+  (self : Text)
+because type variable 
+  X
+ was promoted to its bound 
+  Nat
+ and the type 
+  Nat
+ is not compatible with type 
+  Text
+ in `(self : _)`
+    ┌─ contextual-dot-explicit-inst.mo:35:35
+ 35 │  func _k<X <: Nat>(x : X) : Text { x.id<Text>() }; // reject
+    │                                    ^ 

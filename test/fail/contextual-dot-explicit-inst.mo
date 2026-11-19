@@ -9,6 +9,10 @@ module Rec {
   public func get<T>(self : Rec<T>) : T { self.v };
 };
 
+module Id {
+  public func id<T>(self : T) : T { self };
+};
+
 module Arr {
   public func store<A>(self : [var A], x : A) { self[0] := x };
 };
@@ -25,3 +29,7 @@ let _ : Text = r.get<Text>(); // reject
 let a : [var Nat] = [var 1];
 a.store<Int>(-1); // reject, `[var Nat]` is not a `[var Int]`
 a.store<Nat>(2); // accept
+
+func _g<X>(x : X) : X { x.id<X>() }; // accept
+func _h<X <: Nat>(x : X) : X { x.id<X>() }; // accept
+func _k<X <: Nat>(x : X) : Text { x.id<Text>() }; // reject
