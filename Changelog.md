@@ -8,7 +8,7 @@
     are inferred is now rejected when its return type annotation doesn't fit
     the expected return type. Previously, a call such as
     `apply(5, func(x) : Int { -1 })` was accepted where `apply` expects a
-    `T -> Nat` function (#PRNUM).
+    `T -> Nat` function (#6516).
 
 ## 2.2.3 (2026-11-17)
 
