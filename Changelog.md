@@ -9,6 +9,9 @@
     under those type arguments. Before, a mismatched receiver type-checked and
     the generated code read values at the wrong type (#6518).
 
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
