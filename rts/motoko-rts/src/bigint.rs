@@ -548,25 +548,54 @@ pub unsafe extern "C" fn bigint_sleb128_encode(n: Value, buf: *mut u8) {
     }
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn bigint_leb128_decode(buf: *mut Buf) -> Value {
-    let mut i = tmp_bigint();
-    let mut tmp = tmp_bigint();
-
-    let mut shift = 0;
+/// Decodes LEB128 data, or SLEB128 data if `signed`. The 7-bit groups are packed straight into
+/// the digits of the result, so this takes time proportional to the length of the encoding.
+unsafe fn leb128_decode_bignum(buf: *mut Buf, signed: bool) -> mp_int {
+    // The encoding ends with the first byte that has no continuation bit
+    let start = (*buf).ptr;
+    let mut last;
     loop {
-        let byte = read_byte(buf);
-        mp_set_u32(&mut tmp, (byte & 0b0111_1111) as u32);
-        check(mp_mul_2d(&mut tmp, shift, &mut tmp));
-        check(mp_add(&mut i, &tmp, &mut i));
-        shift += 7;
-
-        if byte & 0b1000_0000 == 0 {
+        last = read_byte(buf);
+        if last & 0b1000_0000 == 0 {
             break;
         }
     }
+    let groups = (*buf).ptr.offset_from(start) as usize;
 
-    persist_bigint(i)
+    // libtommath counts bits in an `int`
+    if groups > i32::MAX as usize / 7 {
+        bigint_trap();
+    }
+    let bits = 7 * groups;
+    let digit_bits = MP_DIGIT_BIT as usize;
+    let digits = bits.div_ceil(digit_bits);
+    let mask: mp_digit = (1 << digit_bits) - 1;
+
+    let mut i: mp_int = core::mem::zeroed();
+    check(mp_init_size(&mut i, digits as i32));
+    for k in 0..groups {
+        let group = (*start.add(k) & 0b0111_1111) as mp_digit;
+        let (digit, offset) = (7 * k / digit_bits, 7 * k % digit_bits);
+        *i.dp.add(digit) |= (group << offset) & mask;
+        if offset + 7 > digit_bits {
+            *i.dp.add(digit + 1) |= group >> (digit_bits - offset);
+        }
+    }
+    i.used = digits as i32;
+    mp_clamp(&mut i);
+
+    if signed && last & 0b0100_0000 != 0 {
+        // Negative number, un-2-complement it
+        let mut big = tmp_bigint();
+        check(mp_2expt(&mut big, bits as i32));
+        check(mp_sub(&mut i, &big, &mut i));
+    }
+    i
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn bigint_leb128_decode(buf: *mut Buf) -> Value {
+    persist_bigint(leb128_decode_bignum(buf, false))
 }
 
 #[cfg(feature = "ic")]
@@ -618,32 +647,7 @@ pub unsafe extern "C" fn bigint_leb128_decode_word64(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_decode(buf: *mut Buf) -> Value {
-    let mut i = tmp_bigint();
-    let mut tmp = tmp_bigint();
-
-    let mut shift = 0;
-    let mut last_sign_bit_set;
-    loop {
-        let byte = read_byte(buf);
-        mp_set_u32(&mut tmp, (byte & 0b0111_1111) as u32);
-        check(mp_mul_2d(&mut tmp, shift, &mut tmp));
-        check(mp_add(&mut i, &tmp, &mut i));
-        last_sign_bit_set = byte & 0b0100_0000 != 0;
-        shift += 7;
-
-        if byte & 0b1000_0000 == 0 {
-            break;
-        }
-    }
-
-    if last_sign_bit_set {
-        // Negative number, un-2-complement it
-        let mut big = tmp_bigint();
-        check(mp_2expt(&mut big, shift));
-        check(mp_sub(&mut i, &big, &mut i));
-    }
-
-    persist_bigint(i)
+    persist_bigint(leb128_decode_bignum(buf, true))
 }
 
 /// Decode bytes of SLEB128 data to a compact bignum `Value`.
