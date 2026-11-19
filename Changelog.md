@@ -4,6 +4,9 @@
 
 * motoko (`moc`)
 
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
   * bugfix: Importing a Candid file now fails with error M0153 when two fields
     of a record, two tags of a variant, or two methods of a service have
     colliding Motoko hashes. Before, `moc` either crashed with an internal
