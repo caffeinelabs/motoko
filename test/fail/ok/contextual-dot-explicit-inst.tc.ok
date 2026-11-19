@@ -1,0 +1,36 @@
+contextual-dot-explicit-inst.mo:17.15-17.16: type error [M0096], expression of type
+  {var v : Text}
+cannot produce expected type
+  (self : Box.Box<Nat>)
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+ in `v` (used by `Box.Box` in `(self : _)`)
+contextual-dot-explicit-inst.mo:18.1-18.2: type error [M0096], expression of type
+  {var v : Text}
+cannot produce expected type
+  (self : Box.Box<Nat>)
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+ in `v` (used by `Box.Box` in `(self : _)`)
+contextual-dot-explicit-inst.mo:23.16-23.17: type error [M0096], expression of type
+  {v : Nat}
+cannot produce expected type
+  (self : Rec.Rec<Text>)
+because the type 
+  Nat
+ is not compatible with type 
+  Text
+ in `v` (used by `Rec.Rec` in `(self : _)`)
+contextual-dot-explicit-inst.mo:26.1-26.2: type error [M0096], expression of type
+  [var Nat]
+cannot produce expected type
+  (self : [var Int])
+because the type 
+  Nat
+ is not compatible with type 
+  Int
+ in `(self : _)`

@@ -3712,6 +3712,15 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
       if not env.pre then begin
+        (* The receiver of a contextual dot must fit [self] under the explicit instantiation *)
+        extra_subtype_problems |> List.iter (fun (t, t_self, at) ->
+          let t_self' = T.open_ ts t_self in
+          check_sub_explained env at t t_self' (fun explanation ->
+            local_error env at "M0096"
+              "expression of type%a\ncannot produce expected type%a%a"
+              display_typ_expand t
+              display_typ_expand t_self'
+              (display_explanation t_self' t) explanation));
         (* M0223 redundancy probe; MUST precede [check_exp_strong]. Drop only the fragile expected type. *)
         let probe_expect = if env.enclosing_removal then None else t_expect_opt in
         is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
