@@ -4,6 +4,9 @@
 
 * motoko (`moc`)
 
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
   * bugfix: Different `weak` types are no longer treated as the same type.
     Before, when one type, or one actor's stable variables, held two or
     more different `weak` types, every one after the first was checked as
