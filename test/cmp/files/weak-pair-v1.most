@@ -1,0 +1,4 @@
+// A later weak type inside one stable field is checked too
+actor {
+  stable var p : (weak [var Nat64], weak [var Nat8])
+};
