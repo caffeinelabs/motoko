@@ -7,6 +7,10 @@
   * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
     bytes instead of decoding them to an arbitrary value (#6500).
 
+  * Diagnostics located in a Candid `.did` file show the file's path, not just
+    its name, and `--error-format=human` shows a source excerpt for them
+    (#PRNUM).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)
