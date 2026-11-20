@@ -1,7 +1,68 @@
+error[M0096]: expression of type
+  (weak Blob, weak Text)
+cannot produce expected type
+  (weak Blob, weak [Nat])
+because the type 
+  Text
+ is not compatible with type 
+  [Nat]
+    ┌─ weak.mo:30:41
+ 30 │      let bad : (weak Blob, weak [Nat]) = p // reject
+    │                                          ^ 
+error[M0096]: expression of type
+  (weak Blob, weak Any)
+cannot produce expected type
+  (weak Blob, weak Text)
+because the type 
+  Any
+ is not compatible with type 
+  Text
+    ┌─ weak.mo:37:40
+ 37 │      let bad : (weak Blob, weak Text) = z // reject, lub is (weak Blob, weak Any)
+    │                                         ^ 
+error[M0096]: expression of type
+  weak Text
+cannot produce expected type
+  weak Nat
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+    ┌─ weak.mo:43:26
+ 43 │      let bad : weak Nat = r // reject, U is Text
+    │                           ^ 
+error[M0096]: expression of type
+  [var (weak Blob, weak Text)]
+cannot produce expected type
+  [var (weak Blob, weak [Nat])]
+because the type 
+  Text
+ is not compatible with type 
+  [Nat]
+    ┌─ weak.mo:48:47
+ 48 │      let bad : [var (weak Blob, weak [Nat])] = p // reject, not equal
+    │                                                ^ 
+error[M0096]: expression of type
+  ((weak Blob, weak None)) -> ()
+cannot produce expected type
+  ((weak Blob, weak Text)) -> ()
+because the type 
+  Text
+ is not compatible with type 
+  None
+ in arguments
+    ┌─ weak.mo:55:48
+ 55 │      let bad : ((weak Blob, weak Text)) -> () = h // reject, glb is (weak Blob, weak None)
+    │                                                 ^ 
 error[M0131]: variable bad1 is declared stable but has non-stable type
   weak (() -> ())
     ┌─ weak.mo:12:7
  12 │    let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
+    │        ^^^^ 
+error[M0131]: variable bad3 is declared stable but has non-stable type
+  (weak Blob, weak (() -> ()))
+    ┌─ weak.mo:26:7
+ 26 │    let bad3 : (weak Blob, weak (() -> ())) = (alloc("" : Blob), alloc(func() {})); // reject, non-stable
     │        ^^^^ 
 error[M0031]: shared function has non-shared parameter type
   (x : weak Blob)
@@ -9,6 +70,6 @@ type
   (x : weak Blob)
 is or contains non-shared type
   weak Blob
-    ┌─ weak.mo:28:26
- 28 │    public shared func bad2(x : weak Blob) : async (weak Blob) { x }; // reject, not shared
+    ┌─ weak.mo:62:26
+ 62 │    public shared func bad2(x : weak Blob) : async (weak Blob) { x }; // reject, not shared
     │                           ^^^^^^^^^^^^^^^ 

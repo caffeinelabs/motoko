@@ -6,6 +6,37 @@
 
   * Candid decoding of variants with many cases is faster (#6513).
 
+  * Diagnostics located in a Candid `.did` file show the file's path, not just
+    its name, and `--error-format=human` shows a source excerpt for them
+    (#6521).
+
+  * bugfix: A contextual-dot call with explicit type arguments, such as
+    `b.get<Nat>()`, now checks that the receiver fits the `self` parameter
+    under those type arguments. Before, a mismatched receiver type-checked and
+    the generated code read values at the wrong type (#6518).
+
+  * bugfix: a function literal passed to a generic call whose type arguments
+    are inferred is now rejected when its return type annotation doesn't fit
+    the expected return type. Previously, a call such as
+    `apply(5, func(x) : Int { -1 })` was accepted where `apply` expects a
+    `T -> Nat` function (#6516).
+
+  * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
+    bytes instead of decoding them to an arbitrary value (#6500).
+
+  * bugfix: Compiling a program that `moc --check` accepts no longer fails
+    with the internal error `Dom.Make(X).Clash` from the IR checker. The crash
+    depended only on how many async function types a file declares, so an
+    unrelated edit could trigger it, for example adding a method to an actor
+    type (#6522).
+
+  * bugfix: Different `weak` types are no longer treated as the same type.
+    Before, when one type, or one actor's stable variables, held two or
+    more different `weak` types, every one after the first was checked as
+    the first. Subtyping, stability, and upgrade compatibility then accepted
+    mismatched content types, inferred types could be wrong, and type
+    inference could fail with a spurious "bad instantiation" error (#6517).
+
 ## 2.2.3 (2026-11-17)
 
 * motoko (`moc`)

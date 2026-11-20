@@ -29,10 +29,14 @@ type stamps = {stamps : int Stamps.t; scope : scope option}
 
 let stamps : stamps ref = ref {stamps = Stamps.empty; scope = None}
 
-let session ?scope f =
+let session f =
   let original = !stamps in
-  stamps := {!stamps with scope};
   Fun.protect ~finally:(fun _ -> stamps := original) f
+
+let with_scope scope f =
+  let original = !stamps.scope in
+  stamps := {!stamps with scope = Some scope};
+  Fun.protect ~finally:(fun _ -> stamps := {!stamps with scope = original}) f
 
 let fresh_stamp name =
   let scope = !stamps.scope in
