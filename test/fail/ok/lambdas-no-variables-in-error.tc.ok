@@ -2,3 +2,31 @@ lambdas-no-variables-in-error.mo:3.28-3.30: type error [M0050], literal of type
   Int
 does not have expected type
   Nat
+lambdas-no-variables-in-error.mo:12.34-12.40: type error [M0095], function return type
+  Int
+does not match expected return type
+  Nat
+lambdas-no-variables-in-error.mo:15.38-15.43: type error [M0095], function return type
+  Nat
+does not match expected return type
+  Text
+lambdas-no-variables-in-error.mo:18.51-18.57: type error [M0095], function return type
+  async<$> Int
+does not match expected return type
+  async<$> Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+lambdas-no-variables-in-error.mo:21.57-21.63: type error [M0095], function return type
+  async*<$> Int
+does not match expected return type
+  async*<$> Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+lambdas-no-variables-in-error.mo:28.35-28.41: type error [M0095], function return type
+  Int
+does not match expected return type
+  Nat
