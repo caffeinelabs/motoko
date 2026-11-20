@@ -9,7 +9,7 @@
 
   * Diagnostics located in a Candid `.did` file show the file's path, not just
     its name, and `--error-format=human` shows a source excerpt for them
-    (#PRNUM).
+    (#6521).
 
 ## 2.2.3 (2026-11-17)
 
