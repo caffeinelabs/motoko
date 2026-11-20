@@ -42,7 +42,7 @@ let parse_file filename : parse_result =
   let ic = open_in filename in
   let lexer = Lexing.from_channel ic in
   let parser = Parser.parse_prog in
-  let name = Filename.basename filename in
+  let name = Lib.FilePath.normalise filename in
   let result = parse_with lexer parser name in
   close_in ic;
   match result with
@@ -161,7 +161,7 @@ let parse_test_file filename : parse_test_file_result =
   let ic = open_in filename in
   let lexer = Lexing.from_channel ic in
   let parser = Parser.parse_tests in
-  let name = Filename.basename filename in
+  let name = Lib.FilePath.normalise filename in
   let result = parse_with lexer parser name in
   close_in ic;
   match result with

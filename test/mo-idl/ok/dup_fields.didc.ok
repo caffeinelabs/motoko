@@ -1,1 +1,1 @@
-dup_fields.did:13.4-13.8: type error, field name name hash collision with field name
+_out/dup_fields.did:13.4-13.8: type error, field name name hash collision with field name
