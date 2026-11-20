@@ -1,0 +1,8 @@
+error[M0153]: file idl-mo-hash-collision/record.did uses Candid types without corresponding Motoko type
+    ┌─ idl-mo-hash-collision-record.mo:2:1
+  2 │  import S "idl:idl-mo-hash-collision/record.did";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0019]: field names _5_ and adwzdokc in Candid record type have colliding hashes
+    ┌─ idl-mo-hash-collision/record.did:2:10
+  2 │  type R = record { 5 : nat; adwzdokc : text };
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

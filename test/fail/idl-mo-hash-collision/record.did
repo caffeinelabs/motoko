@@ -1,0 +1,3 @@
+// The numeric field 5 becomes _5_ in Motoko, whose hash equals that of adwzdokc
+type R = record { 5 : nat; adwzdokc : text };
+service : { f : (R) -> () }

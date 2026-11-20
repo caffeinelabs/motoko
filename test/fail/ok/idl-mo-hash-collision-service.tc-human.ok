@@ -1,0 +1,13 @@
+error[M0153]: file idl-mo-hash-collision/service.did uses Candid types without corresponding Motoko type
+    ┌─ idl-mo-hash-collision-service.mo:2:1
+  2 │  import S "idl:idl-mo-hash-collision/service.did";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0019]: method names wtfwfj and grygle in Candid service type have colliding hashes
+    ┌─ idl-mo-hash-collision/service.did:1:11
+  1 │    service : {
+    │ ╭────────────^
+  2 │ │    wtfwfj : () -> ();
+  3 │ │    grygle : () -> ();
+  4 │ │  }
+    │ ╰──^ 
+  5 │    
