@@ -1,1 +1,1 @@
-rwlgt-iiaaa-aaaaa-aaaaa-cai.did:1.11-3.2: warning [M0185], Candid service constructor imported as a service; its initialization arguments are ignored
+service-import/rwlgt-iiaaa-aaaaa-aaaaa-cai.did:1.11-3.2: warning [M0185], Candid service constructor imported as a service; its initialization arguments are ignored

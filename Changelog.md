@@ -4,6 +4,10 @@
 
 * motoko (`moc`)
 
+  * Diagnostics located in a Candid `.did` file show the file's path, not just
+    its name, and `--error-format=human` shows a source excerpt for them
+    (#6521).
+
   * bugfix: A contextual-dot call with explicit type arguments, such as
     `b.get<Nat>()`, now checks that the receiver fits the `self` parameter
     under those type arguments. Before, a mismatched receiver type-checked and
