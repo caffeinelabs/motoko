@@ -9,9 +9,9 @@
 
   * bugfix: Compiling a program that `moc --check` accepts no longer fails
     with the internal error `Dom.Make(X).Clash` from the IR checker. The crash
-    depended only on how many function types a file declares, so an unrelated
-    edit could trigger it, for example adding a method to an actor type
-    (#6522).
+    depended only on how many async function types a file declares, so an
+    unrelated edit could trigger it, for example adding a method to an actor
+    type (#6522).
 
 ## 2.2.3 (2026-11-17)
 
