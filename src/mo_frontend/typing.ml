@@ -3270,12 +3270,7 @@ and check_exp' env0 t exp : T.typ =
     | Some kind ->
       let env', t2, codom, body =
         check_func_step env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
-      check_sub_explained env no_region t2 codom (fun explanation ->
-        error env body.at "M0095"
-          "function return type%a\ndoes not match expected return type%a%a"
-          display_typ_expand t2
-          display_typ_expand codom
-          (display_explanation t2 codom) explanation);
+      check_func_return env body t2 codom;
       check_exp_strong env' t2 body;
       t
     end
@@ -3394,7 +3389,7 @@ and check_exp_field env (ef : exp_field) fts =
   Returns:
   - the env for the elaborated body,
   - [exp_typ], the expected type of the elaborated body,
-  - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom],
+  - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom], see [check_func_return],
   - the elaborated body.
  *)
 and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) kind at (s, c, ts1, ts2) : env * T.typ * T.typ * exp =
@@ -3427,6 +3422,15 @@ and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) ki
       rets = Ret exp_typ; }
   in
   (adjoin_vals env' ve2), exp_typ, codom, body
+
+(** Checks [sub exp_typ codom] for the results of [check_func_step]. *)
+and check_func_return env body exp_typ codom =
+  check_sub_explained env no_region exp_typ codom (fun explanation ->
+    error env body.at "M0095"
+      "function return type%a\ndoes not match expected return type%a%a"
+      display_typ_expand exp_typ
+      display_typ_expand codom
+      (display_explanation exp_typ codom) explanation)
 
 and check_loop_body env body (flags : loop_flags) ~loop_typ =
   let env' = { env with closest_loop = Some (flags, loop_typ) } in
@@ -3901,6 +3905,8 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
             check_func_step false env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
           (* [codom] comes from [ts2] which might contain unsolved type variables. *)
           let closed_codom = Bi_match.is_closed remaining codom in
+          (* An open [codom] gets its subtype problem below *)
+          if closed_codom then check_func_return env body body_typ codom;
           (* Closed [codom] implies closed [body_typ]. [body_typ] is closed when it comes from [typ_opt] *)
           let closed_body_typ = closed_codom || Option.is_some typ_opt in
           let env' = if closed_body_typ then env' else { env' with rets = BimatchRet (infer_body body_typ) } in
