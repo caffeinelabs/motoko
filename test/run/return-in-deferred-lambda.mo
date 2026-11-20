@@ -15,3 +15,7 @@ assert Text.fromIter(
     }
   )
 ) == "abc";
+
+// A return type annotation can be a subtype of the expected return type
+func applyInt<T>(x : T, f : T -> Int) : Int = f(x);
+assert applyInt(5, func(x) : Nat { return x + 1 }) == 6
