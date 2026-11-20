@@ -3511,7 +3511,7 @@ and infer_callee env exp =
         let note_eff = A.infer_effect_exp exp in
         exp.note <- {note_typ = func_ty; note_eff}
       end;
-      func_ty, Some (exp1, t1, id.it, inst)
+      func_ty, Some (exp1, t0, id.it, inst)
      end
   | _ ->
      infer_exp_promote env exp, None
@@ -3619,14 +3619,19 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | TupE es when not parenthesized -> es
     | _ -> [exp2]
   in
-  let t_args, extra_subtype_problems = match ctx_dot with
+  let t_args, receiver = match ctx_dot with
     | None ->
-      t_args, []
-    | Some(e, t, _id, _inst) -> begin
+      t_args, None
+    | Some(e, t0, _id, _inst) -> begin
       match t_args with
-      | t'::ts -> ts, [(t, t', e.at)]
+      | t'::ts -> ts, Some (t0, t', e.at)
       | [] -> assert false
     end
+  in
+  (* Inference solves against the promoted receiver *)
+  let extra_subtype_problems = match receiver with
+    | None -> []
+    | Some (t0, t', at) -> [(T.promote t0, t', at)]
   in
   let saturated_arity, implicits_arity = arity_with_implicits t_args in
   let is_correct_arity =
@@ -3716,6 +3721,16 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
       if not env.pre then begin
+        (* The receiver of a contextual dot must fit [self] under the explicit instantiation.
+           Check the unpromoted receiver, so a type variable keeps its identity. *)
+        receiver |> Option.iter (fun (t, t_self, at) ->
+          let t_self' = T.open_ ts t_self in
+          check_sub_explained env at t t_self' (fun explanation ->
+            local_error env at "M0096"
+              "expression of type%a\ncannot produce expected type%a%a"
+              display_typ_expand t
+              display_typ_expand t_self'
+              (display_explanation t t_self') explanation));
         (* M0223 redundancy probe; MUST precede [check_exp_strong]. Drop only the fragile expected type. *)
         let probe_expect = if env.enclosing_removal then None else t_expect_opt in
         is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&

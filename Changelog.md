@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * bugfix: A contextual-dot call with explicit type arguments, such as
+    `b.get<Nat>()`, now checks that the receiver fits the `self` parameter
+    under those type arguments. Before, a mismatched receiver type-checked and
+    the generated code read values at the wrong type (#6518).
+
   * bugfix: a function literal passed to a generic call whose type arguments
     are inferred is now rejected when its return type annotation doesn't fit
     the expected return type. Previously, a call such as
