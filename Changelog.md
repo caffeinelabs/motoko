@@ -4,6 +4,10 @@
 
 * motoko (`moc`)
 
+  * Diagnostics located in a Candid `.did` file show the file's path, not just
+    its name, and `--error-format=human` shows a source excerpt for them
+    (#6521).
+
   * bugfix: A contextual-dot call with explicit type arguments, such as
     `b.get<Nat>()`, now checks that the receiver fits the `self` parameter
     under those type arguments. Before, a mismatched receiver type-checked and
@@ -17,6 +21,12 @@
 
   * bugfix: Candid decoding rejects signed LEB128 numbers longer than ten
     bytes instead of decoding them to an arbitrary value (#6500).
+
+  * bugfix: Compiling a program that `moc --check` accepts no longer fails
+    with the internal error `Dom.Make(X).Clash` from the IR checker. The crash
+    depended only on how many async function types a file declares, so an
+    unrelated edit could trigger it, for example adding a method to an actor
+    type (#6522).
 
   * bugfix: Different `weak` types are no longer treated as the same type.
     Before, when one type, or one actor's stable variables, held two or
