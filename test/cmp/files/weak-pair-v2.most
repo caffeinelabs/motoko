@@ -1,0 +1,3 @@
+actor {
+  stable var p : (weak [var Nat64], weak [var Nat16])
+};
