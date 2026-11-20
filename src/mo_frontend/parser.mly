@@ -1065,24 +1065,35 @@ exp_field :
   | m=var_opt x=id t=annot_opt EQ e=exp(ob, ob)
     { { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
 
+(* A field without visibility gets its own productions, and so does a field
+   without stability, rather than reducing an empty `vis`/`stab`: a field may
+   start with a parenthetical, and only the token after its `)` tells whether
+   it notes the `public` that follows, an object or class, or a call. *)
 dec_field :
+  | d=dec
+    { {dec = d; vis = Private @@ no_region; stab = None} @@ at $sloc }
+  | s=stab_some d=dec
+    { {dec = d; vis = Private @@ no_region; stab = Some s} @@ at $sloc }
   | v=vis s=stab d=dec
     { {dec = d; vis = v; stab = s} @@ at $sloc }
 
 vis :
-  | (* empty *) { Private @@ no_region }
   | PRIVATE { Private @@ at $sloc }
-  | PUBLIC {
-    let at = at $sloc in
-    let trivia = Trivia.find_trivia !triv_table at in
-    let depr = Trivia.deprecated_of_trivia_info trivia in
-    Public depr @@ at }
+  | par=parenthetical_opt PUBLIC {
+    let at_pub = at $loc($2) in
+    (* `@deprecated` goes above the parenthetical, or else right before `public` *)
+    let depr_at r = Trivia.deprecated_of_trivia_info (Trivia.find_trivia !triv_table r) in
+    let depr = match depr_at (at $sloc) with None -> depr_at at_pub | d -> d in
+    Public (depr, par) @@ at_pub }
   | SYSTEM { System @@ at $sloc }
 
 stab :
   | (* empty *) { None }
-  | STABLE { Some (Stable @@ at $sloc) }
-  | TRANSIENT { Some (Flexible @@ at $sloc) }
+  | s=stab_some { Some s }
+
+%inline stab_some :
+  | STABLE { Stable @@ at $sloc }
+  | TRANSIENT { Flexible @@ at $sloc }
 
 %inline persistent :
   | (* empty *) { persistent true no_region }
