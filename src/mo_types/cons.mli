@@ -4,9 +4,13 @@ type scope = string
 
 type 'a t
 
-(* Reset to the original state after running the provided function. The [scope]
-   is used to create a new unique stamp for each constructor per file. *)
-val session : ?scope:scope -> (unit -> 'a) -> 'a
+(* Runs [f], then resets all stamp counters to their state before the call. *)
+val session : (unit -> 'a) -> 'a
+
+(* Runs [f] with stamps drawn from the counters of file [scope]. The counters
+   outlive the call, so a later call with the same [scope], such as compiling a
+   file after type-checking it, never hands out a stamp a constructor already has. *)
+val with_scope : scope -> (unit -> 'a) -> 'a
 
 val fresh : string -> 'a -> 'a t
 val clone: 'a t -> 'a -> 'a t
