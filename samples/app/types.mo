@@ -1,6 +1,6 @@
 module {
   public type Subscription = {
-    post : shared Text -> ();  // revokable by Server
-    cancel : shared () -> ();
-  };
-};
+    post : shared Text -> (); // revokable by Server
+    cancel : shared () -> ()
+  }
+}

@@ -8,15 +8,15 @@ actor Registry {
   public func register(name : Text) : async () {
     switch Map.get(map, Text.compare, name) {
       case null {
-        Map.add(map, Text.compare, name, Map.size(map));
+        Map.add(map, Text.compare, name, Map.size(map))
       }
-      case ?_ { }
+      case ?_ {}
     }
   };
 
   public func lookup(name : Text) : async ?Nat {
-    Map.get(map, Text.compare, name);
-  };
+    Map.get(map, Text.compare, name)
+  }
 };
 
 await Registry.register("hello");

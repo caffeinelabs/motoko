@@ -2,24 +2,25 @@ import Principal = "mo:core/Principal";
 
 actor {
 
-   var c = 0;
+  var c = 0;
 
-   public func inc() : async () { c += 1 };
-   public func set(n : Nat) : async () { c := n };
-   public query func read() : async Nat { c };
-   public func reset() : () { c := 0 }; // oneway
+  public func inc() : async () { c += 1 };
+  public func set(n : Nat) : async () { c := n };
+  public query func read() : async Nat { c };
+  public func reset() : () { c := 0 }; // oneway
 
-   system func inspect(
-     {
-       caller : Principal;
-       arg : Blob;
-       msg : {
-         #inc : () -> ();
-         #set : () -> Nat;
-         #read : () -> ();
-         #reset : () -> ();
-       }
-     }) : Bool {
+  system func inspect(
+    {
+      caller : Principal;
+      arg : Blob;
+      msg : {
+        #inc : () -> ();
+        #set : () -> Nat;
+        #read : () -> ();
+        #reset : () -> ()
+      }
+    }
+  ) : Bool {
     if Principal.isAnonymous(caller) { return false };
     if arg.size() > 512 { return false };
     switch msg {
@@ -29,4 +30,4 @@ actor {
       case #reset(_) { false }
     }
   }
-};
+}

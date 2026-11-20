@@ -6,13 +6,13 @@ actor Alarm {
   var count = 0;
 
   public shared func ring() : async () {
-    Debug.print("Ring!");
+    Debug.print("Ring!")
   };
 
   system func heartbeat() : async () {
     if count % n == 0 {
-      await ring();
+      await ring()
     };
-    count += 1;
+    count += 1
   }
 }

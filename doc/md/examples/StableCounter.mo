@@ -4,6 +4,6 @@ actor Counter {
 
   public func inc() : async Nat {
     value += 1;
-    return value;
-  };
+    return value
+  }
 }

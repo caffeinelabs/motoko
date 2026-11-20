@@ -1,17 +1,17 @@
 import Cycles "mo:core/Cycles";
 
-shared(msg) actor class PiggyBank(
+shared (msg) actor class PiggyBank(
   benefit : shared () -> async (),
-  capacity: Nat
-  ) {
+  capacity : Nat
+) {
 
   transient let owner = msg.caller;
 
   var savings = 0;
 
-  public shared(msg) func getSavings() : async Nat {
-    assert (msg.caller == owner);
-    return savings;
+  public shared (msg) func getSavings() : async Nat {
+    assert msg.caller == owner;
+    return savings
   };
 
   public func deposit() : async () {
@@ -21,17 +21,16 @@ shared(msg) actor class PiggyBank(
       if amount <= limit { amount }
       else { limit };
     let accepted = Cycles.accept<system>(acceptable);
-    assert (accepted == acceptable);
-    savings += acceptable;
+    assert accepted == acceptable;
+    savings += acceptable
   };
 
-  public shared(msg) func withdraw(amount : Nat)
-    : async () {
-    assert (msg.caller == owner);
-    assert (amount <= savings);
+  public shared (msg) func withdraw(amount : Nat) : async () {
+    assert msg.caller == owner;
+    assert amount <= savings;
     await (with cycles = amount) benefit();
     let refund = Cycles.refunded();
-    savings -= amount - refund;
-  };
+    savings -= amount - refund
+  }
 
 }

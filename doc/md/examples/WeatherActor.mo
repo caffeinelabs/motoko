@@ -7,12 +7,12 @@ actor {
       var count = 0.0;
       for value in temperatures.values() {
         sum += value;
-        count += 1;
+        count += 1
       };
-      return sum / count;
-    };
+      return sum / count
+    }
   };
 
   var temperatures : TemperatureSeries = [30.0, 31.5, 29.2];
-  transient var weather = Weather(temperatures);
-};
+  transient var weather = Weather(temperatures)
+}

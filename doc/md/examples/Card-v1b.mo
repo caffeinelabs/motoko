@@ -1,9 +1,8 @@
 actor {
   type Card = {
     title : Text;
-    description : Text;
+    description : Text
   };
 
-  var newMap : [(Nat32, Card)] = [];
-};
-
+  var newMap : [(Nat32, Card)] = []
+}
