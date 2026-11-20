@@ -4,6 +4,8 @@
 
 * motoko (`moc`)
 
+  * Candid decoding of variants with many cases is faster (#6513).
+
   * Diagnostics located in a Candid `.did` file show the file's path, not just
     its name, and `--error-format=human` shows a source excerpt for them
     (#6521).
