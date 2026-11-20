@@ -48,21 +48,29 @@ let is_tuple fs =
 
 (* Motoko code tells fields apart by their 31-bit label hash, but distinct
    Candid ids can still collide on it. *)
-let check_field_hashes at member kind fs =
+let check_field_hashes member kind (fs : (Source.region * M.lab) list) =
   let rec go = function
-    | (h1, l1) :: ((h2, l2) :: _ as rest) ->
-      if h1 = h2 then
+    | (h1, (at1, l1)) :: ((h2, (at2, l2)) :: _ as rest) ->
+      if h1 = h2 then begin
+        let spans = Diag.[{ prio = Secondary; at_span = at1; label = "first " ^ member }] in
         raise (UnsupportedCandidFeature
-          (Diag.error_message at "M0019" "import"
+          (Diag.error_message at2 "M0019" "import" ~spans
             (Printf.sprintf "%s names %s and %s in Candid %s type have colliding hashes"
-              member l1 l2 kind)));
+              member l1 l2 kind)))
+      end;
       go rest
     | _ -> ()
   in
   fs
-  |> List.map (fun f -> (Mo_types.Hash.hash f.M.lab, f.M.lab))
-  |> List.stable_sort (fun (h1, _) (h2, _) -> Int32.compare h1 h2)
+  |> List.map (fun (at, lab) -> (Mo_types.Hash.hash lab, (at, lab)))
+  |> List.sort (fun (h1, (at1, _)) (h2, (at2, _)) ->
+       match Int32.compare h1 h2 with
+       | 0 -> compare Source.(at1.left.line, at1.left.column) Source.(at2.left.line, at2.left.column)
+       | c -> c)
   |> go
+
+let with_regions (cfs : typ_field list) (fs : M.field list) =
+  List.map2 (fun (cf : typ_field) (f : M.field) -> (cf.at, f.M.lab)) cfs fs
 
 let rec check_typ' env occs t =
   match t.it with
@@ -87,12 +95,14 @@ let rec check_typ' env occs t =
      if is_tuple fs then
        M.Tup (List.map (fun (f : typ_field) -> check_typ' env occs f.it.typ) fs)
      else
-       let fs = List.map (check_field env occs) fs in
-       check_field_hashes t.at "field" "record" fs;
+       let cfs = fs in
+       let fs = List.map (check_field env occs) cfs in
+       check_field_hashes "field" "record" (with_regions cfs fs);
        M.Obj (M.Object, List.sort M.compare_field fs, [])
   | VariantT fs ->
-     let fs = List.map (check_variant_field env occs) fs in
-     check_field_hashes t.at "tag" "variant" fs;
+     let cfs = fs in
+     let fs = List.map (check_variant_field env occs) cfs in
+     check_field_hashes "tag" "variant" (with_regions cfs fs);
      M.Variant (List.sort M.compare_field fs)
   | FuncT (ms, ts1, ts2) ->
      let (s, c) = check_modes ms in
@@ -120,7 +130,8 @@ and check_meth env occs (m: typ_meth) =
   M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; typ = check_typ' env occs m.it.meth; src = empty_src}
 and check_meths env occs at ms =
   let fs = List.map (check_meth env occs) ms in
-  check_field_hashes at "method" "service" fs;
+  check_field_hashes "method" "service"
+    (List.map2 (fun (m : typ_meth) (f : M.field) -> (m.at, f.M.lab)) ms fs);
   fs
 
 let actor_methods env occs actor =
