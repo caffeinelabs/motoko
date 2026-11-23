@@ -4,6 +4,7 @@ pub mod mark_stack;
 pub mod partitioned_heap;
 pub mod roots;
 pub mod sort;
+pub mod text_iter;
 pub mod time;
 
 pub fn test() {
@@ -15,6 +16,7 @@ pub fn test() {
         partitioned_heap::test();
         sort::test();
         roots::test();
+        text_iter::test();
         time::test();
     }
 }
