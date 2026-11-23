@@ -8,7 +8,7 @@
     bytes. Before, a length within 31 bytes of 2^64 made the size computation
     wrap, so that a much too small object was allocated. All known ways to
     request such a length (e.g. `Region.loadBlob`) trapped right afterwards
-    (#NNNN).
+    (#6528).
 
 ## 2.2.4 (2026-11-20)
 
