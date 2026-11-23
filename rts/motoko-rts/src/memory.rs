@@ -1,6 +1,10 @@
 #[cfg(feature = "ic")]
 pub mod ic;
-use crate::{constants::MAX_ARRAY_LENGTH, types::*};
+use crate::{
+    constants::{MAX_ARRAY_LENGTH, MAX_BLOB_LENGTH},
+    rts_trap_with,
+    types::*,
+};
 
 use motoko_rts_macros::ic_mem_fn;
 
@@ -46,13 +50,25 @@ pub trait Memory {
     unsafe fn grow_memory(&mut self, ptr: usize);
 }
 
+/// Size of a blob object with `size` payload bytes, or `None` if no such blob can be
+/// allocated. The bound keeps the size computation from wrapping, see `MAX_BLOB_LENGTH`.
+pub fn blob_object_size(size: Bytes<usize>) -> Option<Words<usize>> {
+    if size.as_usize() > MAX_BLOB_LENGTH {
+        return None;
+    }
+    Some(size_of::<Blob>() + size.to_words())
+}
+
 /// Allocate a new blob.
 /// Note: After initialization, the post allocation barrier needs to be applied to all mutator objects.
 /// For RTS-internal blobs that can be collected by the next GC run, the post allocation barrier can be omitted.
 #[ic_mem_fn]
 pub unsafe fn alloc_blob<M: Memory>(mem: &mut M, tag: Tag, size: Bytes<usize>) -> Value {
     debug_assert!(is_blob_tag(tag));
-    let ptr = mem.alloc_words(size_of::<Blob>() + size.to_words());
+    let Some(words) = blob_object_size(size) else {
+        rts_trap_with("alloc_blob: blob too large");
+    };
+    let ptr = mem.alloc_words(words);
     // NB. Cannot use `as_blob` here as we didn't write the header yet
     let blob = ptr.get_ptr() as *mut Blob;
     (*blob).header.tag = tag;

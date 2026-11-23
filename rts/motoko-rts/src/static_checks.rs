@@ -1,7 +1,7 @@
 //! Compile-time assertions to make sure object layouts are as expected
 
 use crate::{
-    constants::{MAX_ARRAY_LENGTH, MAX_ARRAY_LENGTH_FOR_ITERATOR},
+    constants::{MAX_ARRAY_LENGTH, MAX_ARRAY_LENGTH_FOR_ITERATOR, MAX_BLOB_LENGTH},
     types::*,
 };
 
@@ -71,3 +71,8 @@ const _: () = assert!(MAX_ARRAY_LENGTH_FOR_ITERATOR < (1 << (usize::BITS - 2)));
 // The byte size of a maximally sized array must not wrap (#6299).
 const _: () = assert!(MAX_ARRAY_LENGTH + size_of::<Array>() / WORD_SIZE <= usize::MAX / WORD_SIZE);
 const _: () = assert!(MAX_ARRAY_LENGTH <= MAX_ARRAY_LENGTH_FOR_ITERATOR);
+
+// Neither must the byte size of a maximally sized blob.
+const _: () = assert!(
+    MAX_BLOB_LENGTH / WORD_SIZE + 1 + size_of::<Blob>() / WORD_SIZE <= usize::MAX / WORD_SIZE
+);
