@@ -7,7 +7,7 @@
   * bugfix: iterating over a `Text` (e.g. with `chars()`) while a garbage
     collection is in progress could leave the iterator with a dangling
     reference. This needed an iteration suspended across an `await`, over a
-    text built from nested concatenations (#NNNN).
+    text built from nested concatenations (#6527).
 
 ## 2.2.4 (2026-11-20)
 
