@@ -204,7 +204,7 @@ let infer_prog
     prog : (Type.typ * Scope.scope) Diag.result =
   let filename = prog.note.Syntax.filename in
   phase "Checking" filename;
-  Cons.session ~scope:filename (fun () ->
+  Cons.with_scope filename (fun () ->
     let r = Typing.infer_prog ~enable_type_recovery ~stable_baseline_sig pkg_opt senv async_cap prog in
     if !Flags.trace && !Flags.verbose then begin
       match r with
@@ -222,7 +222,7 @@ let infer_prog
 
 let check_lib ~stable_baseline_sig senv pkg_opt lib : Scope.scope Diag.result =
   let filename = lib.note.Syntax.filename in
-  Cons.session ~scope:filename (fun () ->
+  Cons.with_scope filename (fun () ->
     phase "Checking" (Filename.basename filename);
     let open Diag.Syntax in
     let* sscope = Typing.check_lib ~stable_baseline_sig senv pkg_opt lib in
@@ -283,7 +283,7 @@ let parse_stab_sig_from_file filename : Syntax.stab_sig Diag.result =
 let load_stab_sig path : Type.stab_sig Diag.result =
   let open Diag.Syntax in
   let* p = parse_stab_sig_from_file path in
-  Cons.session ~scope:p.note.Syntax.filename (fun () ->
+  Cons.with_scope p.note.Syntax.filename (fun () ->
     Typing.check_stab_sig initial_stat_env0 p)
 
 let stable_compatible pre post : unit Diag.result =
@@ -297,7 +297,7 @@ let validate_stab_sig s : unit Diag.result =
   let open Diag.Syntax in
   (*  Printf.printf "stable sig %s" s; *)
   let name = "stable-types" in
-  Cons.session ~scope:name (fun () ->
+  Cons.with_scope name (fun () ->
     let* p1 = parse_stab_sig s name in
     let* p2 = parse_stab_sig s name in
     let* s1 = Typing.check_stab_sig initial_stat_env0 p1 in
@@ -416,7 +416,7 @@ let chase_imports_shared ~stable_baseline_sig parsefn senv0 imports cache failed
   let rec go_cached pkg_opt ri =
     let ri_name = resolved_import_name ri in
     match Type.Env.find_opt ri_name !cache with
-    | None -> Cons.session ~scope:ri_name (fun () -> go pkg_opt ri)
+    | None -> Cons.with_scope ri_name (fun () -> go pkg_opt ri)
     | Some sscope ->
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
@@ -608,7 +608,7 @@ let interpret_prog denv prog : (Value.value * Interpret.scope) option =
   let open Interpret in
   let filename = prog.note.Syntax.filename in
   phase "Interpreting" filename;
-  Cons.session ~scope:filename (fun () ->
+  Cons.with_scope filename (fun () ->
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
     Interpret.interpret_prog flags denv prog)
 
@@ -621,7 +621,7 @@ let rec interpret_libs denv libs : Interpret.scope =
     phase "Interpreting" (Filename.basename filename);
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
     let dscope =
-      Cons.session ~scope:filename (fun () -> interpret_lib flags denv lib)
+      Cons.with_scope filename (fun () -> interpret_lib flags denv lib)
     in
     let denv' = adjoin_scope denv dscope in
     interpret_libs denv' libs'
@@ -835,7 +835,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
       let { Syntax.body = cub; _ } = l.it in
       let filename = l.note.Syntax.filename in
       let new_imports =
-        Cons.session ~scope:filename (fun () ->
+        Cons.with_scope filename (fun () ->
           match cub.it with
           | Syntax.ActorClassU _ ->
             (* Okay to "run" here, as `compile_unit_to_wasm` only fails on Syntax.MixinU *)
@@ -850,7 +850,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
 and compile_unit mode (enhanced_migration:string option) imports u : Wasm_exts.CustomModule.extended_module Diag.result =
   let open Diag.Syntax in
   let name = u.note.Syntax.filename in
-  Cons.session ~scope:name (fun () ->
+  Cons.with_scope name (fun () ->
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
     phase "Compiling" name;
