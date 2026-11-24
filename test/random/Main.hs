@@ -27,7 +27,7 @@ module Main where
 import Control.Applicative
 import Test.QuickCheck.Monadic
 import Test.Tasty
-import Test.Tasty.QuickCheck as QC hiding ((.&.))
+import Test.Tasty.QuickCheck as QC hiding ((.&.), Some)
 import Test.QuickCheck.Unicode
 import System.Environment
 import qualified Data.Text (null, pack, unpack)
