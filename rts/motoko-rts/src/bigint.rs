@@ -486,30 +486,42 @@ pub unsafe extern "C" fn bigint_leb128_size(a: Value) -> usize {
     }
 }
 
-// `add_bit` argument is to make this work for both leb and sleb encoding
-unsafe fn bigint_leb128_encode_go(tmp: *mut mp_int, mut buf: *mut u8, add_bit: bool) {
-    if mp_isneg(tmp) {
-        bigint_trap();
-    }
-
-    loop {
-        let byte = mp_get_u32(tmp) as u8;
-        check(mp_div_2d(tmp, 7, tmp, core::ptr::null_mut()));
-        if !mp_iszero(tmp) || (add_bit && byte & (1 << 6) != 0) {
-            *buf = byte | (1 << 7);
-            buf = buf.add(1);
-        } else {
-            *buf = byte;
-            break;
+/// Writes the non-negative `i` as `groups` 7-bit groups of LEB128 data, with the continuation bit
+/// on every byte but the last. The groups are read straight from the digits of `i`, so this takes
+/// time proportional to the length of the encoding.
+unsafe fn leb128_encode_groups(i: *const mp_int, buf: *mut u8, groups: usize) {
+    let digit_bits = MP_DIGIT_BIT as usize;
+    for k in 0..groups {
+        let (digit, offset) = (7 * k / digit_bits, 7 * k % digit_bits);
+        let mut group = digit_at(i, digit) >> offset;
+        if offset + 7 > digit_bits {
+            group |= digit_at(i, digit + 1) << (digit_bits - offset);
         }
+        let byte = (group & 0b0111_1111) as u8;
+        *buf.add(k) = if k + 1 < groups {
+            byte | 0b1000_0000
+        } else {
+            byte
+        };
+    }
+}
+
+/// Digit `d` of `i`, or zero beyond the digits in use.
+unsafe fn digit_at(i: *const mp_int, d: usize) -> mp_digit {
+    if d < (*i).used as usize {
+        *(*i).dp.add(d)
+    } else {
+        0
     }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_encode(n: Value, buf: *mut u8) {
-    let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
-    check(mp_init_copy(&mut tmp, n.as_bigint().mp_int_ptr()));
-    bigint_leb128_encode_go(&mut tmp, buf, false)
+    let i = n.as_bigint().mp_int_ptr();
+    if mp_isneg(i) {
+        bigint_trap();
+    }
+    leb128_encode_groups(i, buf, bigint_leb128_size(n))
 }
 
 #[unsafe(no_mangle)]
@@ -532,19 +544,20 @@ pub unsafe extern "C" fn bigint_sleb128_size(n: Value) -> usize {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_encode(n: Value, buf: *mut u8) {
-    let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
-    check(mp_init_copy(&mut tmp, n.as_bigint().mp_int_ptr()));
-
-    if mp_isneg(&tmp) {
+    let bytes = bigint_sleb128_size(n);
+    let i = n.as_bigint().mp_int_ptr();
+    if mp_isneg(i) {
         // Turn negative numbers into the two's complement of the right size
-        let bytes = bigint_sleb128_size(n);
+        let mut tmp: mp_int = core::mem::zeroed();
+        check(mp_init_copy(&mut tmp, i));
         let mut big: mp_int = core::mem::zeroed();
         check(mp_init(&mut big));
         check(mp_2expt(&mut big, 7 * bytes as i32));
         check(mp_add(&mut tmp, &big, &mut tmp));
-        bigint_leb128_encode_go(&mut tmp, buf, false)
+        leb128_encode_groups(&tmp, buf, bytes)
     } else {
-        bigint_leb128_encode_go(&mut tmp, buf, true)
+        // The size leaves room for a zero sign bit
+        leb128_encode_groups(i, buf, bytes)
     }
 }
 
