@@ -1,0 +1,16 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ("index", 0, "IC0504: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister violated contract: "ic0_msg_reject_msg_size" cannot be executed in update mode.
+Check the ICP documentation to make sure APIs are being called in the correct message types. See documentation: https://docs.internetcomputer.org/references/execution-errors#calling-a-system-api-from-the-wrong-mode")
+debug.print: ("index", 1, "could not perform raw call")
+debug.print: ("index", 2, "IC0504: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister violated contract: "ic0_msg_reject_msg_size" cannot be executed in update mode.
+Check the ICP documentation to make sure APIs are being called in the correct message types. See documentation: https://docs.internetcomputer.org/references/execution-errors#calling-a-system-api-from-the-wrong-mode")
+debug.print: ("index", 3, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation index not in table'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
+debug.print: ("index", 4, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation index not in table'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
+debug.print: ("index", 5, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation index not in table'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ping ok
+ingress Completed: Reply: 0x4449444c0000
