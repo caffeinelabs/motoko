@@ -10,7 +10,7 @@
 //! 1. A pointer to the text
 //! 2. 0, or a pointer to the next list entry
 
-use crate::barriers::allocation_barrier;
+use crate::barriers::{allocation_barrier, write_with_barrier};
 use crate::memory::{Memory, alloc_array};
 use crate::rts_trap_with;
 use crate::text::decode_code_point;
@@ -34,7 +34,10 @@ unsafe fn find_leaf<M: Memory>(mem: &mut M, mut text: Value, todo: *mut Value) -
         new_todo_array.initialize(TODO_TEXT_IDX, (*concat).text2, mem);
         new_todo_array.initialize(TODO_LINK_IDX, *todo, mem);
         allocation_barrier(new_todo);
-        *todo = new_todo;
+        // `todo` can be a field of an iterator that already exists (see `text_iter_next`).
+        // The cell it holds is from now on reachable only through `new_todo`, which the GC
+        // marks on allocation but never scans. The pre-update barrier keeps that cell alive.
+        write_with_barrier(mem, todo, new_todo);
 
         // Follow left node
         text = (*concat).text1;
