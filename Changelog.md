@@ -1,5 +1,12 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * Candid encoding of large `Nat` and `Int` values is faster and allocates
+    less (#6532).
+
 ## 2.2.4 (2026-11-20)
 
 * motoko (`moc`)
