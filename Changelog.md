@@ -1,5 +1,14 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: Canisters that forward calls to themselves can no longer be used to
+    run an `async` body a second time, to make the runtime read past a
+    continuation, or to start incremental stabilization;
+    `__motoko_stabilize_before_upgrade` now requires a controller (#6531).
+
 ## 2.2.4 (2026-11-20)
 
 * motoko (`moc`)
