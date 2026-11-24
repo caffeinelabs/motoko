@@ -29,7 +29,7 @@ let combine_shifts const op = function
 let optimize : instr list -> instr list = fun is ->
   let rec go l r = match l, r with
     (* Loading and dropping is pointless *)
-    | { it = Const _ | LocalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' r'
+    | { it = Const _ | LocalGet _ | GlobalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' r'
     (* The following is not semantics preserving for general Wasm (due to out-of-memory)
        but should be fine for the code that we create *)
     | { it = Load _; _} :: l', { it = Drop; _ } :: _ -> go l' r
@@ -210,13 +210,23 @@ let loop0 (body : t) : t =
   fun d pos rest ->
     (Loop (ValBlockType None, to_nested_list d pos body) @@ pos) :: rest
 
+(* Signals that a [t] mutates state (depth-promise refs) when invoked,
+   so it cannot be safely materialised at inspection time. Speculative
+   callers install a handler that aborts on this effect. *)
+type _ Effect.t += Inspecting : unit Effect.t
+
+let effectful (is : t) : t =
+  fun d pos rest ->
+    (try Effect.perform Inspecting with Effect.Unhandled _ -> ());
+    is d pos rest
+
 (* Remember depth *)
 type depth = int32 Lib.Promise.t
 
 let new_depth_label () : depth =  Lib.Promise.make ()
 
 let remember_depth depth (is : t) : t =
-  fun d rest -> Lib.Promise.fulfill depth d; is d rest
+  effectful (fun d pos rest -> Lib.Promise.fulfill depth d; is d pos rest)
 
 let with_current_depth (k : depth -> t) : t =
   let depth = new_depth_label () in
@@ -228,8 +238,8 @@ let with_current_depth' (k : depth -> ('a * t)) : ('a * t) =
   (x, remember_depth depth is)
 
 let branch_to_ (p : depth) : t =
-  fun d pos rest ->
-    (Br (Int32.(sub d (Lib.Promise.value p)) @@ pos) @@ pos) :: rest
+  effectful (fun d pos rest ->
+    (Br (Int32.(sub d (Lib.Promise.value p)) @@ pos) @@ pos) :: rest)
 
 (* Convenience combinators *)
 
@@ -243,6 +253,42 @@ let setter_for (getter : t) =
   | [LocalGet v] -> i (LocalSet v)
   | [GlobalGet v] -> i (GlobalSet v)
   | _ -> failwith "input must be a getter"
+
+(* Bind [init] to a fresh immutable local (allocated via [new_local]) UNLESS it
+   already materialises to a single pure-read instruction (LocalGet / GlobalGet
+   / Const), in which case no local is allocated and [init] is re-emitted at
+   each use site.  An unfulfilled depth-promise inside [init] (e.g. a
+   `branch_to_` escaping the value) raises [Inspecting], forcing the safe
+   local-binding fallback.  Returns (prelude, getter): emit [prelude] once,
+   then [getter] at each use. *)
+let inspect (init : t) =
+  let exception Bail in
+  let open Effect.Deep in
+  try
+    Some (try_with
+      (fun () -> init 0l no_region [])
+      ()
+      { effc = fun (type a) -> function
+          | (Inspecting : a Effect.t) ->
+              Some (fun (_ : (a, _) continuation) -> raise Bail)
+          | _ -> None })
+  with Bail -> None
+
+(* Does [code] materialise to a single pure-read instruction? *)
+let is_pure_read (code : t) =
+  match inspect code with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> true
+  | _ -> false
+
+let immut_local ~(new_local : string -> t * t) name (init : t) : t * t =
+  match inspect init with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> nop, init
+  | Some is ->
+    let set_l, get_l = new_local name in
+    (fun _ _ rest -> is @ rest) ^^ set_l, get_l
+  | None ->
+    let set_l, get_l = new_local name in
+    init ^^ set_l, get_l
 
 (* Intended to be used within assert *)
 
