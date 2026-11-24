@@ -5593,6 +5593,10 @@ module IC = struct
       system_call env "msg_caller_copy" ^^
       get_str_caller ^^ get_len_caller ^^ is_controller env)
 
+  let assert_caller_controller env =
+    is_controller_call env ^^
+    E.else_trap_with env "not a call from controller"
+
   let assert_caller_self_or_controller env =
     is_self_call env ^^
     is_controller_call env ^^
@@ -10248,6 +10252,10 @@ module IncrementalGraphStabilization = struct
     | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
         IC.assert_caller_self_or_controller env ^^
+        (* Only continue a stabilization started by `__motoko_stabilize_before_upgrade`:
+           a canister that forwards calls can make this a self-call at any time. *)
+        GraphCopyStabilization.is_graph_stabilization_started env ^^
+        E.else_trap_with env "Stabilization has not been started" ^^
         (* All messages are blocked except this method and the upgrade. *)
         Lifecycle.trans env Lifecycle.InStabilization ^^
         (* Skip argument deserialization to avoid allocations. *)
@@ -10283,7 +10291,9 @@ module IncrementalGraphStabilization = struct
     begin match E.mode env with
     | Flags.ICMode ->
       Func.define_built_in env name [] [] (fun env ->
-        IC.assert_caller_self_or_controller env ^^
+        (* Not self: a canister that forwards calls would let anyone block it.
+           The stabilization increments are self-calls to `@motoko_async_stabilization`. *)
+        IC.assert_caller_controller env ^^
         (* All messages are blocked except this method and the upgrade. *)
         Lifecycle.trans env Lifecycle.InStabilization ^^
         start_graph_stabilization env actor_type ^^
