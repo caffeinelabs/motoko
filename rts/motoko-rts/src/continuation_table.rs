@@ -32,7 +32,7 @@ use core::ptr::addr_of_mut;
 use crate::barriers::{allocation_barrier, write_with_barrier};
 use crate::memory::{Memory, alloc_array};
 use crate::rts_trap_with;
-use crate::types::{TAG_ARRAY_M, Value};
+use crate::types::{TAG_ARRAY_M, TAG_ARRAY_T, Value};
 
 use motoko_rts_macros::ic_mem_fn;
 
@@ -138,6 +138,13 @@ pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
 
     if ptr.is_scalar() {
         rts_trap_with("peek_future_continuation: Continuation index not in table");
+    }
+
+    // `__motoko_async_helper` checks only that the caller is this canister, and a canister
+    // can forward a call to itself with an arbitrary index. Ordinary call continuations
+    // are 3-element tuples, so reading the future slot needs the self-send shape.
+    if ptr.tag() != TAG_ARRAY_T || ptr.as_array().len() != FUTURE_ARRAY_INDEX + 1 {
+        rts_trap_with("peek_future_continuation: Continuation is not a self-send");
     }
 
     ptr.as_array().get(FUTURE_ARRAY_INDEX)

@@ -3,9 +3,9 @@ import P "mo:⛔";
 
 // A canister that forwards arbitrary calls to itself can be used to call
 // `__motoko_async_helper` with the index of an ordinary (non-future)
-// continuation. Those are 3-element arrays, but `peek_future_continuation`
-// reads element 3 without checking tag or length, and the word past the end
-// is then called as a closure.
+// continuation. Those are 3-element tuples; `peek_future_continuation` used to
+// read element 3 regardless, calling the word past the end as a closure.
+// It must trap instead.
 actor self {
 
   // The deputy: forwards any method and raw argument to this canister.
