@@ -1,0 +1,6 @@
+# Lowering --max-stable-pages below the stable memory already in use must
+# refuse further growth (not wrap around in the limit check).
+install $ID stable-mem-limit-lowered/v1.mo ""
+ingress $ID grow "DIDL\x00\x00"
+upgrade $ID stable-mem-limit-lowered/v2.mo ""
+ingress $ID grow "DIDL\x00\x00"

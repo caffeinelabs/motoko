@@ -829,6 +829,21 @@ pub unsafe fn region_size<M: Memory>(_mem: &mut M, r: Value) -> u64 {
     (*r).page_count as u64
 }
 
+/// Total number of blocks all regions together may use: the block table
+/// size, or less if the compiler was given `--max-region-blocks`.
+#[cfg(feature = "ic")]
+unsafe fn max_total_blocks() -> u64 {
+    unsafe extern "C" {
+        fn moc_region_max_blocks() -> u64;
+    }
+    core::cmp::min(moc_region_max_blocks(), meta_data::max::BLOCKS as u64)
+}
+
+#[cfg(not(feature = "ic"))]
+unsafe fn max_total_blocks() -> u64 {
+    meta_data::max::BLOCKS as u64
+}
+
 #[ic_mem_fn]
 pub unsafe fn region_grow<M: Memory>(mem: &mut M, r: Value, new_pages: u64) -> u64 {
     use meta_data::size::{PAGES_IN_BLOCK, total_required_pages};
@@ -854,6 +869,12 @@ pub unsafe fn region_grow<M: Memory>(mem: &mut M, r: Value, new_pages: u64) -> u
     // Determine the required total number of allocated blocks,
     let old_total_blocks = meta_data::total_allocated_blocks::get();
     let new_total_blocks = old_total_blocks as u64 + inc_block_count as u64;
+
+    // All regions share one block table with `max::BLOCKS` entries; going
+    // past its end would overwrite the metadata that follows it.
+    if new_total_blocks > max_total_blocks() {
+        return u64::MAX;
+    }
 
     // Actually grow stable memory with more pages as required,
     // while respecting the global maximum limit on pages.

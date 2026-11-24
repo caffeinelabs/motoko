@@ -143,6 +143,13 @@ let argspec =
   Arg.Unit (fun () -> Flags.force_gc := true),
   " disable GC scheduling, always do GC after an update message (for testing)";
 
+  "--max-region-blocks",
+  Arg.Int (fun n ->
+    if n < 1 || n > Flags.max_region_blocks_default then
+      raise (Arg.Bad (Printf.sprintf "--max-region-blocks must be between 1 and %d" Flags.max_region_blocks_default));
+    Flags.max_region_blocks := n),
+  "<n>  cap the total number of 8MiB blocks shared by all stable regions (for testing; default and maximum " ^ (Int.to_string Flags.max_region_blocks_default) ^ ")";
+
   "--max-stable-pages",
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
