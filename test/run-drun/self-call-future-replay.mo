@@ -3,7 +3,8 @@ import P "mo:⛔";
 
 // A canister that forwards arbitrary calls to itself can be used to call
 // `__motoko_async_helper` with the continuation index of a live future.
-// The helper then runs that future's body a second time.
+// The helper used to run that future's body a second time; it must trap.
+// (The proxy's own pending `call_raw` is such a future too.)
 actor self {
 
   var bodyRuns = 0;

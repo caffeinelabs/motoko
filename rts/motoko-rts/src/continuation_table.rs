@@ -124,8 +124,8 @@ pub unsafe fn remember_continuation<M: Memory>(mem: &mut M, ptr: Value) -> usize
 // Invariant: keep this synchronised with compiler.ml (see future_array_index)
 const FUTURE_ARRAY_INDEX: usize = 3;
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
+#[ic_mem_fn]
+pub unsafe fn peek_future_continuation<M: Memory>(mem: &mut M, idx: usize) -> Value {
     if !table_initialized() {
         rts_trap_with("peek_future_continuation: Continuation table not allocated");
     }
@@ -147,7 +147,16 @@ pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
         rts_trap_with("peek_future_continuation: Continuation is not a self-send");
     }
 
-    ptr.as_array().get(FUTURE_ARRAY_INDEX)
+    // Run each future at most once. The entry stays in the table until the self-send's
+    // reply arrives, and a forwarded call could otherwise run the async body again.
+    let future = ptr.as_array().get(FUTURE_ARRAY_INDEX);
+    if future.is_scalar() {
+        rts_trap_with("peek_future_continuation: Future already started");
+    }
+    ptr.as_array()
+        .set(FUTURE_ARRAY_INDEX, Value::from_scalar(0), mem);
+
+    future
 }
 
 #[ic_mem_fn]

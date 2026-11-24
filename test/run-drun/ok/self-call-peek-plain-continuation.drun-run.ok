@@ -2,7 +2,8 @@ ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a000000000000000001
 ingress Completed: Reply: 0x4449444c0000
 debug.print: ("index", 0, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation is not a self-send'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
-debug.print: ("index", 1, "could not perform raw call")
+debug.print: ("index", 1, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Future already started'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
 debug.print: ("index", 2, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation is not a self-send'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly")
 debug.print: ("index", 3, "IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'RTS error: peek_future_continuation: Continuation index not in table'.
