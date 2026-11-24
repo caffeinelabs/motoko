@@ -9,6 +9,9 @@
     reference. This needed an iteration suspended across an `await`, over a
     text built from nested concatenations (#6527).
 
+  * Candid encoding of large `Nat` and `Int` values is faster and allocates
+    less (#6532).
+
 ## 2.2.4 (2026-11-20)
 
 * motoko (`moc`)
