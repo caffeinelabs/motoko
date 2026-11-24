@@ -242,7 +242,12 @@ let rec compare_typ (t1 : typ) (t2 : typ) =
     (match String.compare n1 n2 with
      | 0 -> compare_typ t1 t2
      | ord -> ord)
-  | _ -> Int.compare (tag t1) (tag t2)
+  | Weak t1, Weak t2 ->
+    compare_typ t1 t2
+  (* Exhaustive, so a new constructor can't silently fall back to tag order *)
+  | ( Prim _ | Var _ | Con _ | Array _ | Tup _ | Func _ | Opt _ | Async _
+    | Obj _ | Variant _ | Mut _ | Any | Non | Pre | Named _ | Weak _ ), _ ->
+    Int.compare (tag t1) (tag t2)
 
 and compare_tb tb1 tb2 =
   match String.compare tb1.var tb2.var with

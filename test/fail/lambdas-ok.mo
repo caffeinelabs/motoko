@@ -65,6 +65,7 @@ module ClosedBody1 {
   func _main() {
     f1(1, func _ = 1);
     f2(1, func _ = 1); // extra unused type variable B
+    f1(1, func _ : Nat = 1) // the return type annotation is a subtype of the closed Int
   };
 };
 
@@ -103,6 +104,7 @@ module AsyncLambdas {
   func runStar(f : () -> async* Nat) : async* Nat { await* f() };
   func apply(f : Nat -> async Nat) : async Nat { await f(1) };
   func forEach<A>(xs : [A], f : A -> async ()) : async () { for x in xs.values() { await f(x) } };
+  func applyTo<A>(x : A, f : A -> async Int) : async Int { await f(x) };
   func _main() : async () {
     let _ = await run(func() { 1 });
     let _ = await run(func() = 1); // `= e` bodies too
@@ -112,6 +114,7 @@ module AsyncLambdas {
     let _ = await apply(func(n) : async Nat { n + 1 });
     let _ = await* runStar(func() { await run(func() { 1 }) });
     await forEach([1, 2], func(x) { ignore x + 1 }); // A=Nat from the array
+    let _ = await applyTo(1, func(n) : async Nat { n }); // async Nat fits the closed async Int
     let _ : () -> async Nat = func() { 1 };
   };
 };

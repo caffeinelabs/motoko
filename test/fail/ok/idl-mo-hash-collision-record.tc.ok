@@ -1,0 +1,2 @@
+idl-mo-hash-collision-record.mo:2.1-2.48: import error [M0153], file idl-mo-hash-collision/record.did uses Candid types without corresponding Motoko type
+idl-mo-hash-collision/record.did:2.28-2.43: import error [M0019], field names _5_ and adwzdokc in Candid record type have colliding hashes

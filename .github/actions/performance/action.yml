@@ -19,7 +19,7 @@ inputs:
     description: "Whether this is a fork PR"
   token:
     required: true
-    description: "Token for pushing commits"
+    description: "GitHub App token that pushes the `test/bench` commit"
 
 runs:
   using: "composite"
@@ -38,7 +38,33 @@ runs:
         git branch --show-current
       shell: bash
 
+    # The app's push starts CI again. If the numbers aren't reproducible, that
+    # run must not push again, or CI loops.
+    - name: Skip the push on a bench update
+      id: guard
+      if: ${{ inputs.is_fork == 'false' }}
+      run: |
+        if [ "$(git log -1 --format=%s ${{ inputs.head_sha }})" = 'Updating `test/bench` numbers' ]; then
+          echo "push=false" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git status --porcelain test/bench/ok)" ]; then
+            echo "::warning::\`test/bench\` numbers changed again on a rerun; they are not reproducible"
+          fi
+        else
+          echo "push=true" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    # `add-and-commit` uses `github_token` only for API calls; the push uses
+    # git's own credentials.
+    - name: Push as the GitHub App
+      if: ${{ steps.guard.outputs.push == 'true' }}
+      env:
+        TOKEN: ${{ inputs.token }}
+      run: git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}"
+      shell: bash
+
     - name: Commit `test/bench` changes
+      if: ${{ steps.guard.outputs.push == 'true' }}
       uses: EndBug/add-and-commit@0a145b91207725ab63102736ff2ddcf18f90cdb5 # v10.0.0
       with:
         default_author: github_actions

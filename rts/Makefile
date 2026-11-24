@@ -116,6 +116,9 @@ TOMMATH_BIND_OPTIONS = \
 		--no-layout-tests \
 	    --allowlist-function mp_init \
 	    --allowlist-function mp_init_copy \
+	    --allowlist-function mp_init_size \
+	    --allowlist-function mp_clamp \
+	    --allowlist-var MP_DIGIT_BIT \
 	    --allowlist-function mp_set_u32 \
 	    --allowlist-function mp_set_i32 \
 	    --allowlist-function mp_get_i32 \

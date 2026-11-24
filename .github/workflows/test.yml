@@ -53,6 +53,9 @@ jobs:
           fetch-depth: 0
           # fetch PR commit, not predicted merge commit
           ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          # The performance action pushes with the app token. A push as
+          # `github-actions[bot]` would hold the new commit's CI for approval.
+          persist-credentials: false
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -71,7 +74,7 @@ jobs:
       # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
         if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: app-token
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
@@ -96,7 +99,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+      - uses: cachix/install-nix-action@bb0495a1086c46893eee56f32fd192dfe4a15bb9 # v32.0.0
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
           name: ic-hs-test
@@ -174,7 +177,7 @@ jobs:
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: app-token-for-approvals
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
