@@ -75,3 +75,41 @@ pub unsafe fn reset_test_memory() {
 
     set_incremental_gc_state(None);
 }
+
+pub unsafe fn test() {
+    use motoko_rts::constants::MAX_BLOB_LENGTH;
+    use motoko_rts::memory::{alloc_blob, blob_object_size};
+    use motoko_rts::types::{Blob, TAG_BLOB_B, size_of};
+
+    println!("Testing blob allocation ...");
+
+    let header = size_of::<Blob>().as_usize();
+    let object_size = |length: usize| blob_object_size(Bytes(length)).map(|words| words.as_usize());
+
+    println!("  Testing blob object sizes");
+    assert_eq!(object_size(0), Some(header));
+    assert_eq!(object_size(1), Some(header + 1));
+    assert_eq!(object_size(8), Some(header + 1));
+    assert_eq!(object_size(9), Some(header + 2));
+    assert_eq!(
+        object_size(MAX_BLOB_LENGTH),
+        Some(header + MAX_BLOB_LENGTH / 8)
+    );
+
+    println!("  Testing blob lengths that cannot be allocated");
+    assert_eq!(object_size(MAX_BLOB_LENGTH + 1), None);
+    assert_eq!(object_size(isize::MAX as usize), None);
+    // Without the bound, these lengths make the object size wrap: the allocation
+    // would be at most as large as the header.
+    for below in 0..64 {
+        assert_eq!(object_size(usize::MAX - below), None);
+    }
+
+    println!("  Testing alloc_blob");
+    let mut mem = initialize_test_memory();
+    let before = mem.heap_pointer();
+    let blob = alloc_blob(&mut mem, TAG_BLOB_B, Bytes(13));
+    assert_eq!(mem.heap_pointer() - before, (header + 2) * 8);
+    assert_eq!(blob.as_blob().len(), Bytes(13));
+    reset_test_memory();
+}

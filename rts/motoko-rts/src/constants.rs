@@ -23,3 +23,9 @@ pub const MAX_ARRAY_LENGTH_FOR_ITERATOR: usize = 1 << (usize::BITS as usize - 3)
 // payload, far beyond any addressable memory, and leave the size computation 13 bits of
 // headroom. The 32-bit bound is unchanged and cannot wrap.
 pub const MAX_ARRAY_LENGTH: usize = if usize::BITS == 64 { 1 << 48 } else { 1 << 29 };
+
+// Inclusive upper bound on the byte length of an allocatable blob, for the same reason as
+// `MAX_ARRAY_LENGTH`: without a bound, the object size wraps for lengths close to
+// `usize::MAX`, handing out at most a header for a blob that claims ~2^64 bytes.
+// 2^48 bytes are 256 TiB, far beyond any addressable memory.
+pub const MAX_BLOB_LENGTH: usize = if usize::BITS == 64 { 1 << 48 } else { 1 << 30 };

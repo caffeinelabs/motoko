@@ -200,7 +200,7 @@ TEST_MODULES = persistence_20k persistence_small \
   gc_chunk_5 gc_chunk_6 gc_chunk_7 gc_chunk_8 gc_chunk_9 \
   gc_predefined gc_components \
   bigint bitrel continuation_table crc32 \
-  leb128 principal_id stable_option text utf8
+  leb128 memory principal_id stable_option text utf8
 
 GIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo "0")
 

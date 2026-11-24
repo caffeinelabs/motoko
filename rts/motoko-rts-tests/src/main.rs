@@ -30,6 +30,7 @@ fn main() {
         crc32::test();
         gc::test();
         leb128::test();
+        memory::test();
         principal_id::test();
         persistence_test();
         stable_option::test();
@@ -139,6 +140,13 @@ pub extern "C" fn test_leb128() {
     check_architecture();
     unsafe {
         leb128::test();
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn test_memory() {
+    check_architecture();
+    unsafe {
+        memory::test();
     }
 }
 #[unsafe(no_mangle)]
