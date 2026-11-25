@@ -1,0 +1,5 @@
+float left
+float right
+nat64 left
+nat64 right null
+nat64 right text
