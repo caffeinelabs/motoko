@@ -78,11 +78,8 @@ let close (f,d) = diff f d
 
 (* One traversal for each syntactic category, named by that category *)
 
-(* The alternatives of an or-pattern may bind a variable at different types.
-   The backend derives the variable's representation and write barrier from
-   the type recorded here, so it must be a supertype of both: the larger one,
-   or `Any` (boxed, potential pointer) when they are unrelated. Unlike
-   `Type.lub`, this allocates no fresh constructors. *)
+(* Or-pattern arms may bind a variable at different types; codegen needs a
+   supertype of both (no `Type.lub`: it mints fresh constructors) *)
 let alt (d1 : td) (d2 : td) : td =
   let open Type in
   M.union (fun _ t1 t2 ->
