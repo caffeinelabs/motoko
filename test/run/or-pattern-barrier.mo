@@ -16,5 +16,6 @@ assert h(#b (?"hi")) == ?"hi";
 Prim.debugPrint "ok";
 
 // CHECK-LABEL: (func $h
-// CHECK-NOT: call $write_with_barrier
-// CHECK: (func $
+// CHECK: call $write_with_barrier
+// CHECK: call $write_with_barrier
+// CHECK-LABEL: (func $get
