@@ -9,13 +9,13 @@ func f(x : { #a : Float; #b : Nat }) : Any { let (#a v) or (#b v) = x; v };
 func g(x : { #a : Nat64; #b : ?Text }) : Any { let (#a v) or (#b v) = x; v };
 
 ignore f(#a 1.5);
-Prim.debugPrint "float left";
+Prim.debugPrint("float left");
 ignore f(#b 42);
-Prim.debugPrint "float right";
+Prim.debugPrint("float right");
 
 ignore g(#a 7);
-Prim.debugPrint "nat64 left";
+Prim.debugPrint("nat64 left");
 ignore g(#b null);
-Prim.debugPrint "nat64 right null";
+Prim.debugPrint("nat64 right null");
 ignore g(#b (?"hi"));
-Prim.debugPrint "nat64 right text";
+Prim.debugPrint("nat64 right text");
