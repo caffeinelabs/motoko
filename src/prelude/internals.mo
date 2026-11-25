@@ -16,23 +16,25 @@ var @timeout : ?Nat32 = null;
 // DO NOT RENAME without modifying compilation.
 func @add_cycles<system>() {
   let cycles = @cycles;
+  let timeout = @timeout;
   @reset_cycles();
   if cycles != 0 {
     (prim "cyclesAdd" : Nat -> ()) cycles;
   };
-  switch @timeout {
-    case ?timeout {
-      @timeout := null;
+  switch timeout {
+    case (?timeout) {
       (prim "timeoutSet" : Nat32 -> ()) timeout;
-    }
-    case null {}
+    };
+    case null {};
   };
 };
 
-// Function called by backend to zero cycles on context switch.
+// Function called by backend to zero cycles (and the timeout) on context
+// switch, so neither leaks into a later message or continuation.
 // DO NOT RENAME without modifying compilation.
 func @reset_cycles() {
   @cycles := 0;
+  @timeout := null;
 };
 
 // The @ in the name ensures that this cannot be shadowed by user code, so
