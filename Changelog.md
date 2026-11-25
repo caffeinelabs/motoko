@@ -1,5 +1,14 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: a `let` or-pattern whose alternatives bind the same variable at
+    different types (e.g. `Nat64` and `?Text`, or `Null` and `?Text`) could
+    trap or skip the garbage collector's write barrier when the right
+    alternative matched (#6535).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)
