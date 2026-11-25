@@ -19,7 +19,7 @@ actor A {
     func pass(f : async Nat) : (async Nat) = f;
     let fut = inner();
     ignore (with timeout = 1) pass(fut);
-    debugPrint "armed";
+    debugPrint("armed");
   };
 
   public func arm_generic() : async () {
@@ -27,7 +27,7 @@ actor A {
     func pass<X>(x : X) : X = x;
     let fut = inner();
     ignore (with timeout = 1) pass<async Nat>(fut);
-    debugPrint "armed (generic)";
+    debugPrint("armed (generic)");
   };
 
   public func after() : async () {
