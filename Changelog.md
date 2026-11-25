@@ -31,7 +31,7 @@
     quantities; a value too large for the width traps on decode. As stable variables they are
     distinct from `Nat` and from each other, so an upgrade that changes a stable variable
     between `Nat`, `Nat128` and `Nat256` is rejected rather than silently reinterpreting the
-    stored value (#NNNN).
+    stored value (#6537).
 
 ## 2.2.5 (2026-11-24)
 
