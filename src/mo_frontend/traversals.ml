@@ -4,7 +4,7 @@ open Source
 
 let rec over_exp (f : exp -> exp) (exp : exp) : exp = match exp.it with
   | HoleE (s, exp1) -> f { exp with it = HoleE (s, ref (over_exp f (!exp1))) }
-  | ImportE _ | ImplicitLibE _ | PrimE _ | VarE _ | LitE _ | ActorUrlE _ -> f exp
+  | ImportE _ | ImplicitLibE _ | PrimE _ | VarE _ | LitE _ | ActorUrlE _ | LocalActorRefE _ -> f exp
   | UnE (x, y, exp1) -> f { exp with it = UnE (x, y, over_exp f exp1) }
   | ShowE (x, exp1) -> f { exp with it = ShowE (x, over_exp f exp1) }
   | ToCandidE exps ->  f { exp with it = ToCandidE (List.map (over_exp f) exps) }

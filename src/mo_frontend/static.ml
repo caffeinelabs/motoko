@@ -36,7 +36,7 @@ let pat_err m at =
 let rec exp m e = match e.it with
   (* Plain values *)
   | HoleE (s, e) -> exp m !e
-  | (PrimE _ | LitE _ | ActorUrlE _ | FuncE _) -> ()
+  | (PrimE _ | LitE _ | ActorUrlE _ | LocalActorRefE _ | FuncE _) -> ()
   | (TagE (_, exp1) | OptE exp1) -> exp m exp1
   | TupE es -> List.iter (exp m) es
   | ArrayE (mut, es) ->

@@ -2,6 +2,7 @@
 open Mo_def
 open Mo_types
 open Mo_values
+open Mo_config
 
 open Syntax
 open Source
@@ -145,6 +146,76 @@ let ensure_system_cap (df : dec_field) =
       let it = LetD (pat, { value with it = FuncE (x, sp, ensure_scope_bind "" tbs, p, t_opt, s, e) }, other) in
       { df with it = { df.it with dec = { df.it.dec with it } } }
     | _ -> df
+
+(* share_dec_field for `actor*` bodies: fields get a stability default, but only a public
+   method returning `async T` is made `shared` (it is part of the exported interface). Every
+   other method stays a local function: an `async*` computation or a synchronous method
+   (Typing's actor* method check, M0280). *)
+let local_actor_share_stab default_stab (df : dec_field) =
+  match df.it.vis.it with
+  | Public _ ->
+    (* The actor pattern on actor*: a public
+       `func ... : async T` is promoted to shared -- the exported interface, rewritten into
+       facades before typing (Local_facades); `async*` computations stay as written; a
+       synchronous `shared(ctx)` method names only the local context and keeps no scope bind. *)
+    let dec = match df.it.dec.it with
+      | LetD (_, {it = FuncE (_, _, _, _, Some {it = AsyncT (Type.Fut, _, _); _}, _, _); _}, _) ->
+        share_dec df.it.dec
+      | LetD (p, ({it = FuncE (x, ({it = Type.Shared _; _} as sp), tbs, pat, t_opt, s, body); _} as e), f)
+        when (match t_opt with Some {it = AsyncT _; _} -> false | _ -> true) ->
+        (* The parser does not wrap a `shared … : ()` block body as a one-way message (the
+           typer elaborates bodies, elab_func_body), so the block already runs in place. *)
+        LetD (p, {e with it = FuncE (x, sp, List.filter (fun tb -> tb.it.sort.it <> Type.Scope) tbs, pat, t_opt, s, body)}, f) @? df.it.dec.at
+      | _ -> df.it.dec in
+    {df with it = {df.it with dec; stab = share_stab (fun () -> Flexible @@ dec.at) df.it.stab dec}}
+  | System -> ensure_system_cap df
+  | _ when is_sugared_func_or_module (df.it.dec) ->
+    {df with it =
+       {df.it with stab =
+          match df.it.stab with
+          | None -> Some (Flexible @@ df.it.dec.at)
+          | some -> some}
+    }
+  | _ ->
+    {df with it =
+       {df.it with stab =
+          match df.it.stab with
+          | None ->
+             (match df.it.dec.it with
+             | ExpD _
+             | TypD _
+             | MixinD _
+             | ClassD _ -> None
+             | _ -> Some (default_stab()))
+          | some -> some}
+    }
+
+(* In a field, `transient actor* …` makes the actor* transient (it does not
+   follow upgrades), not the field. The grammar reads `transient` as the field's stability, so
+   move it onto the actor* when the declaration starts AT the actor* -- `transient let x =
+   actor* {}` keeps moc's meaning: a transient field holding a persistent local actor. *)
+let transient_local_actor (s : stab option) (d : dec) : stab option * dec =
+  match s with
+  | Some {it = Flexible; at = kw; _} ->
+    let starts_here (sort : obj_sort) = sort.at.left = d.at.left in
+    let mark (sort : obj_sort) = { sort with note = { sort.note with it = false; at = kw } } in
+    (match d.it with
+     | ClassD (eo, sp, sort, cid, tps, p, t, x, dfs) when sort.it = Type.LocalActor ->
+       None, { d with it = ClassD (eo, sp, mark sort, cid, tps, p, t, x, dfs) }
+     | LetD (pt, ({it = ObjBlockE (eo, sort, ids, efs); _} as e), f)
+       when sort.it = Type.LocalActor && starts_here sort ->
+       None, { d with it = LetD (pt, { e with it = ObjBlockE (eo, mark sort, ids, efs) }, f) }
+     | ExpD ({it = ObjBlockE (eo, sort, ids, efs); _} as e)
+       when sort.it = Type.LocalActor && starts_here sort ->
+       None, { d with it = ExpD { e with it = ObjBlockE (eo, mark sort, ids, efs) } }
+     | _ -> s, d)
+  | _ -> s, d
+
+(* Remember the first `actor*` the parser accepted (see Flags.local_actor_seen). *)
+let note_local_actor (r : Source.region) =
+  (* The Prim module's own actor* primitives (Prelude.local_actors_api) are not a use. *)
+  if !Flags.local_actor_seen = None && r.left.file <> "prim" then
+    Flags.local_actor_seen := Some (r.left.file, r.left.line, r.left.column)
 
 let share_dec_field default_stab (df : dec_field) =
   match df.it.vis.it with
@@ -388,11 +459,29 @@ seplist1(X, SEP) :
 %inline typ_obj_sort :
   | OBJECT { Type.Object @@ at $sloc }
   | ACTOR { Type.Actor @@ at $sloc }
+  | ACTOR MULOP {
+      (* `actor* {...}` as a TYPE -- the type of an actor* instance or a
+         reconstituted reference. Gated like the declaration form. *)
+      if not !Flags.experimental_local_actors then
+        syntax_error (at $sloc) "M0001"
+          "unexpected token '*'; pass --experimental-local-actors to enable the `actor*` language extension";
+      note_local_actor (at $sloc);
+      Type.LocalActor @@ at $sloc }
   | MODULE {Type.Module @@ at $sloc }
 
 %inline obj_sort :
   | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
   | po=persistent ACTOR { (po, Type.Actor @@ at $sloc) }
+  | po=persistent ACTOR MULOP {
+      (* `actor*`. Without --experimental-local-actors this is rejected as a plain
+         syntax error; the AST node is still produced so recovery/downstream passes
+         see a normal obj_sort instead of a hole. *)
+      if not !Flags.experimental_local_actors then
+        syntax_error (at $sloc) "M0001"
+          "unexpected token '*'; pass --experimental-local-actors to enable the `actor*` language extension";
+      note_local_actor (at $sloc);
+      (po, Type.LocalActor @@ at $sloc)
+    }
   | MODULE { (persistent false no_region, Type.Module @@ at $sloc) }
 
 %inline obj_sort_opt :
@@ -812,6 +901,13 @@ exp_un(B, R) :
     { assign_op e (fun e' -> UnE(ref Type.Pre, op, e') @? at $sloc) (at $sloc) }
   | ACTOR e=exp_plain
     { ActorUrlE e @? at $sloc }
+  | ACTOR MULOP e=exp_plain
+    { (* reconstitute an actor* reference, `actor*(owner, id)` *)
+      if not !Flags.experimental_local_actors then
+        syntax_error (at $sloc) "M0001"
+          "unexpected token '*'; pass --experimental-local-actors to enable the `actor*` language extension";
+      note_local_actor (at $sloc);
+      LocalActorRefE e @? at $sloc }
   | NOT e=exp_un(R, R)
     { NotE e @? at $sloc }
   | DEBUG_SHOW e=exp_un(R, R)
@@ -1067,7 +1163,8 @@ exp_field :
 
 dec_field :
   | v=vis s=stab d=dec
-    { {dec = d; vis = v; stab = s} @@ at $sloc }
+    { let s, d = transient_local_actor s d in
+      {dec = d; vis = v; stab = s} @@ at $sloc }
 
 vis :
   | (* empty *) { Private @@ no_region }
@@ -1231,6 +1328,7 @@ obj_or_class_dec :
       let (persistent, s) = ds in
       let sort = Type.(match s.it with
                        | Actor -> "actor" | Module -> "module" | Object -> "object"
+                       | LocalActor -> "actor_star"
                        | _ -> assert false) in
       let named, x = xf sort $sloc in
       let e =
@@ -1242,6 +1340,17 @@ obj_or_class_dec :
              AsyncE(None, Type.Fut, scope_bind (anon_id "async" (at $sloc)) (at $sloc),
                     objblock eo { s with note = persistent } id t (List.map (share_dec_field default_stab) efs) @? at $sloc)
              @? at $sloc) @? at $sloc
+        else if s.it = Type.LocalActor then
+          (* Unlike an actor, constructing an `actor*` value is a plain local operation
+             (`let root = actor* {...}` binds synchronously, with no implicit await/async),
+             and only its public `async T` methods are promoted to `shared`
+             (local_actor_share_stab).
+             Its fields default to Flexible: they are not stable variables of the
+             container, so M0131 does not apply to them. Whether they persist is decided
+             by the actor* itself (persistent unless `transient`), not by the container. *)
+          let default_stab () = Flexible @@ no_region in
+          let id = if named then Some x else None in
+          objblock eo { s with note = persistent } id t (List.map (local_actor_share_stab default_stab) efs) @? at $sloc
         else objblock eo { s with note = persistent } None t efs @? at $sloc
       in
       let_or_exp named x e.it e.at }
@@ -1258,6 +1367,15 @@ obj_or_class_dec :
          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           (List.map (share_dec_field default_stab) dfs,
            ensure_scope_bind "" tps)
+        else if s.it = Type.LocalActor then
+          (* As for the object literal above: Flexible fields, and only the public
+             `async T` methods are made `shared`. *)
+          let default_stab () = Flexible @@ no_region in
+          (* No implicit scope binder: an actor* class is constructed by a synchronous local
+             call, so its initializer holds the system capability only under an explicit
+             `<system>` head (M0197 otherwise). *)
+          (List.map (local_actor_share_stab default_stab) dfs,
+           tps)
         else (dfs, tps)
       in
       ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t, x, dfs') @? at $sloc }

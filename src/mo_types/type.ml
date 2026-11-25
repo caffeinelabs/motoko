@@ -19,6 +19,8 @@ type obj_sort =
  | Mixin
  | Module
  | Memory          (* (codegen only): stable memory serialization format *)
+ | LocalActor      (* `actor*`, gated by --experimental-local-actors; type-checks
+                       like Actor but is not lowered yet (see Pipeline.desugar_unit) *)
 
 type async_sort = Fut | Cmp
 type await_sort = AwaitFut of bool | AwaitCmp
@@ -126,6 +128,7 @@ let tag_obj_sort = function
   | Actor -> 2
   | Memory -> 3
   | Mixin -> 4
+  | LocalActor -> 5
 
 let tag_control = function
   | Returns -> 0
@@ -402,6 +405,16 @@ let catch = Prim Error
 
 let caller = principal
 let ctxt = obj Object [("caller", caller)]
+(* The local message context of an actor* method or class, bound by `shared(ctx)` in place of
+   ctxt: an actor* local message has no implicit Principal. It says who called (`#external p`
+   for a container message, `#host` for the container's own scheduled work, `#local id` for
+   another actor* instance) and gives the actor's own address; `retire` is there only when
+   the pattern names it (the author-only capability). *)
+let local_identity = obj Object [("container", principal); ("generation", nat64); ("slot", nat64)]
+let local_caller = sum [("external", principal); ("host", unit); ("local", local_identity)]
+let local_msg_ctxt = obj Object [("caller", local_caller); ("self", local_identity)]
+let local_source_ctxt =
+  obj Object [("caller", local_caller); ("retire", Func (Local, Returns, [], [], [])); ("self", local_identity)]
 
 let prim = function
   | "Null" -> Null
@@ -933,8 +946,8 @@ let paths p t =
   go p t;
   !cm
 
-(* stable or shared *)
-let serializable allow_mut t =
+(* stable or shared; ~local_actor: an actor* reference counts (async content, below) *)
+let serializable ?(local_actor = false) allow_mut t =
   let seen = ref S.empty in
   let rec go t =
     S.mem t !seen ||
@@ -961,6 +974,11 @@ let serializable allow_mut t =
         (match s with
          | Actor -> true
          | Module | Mixin -> false (* TODO(1452) make modules sharable *)
+         (* An `actor*` reference is never Candid-shared: it crosses no canister boundary
+            implicitly. It is stable (an actor* persists, as an actor does), and it may be
+            the content of an async/async* (local_actor, see shared_async_content). *)
+         | LocalActor ->
+           local_actor || allow_mut
          | Object | Memory -> List.for_all (fun f -> go f.typ) fs)
       | Variant fs -> List.for_all (fun f -> go f.typ) fs
       | Func (s, c, tbs, ts1, ts2) -> is_shared_sort s
@@ -991,6 +1009,7 @@ let find_unshared t =
         (match s with
          | Actor | Mixin -> None
          | Module -> Some t (* TODO(1452) make modules sharable *)
+         | LocalActor -> Some t (* never shared, see `serializable` above *)
          | Object ->
            List.find_map (fun f -> go f.typ) fs
          | Memory -> assert false)
@@ -1020,6 +1039,9 @@ let is_local_async_func typ =
     false
 
 let shared t = serializable false t
+(* What an async/async* may carry. An actor* reference is a local identity, so a factory
+   `func make() : async* Child` may hand one back; it is still not Candid-shared (`shared`). *)
+let shared_async_content t = serializable ~local_actor:true false t
 let stable t = serializable true t
 
 (* Forward declare
@@ -1923,6 +1945,7 @@ let string_of_obj_sort = function
   | Actor -> "actor "
   | Mixin -> "mixin "
   | Memory -> "memory "
+  | LocalActor -> "actor* "
 
 let string_of_func_sort = function
   | Local -> ""
@@ -2165,7 +2188,10 @@ and pp_typ_pre vs ppf t =
           (pp_typ' vs) t1
           (pp_typ_pre vs) t2
     else fprintf ppf "@[<2>async%s@ %a@]" (string_of_async_sort s) (pp_typ_pre vs) t2
-  | Obj ((Module | Actor | Mixin | Memory) as os, fs, tfs) ->
+  (* LocalActor must be listed here: otherwise an actor* type falls to pp_typ_nullary's
+     parenthesizing catch-all, which recurses to pp_typ_pre with the same type and never
+     terminates. *)
+  | Obj ((Module | Actor | Mixin | Memory | LocalActor) as os, fs, tfs) ->
     pp_typ_obj vs ppf (os, fs, tfs)
   | t ->
     pp_typ_un vs ppf t
@@ -2475,6 +2501,7 @@ let rec string_of_explanation explanation =
       | Mixin -> "mixin"
       | Module -> "module"
       | Memory -> "memory"
+      | LocalActor -> "actor*"
     in
     Format.asprintf "of incompatible object sorts:\n %s does not match %s%s" (string_of_obj_sort s1) (string_of_obj_sort s2) (string_of_context "in" context)
   | IncompatibleFuncSorts (context, s1, s2) ->

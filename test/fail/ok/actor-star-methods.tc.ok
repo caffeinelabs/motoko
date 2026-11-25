@@ -1,0 +1,7 @@
+actor-star-methods.mo:4.1-12.2: type error [M0280], actor* result requires an immutable projectable value or actor identity; got
+  [var Nat]
+actor-star-methods.mo:4.1-12.2: type error [M0280], actor* computation methods cannot have unresolved generic types
+actor-star-methods.mo:4.1-12.2: type error [M0280], actor* `async` and `query` methods are the exported interface of a `public actor* class` declared in the container; an internal method returns `async*` or a plain type
+actor-star-methods.mo:4.1-12.2: type error [M0280], actor* synchronous methods must be monomorphic
+actor-star-methods.mo:4.1-12.2: type error [M0280], actor* parameter requires an immutable projectable value or actor identity; got
+  (_xs : [var Nat])

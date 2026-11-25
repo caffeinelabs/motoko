@@ -9,7 +9,7 @@ type name = string
 type mig_lab = string
 
 type control = Returns | Promises | Replies
-type obj_sort = Object | Actor | Mixin | Module | Memory
+type obj_sort = Object | Actor | Mixin | Module | Memory | LocalActor
 type async_sort = Fut | Cmp
 type await_sort = AwaitFut of bool | AwaitCmp
 type shared_sort = Query | Write | Composite
@@ -126,6 +126,10 @@ val catch : typ
 
 val caller : typ
 val ctxt: typ
+val local_identity : typ
+val local_caller : typ
+val local_msg_ctxt : typ    (* actor* local message context: {caller; self} *)
+val local_source_ctxt : typ (* the same, with the author-only `retire`: {caller; retire; self} *)
 
 val iter_obj : typ -> typ
 
@@ -231,6 +235,7 @@ val compare_path : path -> path -> int
 val paths : path -> typ -> path ConEnv.t
 
 val shared : typ -> bool
+val shared_async_content : typ -> bool
 val find_unshared : typ -> typ option
 
 val is_shared_func : typ -> bool

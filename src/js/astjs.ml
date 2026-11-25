@@ -312,6 +312,7 @@ module Make (Cfg : Config) = struct
     | VarE x -> to_js_object "VarE" [| id x |]
     | LitE l -> to_js_object "LitE" [| lit_js !l |]
     | ActorUrlE e -> to_js_object "ActorUrlE" [| exp_js e |]
+    | LocalActorRefE e -> to_js_object "LocalActorRefE" [| exp_js e |]
     | UnE (ot, uo, e) ->
         to_js_object "UnE"
           [| Type.string_of_typ !ot |> js_string; unop_js uo; exp_js e |]

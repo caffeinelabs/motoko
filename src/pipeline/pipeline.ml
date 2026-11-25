@@ -335,7 +335,7 @@ let prim_error phase (msgs : Diag.messages) =
   exit 1
 
 let check_prim () : Syntax.lib * stat_env =
-  let lexer = Lexing.from_string (Prelude.prim_module ~timers:!Flags.global_timer) in
+  let lexer = Lexing.from_string (Prelude.prim_module ~local_actors:!Flags.experimental_local_actors ~timers:!Flags.global_timer ()) in
   let parse = Parser.Incremental.parse_prog in
   match parse_with Lexer.mode_priv lexer parse prim_name with
   | Error es -> prim_error "parsing" es
@@ -533,6 +533,14 @@ let load_entry ?check_actors ~enable_type_recovery ~stable_baseline_sig
   let open Diag.Syntax in
   let* parsed = parsefn no_region file in
   let* prog, rims = resolve_prog parsed in
+  (* `public actor* class` facades, rewritten before ANY typing
+     (Typing.check_actors runs first and would see the unrewritten class); the pass's own
+     diagnostics ride out with the typechecker's. A no-op without --experimental-local-actors. *)
+  let prog, facade_msgs = Local_facades.rewrite_prog prog in
+  let with_facades r = match facade_msgs, r with
+    | [], _ -> r
+    | ms, Ok (_, ws) -> Error (ms @ ws)
+    | ms, Error es -> Error (ms @ es) in
   let* libs, senv =
     chase_imports_shared ~stable_baseline_sig parsefn senv0 rims cache failed
   in
@@ -541,7 +549,7 @@ let load_entry ?check_actors ~enable_type_recovery ~stable_baseline_sig
      nodes, therefore, we always run the type checker for programs. *)
   let async_cap = async_cap_of_prog prog in
   let* _t, sscope =
-    infer_prog ~enable_type_recovery ~stable_baseline_sig senv None async_cap prog
+    with_facades (infer_prog ~enable_type_recovery ~stable_baseline_sig senv None async_cap prog)
   in
   let imports = List.map resolved_import_name rims in
   Diag.return (libs, (prog, imports, sscope, Scope.adjoin senv sscope))
@@ -749,12 +757,61 @@ let run_file_and_stdin file_opt =
 
 (* Desugaring *)
 
+(* --experimental-local-actors admits `actor*` through type-checking (see Type.LocalActor),
+   so a well-typed program using it can reach here -- `--check` accepts it (that codepath
+   never calls desugar_unit), but there is no lowering for `actor*` yet (turning it into
+   ordinary code needs captures, a receiver, Candid transport, persistent state and a
+   registry of instances). Reject cleanly here,
+   before Lowering.Desugar ever pattern-matches on Type.LocalActor and hits
+   the `assert false` its `T.Memory | T.Mixin` cases already use for sorts
+   desugar cannot produce. *)
+let find_local_actor_sort (decs : Syntax.dec list) : Source.region option =
+  let open Syntax in
+  let found = ref None in
+  let note (s : Syntax.obj_sort) =
+    if !found = None && s.it = Type.LocalActor then found := Some s.at
+  in
+  let check_exp e = (match e.it with ObjBlockE (_, s, _, _) -> note s | _ -> ()); e in
+  let rec scan_decs ds = List.iter scan_dec ds
+  and scan_dec d =
+    ignore (Traversals.over_dec check_exp d);
+    match d.it with
+    | ClassD (_, _, s, _, _, _, _, _, dfs) ->
+      note s;
+      scan_decs (List.map (fun df -> df.it.dec) dfs)
+    | MixinD (_, _, dfs) ->
+      scan_decs (List.map (fun df -> df.it.dec) dfs)
+    | TypD _ | ExpD _ | VarD _ | LetD _ | IncludeD _ -> ()
+  in
+  scan_decs decs;
+  !found
+
+let decs_of_unit_body (body : Syntax.comp_unit_body) : Syntax.dec list =
+  let open Syntax in
+  let decs_of_dfs dfs = List.map (fun df -> df.it.dec) dfs in
+  match body.it with
+  | ProgU decs -> decs
+  | ActorU (_, _, _, dfs) | ModuleU (_, dfs) | MixinU (_, _, dfs) -> decs_of_dfs dfs
+  | ActorClassU (_, _, _, _, _, _, _, _, dfs) -> decs_of_dfs dfs
+
 let desugar_unit imports u name : Ir.prog Diag.result =
   match u.it.Syntax.body.it with
   | Syntax.MixinU _ ->
     let at = u.it.Syntax.body.at in
     Diag.error at "M0225" "compile" "A mixin cannot be used as an entry point. It needs to be included in an actor (class)"
   | _ ->
+  (* any `actor*` the parser accepted -- a type or a reference as well as a declaration. *)
+  let seen = match !Flags.local_actor_seen with
+    | Some (file, line, column) ->
+      let p = Source.{file; line; column} in Some Source.{left = p; right = p}
+    | None -> find_local_actor_sort (decs_of_unit_body u.it.Syntax.body) in
+  (match seen with
+   | Some at ->
+     Diag.error at "M0279" "compile"
+       "`actor*` cannot be compiled yet: --experimental-local-actors admits its grammar and \
+        typing rules only, so `moc --check` accepts a well-typed program that uses `actor*`, \
+        but there is no lowering for it"
+   | None ->
   phase "Desugaring" name;
   let open Lowering.Desugar in
   let prog_ir' : Ir.prog = link_declarations
@@ -763,7 +820,7 @@ let desugar_unit imports u name : Ir.prog Diag.result =
   dump_ir Flags.dump_lowering prog_ir';
   if !Flags.check_ir
   then Check_ir.check_prog !Flags.verbose "Desugaring" prog_ir';
-  Diag.return prog_ir'
+  Diag.return prog_ir')
 
 (* IR transforms *)
 

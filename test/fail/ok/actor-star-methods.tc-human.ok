@@ -1,0 +1,52 @@
+error[M0280]: actor* result requires an immutable projectable value or actor identity; got
+  [var Nat]
+    ┌─ actor-star-methods.mo:4:1
+  3 │    // synchronous method, monomorphic, over immutable (projectable) values (M0280).
+  4 │ ╭  actor* class A() {
+  5 │ │    public query func peek() : async Nat { 0 }; // reject: exported shape outside a container
+    · │  
+ 11 │ │    public func also(n : Nat) : Nat { n + 1 }; // accept
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    
+error[M0280]: actor* computation methods cannot have unresolved generic types
+    ┌─ actor-star-methods.mo:4:1
+  3 │    // synchronous method, monomorphic, over immutable (projectable) values (M0280).
+  4 │ ╭  actor* class A() {
+  5 │ │    public query func peek() : async Nat { 0 }; // reject: exported shape outside a container
+    · │  
+ 11 │ │    public func also(n : Nat) : Nat { n + 1 }; // accept
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    
+error[M0280]: actor* `async` and `query` methods are the exported interface of a `public actor* class` declared in the container; an internal method returns `async*` or a plain type
+    ┌─ actor-star-methods.mo:4:1
+  3 │    // synchronous method, monomorphic, over immutable (projectable) values (M0280).
+  4 │ ╭  actor* class A() {
+  5 │ │    public query func peek() : async Nat { 0 }; // reject: exported shape outside a container
+    · │  
+ 11 │ │    public func also(n : Nat) : Nat { n + 1 }; // accept
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    
+error[M0280]: actor* synchronous methods must be monomorphic
+    ┌─ actor-star-methods.mo:4:1
+  3 │    // synchronous method, monomorphic, over immutable (projectable) values (M0280).
+  4 │ ╭  actor* class A() {
+  5 │ │    public query func peek() : async Nat { 0 }; // reject: exported shape outside a container
+    · │  
+ 11 │ │    public func also(n : Nat) : Nat { n + 1 }; // accept
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    
+error[M0280]: actor* parameter requires an immutable projectable value or actor identity; got
+  (_xs : [var Nat])
+    ┌─ actor-star-methods.mo:4:1
+  3 │    // synchronous method, monomorphic, over immutable (projectable) values (M0280).
+  4 │ ╭  actor* class A() {
+  5 │ │    public query func peek() : async Nat { 0 }; // reject: exported shape outside a container
+    · │  
+ 11 │ │    public func also(n : Nat) : Nat { n + 1 }; // accept
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    

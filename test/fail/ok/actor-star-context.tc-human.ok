@@ -1,0 +1,19 @@
+warning[M0217]: redundant `persistent` keyword
+    ┌─ actor-star-context.mo:4:3
+  4 │    persistent actor* class _P() { // warn: an actor* is persistent by default (M0217)
+    │    ^^^^^^^^^^ 
+error[M0280]: actor* computation context requires a public method
+    ┌─ actor-star-context.mo:10:5
+ 10 │      shared func work() : async* () {}; // reject: a computation context needs a public method
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  {
+    #external : Principal;
+    #host;
+    #local : {container : Principal; generation : Nat64; slot : Nat64}
+  }
+cannot produce expected type
+  Principal
+    ┌─ actor-star-context.mo:16:64
+ 16 │      public shared ({ caller }) func who() : async* Principal { caller };
+    │                                                                 ^^^^^^ 

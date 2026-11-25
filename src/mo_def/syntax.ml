@@ -194,6 +194,7 @@ and exp' =
   | VarE of id_ref                             (* variable *)
   | LitE of lit ref                            (* literal *)
   | ActorUrlE of exp                           (* actor reference *)
+  | LocalActorRefE of exp                      (* actor* reference: (owner : ?Principal, id : Principal) *)
   | UnE of op_typ * unop * exp                 (* unary operator *)
   | BinE of op_typ * exp * binop * exp         (* binary operator *)
   | RelE of op_typ * exp * relop * exp         (* relational operator *)
