@@ -1,0 +1,14 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: before: best-effort = false
+ingress Completed: Reply: 0x4449444c0000
+debug.print: armed
+ingress Completed: Reply: 0x4449444c0000
+debug.print: after: best-effort = true
+ingress Completed: Reply: 0x4449444c0000
+debug.print: after: best-effort = false
+ingress Completed: Reply: 0x4449444c0000
+debug.print: armed (generic)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: after: best-effort = true
+ingress Completed: Reply: 0x4449444c0000
