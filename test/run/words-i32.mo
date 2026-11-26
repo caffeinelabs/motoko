@@ -291,3 +291,53 @@ do {
   assert get() == ((e <>> 6) ^ (e >> 3));
   assert mix(mix(e)) == ((mix(e) <>> 7) ^ (mix(e) >> 3));
 };
+
+// Conversions, powers and bignum shifts with 32 bit words
+do {
+  let m : Nat32 = 0xffff_ffff;
+  var v : Nat32 = m;
+  assert Prim.nat32ToNat(v) == 4294967295;
+  assert Prim.natToNat32(4294967295) == v;
+  assert Prim.intToNat32Wrap(-1) == v;
+  assert Prim.intToNat32Wrap(4294967296 + 5) == 5;
+  assert Prim.intToNat32Wrap(-18446744073709551616 - 2) == v - 1;
+  assert Prim.nat32ToNat64(v) == 0xffff_ffff;
+  assert Prim.nat64ToNat32(0xffff_ffff) == v;
+  assert Prim.nat16ToNat32(0xffff) == v >> 16;
+  assert Prim.nat32ToNat16(v >> 16) == 0xffff;
+  assert Prim.nat32ToInt32(v) == -1;
+  assert Prim.nat32ToChar(v >> 15) == '\u{1FFFF}';
+  assert Prim.charToNat32('\u{1FFFF}') == v >> 15;
+
+  var i : Int32 = -2147483648;
+  assert Prim.int32ToInt(i) == -2147483648;
+  assert Prim.intToInt32(-2147483648) == i;
+  assert Prim.intToInt32Wrap(2147483648) == i;
+  assert Prim.intToInt32Wrap(-2147483649) == 2147483647;
+  assert Prim.int32ToInt64(i) == -2147483648;
+  assert Prim.int64ToInt32(-2147483648) == i;
+  assert Prim.int64ToInt32(2147483647) == ^i;
+  assert Prim.int16ToInt32(-32768) == i >> 16;
+  assert Prim.int32ToInt16(i >> 16) == -32768;
+  assert Prim.int32ToInt16(32767) == 32767;
+  assert Prim.int32ToNat32(i) == 0x8000_0000;
+
+  var b : Nat32 = 3;
+  assert b ** 20 == 3486784401;
+  assert b **% 21 == 1870418611;
+  assert b **% 0 == 1;
+  assert b ** 0 == 1;
+  assert v **% 2 == 1;
+  assert (v >> 16) ** 2 == 0xfffe0001;
+  var c : Int32 = -3;
+  assert c ** 19 == -1162261467;
+  assert c **% 21 == -1870418611;
+  assert c **% 0 == 1;
+  assert i **% 1 == i;
+  assert (c + 2) ** 31 == -1;
+
+  let one : Nat = 1;
+  assert Prim.shiftLeft(one, b) == 8;
+  assert Prim.shiftLeft(one, v >> 25) == 170141183460469231731687303715884105728;
+  assert Prim.shiftRight(170141183460469231731687303715884105728, v >> 25) == 1;
+};
