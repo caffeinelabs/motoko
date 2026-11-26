@@ -243,12 +243,10 @@ unsafe fn parse_idl_header<M: Memory>(
         } else if ty == IDL_CON_vec {
             let t = sleb128_decode(buf);
             check_typearg(mode, t, n_types);
-        } else if ty == IDL_CON_record {
-            parse_fields(mode, buf, n_types);
-        } else if ty == IDL_CON_variant {
-            let n_cases = parse_fields(mode, buf, n_types);
-            if n_cases > VARIANT_CASES_WALKED {
-                index_variant_cases(mem, typtbl, n_types, i, n_cases, (*buf).ptr);
+        } else if ty == IDL_CON_record || ty == IDL_CON_variant {
+            let n_fields = parse_fields(mode, buf, n_types);
+            if ty == IDL_CON_variant && n_fields > VARIANT_CASES_WALKED {
+                index_variant_cases(mem, typtbl, n_types, i, n_fields, (*buf).ptr);
             }
         } else if ty == IDL_CON_func {
             // Arg types
@@ -395,7 +393,11 @@ unsafe fn index_variant_cases<M: Memory>(
 
 /// Moves `tb` from the first case entry of the variant type `t` to the entry of case `i`, which
 /// must exist. `typtbl` must come from `parse_idl_header`, which puts the index before it.
-unsafe fn move_to_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u32) {
+///
+/// Kept out of line, so that it does not slow down `skip_any` for values of other types.
+#[unsafe(no_mangle)]
+#[inline(never)]
+unsafe extern "C" fn find_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u32) {
     if i < VARIANT_CASES_WALKED {
         for _ in 0..i {
             skip_leb128(tb);
@@ -406,13 +408,6 @@ unsafe fn move_to_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u3
         let index = *typtbl.sub(1) as *mut *mut *mut u8;
         (*tb).ptr = *(*index.add(t as usize)).add(i as usize);
     }
-}
-
-/// Moves `tb` from the first case entry of the variant type `t` to the entry of case `i`, see
-/// `move_to_variant_case`.
-#[unsafe(no_mangle)]
-unsafe extern "C" fn find_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u32) {
-    move_to_variant_case(tb, typtbl, t, i);
 }
 
 // used for opt, bool, references...
@@ -545,8 +540,14 @@ unsafe extern "C" fn skip_any(buf: *mut Buf, typtbl: *mut *mut u8, t: i32, depth
                 if i >= n {
                     idl_trap_with("skip_any: variant tag too large");
                 }
-                if i > 0 {
-                    move_to_variant_case(&mut tb, typtbl, t, i);
+                // Walks to one of the first cases here: calling `find_variant_case` costs more
+                if i < VARIANT_CASES_WALKED {
+                    for _ in 0..i {
+                        skip_leb128(&mut tb);
+                        skip_leb128(&mut tb);
+                    }
+                } else {
+                    find_variant_case(&mut tb, typtbl, t, i);
                 }
                 skip_leb128(&mut tb);
                 let it = sleb128_decode(&mut tb);
