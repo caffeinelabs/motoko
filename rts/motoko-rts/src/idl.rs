@@ -212,6 +212,7 @@ unsafe fn parse_idl_header<M: Memory>(
 
     // Allocate the type table to be passed out, after a word for the index of variant cases
     let typtbl: *mut *mut u8 = (alloc(mem, Words(n_types as usize + 1)) as *mut *mut u8).add(1);
+    *typtbl.sub(1) = core::ptr::null_mut();
 
     // Set up a limited buffer to detect absurd type tables
     let full_end = if extended {
@@ -220,8 +221,7 @@ unsafe fn parse_idl_header<M: Memory>(
         buf.limit_size(typtbl_max)
     };
 
-    // Go through the table, counting the cases of the variant types to index
-    let mut n_indexed_cases = 0;
+    // Go through the table
     for i in 0..n_types {
         *typtbl.add(i as usize) = (*buf).ptr;
 
@@ -247,8 +247,8 @@ unsafe fn parse_idl_header<M: Memory>(
             parse_fields(mode, buf, n_types);
         } else if ty == IDL_CON_variant {
             let n_cases = parse_fields(mode, buf, n_types);
-            if n_cases >= VARIANT_INDEX_MIN_CASES {
-                n_indexed_cases += n_cases as usize;
+            if n_cases > VARIANT_CASES_WALKED {
+                index_variant_cases(mem, typtbl, n_types, i, n_cases, (*buf).ptr);
             }
         } else if ty == IDL_CON_func {
             // Arg types
@@ -344,8 +344,6 @@ unsafe fn parse_idl_header<M: Memory>(
         }
     }
 
-    index_variant_cases(mem, typtbl, n_types as usize, n_indexed_cases, (*buf).end);
-
     // Now read the main types
     *main_types_out = (*buf).ptr;
     for _ in 0..leb128_decode(buf) {
@@ -356,53 +354,49 @@ unsafe fn parse_idl_header<M: Memory>(
     *typtbl_out = typtbl;
 }
 
-/// Variant types with at least this many cases get an index of their cases, so that a value finds
-/// a later case in constant time. Earlier cases are found by walking the type table.
-const VARIANT_INDEX_MIN_CASES: u32 = 8;
+/// A value finds one of the first `VARIANT_CASES_WALKED` cases of its variant type by walking past
+/// the earlier cases in the type table. Variant types with more cases are indexed, so that a value
+/// finds a later case in constant time.
+const VARIANT_CASES_WALKED: u32 = 8;
 
-/// Indexes the cases of the variant types in `typtbl` that have at least `VARIANT_INDEX_MIN_CASES`
-/// cases, `n_cases` cases in all. The index has a word per type, pointing to the case entries of an
-/// indexed variant type or null, then a word per indexed case, pointing to its tag in the type
-/// table. The word before `typtbl` points to the index, or is null when nothing is indexed.
+/// Indexes the `n_cases` cases of the variant type `t`, whose entry in the type table ends at `end`.
+/// The word before `typtbl` points to the index, or is null while no type is indexed. The index has
+/// a word per type, set only for the indexed types. It points to a word per case, which points to
+/// the entry of that case in the type table.
 unsafe fn index_variant_cases<M: Memory>(
     mem: &mut M,
     typtbl: *mut *mut u8,
-    n_types: usize,
-    n_cases: usize,
+    n_types: u32,
+    t: u32,
+    n_cases: u32,
     end: *mut u8,
 ) {
-    if n_cases == 0 {
-        *typtbl.sub(1) = core::ptr::null_mut();
-        return;
+    let mut index = *typtbl.sub(1) as *mut *mut *mut u8;
+    if index.is_null() {
+        index = alloc(mem, Words(n_types as usize)) as *mut *mut *mut u8;
+        *typtbl.sub(1) = index as *mut u8;
     }
-    let index = alloc(mem, Words(n_types + n_cases)) as *mut *mut *mut u8;
-    let mut cases = index.add(n_types) as *mut *mut u8;
-    for t in 0..n_types {
-        *index.add(t) = core::ptr::null_mut();
-        let mut tb = Buf {
-            ptr: *typtbl.add(t),
-            end,
-        };
-        if sleb128_decode(&mut tb) == IDL_CON_variant {
-            let n = leb128_decode(&mut tb);
-            if n >= VARIANT_INDEX_MIN_CASES {
-                *index.add(t) = cases;
-                for _ in 0..n {
-                    *cases = tb.ptr;
-                    cases = cases.add(1);
-                    skip_leb128(&mut tb);
-                    skip_leb128(&mut tb);
-                }
-            }
-        }
+    let cases = alloc(mem, Words(n_cases as usize)) as *mut *mut u8;
+    *index.add(t as usize) = cases;
+    let mut tb = Buf {
+        ptr: *typtbl.add(t as usize),
+        end,
+    };
+    // Skip the opcode and the number of cases
+    skip_leb128(&mut tb);
+    skip_leb128(&mut tb);
+    for c in 0..n_cases as usize {
+        *cases.add(c) = tb.ptr;
+        skip_leb128(&mut tb);
+        skip_leb128(&mut tb);
     }
-    *typtbl.sub(1) = index as *mut u8;
+    debug_assert!(tb.ptr == end);
 }
 
 /// Moves `tb` from the first case entry of the variant type `t` to the entry of case `i`, which
 /// must exist. `typtbl` must come from `parse_idl_header`, which puts the index before it.
 unsafe fn move_to_variant_case(tb: *mut Buf, typtbl: *mut *mut u8, t: i32, i: u32) {
-    if i < VARIANT_INDEX_MIN_CASES {
+    if i < VARIANT_CASES_WALKED {
         for _ in 0..i {
             skip_leb128(tb);
             skip_leb128(tb);
