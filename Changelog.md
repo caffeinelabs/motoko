@@ -16,6 +16,9 @@
     unsupported counter type, such as 2, now traps instead of reading
     counter 0 (#6545).
 
+  * perf: right shifts of constants are evaluated at compile time, so
+    `performanceCounter(0)` costs no extra instructions after #6545 (#6546).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)
