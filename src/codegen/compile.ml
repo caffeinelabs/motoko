@@ -12731,6 +12731,9 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "performanceCounter", [e] ->
     (SR.UnboxedWord64 Type.Nat64),
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) e ^^
+    (* the counter type sits in the high bits of the word; move it down,
+       as `performance_counter` takes the low 32 bits *)
+    TaggedSmallWord.lsb_adjust Type.Nat32 ^^
     IC.performance_counter env
 
   | OtherPrim "trap", [e] ->
