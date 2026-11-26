@@ -78,6 +78,14 @@ let close (f,d) = diff f d
 
 (* One traversal for each syntactic category, named by that category *)
 
+(* Or-pattern arms may bind a variable at different types; codegen needs a
+   supertype of both (no `Type.lub`: it mints fresh constructors) *)
+let alt (d1 : td) (d2 : td) : td =
+  let open Type in
+  M.union (fun _ t1 t2 ->
+    Some (if t1 == t2 || sub t2 t1 then t1 else if sub t1 t2 then t2 else Any)
+  ) d1 d2
+
 let rec pat p : td = match p.it with
   | WildP | LitP _  -> M.empty
   | VarP i          -> M.singleton i p.note
@@ -85,7 +93,7 @@ let rec pat p : td = match p.it with
   | ObjP pfs        -> pats (pats_of_obj_pat pfs)
   | OptP p
   | TagP (_, p)     -> pat p
-  | AltP (p1, p2)   -> pat p1 +- pat p2
+  | AltP (p1, p2)   -> alt (pat p1) (pat p2)
   | AndP (p1, p2)   -> pat p1 +- pat p2
 
 and pats ps : td = List.(fold_left (+-) M.empty (map pat ps))

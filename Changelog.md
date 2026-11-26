@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * bugfix: a `let` or-pattern whose alternatives bind the same variable at
+    different types (e.g. `Nat64` and `?Text`, or `Null` and `?Text`) could
+    trap or skip the garbage collector's write barrier when the right
+    alternative matched (#6535).
+
   * bugfix: Canisters that forward calls to themselves can no longer be used to
     run an `async` body a second time, to make the runtime read past a
     continuation, or to start incremental stabilization;
@@ -11,6 +16,18 @@
     from user code (e.g. through a function reference or `call_raw`) to an
     internal method of the same canister such as `__motoko_async_helper` now
     fails with `#call_error` instead of being sent (#6531).
+
+## 2.2.5 (2026-11-24)
+
+* motoko (`moc`)
+
+  * bugfix: iterating over a `Text` (e.g. with `chars()`) while a garbage
+    collection is in progress could leave the iterator with a dangling
+    reference. This needed an iteration suspended across an `await`, over a
+    text built from nested concatenations (#6527).
+
+  * Candid encoding of large `Nat` and `Int` values is faster and allocates
+    less (#6532).
 
 ## 2.2.4 (2026-11-20)
 
