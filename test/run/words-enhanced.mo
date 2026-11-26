@@ -176,11 +176,9 @@ do {
     checkpointDelta();
 // this is the value of a
 // CHECK: i64.const {{1285496218637565952|1285566587381743616}}
-// this is the value of b
-// CHECK: i64.const {{1970324836974592|2040693581152256}}
-// This is not a native Wasm i64 multiplication, we need to shift one of the args left by 16 bits!
-// CHECK: i64.const 48
-// CHECK-NEXT: i64.shr_u
+// This is not a native Wasm i64 multiplication, we need to shift one of the args right by 48 bits!
+// b is a constant, so that shift is folded: this is b's value, untagged
+// CHECK-NEXT: i64.const 7
 // CHECK-NEXT: i64.mul
 // CHECK-NEXT: i64.const 70368744177664
 // CHECK-NEXT: i64.or
@@ -197,13 +195,11 @@ do {
 
 // CHECK: call $checkpointEcho
    checkpointEcho();
-// this is the value of b
-// CHECK: i64.const {{1970324836974592|2040693581152256}}
-// This is not a native Wasm i32 left shift, we need to shift the second arg left by 16 bits and clamp it to 4 bits!
-// CHECK: i64.const 48
-// CHECK-NEXT: i64.shr_u
-// CHECK-NEXT: i64.const 15
-// CHECK-NEXT: i64.and
+// this is the value of a
+// CHECK: i64.const {{1285496218637565952|1285566587381743616}}
+// This is not a native Wasm i64 right shift, we need to shift the second arg right by 48 bits and clamp it to 4 bits!
+// b is a constant, so both are folded: this is b's value, untagged and clamped
+// CHECK-NEXT: i64.const 7
 // CHECK-NEXT: i64.shr_u
 // Then the result must be sanitised.
 // CHECK-NEXT: i64.const -281474976710656
@@ -264,11 +260,11 @@ do {
     printN8ln(c -% a);
 // CHECK: call $checkpointHotel
     checkpointHotel();
-// this is the value of b
-// CHECK: i64.const {{504403158265495552|522417556774977536}}
-// This is not a native Wasm i64 multiplication, we need to shift one of the args left by 56 bits!
-// CHECK: i64.const 56
-// CHECK-NEXT: i64.shr_u
+// this is the value of a
+// CHECK: i64.const {{4827858800541171712|4845873199050653696}}
+// This is not a native Wasm i64 multiplication, we need to shift one of the args right by 56 bits!
+// b is a constant, so that shift is folded: this is b's value, untagged
+// CHECK-NEXT: i64.const 7
 // CHECK-NEXT: i64.mul
 // CHECK: call $printN8ln
     printN8ln(a *% b);
@@ -283,13 +279,11 @@ do {
 
 // CHECK: call $checkpointIndia
     checkpointIndia();
-// this is the value of b
-// CHECK: i64.const {{504403158265495552|522417556774977536}}
-// This is not a native Wasm i64 left shift, we need to shift the second arg left by 56 bits and clamp it to 3 bits!
-// CHECK: i64.const 56
-// CHECK-NEXT: i64.shr_u
+// this is the value of a
+// CHECK: i64.const {{4827858800541171712|4845873199050653696}}
+// This is not a native Wasm i64 right shift, we need to shift the second arg right by 56 bits and clamp it to 3 bits!
+// b is a constant, so both are folded: this is b's value, untagged and clamped
 // CHECK-NEXT: i64.const 7
-// CHECK-NEXT: i64.and
 // CHECK-NEXT: i64.shr_u
 // Then the result must be sanitised.
 // CHECK-NEXT: i64.const -72057594037927936
