@@ -3,3 +3,5 @@ float right
 nat64 left
 nat64 right null
 nat64 right text
+param left
+param right null

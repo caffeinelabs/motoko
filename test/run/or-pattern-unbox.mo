@@ -19,3 +19,10 @@ ignore g(#b null);
 Prim.debugPrint("nat64 right null");
 ignore g(#b (?"hi"));
 Prim.debugPrint("nat64 right text");
+
+// the same, as a parameter pattern
+func p((#a(v)) or (#b(v)) : { #a : Nat64; #b : ?Text }) : Any { v };
+ignore p(#a(7));
+Prim.debugPrint("param left");
+ignore p(#b(null));
+Prim.debugPrint("param right null")

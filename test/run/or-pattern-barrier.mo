@@ -13,7 +13,7 @@ func h(x : { #a : Null; #b : ?Text }) : ?Text {
 
 assert h(#a null) == null;
 assert h(#b (?"hi")) == ?"hi";
-Prim.debugPrint("ok");
+Prim.debugPrint("ok")
 
 // CHECK-LABEL: (func $h
 // CHECK: call $write_with_barrier
