@@ -12,7 +12,7 @@
   * bugfix: `performanceCounter(1)` now reads counter 1, the instructions of
     the whole call context. The counter type was dropped on the way to the
     system API, so every counter type read counter 0. This affected the
-    64-bit (enhanced orthogonal persistence) backend since 0.13.0 (#6542).
+    64-bit (enhanced orthogonal persistence) backend since 0.13.0 (#6545).
 
 ## 2.2.5 (2026-11-24)
 
