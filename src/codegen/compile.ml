@@ -10072,6 +10072,57 @@ module FuncDec = struct
 
     | _ -> assert false
 
+  (* Internal methods that change state and trust this canister (or a
+     controller, which it may be) as caller. Only generated code may call them;
+     a user call (e.g. through a caller-supplied function reference) could
+     start a pending future or a stabilization. *)
+  let internal_self_methods = [
+    IC.async_method_name;
+    "__motoko_stabilize_before_upgrade"; "__motoko_destabilize_after_upgrade";
+    "@motoko_async_stabilization"; "@motoko_async_destabilization" ]
+
+  (* Fails a user call to an internal method of this canister like a call
+     that could not be performed (`#call_error`, code 3) *)
+  let refuse_internal_self_call env get_meth_pair reset_cycles send =
+    if E.mode env <> Flags.ICMode then send else
+    let (set_first, get_first) = new_local env "first_byte" in
+    let first_bytes = List.sort_uniq compare
+      (List.map (fun name -> Char.code name.[0]) internal_self_methods) in
+    (* cheap pre-check on the first byte of the method name *)
+    get_meth_pair ^^ Arr.load_field env 1L ^^ Blob.len env ^^
+    compile_unboxed_const 0L ^^ compile_comparison I64Op.Ne ^^
+    E.if1 I64Type
+      (get_meth_pair ^^ Arr.load_field env 1L ^^ Blob.payload_ptr_unskewed env ^^
+       G.i (Load {ty = I64Type; align = 0; offset = 0L; sz = Some Wasm_exts.Types.(Pack8, ZX)}) ^^
+       set_first ^^
+       List.fold_left (fun acc c ->
+         acc ^^ get_first ^^ compile_eq_const (Int64.of_int c) ^^
+         G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))
+         (Bool.lit false) first_bytes)
+      (Bool.lit false) ^^
+    E.if1 I64Type
+      (List.fold_left (fun is_internal name ->
+         is_internal ^^
+         E.if1 I64Type (Bool.lit true)
+           (get_meth_pair ^^ Arr.load_field env 1L ^^
+            Blob.lit env Tagged.T name ^^
+            Blob.compare env (Some Operator.EqOp)))
+         (Bool.lit false) internal_self_methods)
+      (Bool.lit false) ^^
+    E.if1 I64Type
+      (get_meth_pair ^^ Arr.load_field env 0L ^^
+       IC.get_self_reference env ^^
+       Blob.compare env (Some Operator.EqOp))
+      (Bool.lit false) ^^
+    E.if0
+      begin
+        reset_cycles ^^
+        compile_unboxed_const 3L ^^ IC.set_call_perform_status env ^^
+        Blob.lit env Tagged.T "could not perform call to an internal method" ^^
+        IC.set_call_perform_message env
+      end
+      send
+
   let equate_msgref env =
     let (set_meth_pair1, get_meth_pair1) = new_local env "meth_pair1" in
     let (set_meth_pair2, get_meth_pair2) = new_local env "meth_pair2" in
@@ -11685,7 +11736,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
          set_meth_pair ^^
          compile_exp_vanilla env ae e2 ^^ set_arg ^^
 
-         FuncDec.ic_call_one_shot env ts get_meth_pair get_arg add_cycles
+         FuncDec.refuse_internal_self_call env get_meth_pair (Internals.reset_cycles env ae)
+           (FuncDec.ic_call_one_shot env ts get_meth_pair get_arg add_cycles)
     end
 
   (* Operators *)
@@ -12913,7 +12965,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae k ^^ set_k ^^
     compile_exp_vanilla env ae r ^^ set_r ^^
     compile_exp_vanilla env ae c ^^ set_c ^^
-    FuncDec.ic_call env ts1 ts2 get_meth_pair get_arg get_k get_r get_c add_cycles
+    FuncDec.refuse_internal_self_call env get_meth_pair (Internals.reset_cycles env ae)
+      (FuncDec.ic_call env ts1 ts2 get_meth_pair get_arg get_k get_r get_c add_cycles)
     end
 
   | ICCallRawPrim, [p;m;a;k;r;c] ->
@@ -12932,7 +12985,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae k ^^ set_k ^^
     compile_exp_vanilla env ae r ^^ set_r ^^
     compile_exp_vanilla env ae c ^^ set_c ^^
-    FuncDec.ic_call_raw env get_meth_pair get_arg get_k get_r get_c add_cycles
+    FuncDec.refuse_internal_self_call env get_meth_pair (Internals.reset_cycles env ae)
+      (FuncDec.ic_call_raw env get_meth_pair get_arg get_k get_r get_c add_cycles)
     end
 
   | ICMethodNamePrim, [] ->
