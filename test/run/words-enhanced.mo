@@ -31,7 +31,7 @@ func checkpointGolf() { assert true; };
 func checkpointHotel() { assert true; };
 func checkpointIndia() { assert true; };
 func checkpointJuliett() { assert true; };
-func checkpointKilo() { assert true; };
+func checkpointKilo() { assert true };
 
 // Nat64 operations
 do {
