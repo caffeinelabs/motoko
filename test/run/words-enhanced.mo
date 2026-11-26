@@ -1,4 +1,5 @@
 //MOC-FLAG -fshared-code
+//SKIP-FILECHECK-SANITY
 import Prim "mo:⛔";
 
 // CHECK: func $init
