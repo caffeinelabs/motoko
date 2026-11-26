@@ -9,6 +9,12 @@
     trap or skip the garbage collector's write barrier when the right
     alternative matched (#6535).
 
+  * bugfix: a `timeout` set by a parenthetical on a call that does not send a
+    message (a function merely returning a future) could carry over to a later
+    message and make an unrelated call best-effort. Such parentheticals are
+    now reported as misplaced (M0210, an error by default), and an unused
+    `timeout` is discarded at the end of each message (#6536).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)

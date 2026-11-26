@@ -275,9 +275,11 @@ and exp' at note = function
     I.(PrimE (CallPrim inst.note, [exp e1; exp !e2]))
   (* Call with parenthetical *)
   | S.CallE (Some _ as par_opt, e1, inst, (_, e2)) ->
+    (* must agree with `check_parenthetical` in `typing.ml`: a call whose
+       result is a future need not send (plain or generic functions) *)
     let send e1_typ = T.(is_func e1_typ &&
                            (let s, _, _, _, _ = as_func e1_typ in
-                            is_shared_sort s || is_fut note.Note.typ)) in
+                            is_shared_sort s || is_local_async_func e1_typ)) in
     let ds, rs = parenthetical (send e1.note.S.note_typ) par_opt in
     let v1, v2 = fresh_var "e1" e1.note.S.note_typ, fresh_var "e2" (!e2).note.S.note_typ in
     (blockE

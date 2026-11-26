@@ -2430,7 +2430,7 @@ Otherwise, `<exp3>` (the hole expansion of `<exp2>`) is evaluated to a result `r
 
 Otherwise, `r1` is a function value, `<shared-pat>? func <X0 <: V0, …​, n <: Vn> <pat1> { <exp> }` (for some implicit environment), and `r2` is a value `v2`. If `<shared-pat>` is present and of the form `shared <query>? <pat>` then evaluation continues by matching the record value `{caller = p}` against `<pat>`, where `p` is the [`Principal`](https://mops.one/core/docs/Principal) invoking the function, typically a user or canister. Matching continues by matching `v1` against `<pat1>`. If pattern matching succeeds with some bindings, then evaluation returns the result of `<exp>` in the environment of the function value not shown extended with those bindings. Otherwise, some pattern match has failed and the call results in `trap`.
 
-A `<parenthetical>`, when present, modifies dynamic attributes of the message send (provided that the return type `T` is of form `async U`, i.e. a future). The recognized attributes are
+A `<parenthetical>`, when present, modifies dynamic attributes of the message send, provided that `<exp1>` is a `shared` function or a local `async` function. A parenthetical on any other call, including a function that merely returns a future (e.g. one declared with result type `(async U)`), does not send a message and is rejected as misplaced (M0210). The recognized attributes are
 - `cycles : Nat` to attach cycles
 - `timeout : Nat32` to introduce a timeout for best-effort message execution.
 

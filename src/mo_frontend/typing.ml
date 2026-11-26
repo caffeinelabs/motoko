@@ -4693,7 +4693,9 @@ and check_parenthetical env typ_opt = function
        let s, _, _, _, ts2 = T.as_func fun_ty in
        begin match ts2 with
        | _ when T.is_shared_sort s -> ()
-       | [cod] when T.is_fut cod -> ()
+       (* only a genuine local async function sends; a plain function that
+          merely returns a future does not (must agree with `desugar.ml`) *)
+       | _ when T.is_local_async_func fun_ty -> ()
        | [cod] when T.is_cmp cod -> warn env par.at "M0210" "misplaced parenthetical (`async*` calls cannot be modified)"
        | _ -> warn env par.at "M0210" "misplaced parenthetical (this call does not send a message)"
        end
