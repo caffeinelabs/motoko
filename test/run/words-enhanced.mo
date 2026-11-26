@@ -30,6 +30,7 @@ func checkpointGolf() { assert true; };
 func checkpointHotel() { assert true; };
 func checkpointIndia() { assert true; };
 func checkpointJuliett() { assert true; };
+func checkpointKilo() { assert true; };
 
 // Nat64 operations
 do {
@@ -210,6 +211,22 @@ do {
     printN16ln(a >> b);
     printN16ln(Prim.int16ToNat16(d) >> 3); // -15 = 0xfff1 = 0b1111_1111_1111_0001 (shifted = 0b0001_1111_1111_1110 = 8190)
     printI16ln(d >> 3); // -15 = 0xfff1 = 0b1111_1111_1111_0001 (shifted = 0b1111_1111_1111_1110 = -2)
+
+    // a `var`, so its untagging and clamping below can't be constant-folded
+    var shift : Nat16 = 7;
+// CHECK: call $checkpointKilo
+   checkpointKilo();
+// CHECK: i64.const 48
+// CHECK-NEXT: i64.shr_u
+// CHECK-NEXT: i64.const 15
+// CHECK-NEXT: i64.and
+// CHECK-NEXT: i64.shr_u
+// CHECK-NEXT: i64.const -281474976710656
+// CHECK-NEXT: i64.and
+// CHECK-NEXT: i64.const 70368744177664
+// CHECK-NEXT: i64.or
+// CHECK-NEXT: call $printN16ln
+    printN16ln(a >> shift);
 
 // CHECK: call $checkpointFoxtrot
    checkpointFoxtrot();
