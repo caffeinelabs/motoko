@@ -145,9 +145,11 @@ let optimize : instr list -> instr list = fun is ->
     | l', {it = Const {it = I64 cl; _}; _} :: {it = Const {it = I64 cr; _}; _} :: {it = Binary (I64 I64Op.Or); at} :: r' ->
       let combined = {it = Const {it = I64 (Int64.logor cl cr); at}; at} in
       go l' (combined :: r')
-    (* Constant unsigned right shift evaluation (Wasm takes the amount mod 64) *)
-    | l', {it = Const {it = I64 cl; _}; _} :: {it = Const {it = I64 cr; _}; _} :: {it = Binary (I64 I64Op.ShrU); at} :: r' ->
-      let combined = {it = Const {it = I64 (Int64.shift_right_logical cl (Int64.to_int cr land 63)); at}; at} in
+    (* Constant right shift evaluation, with the reference interpreter's
+       semantics (shift amount taken mod 64) *)
+    | l', {it = Const {it = I64 cl; _}; _} :: {it = Const {it = I64 cr; _}; _} :: {it = Binary (I64 I64Op.(ShrU|ShrS as op)); at} :: r' ->
+      let shift = if op = I64Op.ShrU then Wasm.I64.shr_u else Wasm.I64.shr_s in
+      let combined = {it = Const {it = I64 (shift cl cr); at}; at} in
       go l' (combined :: r')
     (* Widen followed by I64.Eqz can be simplified to I32.Eqz *)
     | l', {it = Convert (I64 I64Op.(ExtendSI32 | ExtendUI32)); _} :: {it = Test (I64 I64Op.Eqz); at} :: r' ->
