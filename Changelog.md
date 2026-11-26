@@ -1,5 +1,16 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * `Nat32` and `Int32` values are kept as plain `i32` values in locals and
+    across expressions, and only converted to the tagged 64-bit representation
+    where they are stored on the heap or passed around. Shifts, rotations and
+    bitwise operations are now single `i32` instructions without masking, so
+    bit-twiddling code (SHA-256, BLAKE2s, ChaCha, CRCs, PRNGs) compiles to
+    considerably fewer instructions (#6543).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)

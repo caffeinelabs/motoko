@@ -10,11 +10,11 @@ assert (0 : Nat64 == 0);
 // CHECK: i64.const 424342
 assert not (424342 : Nat64 == 1);
 
-// CHECK: i64.const {{1823394005778432|1823395079520256}}
+// CHECK: i32.const 424542
 assert not (424542 : Nat32 == 1);
 assert not (3 : Nat32 == 0);
 assert (0 : Nat32 == 0);
-// CHECK: i64.const {{1824682495967232|1824683569709056}}
+// CHECK: i32.const 424842
 assert not (424842 : Nat32 == 1);
 
 func printBit(a : Bool) { Prim.debugPrint(if a "set" else "clear") };
@@ -120,8 +120,9 @@ do {
 
 // CHECK: call $checkpointCharlie
     checkpointCharlie();
-// This is a native Wasm i64 multiplication, there should be no shift involved!
+// Nat32 lives in i32: the (overflow-checked) multiplication takes the i32 operands as they are, no shifts involved!
 // CHECK-NOT: i64.shr_u
+// CHECK-NOT: i32.shr_u
 // CHECK: call $printN32ln
     printN32ln(a * b);
     printN32ln(a / b);
