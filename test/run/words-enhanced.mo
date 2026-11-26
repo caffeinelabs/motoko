@@ -213,7 +213,8 @@ do {
     printI16ln(d >> 3); // -15 = 0xfff1 = 0b1111_1111_1111_0001 (shifted = 0b1111_1111_1111_1110 = -2)
 
     // a `var`, so its untagging and clamping below can't be constant-folded
-    var shift : Nat16 = 7;
+    var shift : Nat16 = 0;
+    shift := b;
 // CHECK: call $checkpointKilo
    checkpointKilo();
 // CHECK: i64.const 48
