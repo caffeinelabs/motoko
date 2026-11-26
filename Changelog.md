@@ -9,6 +9,14 @@
     trap or skip the garbage collector's write barrier when the right
     alternative matched (#6535).
 
+  * bugfix: Canisters that forward calls to themselves can no longer be used to
+    run an `async` body a second time, to make the runtime read past a
+    continuation, or to start incremental stabilization;
+    `__motoko_stabilize_before_upgrade` now requires a controller. A call
+    from user code (e.g. through a function reference or `call_raw`) to an
+    internal method of the same canister such as `__motoko_async_helper` now
+    fails with `#call_error` instead of being sent (#6531).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)

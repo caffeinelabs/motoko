@@ -1,0 +1,11 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ("future body run", 1)
+debug.print: ("index", 0, "rejected")
+debug.print: ("index", 1, "rejected")
+debug.print: ("index", 2, "rejected")
+debug.print: ("index", 3, "rejected")
+debug.print: ("index", 4, "rejected")
+debug.print: ("index", 5, "rejected")
+debug.print: ("body runs", 1)
+ingress Completed: Reply: 0x4449444c0000

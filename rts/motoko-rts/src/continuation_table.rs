@@ -32,7 +32,7 @@ use core::ptr::addr_of_mut;
 use crate::barriers::{allocation_barrier, write_with_barrier};
 use crate::memory::{Memory, alloc_array};
 use crate::rts_trap_with;
-use crate::types::{TAG_ARRAY_M, Value};
+use crate::types::{TAG_ARRAY_M, TAG_ARRAY_T, Value};
 
 use motoko_rts_macros::ic_mem_fn;
 
@@ -124,8 +124,8 @@ pub unsafe fn remember_continuation<M: Memory>(mem: &mut M, ptr: Value) -> usize
 // Invariant: keep this synchronised with compiler.ml (see future_array_index)
 const FUTURE_ARRAY_INDEX: usize = 3;
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
+#[ic_mem_fn]
+pub unsafe fn peek_future_continuation<M: Memory>(mem: &mut M, idx: usize) -> Value {
     if !table_initialized() {
         rts_trap_with("peek_future_continuation: Continuation table not allocated");
     }
@@ -140,7 +140,23 @@ pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
         rts_trap_with("peek_future_continuation: Continuation index not in table");
     }
 
-    ptr.as_array().get(FUTURE_ARRAY_INDEX)
+    // `__motoko_async_helper` checks only that the caller is this canister, and a canister
+    // can forward a call to itself with an arbitrary index. Ordinary call continuations
+    // are 3-element tuples, so reading the future slot needs the self-send shape.
+    if ptr.tag() != TAG_ARRAY_T || ptr.as_array().len() != FUTURE_ARRAY_INDEX + 1 {
+        rts_trap_with("peek_future_continuation: Continuation is not a self-send");
+    }
+
+    // Run each future at most once. The entry stays in the table until the self-send's
+    // reply arrives, and a forwarded call could otherwise run the async body again.
+    let future = ptr.as_array().get(FUTURE_ARRAY_INDEX);
+    if future.is_scalar() {
+        rts_trap_with("peek_future_continuation: Future already started");
+    }
+    ptr.as_array()
+        .set(FUTURE_ARRAY_INDEX, Value::from_scalar(0), mem);
+
+    future
 }
 
 #[ic_mem_fn]

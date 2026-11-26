@@ -1,0 +1,12 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ping ok
+debug.print: ("@motoko_async_stabilization", "could not perform call to an internal method")
+debug.print: ("@motoko_async_destabilization", "could not perform call to an internal method")
+debug.print: ("__motoko_destabilize_after_upgrade", "could not perform call to an internal method")
+debug.print: ping ok
+debug.print: ("stabilize", "could not perform call to an internal method")
+debug.print: ping ok
+debug.print: upgrade
+debug.print: ping ok
+ingress Completed: Reply: 0x4449444c0000

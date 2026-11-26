@@ -1,0 +1,11 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ("index", 0, "could not perform call to an internal method")
+debug.print: ("index", 1, "could not perform call to an internal method")
+debug.print: ("index", 2, "could not perform call to an internal method")
+debug.print: ("index", 3, "could not perform call to an internal method")
+debug.print: ("index", 4, "could not perform call to an internal method")
+debug.print: ("index", 5, "could not perform call to an internal method")
+ingress Completed: Reply: 0x4449444c0000
+debug.print: ping ok
+ingress Completed: Reply: 0x4449444c0000
