@@ -47,7 +47,7 @@ assert(arrayInt == deserArrayInt (serArrayInt arrayInt));
 let heapDifference = Prim.rts_heap_size() : Int - started_with;
 
 // Difference between enhanced orthogonal persistence and classical persistence (with and without incremental GC).
-assert(heapDifference == 2_816 or heapDifference == 4_488 or heapDifference == 4_888);
+assert(heapDifference == 2_848 or heapDifference == 4_488 or heapDifference == 4_888);
 
 //SKIP run
 //SKIP run-ir

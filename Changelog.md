@@ -9,6 +9,8 @@
     trap or skip the garbage collector's write barrier when the right
     alternative matched (#6535).
 
+  * Candid decoding of variants with many cases is faster (#6513).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)
