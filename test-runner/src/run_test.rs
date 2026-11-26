@@ -250,6 +250,7 @@ struct Directives {
     check: bool,
     no_force_gc: bool,
     skip_sanity_checks: bool,
+    skip_filecheck_sanity: bool,
     drun_skip: bool,
     application_subnet: bool,
 }
@@ -273,6 +274,9 @@ fn parse_directives(src: &str, is_drun: bool) -> Directives {
             }
             d.check |= re(r"^// *CHECK").is_match(line);
             d.no_force_gc |= tagged("MOC-NO-FORCE-GC");
+            // run the test under `--sanity-checks`, but without its FileCheck:
+            // sanity checks change the emitted code the CHECKs describe
+            d.skip_filecheck_sanity |= tagged("SKIP-FILECHECK-SANITY");
         } else {
             d.drun_skip |= line.starts_with("# SKIP drun") || line.starts_with("#SKIP drun");
             d.application_subnet |= tagged("APPLICATION-SUBNET");
@@ -290,12 +294,17 @@ fn extract_directive(src: &str, marker: &str) -> Vec<String> {
         .collect()
 }
 
+/// Whether `moc` runs with `--sanity-checks` (the CI debug flavour).
+fn sanity_checks() -> bool {
+    env::var("EXTRA_MOC_ARGS").unwrap_or_default().contains("--sanity-checks")
+}
+
 /// Returns `None` (run), `Some("")` (silent skip), or `Some(msg)` (print-and-skip).
 fn skip_reason(d: &Directives, is_drun: bool) -> Option<&'static str> {
     if is_drun && d.drun_skip {
         return Some("");
     }
-    if d.skip_sanity_checks && env::var("EXTRA_MOC_ARGS").unwrap_or_default().contains("--sanity-checks") {
+    if d.skip_sanity_checks && sanity_checks() {
         return Some(" Skipped (not applicable to --sanity-checks)");
     }
     None
@@ -524,7 +533,7 @@ fn handle_mo(ctx: &mut Ctx, cli: &Cli, src: &str, d: &Directives) {
         let _ = run_phase(ctx, "valid", d, Some("wasm"), |outp| spawn_to_file(outp, valid));
     }
 
-    if wasm_path.exists() && !skip_running && d.check {
+    if wasm_path.exists() && !skip_running && d.check && !(d.skip_filecheck_sanity && sanity_checks()) {
         filecheck(ctx, cli, &wasm_path, &mangled_path);
     }
 
