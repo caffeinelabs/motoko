@@ -1,0 +1,3 @@
+// wtfwfj and grygle have Candid hashes 0xa2b9a372 and 0x22b9a372
+type T = variant { wtfwfj : text; grygle : nat };
+service : { f : (T) -> () }

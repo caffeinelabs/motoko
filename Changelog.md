@@ -4,7 +4,28 @@
 
 * motoko (`moc`)
 
+  * bugfix: a `let` or-pattern whose alternatives bind the same variable at
+    different types (e.g. `Nat64` and `?Text`, or `Null` and `?Text`) could
+    trap or skip the garbage collector's write barrier when the right
+    alternative matched (#6535).
+
   * Candid decoding of variants with many cases is faster (#6513).
+
+## 2.2.5 (2026-11-24)
+
+* motoko (`moc`)
+
+  * bugfix: iterating over a `Text` (e.g. with `chars()`) while a garbage
+    collection is in progress could leave the iterator with a dangling
+    reference. This needed an iteration suspended across an `await`, over a
+    text built from nested concatenations (#6527).
+
+  * Candid encoding of large `Nat` and `Int` values is faster and allocates
+    less (#6532).
+
+## 2.2.4 (2026-11-20)
+
+* motoko (`moc`)
 
   * Diagnostics located in a Candid `.did` file show the file's path, not just
     its name, and `--error-format=human` shows a source excerpt for them
@@ -36,6 +57,12 @@
     the first. Subtyping, stability, and upgrade compatibility then accepted
     mismatched content types, inferred types could be wrong, and type
     inference could fail with a spurious "bad instantiation" error (#6517).
+
+  * bugfix: Importing a Candid file now fails with error M0153 when two fields
+    of a record, two tags of a variant, or two methods of a service have
+    colliding Motoko hashes. Before, `moc` either crashed with an internal
+    error or, with the IR check off (as in `moc.js`), compiled code that could
+    read a value at the wrong type (#6519).
 
 ## 2.2.3 (2026-11-17)
 
