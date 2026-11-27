@@ -79,7 +79,7 @@ and pat' rho = function
   | AltP (p1, p2) ->
     let is1 = Freevars.M.keys (Freevars.pat p1) in
     assert begin
-      let is2 = Freevars.M.keys (Freevars.pat p1) in
+      let is2 = Freevars.M.keys (Freevars.pat p2) in
       List.compare String.compare is1 is2 = 0
     end;
     ids_bind rho is1
