@@ -16,6 +16,10 @@
     unsupported counter type, such as 2, now traps instead of reading
     counter 0 (#6545).
 
+  * bugfix: a `timeout` on a raw call (`call_raw`, core's `IC.call`) now
+    reaches the callee, so the call is best-effort as with a typed call.
+    It used to apply only to the self-call into `call_raw` (#6552).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)
