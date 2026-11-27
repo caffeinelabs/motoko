@@ -7,11 +7,11 @@ actor Counter {
   public func inc() : async Nat {
     value += 1;
     invocations += 1;
-    value;
+    value
   };
 
   public func reset() : async () {
-    value := 0;
+    value := 0
   };
 
   public func getInvocations() : async Nat {

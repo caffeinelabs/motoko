@@ -2,8 +2,8 @@ actor Counter {
   var value = 0;
   public func inc() : async Nat {
     value += 1;
-    return value;
-  };
+    return value
+  }
 };
 
 actor Factorial {
@@ -12,10 +12,10 @@ actor Factorial {
 
   public func next() : async Nat {
     last *= await Counter.inc();
-    return last;
+    return last
   }
 };
 
 ignore await Factorial.next();
 ignore await Factorial.next();
-await Factorial.next();
+await Factorial.next()

@@ -1,11 +1,11 @@
-import {migration} "CardMigration";
+import { migration } "CardMigration";
 
 (with migration) // Declare the migration function
 actor {
   type Card = {
     title : Text;
-    description : Text;
+    description : Text
   };
 
-  var map : [(Nat32, Card)] = []; // Initialized by migration on upgrade
-};
+  var map : [(Nat32, Card)] = [] // Initialized by migration on upgrade
+}
