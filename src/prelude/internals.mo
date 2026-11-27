@@ -480,6 +480,15 @@ func @call_raw(p : Principal, m : Text, a : Blob) : async Blob {
   if available != 0 {
     @cycles := (prim "cyclesAccept" : Nat -> Nat) available;
   };
+  // likewise the deadline: this is a self-call, which `@add_cycles` made
+  // best-effort with the caller's `timeout`; give the real call what is
+  // left of it (in whole seconds, at least one)
+  let deadline = (prim "deadline" : () -> Nat64)();
+  if deadline != 0 {
+    let now = (prim "time" : () -> Nat64)();
+    let left = if deadline > now { (deadline - now + 999_999_999) / 1_000_000_000 } else { 1 : Nat64 };
+    @timeout := ?(prim "num_conv_Nat64_Nat32" : Nat64 -> Nat32)(left);
+  };
   await (prim "call_raw" : (Principal, Text, Blob) -> async Blob)(p, m, a);
 };
 
