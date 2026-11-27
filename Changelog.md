@@ -16,6 +16,9 @@
     unsupported counter type, such as 2, now traps instead of reading
     counter 0 (#6545).
 
+  * bugfix: a `let` with `or`-pattern that binds variables, in a block containing
+    an `await`, no longer crashes `moc` (#6550).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)

@@ -561,8 +561,29 @@ and declare_pat pat exp : exp =
   | ObjP pfs -> declare_pats (pats_of_obj_pat pfs) exp
   | OptP pat1
   | TagP (_, pat1) -> declare_pat pat1 exp
-  | AltP (pat1, pat2) -> declare_pat pat1 exp
+  | AltP _ ->
+    (* both arms bind the same names; declare them at their lub *)
+    Freevars.M.fold declare_id (alt_binders pat) exp
   | AndP (pat1, pat2) -> declare_pat pat1 (declare_pat pat2 exp)
+
+(* The names an or-pattern binds, typed as `check_ir` and the frontend type
+   them: the lub of both arms' types. (`Freevars.pat` may give the coarser
+   `Any`, which is not below the uses' type.) *)
+and alt_binders p : T.typ Freevars.M.t =
+  let open Freevars in
+  let rec go pat = match pat.it with
+    | WildP | LitP _ -> M.empty
+    | VarP id -> M.singleton id pat.note
+    | TupP pats -> gos pats
+    | ObjP pfs -> gos (pats_of_obj_pat pfs)
+    | OptP pat1
+    | TagP (_, pat1) -> go pat1
+    | AltP (pat1, pat2) ->
+      M.union (fun _ t1 t2 -> Some (if t1 == t2 then t1 else T.lub t1 t2))
+        (go pat1) (go pat2)
+    | AndP (pat1, pat2) -> go pat1 +- go pat2
+  and gos pats = List.fold_left (fun m pat -> m +- go pat) M.empty pats
+  in go p
 
 and declare_pats pats exp : exp =
   match pats with
@@ -594,14 +615,30 @@ and rename_pat' pat =
   | TagP (i, pat1) ->
     let (patenv,pat1) = rename_pat pat1 in
     (patenv, TagP (i, pat1))
-  | AltP (pat1,pat2) ->
-    assert(Freevars.(M.is_empty (pat pat1)));
-    assert(Freevars.(M.is_empty (pat pat2)));
-    (PatEnv.empty,pat.it)
+  | AltP (pat1, pat2) ->
+    (* one fresh variable per name, shared by both arms *)
+    let patenv =
+      Freevars.M.fold (fun id typ env -> PatEnv.add id (fresh_var "v" typ) env)
+        (alt_binders pat) PatEnv.empty in
+    (patenv, AltP (subst_pat patenv pat1, subst_pat patenv pat2))
   | AndP (pat1, pat2) ->
     let patenv1, pat1' = rename_pat pat1 in
     let patenv2, pat2' = rename_pat pat2 in
     (PatEnv.disjoint_union patenv1 patenv2, AndP (pat1', pat2'))
+
+and subst_pat patenv pat =
+  let it = match pat.it with
+    | WildP
+    | LitP _ -> pat.it
+    | VarP id -> VarP (id_of_var (PatEnv.find id patenv))
+    | TupP pats -> TupP (List.map (subst_pat patenv) pats)
+    | ObjP pfs ->
+      ObjP (replace_obj_pat pfs (List.map (subst_pat patenv) (pats_of_obj_pat pfs)))
+    | OptP pat1 -> OptP (subst_pat patenv pat1)
+    | TagP (i, pat1) -> TagP (i, subst_pat patenv pat1)
+    | AltP (pat1, pat2) -> AltP (subst_pat patenv pat1, subst_pat patenv pat2)
+    | AndP (pat1, pat2) -> AndP (subst_pat patenv pat1, subst_pat patenv pat2)
+  in { pat with it }
 
 and rename_pats pats =
   match pats with
@@ -622,10 +659,10 @@ and define_pat patenv pat : dec list =
   | ObjP pfs -> define_pats patenv (pats_of_obj_pat pfs)
   | OptP pat1
   | TagP (_, pat1) -> define_pat patenv pat1
-  | AltP (pat1, pat2) ->
-    assert(Freevars.(M.is_empty (pat pat1)));
-    assert(Freevars.(M.is_empty (pat pat2)));
-    []
+  | AltP _ ->
+    Freevars.M.fold (fun id _ decs ->
+      expD (define_idE id Const (varE (PatEnv.find id patenv))) :: decs)
+      (alt_binders pat) []
   | AndP (pat1, pat2) ->
     define_pat patenv pat1 @ define_pat patenv pat2
 
