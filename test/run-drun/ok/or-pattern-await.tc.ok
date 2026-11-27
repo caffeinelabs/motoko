@@ -1,0 +1,7 @@
+or-pattern-await.mo:28.9-28.25: warning [M0190], pattern variable v has larger type
+  ?Any
+because its types in the pattern alternatives are unrelated smaller types:
+type in left pattern is
+  ?Nat64
+type in right pattern is
+  ?Text

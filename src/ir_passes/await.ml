@@ -562,10 +562,29 @@ and declare_pat pat exp : exp =
   | OptP pat1
   | TagP (_, pat1) -> declare_pat pat1 exp
   | AltP _ ->
-    (* both arms bind the same names; declare them at a type valid for
-       both (see `Freevars.alt`), not at the left arm's *)
-    Freevars.M.fold declare_id (Freevars.pat pat) exp
+    (* both arms bind the same names; declare them at their lub *)
+    Freevars.M.fold declare_id (alt_binders pat) exp
   | AndP (pat1, pat2) -> declare_pat pat1 (declare_pat pat2 exp)
+
+(* The names an or-pattern binds, typed as `check_ir` and the frontend type
+   them: the lub of both arms' types. (`Freevars.pat` may give the coarser
+   `Any`, which is not below the uses' type.) *)
+and alt_binders pat : T.typ Freevars.M.t =
+  let rec go pat = match pat.it with
+    | WildP | LitP _ -> Freevars.M.empty
+    | VarP id -> Freevars.M.singleton id pat.note
+    | TupP pats -> gos pats
+    | ObjP pfs -> gos (pats_of_obj_pat pfs)
+    | OptP pat1
+    | TagP (_, pat1) -> go pat1
+    | AltP (pat1, pat2) ->
+      Freevars.M.union (fun _ t1 t2 -> Some (if t1 == t2 then t1 else T.lub t1 t2))
+        (go pat1) (go pat2)
+    | AndP (pat1, pat2) -> gos [pat1; pat2]
+  and gos pats =
+    List.fold_left (fun m p -> Freevars.M.union (fun _ t _ -> Some t) m (go p))
+      Freevars.M.empty pats
+  in go pat
 
 and declare_pats pats exp : exp =
   match pats with
@@ -601,7 +620,7 @@ and rename_pat' pat =
     (* one fresh variable per name, shared by both arms *)
     let patenv =
       Freevars.M.fold (fun id typ env -> PatEnv.add id (fresh_var "v" typ) env)
-        (Freevars.pat pat) PatEnv.empty in
+        (alt_binders pat) PatEnv.empty in
     (patenv, AltP (subst_pat patenv pat1, subst_pat patenv pat2))
   | AndP (pat1, pat2) ->
     let patenv1, pat1' = rename_pat pat1 in
@@ -644,7 +663,7 @@ and define_pat patenv pat : dec list =
   | AltP _ ->
     Freevars.M.fold (fun id _ decs ->
       expD (define_idE id Const (varE (PatEnv.find id patenv))) :: decs)
-      (Freevars.pat pat) []
+      (alt_binders pat) []
   | AndP (pat1, pat2) ->
     define_pat patenv pat1 @ define_pat patenv pat2
 

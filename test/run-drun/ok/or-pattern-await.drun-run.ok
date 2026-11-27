@@ -3,6 +3,7 @@ ingress Completed: Reply: 0x4449444c0000
 debug.print: (1, 2)
 debug.print: null
 debug.print: text
+debug.print: (true, false)
 debug.print: left (3, -1) / left 4
 debug.print: right (4, -2) / right 5
 ingress Completed: Reply: 0x4449444c0000
