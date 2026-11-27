@@ -163,6 +163,14 @@ To set a timeout for awaiting the message result, which is useful when you want 
 let a = (with timeout = 25) Counter.bump();
 ```
 
+:::caution
+
+With a timeout, you may not learn the outcome of a call. If the deadline passes before the reply arrives, the `await` throws an error with code `#system_unknown`, but the callee may still have executed the call; a late reply is dropped, together with any cycles it refunds. Use a timeout only for calls that you can safely retry, or whose effect you can check afterwards.
+
+This matters most for calls that change state, such as calls to the management canister. A `create_canister` that times out may still create a canister, paid for with the cycles you attached, without telling you its principal. An `install_code` or `update_settings` that times out may or may not have been applied.
+
+:::
+
 You can also define a custom default set of attributes as a record and then extend it with additional attributes in the parenthetical:
 
 ```motoko no-repl
