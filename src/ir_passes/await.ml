@@ -569,22 +569,21 @@ and declare_pat pat exp : exp =
 (* The names an or-pattern binds, typed as `check_ir` and the frontend type
    them: the lub of both arms' types. (`Freevars.pat` may give the coarser
    `Any`, which is not below the uses' type.) *)
-and alt_binders pat : T.typ Freevars.M.t =
+and alt_binders p : T.typ Freevars.M.t =
+  let open Freevars in
   let rec go pat = match pat.it with
-    | WildP | LitP _ -> Freevars.M.empty
-    | VarP id -> Freevars.M.singleton id pat.note
+    | WildP | LitP _ -> M.empty
+    | VarP id -> M.singleton id pat.note
     | TupP pats -> gos pats
     | ObjP pfs -> gos (pats_of_obj_pat pfs)
     | OptP pat1
     | TagP (_, pat1) -> go pat1
     | AltP (pat1, pat2) ->
-      Freevars.M.union (fun _ t1 t2 -> Some (if t1 == t2 then t1 else T.lub t1 t2))
+      M.union (fun _ t1 t2 -> Some (if t1 == t2 then t1 else T.lub t1 t2))
         (go pat1) (go pat2)
-    | AndP (pat1, pat2) -> gos [pat1; pat2]
-  and gos pats =
-    List.fold_left (fun m p -> Freevars.M.union (fun _ t _ -> Some t) m (go p))
-      Freevars.M.empty pats
-  in go pat
+    | AndP (pat1, pat2) -> go pat1 +- go pat2
+  and gos pats = List.fold_left (fun m pat -> m +- go pat) M.empty pats
+  in go p
 
 and declare_pats pats exp : exp =
   match pats with
