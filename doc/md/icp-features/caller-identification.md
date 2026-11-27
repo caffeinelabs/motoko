@@ -62,6 +62,12 @@ shared(msg) actor class InstallerAware() {
 :::
 
 
+:::caution
+
+A canister can be made to call itself: by code that forwards a caller-chosen dynamic call, or that calls a shared function value received from a caller. Such a call arrives with your canister's own principal as `caller`. Do not treat `caller == Principal.fromActor(this)`, or a controller check when your canister is its own controller, as proof that your own code initiated the call. See [dynamic calls and function references](../fundamentals/actors/messaging.md#dynamic-calls-and-function-references-pitfalls).
+
+:::
+
 ## Recording principals
 
 Principals support equality, ordering, and hashing, so you can efficiently store principals in containers for functions such as maintaining an allow or deny list. More operations on principals are available in the [principal](https://mops.one/core/docs/Principal) core module.
