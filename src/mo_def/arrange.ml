@@ -180,6 +180,8 @@ module Make (Cfg : Config) = struct
     | Nat8Lit n     -> "Nat8Lit"   $$ [ Atom (Numerics.Nat8.to_pretty_string n) ]
     | Nat16Lit n    -> "Nat16Lit"  $$ [ Atom (Numerics.Nat16.to_pretty_string n) ]
     | Nat32Lit n    -> "Nat32Lit"  $$ [ Atom (Numerics.Nat32.to_pretty_string n) ]
+    | Nat128Lit n   -> "Nat128Lit" $$ [ Atom (Numerics.Nat128.to_pretty_string n) ]
+    | Nat256Lit n   -> "Nat256Lit" $$ [ Atom (Numerics.Nat256.to_pretty_string n) ]
     | Nat64Lit n    -> "Nat64Lit"  $$ [ Atom (Numerics.Nat64.to_pretty_string n) ]
     | IntLit i      -> "IntLit"    $$ [ Atom (Numerics.Int.to_pretty_string i) ]
     | Int8Lit i     -> "Int8Lit"   $$ [ Atom (Numerics.Int_8.to_pretty_string i) ]

@@ -645,6 +645,8 @@ The category of a type determines the operators (unary, binary, relational and i
 | [`Nat16`](https://mops.one/core/docs/Nat16)      | A, O     | Non-negative 16-bit integer values with checked arithmetic             |
 | [`Nat32`](https://mops.one/core/docs/Nat32)      | A, O     | Non-negative 32-bit integer values with checked arithmetic             |
 | [`Nat64`](https://mops.one/core/docs/Nat64)        | A, O     | Non-negative 64-bit integer values with checked arithmetic             |
+| `Nat128`                                            | A, O     | Non-negative 128-bit integer values with checked arithmetic            |
+| `Nat256`                                            | A, O     | Non-negative 256-bit integer values with checked arithmetic            |
 | [`Blob`](https://mops.one/core/docs/Blob)          | O        | Binary blobs with iterators                                            |
 | [`Principal`](https://mops.one/core/docs/Principal) | O        | Principals                                                             |
 | [`Error`](https://mops.one/core/docs/Error)         |          | (Opaque) error values                                                  |
@@ -710,13 +712,38 @@ The corresponding module in the core package provides conversion functions:
 
 - Wrapping conversion to the bounded natural type of the same size.
 
-### Bounded naturals [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32) and [`Nat64`](https://mops.one/core/docs/Nat64)
+### Bounded naturals [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32), [`Nat64`](https://mops.one/core/docs/Nat64), `Nat128` and `Nat256`
 
-The types [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32) and [`Nat64`](https://mops.one/core/docs/Nat64) represent unsigned integers with respectively 8, 16, 32 and 64 bit precision. All have categories A (Arithmetic), B (Bitwise) and O (Ordered).
+The types [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32), [`Nat64`](https://mops.one/core/docs/Nat64), `Nat128` and `Nat256` represent unsigned integers with respectively 8, 16, 32, 64, 128 and 256 bit precision. All have categories A (Arithmetic), B (Bitwise) and O (Ordered).
 
 Operations that may under- or overflow the representation are checked and trap on error.
 
 The operations `+%`, `-%`, `*%` and `**%` provide access to the modular, wrap-on-overflow operations.
+
+#### Wide naturals `Nat128` and `Nat256`
+
+`Nat128` and `Nat256` are wider than a machine word, so they are represented as a fixed
+number of 64-bit limbs rather than as a machine integer. The width is part of the type, so
+arithmetic on them is generated as straight-line operations over that fixed number of limbs
+and allocates nothing beyond its result. They are intended for code that needs exact
+256-bit arithmetic -- EVM semantics, cryptographic and fixed-point work -- where an
+arbitrary-precision `Nat` would pay for a heap value and a general-purpose algorithm on
+every operation.
+
+They support the same operations as the narrower bounded naturals, including the wrapping
+forms, the bitwise operations, shifts and rotations, and `Prim.popcntNat256`,
+`Prim.clzNat256` and `Prim.ctzNat256` (and their `Nat128` counterparts). Conversions to and
+from `Nat` and each of the other bounded naturals are available as
+`Prim.nat256ToNat`, `Prim.natToNat256`, `Prim.nat64ToNat256`, `Prim.nat256ToNat128` and so
+on; the narrowing directions trap when the value does not fit.
+
+Candid has no 128- or 256-bit natural, so on the wire these are `nat`, which is what the
+ecosystem already uses for 256-bit quantities. A caller may therefore send a value too large
+for the width, which traps on decode.
+
+As stable variables they are distinct from `Nat` and from each other, so an upgrade that
+changes a stable variable between `Nat`, `Nat128` and `Nat256` is rejected rather than
+silently reinterpreting the stored value.
 
 As bitwise types, these types support bitwise operations and (`&`), or (`|`) and exclusive-or (`^`). Further, they can be rotated left (`<<>`), right (`<>>`), and shifted left (`<<`), right (`>>`). The right-shift is logical. All shift and rotate amounts are considered modulo the number’s bit width *n*.
 

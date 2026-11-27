@@ -149,6 +149,8 @@ and lit = function
   | Nat16Lit w    -> "Nat16Lit"  $$ [ Atom (Numerics.Nat16.to_pretty_string w) ]
   | Nat32Lit w    -> "Nat32Lit"  $$ [ Atom (Numerics.Nat32.to_pretty_string w) ]
   | Nat64Lit w    -> "Nat64Lit"  $$ [ Atom (Numerics.Nat64.to_pretty_string w) ]
+  | Nat128Lit w   -> "Nat128Lit" $$ [ Atom (Numerics.Nat128.to_pretty_string w) ]
+  | Nat256Lit w   -> "Nat256Lit" $$ [ Atom (Numerics.Nat256.to_pretty_string w) ]
   | IntLit i      -> "IntLit"    $$ [ Atom (Numerics.Int.to_pretty_string i) ]
   | Int8Lit w     -> "Int8Lit"   $$ [ Atom (Numerics.Int_8.to_pretty_string w) ]
   | Int16Lit w    -> "Int16Lit"  $$ [ Atom (Numerics.Int_16.to_pretty_string w) ]

@@ -1,0 +1,12 @@
+# Nat, Nat128 and Nat256 have different heap layouts (a bignum, and limb blobs of
+# two sizes), so an upgrade between any two of them must be rejected.
+install $ID wide-nat-mismatch/version0.mo ""
+upgrade $ID wide-nat-mismatch/version0.mo ""
+upgrade $ID wide-nat-mismatch/version1.mo ""
+reinstall $ID wide-nat-mismatch/version1.mo ""
+upgrade $ID wide-nat-mismatch/version1.mo ""
+upgrade $ID wide-nat-mismatch/version2.mo ""
+upgrade $ID wide-nat-mismatch/version0.mo ""
+reinstall $ID wide-nat-mismatch/version2.mo ""
+upgrade $ID wide-nat-mismatch/version2.mo ""
+upgrade $ID wide-nat-mismatch/version0.mo ""

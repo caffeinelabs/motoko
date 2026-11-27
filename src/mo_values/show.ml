@@ -15,6 +15,7 @@ let can_show t =
       | Prim (Nat16|Int16)
       | Prim (Nat32|Int32)
       | Prim (Nat64|Int64) -> true
+      | Prim (Nat128|Nat256) -> true
       | Prim (Float|Float32) -> true
       | Tup ts' -> List.for_all go ts'
       | Weak t'
@@ -44,6 +45,8 @@ let rec show_val t v =
   | T.(Prim Nat16), Value.Nat16 i -> Numerics.Nat16.to_string i
   | T.(Prim Nat32), Value.Nat32 i -> Numerics.Nat32.to_string i
   | T.(Prim Nat64), Value.Nat64 i -> Numerics.Nat64.to_string i
+  | T.(Prim Nat128), Value.Nat128 i -> Numerics.Nat128.to_string i
+  | T.(Prim Nat256), Value.Nat256 i -> Numerics.Nat256.to_string i
   | T.(Prim Int), Value.Int i -> Numerics.Int.(sign (gt i zero) (to_string i))
   | T.(Prim Int8), Value.Int8 i -> Numerics.Int_8.(sign (gt i zero) (to_string i))
   | T.(Prim Int16), Value.Int16 i -> Numerics.Int_16.(sign (gt i zero) (to_string i))

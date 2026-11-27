@@ -39,6 +39,8 @@ and value =
   | Nat16 of Nat16.t
   | Nat32 of Nat32.t
   | Nat64 of Nat64.t
+  | Nat128 of Nat128.t
+  | Nat256 of Nat256.t
   | Float of Float.t
   | Float32 of Float32.t
   | Char of unicode
@@ -92,6 +94,8 @@ val as_nat8 : value -> Nat8.t
 val as_nat16 : value -> Nat16.t
 val as_nat32 : value -> Nat32.t
 val as_nat64 : value -> Nat64.t
+val as_nat128 : value -> Nat128.t
+val as_nat256 : value -> Nat256.t
 val as_float : value -> Float.t
 val as_float32 : value -> Float32.t
 val as_char : value -> unicode

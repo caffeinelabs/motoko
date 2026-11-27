@@ -154,11 +154,17 @@ func @nat64ToNat(n : Nat64) : Nat = (prim "num_conv_Nat64_Nat" : Nat64 -> Nat) n
 func @nat32ToNat(n : Nat32) : Nat = (prim "num_conv_Nat32_Nat" : Nat32 -> Nat) n;
 func @nat16ToNat(n : Nat16) : Nat = (prim "num_conv_Nat16_Nat" : Nat16 -> Nat) n;
 func @nat8ToNat(n : Nat8) : Nat = (prim "num_conv_Nat8_Nat" : Nat8 -> Nat) n;
+func @nat128ToNat(n : Nat128) : Nat = (prim "num_conv_Nat128_Nat" : Nat128 -> Nat) n;
+func @nat256ToNat(n : Nat256) : Nat = (prim "num_conv_Nat256_Nat" : Nat256 -> Nat) n;
+func @natToNat128(n : Nat) : Nat128 = (prim "num_conv_Nat_Nat128" : Nat -> Nat128) n;
+func @natToNat256(n : Nat) : Nat256 = (prim "num_conv_Nat_Nat256" : Nat -> Nat256) n;
 
 func @text_of_Nat8(x : Nat8) : Text = @text_of_Nat(@nat8ToNat x);
 func @text_of_Nat16(x : Nat16) : Text = @text_of_Nat(@nat16ToNat x);
 func @text_of_Nat32(x : Nat32) : Text = @text_of_Nat(@nat32ToNat x);
 func @text_of_Nat64(x : Nat64) : Text = @text_of_Nat(@nat64ToNat x);
+func @text_of_Nat128(x : Nat128) : Text = @text_of_Nat(@nat128ToNat x);
+func @text_of_Nat256(x : Nat256) : Text = @text_of_Nat(@nat256ToNat x);
 func @text_of_Int8(x : Int8) : Text = @text_of_Int(@int8ToInt x);
 func @text_of_Int16(x : Int16) : Text = @text_of_Int(@int16ToInt x);
 func @text_of_Int32(x : Int32) : Text = @text_of_Int(@int32ToInt x);

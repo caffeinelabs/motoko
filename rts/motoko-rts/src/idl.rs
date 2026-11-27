@@ -66,6 +66,12 @@ const IDL_EXT_tuple: i32 = -130;
 const IDL_EXT_weak: i32 = -131;
 const IDL_EXT_char: i32 = -132;
 const IDL_EXT_var_vec: i32 = -133;
+// The fixed-width naturals wider than a machine word. They are `nat` in pure Candid, which
+// has nothing wider than nat64, but persistence needs them distinct: sharing nat's code
+// would let an upgrade turn a `stable var x : Nat` into a `stable var x : Nat256` and then
+// read a bignum pointer as a limb blob. Far from moc's own extension codes, which grow from -128.
+const IDL_EXT_nat128: i32 = -256;
+const IDL_EXT_nat256: i32 = -257;
 
 unsafe fn leb128_decode(buf: *mut Buf) -> u32 {
     let value = crate::leb128::leb128_decode(buf);
@@ -104,7 +110,11 @@ unsafe fn is_primitive_type(mode: CompatibilityMode, ty: i32) -> bool {
         CompatibilityMode::PureCandid => false,
         CompatibilityMode::CandidishStabilization => ty == IDL_EXT_region,
         CompatibilityMode::MemoryCompatibility => {
-            ty == IDL_EXT_region || ty == IDL_EXT_blob || ty == IDL_EXT_char
+            ty == IDL_EXT_region
+                || ty == IDL_EXT_blob
+                || ty == IDL_EXT_char
+                || ty == IDL_EXT_nat128
+                || ty == IDL_EXT_nat256
         }
     }
 }

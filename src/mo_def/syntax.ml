@@ -105,6 +105,8 @@ type lit =
   | Nat16Lit of Numerics.Nat16.t
   | Nat32Lit of Numerics.Nat32.t
   | Nat64Lit of Numerics.Nat64.t
+  | Nat128Lit of Numerics.Nat128.t
+  | Nat256Lit of Numerics.Nat256.t
   | IntLit of Numerics.Int.t
   | Int8Lit of Numerics.Int_8.t
   | Int16Lit of Numerics.Int_16.t
@@ -343,6 +345,8 @@ let string_of_lit = function
   | Nat16Lit n    -> Numerics.Nat16.to_pretty_string n
   | Nat32Lit n    -> Numerics.Nat32.to_pretty_string n
   | Nat64Lit n    -> Numerics.Nat64.to_pretty_string n
+  | Nat128Lit n   -> Numerics.Nat128.to_pretty_string n
+  | Nat256Lit n   -> Numerics.Nat256.to_pretty_string n
   | CharLit c     -> string_of_int c
   | NullLit       -> "null"
   | TextLit t     -> t

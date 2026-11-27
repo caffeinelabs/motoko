@@ -280,6 +280,8 @@ let interpret_lit env lit : V.value =
   | Nat16Lit n -> V.Nat16 n
   | Nat32Lit n -> V.Nat32 n
   | Nat64Lit n -> V.Nat64 n
+  | Nat128Lit n -> V.Nat128 n
+  | Nat256Lit n -> V.Nat256 n
   | IntLit i -> V.Int i
   | Int8Lit i -> V.Int8 i
   | Int16Lit i -> V.Int16 i

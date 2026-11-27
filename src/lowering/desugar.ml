@@ -1248,6 +1248,8 @@ and lit = function
   | S.Nat16Lit x -> I.Nat16Lit x
   | S.Nat32Lit x -> I.Nat32Lit x
   | S.Nat64Lit x -> I.Nat64Lit x
+  | S.Nat128Lit x -> I.Nat128Lit x
+  | S.Nat256Lit x -> I.Nat256Lit x
   | S.IntLit x -> I.IntLit x
   | S.Int8Lit x -> I.Int8Lit x
   | S.Int16Lit x -> I.Int16Lit x

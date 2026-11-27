@@ -23,7 +23,7 @@ Int.toText(0); // returns "0"
 Motoko supports both signed integers and unsigned naturals. Signed numbers can represent all numbers, positive and negative, while unsigned integers can only represent 0 and positive numbers. Natural numbers are unsigned integers.
 
 - Signed integers: [`Int`](https://mops.one/core/docs/Int), [`Int8`](https://mops.one/core/docs/Int8), [`Int16`](https://mops.one/core/docs/Int16), [`Int32`](https://mops.one/core/docs/Int32), [`Int64`](https://mops.one/core/docs/Int64)
-- Unsigned naturals: [`Nat`](https://mops.one/core/docs/Nat), [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32), [`Nat64`](https://mops.one/core/docs/Nat64)
+- Unsigned naturals: [`Nat`](https://mops.one/core/docs/Nat), [`Nat8`](https://mops.one/core/docs/Nat8), [`Nat16`](https://mops.one/core/docs/Nat16), [`Nat32`](https://mops.one/core/docs/Nat32), [`Nat64`](https://mops.one/core/docs/Nat64), `Nat128`, `Nat256`
 
 The [`Int`](https://mops.one/core/docs/Int) and [`Nat`](https://mops.one/core/docs/Nat) types prevent overflow and underflow since they can represent values of arbitrary size. Of course, subtraction on a [`Nat`](https://mops.one/core/docs/Nat) can still result in underflow if the result would be negative.
 

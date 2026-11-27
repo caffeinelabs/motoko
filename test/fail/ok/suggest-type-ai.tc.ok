@@ -13,7 +13,9 @@ suggest-type-ai.mo:4.21-4.24: type error [M0030], type field Num does not exist 
     type Int64 = Int64;
     type Int8 = Int8;
     type Nat = Nat;
+    type Nat128 = Nat128;
     type Nat16 = Nat16;
+    type Nat256 = Nat256;
     type Nat32 = Nat32;
     type Nat64 = Nat64;
     type Nat8 = Nat8;

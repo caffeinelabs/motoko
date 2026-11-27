@@ -1383,6 +1383,8 @@ let check_nat8 env = check_lit_val env T.Nat8 Numerics.Nat8.of_string
 let check_nat16 env = check_lit_val env T.Nat16 Numerics.Nat16.of_string
 let check_nat32 env = check_lit_val env T.Nat32 Numerics.Nat32.of_string
 let check_nat64 env = check_lit_val env T.Nat64 Numerics.Nat64.of_string
+let check_nat128 env = check_lit_val env T.Nat128 Numerics.Nat128.of_string
+let check_nat256 env = check_lit_val env T.Nat256 Numerics.Nat256.of_string
 let check_int env = check_lit_val env T.Int Numerics.Int.of_string
 let check_int8 env = check_lit_val env T.Int8 Numerics.Int_8.of_string
 let check_int16 env = check_lit_val env T.Int16 Numerics.Int_16.of_string
@@ -1458,6 +1460,8 @@ let infer_lit env lit at : T.prim =
   | Nat16Lit _ -> T.Nat16
   | Nat32Lit _ -> T.Nat32
   | Nat64Lit _ -> T.Nat64
+  | Nat128Lit _ -> T.Nat128
+  | Nat256Lit _ -> T.Nat256
   | IntLit _ -> T.Int
   | Int8Lit _ -> T.Int8
   | Int16Lit _ -> T.Int16
@@ -1504,6 +1508,13 @@ let check_lit env t lit at suggest =
     lit := Nat32Lit (check_nat32 env at s)
   | Prim Nat64, PreLit (s, Nat) ->
     lit := Nat64Lit (check_nat64 env at s)
+  (* `PreLit (s, Nat)` and never `Int`: a negative literal is a `PreLit (_, Int)` and falls
+     through to the general case below, so `-1 : Nat256` is a type error rather than a
+     wrapped 2^256-1. Same rule as every other NatN. *)
+  | Prim Nat128, PreLit (s, Nat) ->
+    lit := Nat128Lit (check_nat128 env at s)
+  | Prim Nat256, PreLit (s, Nat) ->
+    lit := Nat256Lit (check_nat256 env at s)
   | Prim Int, PreLit (s, (Nat | Int)) ->
     lit := IntLit (check_int env at s)
   | Prim Int8, PreLit (s, (Nat | Int)) ->

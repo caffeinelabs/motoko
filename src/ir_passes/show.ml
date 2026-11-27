@@ -124,6 +124,12 @@ let show_for : T.typ -> Ir.dec * T.typ list = fun t ->
   | T.(Prim Nat64) ->
     define_show t (invoke_prelude_show "@text_of_Nat64" t (argE t)),
     []
+  | T.(Prim Nat128) ->
+    define_show t (invoke_prelude_show "@text_of_Nat128" t (argE t)),
+    []
+  | T.(Prim Nat256) ->
+    define_show t (invoke_prelude_show "@text_of_Nat256" t (argE t)),
+    []
   | T.(Prim Int8) ->
     define_show t (invoke_prelude_show "@text_of_Int8" t (argE t)),
     []

@@ -3428,7 +3428,11 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   let fits_unsigned_bits env n =
     try_unbox I64Type (fun _ -> match n with
-        | 64 -> G.i Drop ^^ Bool.lit true
+        (* A compact value is a tagged scalar, so its payload is at most 64 bits wide and
+           trivially fits any width from 64 up. This read `| 64 ->` alone and fell through
+           to `assert false` for the 128- and 256-bit widths the wide naturals ask about.
+           The boxed path below is already width-generic (bigint_count_bits <= n). *)
+        | n when n >= 64 -> G.i Drop ^^ Bool.lit true
         | 8 | 16 | 32 ->
           (* use shifting to test that the payload including the tag fits the desired bit width.
               E.g. this is now n + 2 for Type.Int. *)
@@ -4057,6 +4061,812 @@ module Blob = struct
     alloc env Tagged.B get_len ^^ payload_ptr_unskewed env
 
 end (* Blob *)
+
+(* WIDE NATURALS (Nat128 / Nat256).
+
+   A wide value is a Blob of exactly 16 or 32 bytes holding LITTLE-ENDIAN 64-bit limbs. Not a
+   bignum: the entire reason these types exist is that EVM and cryptographic code should not
+   allocate a heap bignum and walk a general-purpose algorithm for every 256-bit operation.
+   The width is static, so the limb count is static, so every loop here unrolls and the
+   arithmetic is a straight-line sequence of i64 ops.
+
+   Choosing a Blob for the container rather than a new heap tag is what keeps this change out
+   of the garbage collectors and out of stabilization: a Blob is already a leaf object that
+   every GC and the graph copier understand, and its payload is opaque bytes. The TYPE carries
+   the width; the representation carries none.
+
+   Layout: limb 0 is the LEAST significant, at payload offset 0. Little-endian throughout, so
+   the bytes of a wide value are also its canonical serialized form.
+*)
+module Wide = struct
+
+  let limbs_of_width width = width / 64          (* 2 for Nat128, 4 for Nat256 *)
+  let bytes_of_width width = width / 8
+
+  let width_of_typ = function
+    | Type.Nat128 -> 128
+    | Type.Nat256 -> 256
+    | _ -> assert false
+
+  (* The constant form: a wide literal is its little-endian bytes, shared through the constant
+     pool like any other blob. A literal's representation is decided by its DECLARED TYPE and
+     nothing else -- keying it on the shape of the right-hand side is precisely the bug that
+     made `let x : Nat256 = 7` read out of bounds in the other implementation, while the same
+     literal returned directly was fine. *)
+  let lit_bytes width (n : Big_int.big_int) : string =
+    let open Big_int in
+    let b = Bytes.make (bytes_of_width width) '\000' in
+    let v = ref n in
+    let base = big_int_of_int 256 in
+    for i = 0 to bytes_of_width width - 1 do
+      Bytes.set b i (Char.chr (int_of_big_int (mod_big_int !v base)));
+      v := div_big_int !v base
+    done;
+    Bytes.to_string b
+
+  let constant env width n = Blob.lit env Tagged.B (lit_bytes width n)
+
+  (* Load limb `i` of the wide value whose pointer is on the stack. *)
+  let load_limb env i =
+    Blob.payload_ptr_unskewed env ^^
+    G.i (Load {ty = I64Type; align = 3; offset = Int64.of_int (8 * i); sz = None})
+
+  (* Allocate an uninitialised result of this width. *)
+  let alloc env width =
+    Blob.alloc env Tagged.B (compile_unboxed_const (Int64.of_int (bytes_of_width width)))
+
+  let store_limb env i =
+    (* expects: blob-ptr, value *)
+    G.i (Store {ty = I64Type; align = 3; offset = Int64.of_int (8 * i); sz = None})
+
+  (* --- Addition and subtraction -------------------------------------------------------
+
+     The carry chain UNROLLS, because the width is a static property of the type: a Nat256
+     add is four adds and three carry computations of straight-line wasm with a single
+     allocation for the result -- no loop, no RTS call, no heap bignum. That is the entire
+     reason these types exist. An implementation that reached for BigNum here would hand
+     you the type while throwing away the reason for the type.
+
+     wasm has no add-with-carry, so the carry out of `x + y + c` is recovered from the two
+     wraps: an unsigned sum wraps exactly when it lands strictly below either operand, and
+     at most one of the two adds can wrap (if `x + y` wrapped, its result is <= x - 1, so
+     adding c <= 1 cannot wrap again). Subtraction is the mirror image: a difference
+     borrows exactly when the minuend is below the subtrahend.
+
+     The trapping and wrapping forms are the SAME code -- `+` is `+%` that also asks
+     whether the top limb carried out. Deriving one from the other is what keeps them from
+     ever disagreeing about a boundary. *)
+  let addsub env width ~sub ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_%s%s" width
+      (if sub then "sub" else "add") (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_c, get_c) = new_local env "c" in
+        let (set_t, get_t) = new_local env "t" in
+        let (set_s, get_s) = new_local env "s" in
+        let op = if sub then I64Op.Sub else I64Op.Add in
+        alloc env width ^^ set_r ^^
+        compile_unboxed_const 0L ^^ set_c ^^
+        G.table n (fun i ->
+          (* t = a[i] op b[i]; s = t op c -- carry in from the limb below *)
+          get_a ^^ load_limb env i ^^
+          get_b ^^ load_limb env i ^^
+          G.i (Binary (Wasm_exts.Values.I64 op)) ^^ set_t ^^
+          get_t ^^ get_c ^^ G.i (Binary (Wasm_exts.Values.I64 op)) ^^ set_s ^^
+          (* carry (borrow) out = did either step wrap? *)
+          (if sub
+           then
+             get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+             compile_comparison I64Op.LtU ^^
+             get_t ^^ get_c ^^ compile_comparison I64Op.LtU
+           else
+             get_t ^^ get_a ^^ load_limb env i ^^ compile_comparison I64Op.LtU ^^
+             get_s ^^ get_t ^^ compile_comparison I64Op.LtU) ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^ set_c ^^
+          (* store only after the carry is read, so `a + a` and `a - a` are safe *)
+          get_r ^^ Blob.payload_ptr_unskewed env ^^ get_s ^^ store_limb env i) ^^
+        (if trap
+         then get_c ^^ E.then_trap_with env "arithmetic overflow"
+         else G.nop) ^^
+        get_r)
+
+  (* --- Conversions to and from Nat -----------------------------------------------------
+
+     This is the ONE place a bignum appears anywhere in the wide implementation, and it is
+     not arithmetic: `Nat` IS arbitrary precision, so converting to it must build one, and
+     converting from one must consume one. The operators above never allocate a bignum.
+
+     `to_bignum` is Horner from the top limb down, generalising Cycles.from_word128_ptr,
+     which does exactly this for the two-limb cycles API. *)
+  let to_bignum env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_to_bignum" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_acc, get_acc) = new_local env "acc" in
+        get_a ^^ load_limb env (n - 1) ^^ BigNum.from_word64 env ^^ set_acc ^^
+        G.table (n - 1) (fun j ->
+          get_acc ^^
+          compile_unboxed_const 64L ^^ TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          BigNum.compile_lsh env ^^
+          get_a ^^ load_limb env (n - 2 - j) ^^ BigNum.from_word64 env ^^
+          BigNum.compile_add env ^^ set_acc) ^^
+        get_acc)
+
+  (* Nat -> wide. Traps when the value does not fit, exactly as every other narrowing
+     conversion in this compiler does, with the same message. *)
+  let of_bignum env width =
+    Func.share_code1 Func.Never env (Printf.sprintf "bignum_to_wide%d" width)
+      ("n", I64Type) [I64Type]
+      (fun env get_n ->
+        let (set_v, get_v) = new_local env "v" in
+        let (set_r, get_r) = new_local env "r" in
+        get_n ^^ BigNum.fits_unsigned_bits env width ^^
+        E.else_trap_with env "losing precision" ^^
+        get_n ^^ set_v ^^
+        alloc env width ^^ set_r ^^
+        G.table (limbs_of_width width) (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_v ^^ BigNum.truncate_to_word64 env ^^
+          store_limb env i ^^
+          get_v ^^
+          compile_unboxed_const 64L ^^ TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          BigNum.compile_rsh env ^^ set_v) ^^
+        get_r)
+
+  (* --- Ordering -------------------------------------------------------------------------
+     Compare from the MOST significant limb down, stopping at the first that differs.
+
+     Note this cannot be Blob.compare, which is what equality uses: blob comparison is
+     lexicographic over bytes in ascending address order, and our limbs are little-endian,
+     so byte order is the reverse of significance order. Equality does not care -- two
+     values are equal iff all their bytes are -- but every ordering comparison would be
+     answered backwards. *)
+  let compare env width rel =
+    let n = limbs_of_width width in
+    let strict = Operator.(rel = LtOp || rel = GtOp) in
+    let dir = Operator.(if rel = LtOp || rel = LeOp then I64Op.LtU else I64Op.GtU) in
+    let name = Printf.sprintf "wide%d_%s" width Operator.(match rel with
+      | LtOp -> "lt" | LeOp -> "le" | GtOp -> "gt" | GeOp -> "ge" | _ -> assert false) in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        (* all limbs equal: `<` and `>` are false, `<=` and `>=` are true *)
+        let rec go i =
+          if i < 0 then Bool.lit (not strict) else
+          get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+          compile_comparison I64Op.Eq ^^
+          E.if1 I64Type
+            (go (i - 1))
+            (get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+             compile_comparison dir)
+        in go (n - 1))
+
+  (* --- Bitwise --------------------------------------------------------------------------
+     Limb-wise and completely independent per limb, so this is the one family that needs no
+     carry, no borrow and no ordering. It is also why the fixed-limb representation needs no
+     new RTS support for `&`, `|`, `^`: the bignum library exports no bitwise operations at
+     all, so a BigNum-backed wide type would have had to grow three. *)
+  let bitop_ptrs env width op =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_%s" width (match op with
+      | I64Op.And -> "and" | I64Op.Or -> "or" | I64Op.Xor -> "xor" | _ -> assert false) in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_a ^^ load_limb env i ^^
+          get_b ^^ load_limb env i ^^
+          G.i (Binary (Wasm_exts.Values.I64 op)) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* --- Shifts ---------------------------------------------------------------------------
+     The shift count is reduced modulo the width, as it is for every other fixed-width type
+     in this compiler. The width is a power of two, so that reduction is a mask of the
+     lowest limb -- the higher limbs of the count cannot matter once it is reduced.
+
+     A count splits into a whole-limb displacement q and a bit offset r. Only q is dynamic
+     in a way that moves data between limbs, and there are just 2 or 4 possible values of
+     it, so the limb displacement is a switch over the static cases and each case is
+     straight-line. That keeps every load at a constant offset.
+
+     `x >> (64 - r)` would be wrong for r = 0: wasm reduces shift counts modulo 64, so it
+     would shift by 0 and pull in a whole limb that should not be there. Splitting it as
+     `(x >> 1) >> (63 - r)` keeps every count in range. *)
+  let shift_by env width ~right =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_sh%s_by" width (if right then "r" else "l") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("k", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_q, get_q) = new_local env "q" in
+        let (set_bits, get_bits) = new_local env "bits" in
+        let (set_k, get_k) = new_local env "k" in
+        get_b ^^ compile_bitand_const (Int64.of_int (width - 1)) ^^ set_k ^^
+        get_k ^^ compile_shrU_const 6L ^^ set_q ^^          (* whole limbs *)
+        get_k ^^ compile_bitand_const 63L ^^ set_bits ^^    (* leftover bits *)
+        alloc env width ^^ set_r ^^
+        (* one straight-line case per whole-limb displacement *)
+        let case q =
+          G.table n (fun i ->
+            let src = if right then i + q else i - q in
+            let nxt = if right then src + 1 else src - 1 in
+            get_r ^^ Blob.payload_ptr_unskewed env ^^
+            (if src < 0 || src >= n then compile_unboxed_const 0L
+             else
+               get_a ^^ load_limb env src ^^ get_bits ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.ShrU else I64Op.Shl)))) ^^
+            (if nxt < 0 || nxt >= n then G.nop
+             else
+               get_a ^^ load_limb env nxt ^^
+               compile_unboxed_const 1L ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.Shl else I64Op.ShrU))) ^^
+               compile_unboxed_const 63L ^^ get_bits ^^
+               G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.Shl else I64Op.ShrU))) ^^
+               G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))) ^^
+            store_limb env i)
+        in
+        let rec dispatch q =
+          if q = n - 1 then case q
+          else
+            get_q ^^ compile_unboxed_const (Int64.of_int q) ^^
+            compile_comparison I64Op.Eq ^^
+            E.if0 (case q) (dispatch (q + 1))
+        in dispatch 0 ^^
+        get_r)
+
+  (* --- Multiplication -------------------------------------------------------------------
+
+     wasm has no widening multiply, so the 64x64 -> 128 partial product is built from four
+     32-bit multiplies (Hacker's Delight): the low half is plain i64.mul, which is already
+     exact modulo 2^64, and only the high half needs the split. *)
+  let mulhi env =
+    Func.share_code2 Func.Never env "wide_mulhi_u" (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_t, get_t) = new_local env "t" in
+        let (set_k, get_k) = new_local env "k" in
+        let (set_w1, get_w1) = new_local env "w1" in
+        let (set_w2, get_w2) = new_local env "w2" in
+        let lo32 x = x ^^ compile_bitand_const 0xFFFFFFFFL in
+        let hi32 x = x ^^ compile_shrU_const 32L in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        lo32 get_a ^^ lo32 get_b ^^ mul ^^ set_t ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_k ^^
+        hi32 get_a ^^ lo32 get_b ^^ mul ^^ get_k ^^ add ^^ set_t ^^
+        get_t ^^ compile_bitand_const 0xFFFFFFFFL ^^ set_w1 ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_w2 ^^
+        lo32 get_a ^^ hi32 get_b ^^ mul ^^ get_w1 ^^ add ^^ set_t ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_k ^^
+        hi32 get_a ^^ hi32 get_b ^^ mul ^^ get_w2 ^^ add ^^ get_k ^^ add)
+
+  (* Schoolbook, fully unrolled, with the operands and the whole 2n-limb accumulator held in
+     LOCALS rather than memory: each is touched n times, and there is no reason to make n^2
+     round trips to the heap for values that fit in registers. Only the result is allocated.
+
+     The row carry cannot overflow: r + a*b + c is at most
+     (2^64-1) + (2^64-1)^2 + (2^64-1) = 2^128 - 1, so the accumulated high word always fits
+     a single limb. This is why the classic algorithm needs no second carry chain.
+
+     Trapping and wrapping share the computation, exactly as add and subtract do -- the full
+     2n-limb product is formed either way and `*` simply also asks whether the top n limbs
+     came out zero. *)
+  let mul env width ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_mul%s" width (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let al = Array.init n (fun i -> new_local env (Printf.sprintf "a%d" i)) in
+        let bl = Array.init n (fun i -> new_local env (Printf.sprintf "b%d" i)) in
+        let rl = Array.init (2 * n) (fun i -> new_local env (Printf.sprintf "p%d" i)) in
+        let (set_c, get_c) = new_local env "c" in
+        let (set_s, get_s) = new_local env "s" in
+        let (set_lo, get_lo) = new_local env "lo" in
+        let (set_hi, get_hi) = new_local env "hi" in
+        let (set_r, get_r) = new_local env "r" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
+        G.table n (fun i -> get_a ^^ load_limb env i ^^ fst al.(i)) ^^
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst bl.(i)) ^^
+        G.table n (fun i -> compile_unboxed_const 0L ^^ fst rl.(i)) ^^
+        G.table n (fun i ->
+          compile_unboxed_const 0L ^^ set_c ^^
+          G.table n (fun j ->
+            snd al.(i) ^^ snd bl.(j) ^^ mul ^^ set_lo ^^
+            snd al.(i) ^^ snd bl.(j) ^^ mulhi env ^^ set_hi ^^
+            (* s = r[i+j] + lo; the wrap rolls into this partial product's high word *)
+            snd rl.(i + j) ^^ get_lo ^^ add ^^ set_s ^^
+            get_hi ^^ get_s ^^ get_lo ^^ compile_comparison I64Op.LtU ^^ add ^^ set_hi ^^
+            (* r[i+j] = s + carry-in; its wrap rolls in too *)
+            get_s ^^ get_c ^^ add ^^ fst rl.(i + j) ^^
+            get_hi ^^ snd rl.(i + j) ^^ get_c ^^ compile_comparison I64Op.LtU ^^ add ^^
+            set_c) ^^
+          (* r[i+n] is first written here, as row i's carry out -- never accumulated *)
+          get_c ^^ fst rl.(i + n)) ^^
+        (if trap
+         then
+           (* Fold the high half and ask whether ANY bit survived. Note the test must be
+              Eqz on the full i64: E.if0 truncates its condition to 32 bits, so a high limb
+              like 2^32 would read as false and the overflow would pass silently. *)
+           G.table n (fun i -> snd rl.(n + i) ^^ (if i = 0 then G.nop
+                        else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+           compile_test I64Op.Eqz ^^
+           E.else_trap_with env "arithmetic overflow"
+         else G.nop) ^^
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^ snd rl.(i) ^^ store_limb env i) ^^
+        get_r)
+
+  (* --- Division, the fast paths ----------------------------------------------------------
+
+     Two algorithms behind one runtime dispatch on the DIVISOR, both in base 2^32 so that
+     every quotient estimate is a 64/32 hardware divide and every product a 32x32 -- all of
+     which fit an i64 with room to spare. Base 2^64 would need a 128/64 divide, which wasm
+     does not have.
+
+       divisor < 2^32   single-digit long division, fully unrolled, no scratch memory
+       otherwise        Knuth algorithm D
+
+     Knuth D reads vn[n-2], so it is only correct for a divisor of at least two base-2^32
+     digits. The small-divisor path is not merely an optimisation for it -- it is what makes
+     that read safe, and dividing by a small constant is the common case anyway. *)
+
+  (* Digit dg of a wide operand: the 32-bit half of limb dg/2. *)
+  let digit env get dg =
+    get ^^ load_limb env (dg / 2) ^^
+    (if dg mod 2 = 1
+     then compile_unboxed_const 32L ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU))
+     else G.nop) ^^
+    compile_bitand_const 0xFFFFFFFFL
+
+  (* Branch conditions below are all comparison or test results, so 0 or 1; wrapping them to
+     i32 is safe. A raw i64 would lose its high half, which is the same trap the multiply
+     overflow check avoids. *)
+  let br_if_true d =
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^ G.i (BrIf (nr d))
+
+  (* Divisor known to fit one base-2^32 digit: walk the dividend's digits from the top,
+     carrying a remainder that is always below the divisor and so always below 2^32, which
+     keeps `(rem << 32) | u[dg]` inside an i64. *)
+  let divmod_small env width ~want_rem =
+    let limbs = limbs_of_width width in
+    let dd = 2 * limbs in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s_small" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("v", I64Type)) [I64Type]
+      (fun env get_x get_v ->
+        let (set_rem, get_rem) = new_local env "rem" in
+        let (set_cur, get_cur) = new_local env "cur" in
+        let (set_r, get_r) = new_local env "r" in
+        let qs = Array.init dd (fun i -> new_local env (Printf.sprintf "qd%d" i)) in
+        compile_unboxed_const 0L ^^ set_rem ^^
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          get_rem ^^ compile_unboxed_const 32L ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^
+          digit env get_x dg ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^ set_cur ^^
+          get_cur ^^ get_v ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ fst qs.(dg) ^^
+          get_cur ^^ get_v ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^ set_rem) ^^
+        alloc env width ^^ set_r ^^
+        G.table limbs (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if want_rem
+           then (if i = 0 then get_rem else compile_unboxed_const 0L)
+           else
+             snd qs.(2 * i) ^^
+             snd qs.(2 * i + 1) ^^ compile_unboxed_const 32L ^^
+             G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^
+             G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Knuth algorithm D (TAOCP 4.3.1), base 2^32: normalise so the leading divisor digit has
+     its top bit set, then per position estimate the quotient digit from the top two digits,
+     correct it down at most twice, multiply-and-subtract, and add back on the rare borrow.
+
+     The digits live in a scratch Blob rather than in locals because the loops index them at
+     RUNTIME (j and i are not compile-time constants here, unlike everywhere else in this
+     module), and wasm has no indexed access to locals. Layout: un[dd+1] ++ vn[dd] ++ q[dd],
+     four bytes each, one allocation.
+
+     The add-back branch fires on roughly one input in 2^31, which is why this algorithm is
+     graded against the binary long division it replaces rather than against reasoning. *)
+  let knuth env width ~want_rem =
+    let limbs = limbs_of_width width in
+    let dd = 2 * limbs in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s_knuth" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_x get_y ->
+        let l n = new_local env n in
+        let (set_scr, get_scr) = l "scr" in
+        let (set_unp, get_unp) = l "unp" in
+        let (set_vnp, get_vnp) = l "vnp" in
+        let (set_qp, get_qp) = l "qp" in
+        let (set_n, get_n) = l "n" in
+        let (set_s, get_s) = l "s" in
+        let (set_j, get_j) = l "j" in
+        let (set_i, get_i) = l "i" in
+        let (set_qhat, get_qhat) = l "qhat" in
+        let (set_rhat, get_rhat) = l "rhat" in
+        let (set_tmp, get_tmp) = l "tmp" in
+        let (set_p, get_p) = l "p" in
+        let (set_t, get_t) = l "t" in
+        let (set_k, get_k) = l "k" in
+        let (set_v1, get_v1) = l "vn1" in
+        let (set_cond, get_cond) = l "cond" in
+        let (set_tj, get_tj) = l "tj" in
+        let (set_out, get_out) = l "out" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        let sub = G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        let shl = G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) in
+        let shru = G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU)) in
+        let shrs = G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrS)) in
+        let mask = compile_bitand_const 0xFFFFFFFFL in
+        let b32 = compile_unboxed_const 0x100000000L in
+        let k32 = compile_unboxed_const 32L in
+        let one = compile_unboxed_const 1L in
+        let zero = compile_unboxed_const 0L in
+        let cst i = compile_unboxed_const (Int64.of_int i) in
+        let ld32 = G.i (Load {ty = I64Type; align = 2; offset = 0L;
+                              sz = Some Wasm_exts.Types.(Pack32, ZX)}) in
+        let st32 = G.i (Store {ty = I64Type; align = 2; offset = 0L;
+                               sz = Some Wasm_exts.Types.Pack32}) in
+        let addr base idx = base ^^ idx ^^ cst 4 ^^ mul ^^ add in
+        let getd base idx = addr base idx ^^ ld32 in
+        let setd base idx v = addr base idx ^^ v ^^ st32 in
+        (* 32 - s. When s is 0 this is 32, and shifting a zero-extended 32-bit value right by
+           32 in an i64 yields 0, which is exactly the wanted "nothing carried in". Doing this
+           in 32-bit arithmetic would instead shift by 0 and duplicate a whole digit. *)
+        let comp_s = k32 ^^ get_s ^^ sub in
+        let up_loop set_c get_c limit body =
+          zero ^^ set_c ^^
+          G.block0 (G.loop0 (
+            get_c ^^ limit ^^ compile_comparison I64Op.GeU ^^ br_if_true 1l ^^
+            body ^^
+            get_c ^^ one ^^ add ^^ set_c ^^
+            G.i (Br (nr 0l))))
+        in
+        Blob.alloc env Tagged.B (cst ((dd + 1 + dd + dd) * 4)) ^^ set_scr ^^
+        get_scr ^^ Blob.payload_ptr_unskewed env ^^ set_unp ^^
+        get_unp ^^ cst ((dd + 1) * 4) ^^ add ^^ set_vnp ^^
+        get_vnp ^^ cst (dd * 4) ^^ add ^^ set_qp ^^
+        G.table dd (fun dg ->
+          setd get_unp (cst dg) (digit env get_x dg) ^^
+          setd get_vnp (cst dg) (digit env get_y dg) ^^
+          setd get_qp (cst dg) zero) ^^
+        setd get_unp (cst dd) zero ^^
+        (* n = number of significant divisor digits; ascending, so the last write wins *)
+        zero ^^ set_n ^^
+        G.table dd (fun dg ->
+          getd get_vnp (cst dg) ^^ zero ^^ compile_comparison I64Op.Ne ^^
+          E.if0 (cst (dg + 1) ^^ set_n) G.nop) ^^
+        (* s = clz32(vn[n-1]), computed as clz64 - 32 on the zero-extended digit *)
+        getd get_vnp (get_n ^^ one ^^ sub) ^^
+        G.i (Unary (Wasm_exts.Values.I64 I64Op.Clz)) ^^ k32 ^^ sub ^^ set_s ^^
+        (* normalise, high digit first so the lower ones are still un-shifted when read *)
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          if dg = 0
+          then setd get_vnp (cst 0) (getd get_vnp (cst 0) ^^ get_s ^^ shl ^^ mask)
+          else setd get_vnp (cst dg)
+                 (getd get_vnp (cst dg) ^^ get_s ^^ shl ^^
+                  getd get_vnp (cst (dg - 1)) ^^ comp_s ^^ shru ^^ orr ^^ mask)) ^^
+        setd get_unp (cst dd) (getd get_unp (cst (dd - 1)) ^^ comp_s ^^ shru) ^^
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          if dg = 0
+          then setd get_unp (cst 0) (getd get_unp (cst 0) ^^ get_s ^^ shl ^^ mask)
+          else setd get_unp (cst dg)
+                 (getd get_unp (cst dg) ^^ get_s ^^ shl ^^
+                  getd get_unp (cst (dg - 1)) ^^ comp_s ^^ shru ^^ orr ^^ mask)) ^^
+        (* main loop: j from dd-n down to 0 *)
+        cst dd ^^ get_n ^^ sub ^^ set_j ^^
+        G.block0 (G.loop0 (
+          get_j ^^ zero ^^ compile_comparison I64Op.LtS ^^ br_if_true 1l ^^
+          getd get_vnp (get_n ^^ one ^^ sub) ^^ set_v1 ^^
+          (* tmp = un[j+n] * 2^32 + un[j+n-1] *)
+          getd get_unp (get_j ^^ get_n ^^ add) ^^ k32 ^^ shl ^^
+          getd get_unp (get_j ^^ get_n ^^ add ^^ one ^^ sub) ^^ orr ^^ set_tmp ^^
+          get_tmp ^^ get_v1 ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ set_qhat ^^
+          get_tmp ^^ get_v1 ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^ set_rhat ^^
+          (* correct the estimate down; at most twice, but written as a loop as Knuth has it *)
+          G.block0 (G.loop0 (
+            get_qhat ^^ b32 ^^ compile_comparison I64Op.GeU ^^
+            E.if1 I64Type
+              one
+              (get_qhat ^^ getd get_vnp (get_n ^^ cst 2 ^^ sub) ^^ mul ^^
+               get_rhat ^^ k32 ^^ shl ^^
+               getd get_unp (get_j ^^ get_n ^^ add ^^ cst 2 ^^ sub) ^^ add ^^
+               compile_comparison I64Op.GtU) ^^
+            set_cond ^^
+            get_cond ^^ compile_test I64Op.Eqz ^^ br_if_true 1l ^^
+            get_qhat ^^ one ^^ sub ^^ set_qhat ^^
+            get_rhat ^^ get_v1 ^^ add ^^ set_rhat ^^
+            get_rhat ^^ b32 ^^ compile_comparison I64Op.GeU ^^ br_if_true 1l ^^
+            G.i (Br (nr 0l)))) ^^
+          (* multiply and subtract *)
+          zero ^^ set_k ^^
+          up_loop set_i get_i get_n (
+            get_qhat ^^ getd get_vnp get_i ^^ mul ^^ set_p ^^
+            getd get_unp (get_i ^^ get_j ^^ add) ^^ get_k ^^ sub ^^
+            get_p ^^ mask ^^ sub ^^ set_t ^^
+            setd get_unp (get_i ^^ get_j ^^ add) (get_t ^^ mask) ^^
+            get_p ^^ k32 ^^ shru ^^ get_t ^^ k32 ^^ shrs ^^ sub ^^ set_k) ^^
+          getd get_unp (get_j ^^ get_n ^^ add) ^^ get_k ^^ sub ^^ set_tj ^^
+          setd get_unp (get_j ^^ get_n ^^ add) (get_tj ^^ mask) ^^
+          (* add back when the estimate was one too large *)
+          get_tj ^^ zero ^^ compile_comparison I64Op.LtS ^^
+          E.if0
+            (get_qhat ^^ one ^^ sub ^^ set_qhat ^^
+             zero ^^ set_k ^^
+             up_loop set_i get_i get_n (
+               getd get_unp (get_i ^^ get_j ^^ add) ^^ getd get_vnp get_i ^^ add ^^
+               get_k ^^ add ^^ set_t ^^
+               setd get_unp (get_i ^^ get_j ^^ add) (get_t ^^ mask) ^^
+               get_t ^^ k32 ^^ shru ^^ set_k) ^^
+             setd get_unp (get_j ^^ get_n ^^ add)
+               (getd get_unp (get_j ^^ get_n ^^ add) ^^ get_k ^^ add ^^ mask))
+            G.nop ^^
+          setd get_qp get_j get_qhat ^^
+          get_j ^^ one ^^ sub ^^ set_j ^^
+          G.i (Br (nr 0l)))) ^^
+        alloc env width ^^ set_out ^^
+        (if want_rem
+         then
+           (* the remainder is un shifted back down by the normalisation amount *)
+           G.table limbs (fun kk ->
+             get_out ^^ Blob.payload_ptr_unskewed env ^^
+             (getd get_unp (cst (2 * kk)) ^^ get_s ^^ shru ^^
+              getd get_unp (cst (2 * kk + 1)) ^^ comp_s ^^ shl ^^ orr ^^ mask) ^^
+             (getd get_unp (cst (2 * kk + 1)) ^^ get_s ^^ shru ^^
+              getd get_unp (cst (2 * kk + 2)) ^^ comp_s ^^ shl ^^ orr ^^ mask) ^^
+             k32 ^^ shl ^^ orr ^^
+             store_limb env kk)
+         else
+           G.table limbs (fun kk ->
+             get_out ^^ Blob.payload_ptr_unskewed env ^^
+             getd get_qp (cst (2 * kk)) ^^
+             getd get_qp (cst (2 * kk + 1)) ^^ k32 ^^ shl ^^ orr ^^
+             store_limb env kk)) ^^
+        get_out)
+
+  (* --- Division and remainder -----------------------------------------------------------
+
+     Two algorithms behind one runtime dispatch on the DIVISOR:
+
+       divisor < 2^32   single-digit long division, fully unrolled, no scratch memory
+       otherwise        Knuth algorithm D
+
+     This replaces a restoring binary long division that walked the dividend one bit at a
+     time. That version was correct and is what these were graded against; it was also
+     O(width) iterations of O(limbs) work each, which for Nat256 is far more work than the
+     multiply beside it. Landing it first was deliberate: division is the one wide operation
+     with real correction-step subtlety -- Knuth's estimate needs an add-back that fires on
+     roughly one input in 2^31 -- so having a simple correct version meant the fast one could
+     be graded against something rather than against my own reading of the proof.
+
+     Both paths work in base 2^32, so every quotient estimate is a 64/32 hardware divide and
+     every product a 32x32, all comfortably inside an i64. Base 2^64 would need a 128/64
+     divide, which wasm does not have. *)
+  let divmod env width ~want_rem =
+    let n = limbs_of_width width in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        (* Division by zero raises the machine's own trap, by dividing by zero, so the
+           message matches every other integer type here. The test is Eqz on the full i64:
+           E.if0 truncates its condition to 32 bits, and a divisor of exactly 2^32 would
+           otherwise read as zero. *)
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ (if i = 0 then G.nop else orr)) ^^
+        compile_test I64Op.Eqz ^^
+        E.if0
+          (compile_unboxed_const 1L ^^ compile_unboxed_const 0L ^^
+           G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ G.i Drop)
+          G.nop ^^
+        (* Does the divisor fit one base-2^32 digit? Every limb above the first must be zero
+           AND the first must be below 2^32. Dividing by a small constant is the common case,
+           and this path is also what keeps Knuth D's read of vn[n-2] in bounds. *)
+        G.table (n - 1) (fun i ->
+          get_b ^^ load_limb env (i + 1) ^^ (if i = 0 then G.nop else orr)) ^^
+        get_b ^^ load_limb env 0 ^^ compile_shrU_const 32L ^^ orr ^^
+        compile_test I64Op.Eqz ^^
+        E.if1 I64Type
+          (get_a ^^ get_b ^^ load_limb env 0 ^^ divmod_small env width ~want_rem)
+          (get_a ^^ get_b ^^ knuth env width ~want_rem))
+
+  (* --- Exponentiation --------------------------------------------------------------------
+     Square-and-multiply. The exponent is held in locals and shifted down a bit at a time;
+     the base and the accumulator stay heap values because each multiply produces one.
+
+     The base is squared ONLY when exponent bits remain. That is not just an optimisation:
+     with the trapping form, a final unnecessary squaring would trap on inputs whose actual
+     result fits perfectly well (2^200 ** 1 would square 2^200 and overflow). Squaring when
+     bits DO remain is safe to trap on, because the final result then contains a factor of
+     base^(2^k) with k >= 1 and so is at least as large as the square. *)
+  let pow env width ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_pow%s" width (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let el = Array.init n (fun i -> new_local env (Printf.sprintf "e%d" i)) in
+        let (set_res, get_res) = new_local env "res" in
+        let (set_base, get_base) = new_local env "base" in
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        let exponent_nonzero =
+          G.table n (fun i -> snd el.(i) ^^ (if i = 0 then G.nop else orr)) ^^
+          compile_unboxed_const 0L ^^ compile_comparison I64Op.Ne
+        in
+        (* e >>= 1, bottom limb first so the higher limbs are still their old values *)
+        let halve_exponent =
+          G.table n (fun i ->
+            snd el.(i) ^^ compile_unboxed_const 1L ^^
+            G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU)) ^^
+            (if i = n - 1 then G.nop
+             else snd el.(i + 1) ^^ compile_unboxed_const 63L ^^
+                  G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^ orr) ^^
+            fst el.(i))
+        in
+        constant env width Big_int.unit_big_int ^^ set_res ^^
+        get_a ^^ set_base ^^
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst el.(i)) ^^
+        compile_while env exponent_nonzero
+          (snd el.(0) ^^ compile_bitand_const 1L ^^
+           E.if0 (get_res ^^ get_base ^^ mul env width ~trap ^^ set_res) G.nop ^^
+           halve_exponent ^^
+           exponent_nonzero ^^
+           E.if0 (get_base ^^ get_base ^^ mul env width ~trap ^^ set_base) G.nop) ^^
+        get_res)
+
+  (* The shift operators take their count as a wide value; rotation needs to compute a count
+     of its own, so the count is extracted here and the generator above works in i64. Only
+     the lowest limb can matter: the count is reduced modulo the width first. *)
+  let shift env width ~right =
+    let (set_b, get_b) = new_local env "b" in
+    set_b ^^ get_b ^^ load_limb env 0 ^^ shift_by env width ~right
+
+  (* Rotation is composed from the two shifts rather than generated directly. It is not in
+     the EVM opcode set and is rare in practice, so a third allocation is worth the much
+     smaller amount of code that can go wrong.
+
+     `rotl a 0` needs no special case: the complement count is (width - 0) mod width = 0, so
+     the expression degenerates to `a | a`, which is a. *)
+  let rotate env width ~left =
+    let name = Printf.sprintf "wide%d_rot%s" width (if left then "l" else "r") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_k, get_k) = new_local env "k" in
+        let mask = Int64.of_int (width - 1) in
+        get_b ^^ load_limb env 0 ^^ compile_bitand_const mask ^^ set_k ^^
+        get_a ^^ get_k ^^ shift_by env width ~right:(not left) ^^
+        get_a ^^
+        compile_unboxed_const (Int64.of_int width) ^^ get_k ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+        compile_bitand_const mask ^^
+        shift_by env width ~right:left ^^
+        bitop_ptrs env width I64Op.Or)
+
+  (* Bitwise complement: limb-wise xor with all ones. The width is exact, so there is no
+     mask to apply afterwards the way the small word types need one. *)
+  let lognot env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_not" width) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_a ^^ load_limb env i ^^ compile_xor_const (-1L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Population count, and counting leading / trailing zeros. Each returns a value of the
+     same wide type, as the narrower types do, so the result is a wide value whose only
+     non-zero limb is the lowest. *)
+  let bitcount env width which =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env
+      (Printf.sprintf "wide%d_%s" width which) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_acc, get_acc) = new_local env "acc" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        (match which with
+         | "popcnt" ->
+           compile_unboxed_const 0L ^^ set_acc ^^
+           G.table n (fun i ->
+             get_acc ^^ get_a ^^ load_limb env i ^^
+             G.i (Unary (Wasm_exts.Values.I64 I64Op.Popcnt)) ^^ add ^^ set_acc)
+         | _ ->
+           (* Walk from the end the zeros are counted from; the first non-zero limb decides,
+              and everything below it contributes a full 64. An all-zero value counts the
+              full width. *)
+           let right = (which = "ctz") in
+           let rec go j =
+             if j = n then compile_unboxed_const (Int64.of_int width) ^^ set_acc
+             else
+               let i = if right then j else n - 1 - j in
+               get_a ^^ load_limb env i ^^ compile_test I64Op.Eqz ^^
+               E.if0
+                 (go (j + 1))
+                 (get_a ^^ load_limb env i ^^
+                  G.i (Unary (Wasm_exts.Values.I64
+                    (if right then I64Op.Ctz else I64Op.Clz))) ^^
+                  compile_add_const (Int64.of_int (64 * j)) ^^ set_acc)
+           in go 0) ^^
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i = 0 then get_acc else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Widening and narrowing between the fixed-width types. Widening copies the limbs and
+     zero-fills; narrowing traps unless the limbs being dropped are all zero, which is the
+     same contract every other narrowing conversion in this compiler has. *)
+  let resize env ~from_width ~to_width =
+    let fromn = limbs_of_width from_width and ton = limbs_of_width to_width in
+    Func.share_code1 Func.Never env
+      (Printf.sprintf "wide%d_to_wide%d" from_width to_width) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        (if ton < fromn
+         then
+           G.table (fromn - ton) (fun i ->
+             get_a ^^ load_limb env (ton + i) ^^ (if i = 0 then G.nop
+               else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+           compile_test I64Op.Eqz ^^
+           E.else_trap_with env "losing precision"
+         else G.nop) ^^
+        alloc env to_width ^^ set_r ^^
+        G.table ton (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i < fromn then get_a ^^ load_limb env i else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* A 64-bit word widened into limbs, and back. Narrowing traps unless the limbs being
+     dropped are zero, matching every other narrowing conversion here. *)
+  let of_word64 env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "word64_to_wide%d" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i = 0 then get_a else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  let to_word64 env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_to_word64" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        G.table (n - 1) (fun i ->
+          get_a ^^ load_limb env (i + 1) ^^
+          (if i = 0 then G.nop else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+        compile_test I64Op.Eqz ^^
+        E.else_trap_with env "losing precision" ^^
+        get_a ^^ load_limb env 0)
+
+
+end (* Wide *)
 
 module Object = struct
   (* An object with a mutable field1 and immutable field 2 has the following
@@ -6468,6 +7278,11 @@ module StackRep = struct
     match normalize t with
     | Prim Bool -> SR.bool
     | Prim (Nat | Int) -> Vanilla
+    (* A wide natural is a fixed-size Blob of little-endian limbs -- NOT a bignum. The
+       whole point of these types is that 256-bit arithmetic should not allocate a bignum
+       and walk a general-purpose algorithm; the width is static, so the limb count is
+       static and the arithmetic unrolls. See module Wide. *)
+    | Prim (Nat128 | Nat256) -> Vanilla
     | Prim (Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
@@ -7331,6 +8146,22 @@ module Serialization = struct
       (match mode with
       | Candid -> None
       | Persistence -> Some 129l)
+    (* Candid has no 128- or 256-bit natural, so on the wire these are `nat`, which is what
+       the ecosystem already uses for 256-bit quantities (ICRC ledger amounts, and so on)
+       and what mo_to_idl declares in the .did.
+
+       For PERSISTENCE they must be codes of their own, and this is not cosmetic: if they
+       shared `nat`'s code, then changing a `stable var x : Nat` to `stable var x : Nat256`
+       across an upgrade would pass the memory-compatibility check and then read a bignum
+       pointer as a limb blob. Distinct codes turn that into the upgrade error it is. *)
+    | Prim Nat128 ->
+      (match mode with
+      | Candid -> Some 3l
+      | Persistence -> Some 256l)
+    | Prim Nat256 ->
+      (match mode with
+      | Candid -> Some 3l
+      | Persistence -> Some 257l)
     | _ -> None
 
   (* some constants, also see rts/idl.c *)
@@ -7342,10 +8173,15 @@ module Serialization = struct
   let idl_service   = -23l
   let idl_alias     = 1l (* see Note [mutable stable values] *)
 
-  (* only used for memory compatibility checks *)
+  (* only used for memory compatibility checks.
+     These share one code space with [to_idl_prim] above, which returns its codes positive
+     and has them negated on emission (`Int32.neg i`): `Some 130l` there would be
+     `idl_tuple` here. Nat128/Nat256 take 256/257, clear of the codes allocated here from
+     128 up; keep this list and rts/motoko-rts/src/idl.rs in step. *)
   let idl_tuple     = -130l
   let idl_weak     = -131l (* UNUSED FOR NOW, might need eventually *)
   let idl_var_vec  = -133l
+  (* -256 / -257 are Nat128 / Nat256, see to_idl_prim *)
 
   (*
   Note [persistence type descriptor]
@@ -7668,6 +8504,9 @@ module Serialization = struct
       (* Now the actual type-dependent code *)
       begin match t with
       | Prim Nat -> inc_data_size (get_x ^^ BigNum.compile_data_size_unsigned env)
+      | Prim (Nat128 | Nat256 as pty) ->
+        inc_data_size (get_x ^^ Wide.to_bignum env (Wide.width_of_typ pty) ^^
+                       BigNum.compile_data_size_unsigned env)
       | Prim Int -> inc_data_size (get_x ^^ BigNum.compile_data_size_signed env)
       | Prim (Int8|Nat8) -> inc_data_size compile_unboxed_one
       | Prim (Int16|Nat16) -> inc_data_size (compile_unboxed_const 2L)
@@ -7827,6 +8666,12 @@ module Serialization = struct
       begin match t with
       | Prim Nat ->
         write_bignum_leb env get_data_buf get_x
+      | Prim (Nat128 | Nat256 as pty) ->
+        (* The candid path goes through a bignum, unlike the arithmetic, which never does.
+           That is a deliberate split: serialisation is I/O, it already allocates buffers,
+           and reusing the LEB writer that every other numeric type uses is worth more here
+           than saving one allocation. *)
+        write_bignum_leb env get_data_buf (get_x ^^ Wide.to_bignum env (Wide.width_of_typ pty))
       | Prim Int ->
         write_bignum_sleb env get_data_buf get_x
       | Prim Float32 ->
@@ -8404,6 +9249,15 @@ module Serialization = struct
         with_prim_typ t
         begin
           BigNum.compile_load_from_data_buf env get_data_buf false
+        end
+      | Prim (Nat128 | Nat256 as pty) ->
+        with_prim_typ t
+        begin
+          (* A caller can send any `nat`, so a value too large for the width traps here.
+             That is unavoidable for a fixed-width type behind an unbounded wire type, and
+             is the same contract as every other narrowing conversion. *)
+          BigNum.compile_load_from_data_buf env get_data_buf false ^^
+          Wide.of_bignum env (Wide.width_of_typ pty)
         end
       | Prim Int ->
         (* Subtyping with nat *)
@@ -10960,6 +11814,12 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | Nat16Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat16 (Numerics.Nat16.to_int64 n))
   | Int32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Int32 (Numerics.Int_32.to_int64 n))
   | Nat32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat32 (Numerics.Nat32.to_int64 n))
+  (* A wide literal is its little-endian bytes. The WIDTH comes from the literal's own
+     constructor, i.e. from the declared type the typer already resolved -- never from the
+     shape of the right-hand side, which is how `let x : Nat256 = 7` came to read out of
+     bounds elsewhere while the same literal returned directly was correct. *)
+  | Nat128Lit n   -> Const.Blob (Wide.lit_bytes 128 (Numerics.Nat128.to_big_int n))
+  | Nat256Lit n   -> Const.Blob (Wide.lit_bytes 256 (Numerics.Nat256.to_big_int n))
   | Int64Lit n    -> Const.Word64 (Type.Int64, (Big_int.int64_of_big_int (Numerics.Int_64.to_big_int n)))
   | Nat64Lit n    -> Const.Word64 (Type.Nat64, (Big_int.int64_of_big_int (nat64_to_int64 (Numerics.Nat64.to_big_int n))))
   | CharLit c     -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Char (Int64.of_int c))
@@ -11008,6 +11868,9 @@ let compile_unop env t op =
   | NegOp, Type.(Prim Float32) ->
     SR.UnboxedFloat32, SR.UnboxedFloat32,
     G.i (Unary (Wasm_exts.Values.F32 F32Op.Neg))
+  | NotOp, Type.(Prim (Nat128 | Nat256 as pty)) ->
+     SR.Vanilla, SR.Vanilla,
+     Wide.lognot env (Wide.width_of_typ pty)
   | NotOp, Type.(Prim (Nat64|Int64 as p)) ->
      SR.UnboxedWord64 p, SR.UnboxedWord64 p,
      compile_xor_const (-1L)
@@ -11257,6 +12120,18 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   StackRep.of_type t,
   Operator.(match t, op with
   | Type.(Prim (Nat | Int)),                  AddOp -> BigNum.compile_add env
+
+  (* Wide naturals: fixed-limb, unrolled, allocation-free apart from the result.
+     `+%`/`-%` wrap; `+`/`-` are the same code plus the question "did the top limb carry
+     out?", so the two forms cannot drift apart at the boundary. See module Wide. *)
+  | Type.(Prim (Nat128 | Nat256 as pty)), WAddOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:false ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), AddOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:false ~trap:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), WSubOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:true ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), SubOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:true ~trap:true
   | Type.(Prim (Nat64|Int64)),                WAddOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.Add))
   | Type.(Prim Int64),                        AddOp ->
     compile_Int64_kernel env "add" BigNum.compile_add
@@ -11465,6 +12340,19 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Float32),                      PowOp -> E.call_rts env "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
+  | Type.(Prim (Nat128 | Nat256 as pty)), WMulOp -> Wide.mul env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), RotLOp -> Wide.rotate env (Wide.width_of_typ pty) ~left:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), RotROp -> Wide.rotate env (Wide.width_of_typ pty) ~left:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), WPowOp -> Wide.pow env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), PowOp  -> Wide.pow env (Wide.width_of_typ pty) ~trap:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), DivOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), ModOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), MulOp  -> Wide.mul env (Wide.width_of_typ pty) ~trap:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.And
+  | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.Or
+  | Type.(Prim (Nat128 | Nat256 as pty)), XorOp -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.Xor
+  | Type.(Prim (Nat128 | Nat256 as pty)), ShLOp -> Wide.shift env (Wide.width_of_typ pty) ~right:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), ShROp -> Wide.shift env (Wide.width_of_typ pty) ~right:true
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               OrOp  -> G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
@@ -11500,6 +12388,10 @@ let compile_eq env =
   function
   | Prim Text -> Text.compare env Operator.EqOp
   | Prim (Blob|Principal) | Obj (Actor, _, _) -> Blob.compare env (Some Operator.EqOp)
+  (* Two wide values are equal exactly when their bytes are: the representation is fixed
+     width and canonical (no leading-zero ambiguity, no sign word), so there is nothing to
+     normalise first. *)
+  | Prim (Nat128 | Nat256) -> Blob.compare env (Some Operator.EqOp)
   | Func (Shared _, _, _, _, _) -> FuncDec.equate_msgref env
   | Prim (Nat | Int) -> BigNum.compile_eq env
   | Prim (Bool | Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Int64 | Nat64 | Char) ->
@@ -11537,6 +12429,8 @@ let compile_relop env t op =
   | Prim Text, _ -> Text.compare env op
   | Prim (Blob|Principal), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
+  | Prim (Nat128 | Nat256 as pty), (LtOp | LeOp | GtOp | GeOp) ->
+    Wide.compare env (Wide.width_of_typ pty) op
   | Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1), op1 ->
     compile_comparison_op env t1 op1
   | Prim Float,   GtOp -> compile_comparison_f64 F64Op.Gt
@@ -11857,6 +12751,43 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | NumConvTrapPrim (t1, t2), [e] -> begin
     let open Type in
     match t1, t2 with
+
+    (* Wide <-> Nat. The wide side is limbs; `Nat` is a bignum by definition, so these are
+       the only wide operations that touch BigNum at all. *)
+    | Nat128, Nat256 -> SR.Vanilla, compile_exp_vanilla env ae e ^^ Wide.resize env ~from_width:128 ~to_width:256
+    | Nat256, Nat128 -> SR.Vanilla, compile_exp_vanilla env ae e ^^ Wide.resize env ~from_width:256 ~to_width:128
+    | (Nat8|Nat16|Nat32|Nat64 as pty), (Nat128 | Nat256 as w) ->
+      SR.Vanilla,
+      compile_exp_as env ae (SR.UnboxedWord64 pty) e ^^
+      TaggedSmallWord.lsb_adjust pty ^^
+      Wide.of_word64 env (Wide.width_of_typ w)
+    | (Nat128 | Nat256 as w), (Nat8|Nat16|Nat32|Nat64 as pty) ->
+      StackRep.of_type (Prim pty),
+      compile_exp_vanilla env ae e ^^
+      Wide.to_word64 env (Wide.width_of_typ w) ^^
+      (* Fitting one limb is not enough for the narrower types: the value must fit THEIR
+         width too, so they get a second bound check. Note `e` is compiled exactly once --
+         an earlier draft of this recomputed it to re-check the bound, which would have
+         evaluated any side effect in the operand twice. *)
+      (if pty = Nat64 then G.nop
+       else
+         Func.share_code1 Func.Never env (prim_fun_name pty "wide->") ("n", I64Type) [I64Type]
+           (fun env get_n ->
+             get_n ^^
+             compile_unboxed_const Int64.(shift_left 1L (TaggedSmallWord.bits_of_type pty)) ^^
+             compile_comparison I64Op.LtU ^^
+             E.else_trap_with env "losing precision" ^^
+             get_n) ^^
+         TaggedSmallWord.msb_adjust pty)
+    | (Nat128 | Nat256), Nat ->
+      SR.Vanilla,
+      compile_exp_vanilla env ae e ^^
+      Wide.to_bignum env (Wide.width_of_typ t1)
+
+    | Nat, (Nat128 | Nat256) ->
+      SR.Vanilla,
+      compile_exp_vanilla env ae e ^^
+      Wide.of_bignum env (Wide.width_of_typ t2)
 
     | Int, Int64 ->
       SR.UnboxedWord64 Int64,
@@ -12617,6 +13548,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
      compile_exp_as env ae (SR.UnboxedWord64 Type.Int32) e ^^
      G.i (Unary (Wasm_exts.Values.I64 I64Op.Popcnt))^^
      TaggedSmallWord.msb_adjust Type.Int32
+  | OtherPrim ("popcnt128"|"popcnt256"|"clz128"|"clz256"|"ctz128"|"ctz256" as pn), [e] ->
+     let width = if String.length pn > 3 && String.sub pn (String.length pn - 3) 3 = "256"
+                 then 256 else 128 in
+     let which = String.sub pn 0 (String.length pn - 3) in
+     SR.Vanilla,
+     compile_exp_vanilla env ae e ^^
+     Wide.bitcount env width which
   | OtherPrim "popcnt64", [e] ->
      SR.UnboxedWord64 Type.Nat64,
      compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^
@@ -13343,6 +14281,9 @@ and compile_lit_pat env l =
   | Nat8Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat8)
+  | (Nat128Lit _ | Nat256Lit _) ->
+    compile_lit_as env SR.Vanilla l ^^
+    Blob.compare env (Some Operator.EqOp)
   | Nat16Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat16)
