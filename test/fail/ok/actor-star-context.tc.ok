@@ -1,0 +1,10 @@
+actor-star-context.mo:4.3-4.13: warning [M0217], redundant `persistent` keyword
+actor-star-context.mo:10.5-10.38: type error [M0280], actor* computation context requires a public method
+actor-star-context.mo:16.64-16.70: type error [M0096], expression of type
+  {
+    #external : Principal;
+    #host;
+    #local : {container : Principal; generation : Nat64; slot : Nat64}
+  }
+cannot produce expected type
+  Principal

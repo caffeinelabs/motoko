@@ -16,6 +16,15 @@
     unsupported counter type, such as 2, now traps instead of reading
     counter 0 (#6545).
 
+  * Experimental: `actor*`, a local actor that lives inside a canister, behind the new
+    flag `--experimental-local-actors`. The flag admits the `actor*` grammar (objects,
+    classes and types, `actor* (owner, id)` references, `transient actor*` fields) and its
+    typing rules: its public methods are `async*` computations or synchronous methods over
+    immutable values, and a `public actor* class` of an actor exports its `async` and `query`
+    methods through that actor. This is type checking only: `moc --check` accepts a
+    well-typed program, and compiling one fails with the new error M0279. Breaking an
+    `actor*` rule is the new error M0280. Without the flag nothing changes (#6538).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)

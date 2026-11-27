@@ -62,6 +62,7 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | FuncE _ ->
     T.Triv
   | ActorUrlE exp1
+  | LocalActorRefE exp1
   | UnE (_, _, exp1)
   | ShowE (_, exp1)
   | FromCandidE exp1

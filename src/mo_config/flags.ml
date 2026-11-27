@@ -71,6 +71,13 @@ let stable_memory_access_limit = ref stable_memory_access_limit_default
 let typechecker_combine_srcs = ref false (* useful for the language server *)
 let blob_import_placeholders = ref false (* when enabled, blob:file imports resolve as empty blobs *)
 let implicit_derivation_depth = ref 100
+(* Admits the `actor*` grammar and its local-message typing rules. There is no lowering for
+   `actor*` yet (see Pipeline.desugar_unit): `--check` may accept a well-typed program that
+   uses it, but compiling one fails with M0279. *)
+let experimental_local_actors = ref false
+(* Where the parser first accepted `actor*` (a declaration, a type or a reference). When set,
+   lowering refuses the whole compilation, since nothing lowers `actor*` yet. *)
+let local_actor_seen : (string * int * int) option ref = ref None
 
 let default_warning_levels = M.empty
   |> M.add "M0223" Allow (* don't report redundant instantions *)

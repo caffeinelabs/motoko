@@ -484,6 +484,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     k (find lib env.libs)
   | LitE lit ->
     k (interpret_lit env lit)
+  | LocalActorRefE _ ->
+    trap exp.at "actor* references are not supported by the interpreter"
   | ActorUrlE url ->
     interpret_exp env url (fun v1 ->
       let url_text = V.as_text v1 in

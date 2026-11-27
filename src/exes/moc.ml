@@ -147,6 +147,12 @@ let argspec =
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
 
+  "--experimental-local-actors",
+  (* actor* code calls async* methods for their effect, so an ignored async* (M0222) is only
+     a warning under this flag; a later -E= still wins. *)
+  Arg.Unit (fun () -> Flags.experimental_local_actors := true; Flags.set_warning_level "M0222" Flags.Warn),
+  " admit the experimental `actor*` class/object grammar and its local-message typing rules (type checking only: compiling a program that uses `actor*` fails with M0279)";
+
   (* persistence *)
   "--enhanced-orthogonal-persistence",
   Arg.Unit (fun () -> Flags.explicit_enhanced_orthogonal_persistence := true),

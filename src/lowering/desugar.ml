@@ -95,6 +95,10 @@ and exp' at note = function
        I.VarE ((match mut with Var -> I.Var | Const -> I.Const), i.it)
      | (_, Some e) -> (* auto-import *)
        (exp e).it)
+  | S.LocalActorRefE _ ->
+    (* Unreachable: Pipeline.desugar_unit refuses (M0279) any compilation in which the parser
+       accepted `actor*` (Flags.local_actor_seen), since nothing lowers actor* yet. *)
+    assert false
   | S.ActorUrlE e ->
     I.(PrimE (ActorOfIdBlob note.Note.typ, [url e at]))
   | S.LitE l -> I.LitE (lit !l)
@@ -479,6 +483,10 @@ and obj_block at s exp_opt self_id dfs obj_typ =
   | T.Actor ->
     build_actor at s.note.note [] exp_opt self_id dfs obj_typ
   | T.Memory | T.Mixin -> assert false
+  (* Unreachable: Pipeline.desugar_unit rejects any
+     program containing an `actor*` (T.LocalActor) sort with M0279 before
+     Desugar ever runs; see find_local_actor_sort there. *)
+  | T.LocalActor -> assert false
 
 and build_field {T.lab; T.typ;_} =
   { it = I.{ name = lab

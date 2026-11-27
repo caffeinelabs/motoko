@@ -24,6 +24,7 @@ module Make (Cfg : Config) = struct
     | Module -> Atom "Module"
     | Mixin -> Atom "Mixin"
     | Memory -> Atom "Memory"
+    | LocalActor -> Atom "LocalActor"
 
   let func_sort = function
     | Local -> "Local"

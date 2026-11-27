@@ -147,7 +147,10 @@ module MakeState() = struct
     | Obj (Actor, fs, _) -> I.ServT (meths fs)
     | Obj (Module, _, _)
     | Obj (Memory, _, _)
-    | Obj (Mixin, _, _) -> assert false
+    | Obj (Mixin, _, _)
+    (* `actor*` is never Candid-shared (see Type.serializable),
+       so a well-typed program can never produce an Obj(LocalActor,_,_) here. *)
+    | Obj (LocalActor, _, _) -> assert false
     | Variant fs ->
        I.VariantT (fields fs)
     | Func (Shared s, c, tbs, ts1, ts2) ->

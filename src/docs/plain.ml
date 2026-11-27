@@ -86,7 +86,8 @@ let plain_of_obj_sort_title : Buffer.t -> 'note Syntax.sort -> unit =
       | Actor -> "Actor "
       | Mixin -> "Mixin "
       | Module -> "Module "
-      | Memory -> "Memory ")
+      | Memory -> "Memory "
+      | LocalActor -> "Actor* ")
 
 let plain_of_obj_sort : Buffer.t -> 'note Syntax.sort -> unit =
  fun buf sort ->
@@ -97,7 +98,8 @@ let plain_of_obj_sort : Buffer.t -> 'note Syntax.sort -> unit =
       | Actor -> "actor "
       | Module -> "module "
       | Mixin -> "mixin "
-      | Memory -> "memory ")
+      | Memory -> "memory "
+      | LocalActor -> "actor* ")
 
 let rec plain_of_typ : Buffer.t -> render_functions -> Syntax.typ -> unit =
  fun buf rf typ ->

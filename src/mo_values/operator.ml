@@ -220,6 +220,7 @@ let structural_equality t =
                | Blob s1, Blob s2 -> Bool (s1 = s2)
                | _, _ -> Bool (v1 == v2) (* HACK *))
         | T.Module | T.Mixin | T.Memory -> assert false
+        | T.LocalActor -> assert false (* actor* values are never compared: the interpreter does not construct them *)
         | T.Object ->
             fun v1 v2 ->
               let v1 = as_obj v1 in

@@ -112,7 +112,7 @@ let rec go = function
 
   | Obj (s, fs, tfs) ->
     ( ( Labeled (List.map (fun f -> f.lab) tfs @ List.map (fun f -> f.lab ^ if is_mut f.typ then "!" else "") fs),
-        (match s with Object -> "r" | Module -> "rm" | Memory -> "rs" | Actor -> "ra" | Mixin -> "rx")
+        (match s with Object -> "r" | Module -> "rm" | Memory -> "rs" | Actor -> "ra" | Mixin -> "rx" | LocalActor -> "rl")
       )
     , List.map (fun f -> as_immut f.typ) fs
     )

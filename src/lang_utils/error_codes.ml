@@ -228,6 +228,10 @@ let error_codes : (string * string option) list =
     "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
     "M0275", Some([%blob "lang_utils/error_codes/M0275.md"]); (* Unparenthesized head requires braced branches/body *)
     "M0277", Some([%blob "lang_utils/error_codes/M0277.md"]); (* Function body spells out the implicit `async` *)
+    (* `actor*`, behind --experimental-local-actors. The "no implicit Principal" rule
+       (check_class_shared_pat's T.local_ctxt) reuses M0119/M0057. *)
+    "M0279", Some([%blob "lang_utils/error_codes/M0279.md"]); (* actor* cannot be compiled (no lowering yet) *)
+    "M0280", Some([%blob "lang_utils/error_codes/M0280.md"]); (* actor* rule violated (methods, isolation, exports) *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

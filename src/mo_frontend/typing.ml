@@ -56,6 +56,8 @@ type env =
     rets : ret_env;
     async : C.async_cap;
     in_actor : bool;
+    in_local_actor : bool; (* directly in an actor* body *)
+    local_actor_outer : val_env option; (* the scope an enclosing actor* body closed over *)
     in_prog : bool;
     context : exp' list;
     pre : bool;
@@ -99,6 +101,8 @@ let env_of_scope msgs scope =
     rets = NoRet;
     async = Async_cap.NullCap;
     in_actor = false;
+    in_local_actor = false;
+    local_actor_outer = None;
     in_prog = true;
     context = [];
     pre = false;
@@ -259,6 +263,7 @@ let display_obj fmt typ =
           | Actor -> "actor"
           | Module -> "module"
           | Object -> "object"
+          | LocalActor -> "actor*"
           (* these should not occur, but let's be forgiving*)
           | Mixin -> "mixin"
           | Memory -> "memory")
@@ -853,7 +858,14 @@ let async_body_from_expected sort typ_opt t =
   | _ -> false
 
 (* Adds the implicit scope binder and `async` that the kind calls for, and records them for the interpreter and lowering *)
-let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
+let elab_func_body ?(local_actor = false) env name sort kind (pat, typ_opt) typ_binds body note =
+  (* In an actor* body only an `async T` method is a message (see check_shared_pat); a
+     `shared(ctx)` method returning `async*` or nothing is LOCAL. Elaborate it as the
+     local function it is -- no message scope, no one-way wrapping. *)
+  let local_message = local_actor && T.is_shared_sort sort
+    && (match typ_opt with Some {it = AsyncT (T.Fut, _, _); _} -> false | _ -> true) in
+  let sort = if local_message then T.Local else sort in
+  let kind = if local_message then annotated_body_kind T.Local typ_opt else kind in
   let typ_binds' =
     if kind <> Plain || T.is_shared_sort sort then ensure_scope_bind "" typ_binds else typ_binds in
   let spelled_out = match kind, body.it with
@@ -863,7 +875,9 @@ let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
     | _ -> None
   in
   let redundant = Option.is_some spelled_out in
-  if redundant && not env.pre then begin
+  (* An actor* method may spell out its body as a computation
+     (`public shared(ctx) func who() : async* C = async* { … }`); M0277 does not apply to it. *)
+  if redundant && not env.pre && not local_actor then begin
     let par, edits = match spelled_out with
       | Some (par, inner) ->
         let left = match typ_opt with Some t -> t.at.right | None -> pat.at.right in
@@ -892,6 +906,9 @@ let elab_func_body env name sort kind (pat, typ_opt) typ_binds body note =
     | _ when redundant -> body
     | Plain -> body
     | Async s -> asyncE s (scope_bind name body.at) body
+    (* In an actor*, a `shared … : ()` method is a local call -- its block runs in
+       place, not as a one-way message (else the body is a misplaced async, M0037/M0092). *)
+    | Oneway when local_actor -> body
     | Oneway -> ignore_asyncE (scope_bind name body.at) body
   in
   if not env.pre then note.elab <- Some (typ_binds', body');
@@ -949,14 +966,45 @@ and scope_of_env env =
      | SystemCap c -> Some (T.Con(c, []))
      | ErrorCap | NullCap -> None)
 
+(* What may cross an actor*
+   boundary -- a method's parameters and result, a constructor's parameter, a captured outer
+   value. Immutable data is projected (copied); an actor or actor* reference is an identity; a
+   shared function is a (principal, method) pair. A mutable cell, a local closure or an object
+   with methods would alias another actor*'s heap. *)
+let supports_immutable_projection (t : T.typ) : bool =
+  let seen = ref [] in
+  let rec visit t =
+    let t = T.promote t in
+    List.exists (fun t' -> T.eq t t') !seen || begin
+      seen := t :: !seen;
+      match t with
+      | T.Prim (T.Error | T.Region) -> false
+      | T.Prim _ | T.Non -> true
+      | T.Array t1 | T.Opt t1 | T.Named (_, t1) -> visit t1
+      | T.Tup ts -> List.for_all visit ts
+      | T.Variant fs | T.Obj (T.Object, fs, _) -> List.for_all (fun (f : T.field) -> visit f.T.typ) fs
+      | T.Obj ((T.Actor | T.LocalActor), _, _) -> true
+      | T.Func (T.Shared _, _, _, _, _) -> true
+      | _ -> false
+    end in
+  visit t
+
+let check_local_actor_value env at role t =
+  if not env.pre && t <> T.Pre && not (supports_immutable_projection t) then
+    local_error env at "M0280" "actor* %s requires an immutable projectable value or actor identity; got%a"
+      role display_typ_expand t
+
 let infer_class_cap env obj_sort (tbs : T.bind list) cs =
   match tbs, cs with
   | T.{sort = T.Scope; _} :: tbs', c :: cs' ->
     (* HACK:
        choosing top_cap just to support compilation of actor classes
        which currently won't have any binding for c
+       (T.LocalActor needs the same substitution: an `actor*` class's own scope con `c`
+       is never bound by a caller either, since construction is a synchronous local call,
+       not an async/await.)
     *)
-    let c = if obj_sort = T.Actor then C.top_cap else c in
+    let c = if obj_sort = T.Actor || obj_sort = T.LocalActor then C.top_cap else c in
     C.SystemCap c,
     tbs',
     cs'
@@ -1033,8 +1081,9 @@ and check_typ' env typ : T.typ =
   | AsyncT (s, typ0, typ) ->
     let t0 = check_typ env typ0 in
     let t = check_typ env typ in
-    (* only a future's result crosses a message boundary; a computation runs in its awaiter *)
-    if not env.pre && s = T.Fut && not (T.shared t) then
+    (* only a future's result crosses a message boundary; a computation runs in its awaiter.
+       A local actor reference is shareable content for an actor* future. *)
+    if not env.pre && s = T.Fut && not (T.shared_async_content t) then
       error_shared env t typ.at
         "M0033" "async has non-shared content type%a"
         display_typ_expand t;
@@ -1324,7 +1373,7 @@ and is_explicit_pat_field pf =
 let rec is_explicit_exp e =
   match e.it with
   | HoleE _ -> false (* tbr *)
-  | PrimE _ | ActorUrlE _
+  | PrimE _ | ActorUrlE _ | LocalActorRefE _
   | TagE _
   | BreakE _ | RetE _ | ThrowE _ ->
     false
@@ -2466,7 +2515,8 @@ and infer_exp' f env exp : T.typ = infer_exp_wrapper infer_exp'' f env exp
 and infer_exp'' env exp : T.typ =
   let context = env.context in
   let in_actor = env.in_actor in
-  let env = {env with in_actor = false; in_prog = false; context = exp.it::env.context} in
+  let in_local_actor = env.in_local_actor in
+  let env = {env with in_actor = false; in_local_actor = false; in_prog = false; context = exp.it::env.context} in
   match exp.it with
   | HoleE (_, e) ->
     (* TODO: this should probably be an assert, not an error *)
@@ -2483,7 +2533,22 @@ and infer_exp'' env exp : T.typ =
       if !Flags.compiled then
         error env id.at "M0056" "variable %s is in scope but not available in compiled code" id.it
       else t
-    | Some (t, _, _, Available) -> id.note <- (if T.is_mut t then (Var, None) else (Const, None)); t
+    | Some (t, at_def, _, Available) ->
+      id.note <- (if T.is_mut t then (Var, None) else (Const, None));
+      (* A variable bound OUTSIDE the enclosing actor* body -- the same binding (by its site),
+         not merely the same name -- is a capture. Captured code (a module or local function)
+         is not checked here (that needs its transitive dependencies); any other captured value
+         must be projectable. *)
+      (match env.local_actor_outer with
+       | Some outer when not env.pre ->
+         (match T.Env.find_opt id.it outer with
+          | Some (_, at_outer, _, _) when at_outer = at_def ->
+            (match T.promote t with
+             | T.Obj (T.Module, _, _) | T.Func (T.Local, _, _, _, _) -> ()
+             | _ -> check_local_actor_value env id.at ("capture of " ^ id.it) t)
+          | _ -> ())
+       | _ -> ());
+      t
     | None ->
       let candidate_libs =
         if Option.is_some(!Flags.implicit_package) then
@@ -2520,6 +2585,11 @@ and infer_exp'' env exp : T.typ =
   | ActorUrlE exp' ->
     if not env.pre then check_exp_strong env T.text exp';
     error env exp.at "M0058" "no type can be inferred for actor reference"
+  | LocalActorRefE exp' ->
+    (* Like `actor "url"`, a
+       reference has no type of its own -- it takes the expected actor* type. *)
+    if not env.pre then check_exp_strong env T.(Tup [Opt (Prim Principal); Prim Principal]) exp';
+    error env exp.at "M0058" "no type can be inferred for actor* reference"
   | UnE (ot, op, exp1) ->
     let t1 = infer_exp_promote env exp1 in
     let t = Operator.type_unop op t1 in
@@ -2554,11 +2624,15 @@ and infer_exp'' env exp : T.typ =
       (* operands that already have the single-valued type were declared so on purpose,
          but a literal-like operand only takes its type from the other one *)
       let checked = is_explicit_exp exp1 <> is_explicit_exp exp2 in
-      if checked && eq env exp.at t T.Any then
+      (* Not at Any under --experimental-local-actors: some actor* identity projections are
+         typed at Any until they get a concrete type, and comparing them is meaningful.
+         Without the flag, comparisons at Any keep M0276 (run-drun/options.mo). *)
+      let actor_star_any = !Flags.experimental_local_actors && (match t with T.Any -> true | _ -> false) in
+      if checked && eq env exp.at t T.Any && not actor_star_any then
         warn env exp.at "M0276"
           "this comparison always has the same result, because both operands are compared at type%a\nwhich has a single value"
           display_typ_expand t
-      else if T.singleton t && not (eq env exp1.at t t1 && eq env exp2.at t t2) then
+      else if T.singleton t && not actor_star_any && not (eq env exp1.at t t1 && eq env exp2.at t t2) then
         if eq env exp.at t1 t2 then
           warn env exp.at "M0276"
             "this comparison always has the same result, because it compares abstract type%a\nto itself at supertype%a\nwhich has a single value"
@@ -2641,6 +2715,7 @@ and infer_exp'' env exp : T.typ =
         display_typ_expand t1
     )
   | ObjBlockE (exp_opt, obj_sort, typ_opt, dec_fields) as e ->
+    check_local_actor_persistence env obj_sort;
     let _typ_opt = infer_migration env obj_sort exp_opt in
     if obj_sort.it = T.Actor then begin
       error_in Flags.[WASIMode] env exp.at "M0068"
@@ -2721,7 +2796,7 @@ and infer_exp'' env exp : T.typ =
           display_typ_expand t1
     end
   | FuncE (name, shared_pat, typ_binds, pat, typ_opt, note, exp1) ->
-    if not env.pre && not in_actor && T.is_shared_sort shared_pat.it then begin
+    if not env.pre && not in_actor && not in_local_actor && T.is_shared_sort shared_pat.it then begin
       error_in Flags.[WASIMode] env exp1.at "M0076"
         "shared functions are not supported";
       if not in_actor then
@@ -2735,8 +2810,8 @@ and infer_exp'' env exp : T.typ =
       | None -> {it = TupT []; at = no_region; note = T.Pre}
     in
     let kind = annotated_body_kind shared_pat.it typ_opt in
-    let typ_binds, exp1 = elab_func_body env name shared_pat.it kind (pat, typ_opt) typ_binds exp1 note in
-    let sort, ve = check_shared_pat env shared_pat in
+    let typ_binds, exp1 = elab_func_body ~local_actor:in_local_actor env name shared_pat.it kind (pat, typ_opt) typ_binds exp1 note in
+    let sort, ve = check_shared_pat ~local_actor:in_local_actor ~typ_opt env shared_pat in
     let cs, tbs, te, ce = check_typ_binds env typ_binds in
     let c, ts2 = as_codomT sort typ in
     check_shared_return env typ.at sort c ts2;
@@ -2945,7 +3020,7 @@ and infer_exp'' env exp : T.typ =
         scopes = T.ConEnv.add c exp.at env.scopes } in
     let t = infer_exp env' exp1 in
     let t' = T.open_ [t1] (T.close [c] t)  in
-    if s = T.Fut && not (T.shared t') then
+    if s = T.Fut && not (T.shared_async_content t') then
       error_shared env t' exp1.at "M0033" "async type has non-shared content type%a"
         display_typ_expand t';
     T.Async (s, t1, t')
@@ -3132,6 +3207,12 @@ and check_exp' env0 t exp : T.typ =
     | T.(Obj (Actor, _, _)) -> t'
     | _ -> error env exp.at "M0090" "actor reference must have an actor type"
     end
+  | LocalActorRefE exp', t' ->
+    check_exp_strong env T.(Tup [Opt (Prim Principal); Prim Principal]) exp';
+    begin match T.normalize t' with
+    | T.(Obj (LocalActor, _, _)) -> t'
+    | _ -> error env exp.at "M0090" "actor* reference must have an actor* type"
+    end
   | UnE (ot, op, exp1), _ when Operator.has_unop op t ->
     ot := t;
     check_exp env t exp1;
@@ -3269,7 +3350,7 @@ and check_exp' env0 t exp : T.typ =
     | None -> check_inferred env0 env t (infer_exp env0 exp) exp
     | Some kind ->
       let env', t2, codom, body =
-        check_func_step env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
+        check_func_step ~in_local_actor:env0.in_local_actor env0.in_actor env (name, shared_pat, pat, typ_opt, note, body) kind exp.at (s, c, ts1, ts2) in
       check_func_return env body t2 codom;
       check_exp_strong env' t2 body;
       t
@@ -3392,12 +3473,12 @@ and check_exp_field env (ef : exp_field) fts =
   - [codom], the codomain of the function (built from [ts2]). The caller must check that [sub exp_typ codom], see [check_func_return],
   - the elaborated body.
  *)
-and check_func_step in_actor env (name, shared_pat, pat, typ_opt, note, body) kind at (s, c, ts1, ts2) : env * T.typ * T.typ * exp =
-  let sort, ve = check_shared_pat env shared_pat in
-  if not env.pre && not in_actor && T.is_shared_sort sort then
+and check_func_step ?(in_local_actor = false) in_actor env (name, shared_pat, pat, typ_opt, note, body) kind at (s, c, ts1, ts2) : env * T.typ * T.typ * exp =
+  let sort, ve = check_shared_pat ~local_actor:in_local_actor ~typ_opt env shared_pat in
+  if not env.pre && not in_actor && not in_local_actor && T.is_shared_sort sort then
     error_in Flags.[ICMode] env body.at "M0077"
       "a shared function is only allowed as a public field of an actor";
-  let typ_binds, body = elab_func_body env name shared_pat.it kind (pat, typ_opt) [] body note in
+  let typ_binds, body = elab_func_body ~local_actor:in_local_actor env name shared_pat.it kind (pat, typ_opt) [] body note in
   let cs, tbs, te, ce = check_typ_binds env typ_binds in
   (* the function's own scope, if any, stands for the expected type's binder *)
   let scopes = List.map (fun c -> T.Con (c, [])) cs in
@@ -4171,9 +4252,27 @@ and infer_pat_fields at env pfs ts ve : (T.obj_sort * T.field list) * Scope.val_
     Field_sources.add_src env.srcs id.at;
     infer_pat_fields at env pfs' (T.{lab = id.it; typ; src = {empty_src with track_region = id.at}}::ts) ve'
 
-and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
+(* The pattern names an author-only
+   capability (`retire`) among its root fields. *)
+and requests_retirement (p : pat) =
+  match p.it with
+  | ObjP pfs -> List.exists (fun (pf : pat_field) -> match pf.it with
+      | ValPF (id, _) -> id.it = "retire"
+      | TypPF _ -> false) pfs
+  | AnnotP (p, _) | ParP p -> requests_retirement p
+  | _ -> false
+
+and check_shared_pat ?(local_actor = false) ?(typ_opt = None) env shared_pat : T.func_sort * Scope.val_env =
   match shared_pat.it with
   | T.Local -> T.Local, T.Env.empty
+  | T.Shared ((T.Query | T.Write), pat)
+    when local_actor
+      && (match typ_opt with Some {it = AsyncT (T.Fut, _, _); _} -> false | _ -> true) ->
+    (* In an actor* body only an `async T` return is a message
+       (the exported interface, rewritten into facades). `async*` and synchronous methods stay
+       LOCAL, and `shared(ctx)` names the local message context. *)
+    let ctx = if requests_retirement pat then T.local_source_ctxt else T.local_msg_ctxt in
+    T.Local, check_pat_exhaustive local_error env ctx pat
   | T.Shared (ss, pat) ->
     if pat.it <> WildP then
       error_in Flags.[WASIMode] env pat.at "M0106" "shared function cannot take a context pattern";
@@ -4185,6 +4284,18 @@ and check_class_shared_pat env shared_pat obj_sort : Scope.val_env =
   | T.Local, (T.Module | T.Object | T.Mixin) -> T.Env.empty
   | T.Local, T.Actor ->
     T.Env.empty (* error instead? That's a breaking change *)
+  | T.Local, T.LocalActor -> T.Env.empty
+  | T.Shared (mode, pat), T.LocalActor ->
+    (* An `actor*` class constructor's context pattern destructures the local message
+       context (T.local_msg_ctxt), whose `caller` is a local caller, not a Principal: the
+       class is never silently handed an implicit Principal. *)
+    if pat.it <> WildP then
+      error_in Flags.[WASIMode] env pat.at "M0108" "actor class cannot take a context pattern";
+    if mode = T.Query then
+      error env shared_pat.at "M0109" "class cannot be a query";
+    env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
+    check_pat_exhaustive local_error env
+      (if requests_retirement pat then T.local_source_ctxt else T.local_msg_ctxt) pat
   | T.Shared (mode, pat), sort ->
     if sort <> T.Actor then
       error env pat.at "M0107" "non-actor class cannot take a context pattern";
@@ -4638,8 +4749,10 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     T.Env.filter (fun id _ -> S.mem id private_fields) identifiers
   in
   let env =
-    if s <> T.Actor && s <> T.Mixin then
-      { env with in_actor = false }
+    if s = T.LocalActor then
+      { env with in_actor = false; in_local_actor = true; local_actor_outer = Some env.vals }
+    else if s <> T.Actor && s <> T.Mixin then
+      { env with in_actor = false; in_local_actor = false }
     else
       { env with
         in_actor = true;
@@ -4675,6 +4788,56 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
           error_in Flags.[ICMode] env df.it.dec.at "M0126"
             "a shared function cannot be private"
       ) dec_fields;
+    end;
+    if s = T.LocalActor then begin
+      (* The actor* method rules (M0280). Every public field is a method: an async* computation, a synchronous internal method, or the local
+         closure the facade pass (Local_facades) leaves for an exported method. An exported
+         `async`/`query` method that reaches here was not rewritten -- its class is not a
+         `public actor* class` in a container -- so it is refused. *)
+      let err at fmt = local_error env at "M0280" fmt in
+      let real_binds tbs = List.filter (fun (b : T.bind) -> b.T.sort <> T.Scope) tbs in
+      List.iter (fun T.{lab = _; typ; _} ->
+        match T.promote typ with
+        | T.Func (T.Local, T.Returns, tbs, ts1, results) ->
+          let result = match results with [t] -> t | ts -> T.Tup ts in
+          let params_and ret =
+            List.iter (check_local_actor_value env at "parameter") ts1;
+            check_local_actor_value env at "result" ret in
+          (* A generic method's parameter and result types mention its own type parameters,
+             which have no projectable instance: report the generics alone. *)
+          (match T.promote result with
+           | T.Async (T.Cmp, _, payload) ->
+             if real_binds tbs <> [] then err at "actor* computation methods cannot have unresolved generic types"
+             else params_and payload
+           | T.Async (T.Fut, _, payload) ->
+             if real_binds tbs <> [] then err at "actor* exported-method closures must be monomorphic"
+             else params_and payload
+           | _ ->
+             if real_binds tbs <> [] then err at "actor* synchronous methods must be monomorphic"
+             else params_and result)
+        | T.Func (T.Shared _, _, _, _, _) ->
+          err at "actor* `async` and `query` methods are the exported interface of a `public actor* class` declared in the container; an internal method returns `async*` or a plain type"
+        | _ -> err at "actor* public fields must be shared methods or async* computation methods"
+      ) fs;
+      List.iter (fun df ->
+        let dec = df.it.dec in
+        (match df.it.vis.it, dec.it with
+         | Public _, LetD (_, {it = FuncE (_, {it = Type.Shared (Type.Query, _); _}, _, _, t_opt, _, _); at = fat; _}, _) ->
+           let future = match t_opt with Some {it = AsyncT (Type.Fut, _, _); _} -> true | _ -> false in
+           if not future then
+             err fat "actor* `query` methods return `async T` and are exported through the class's façades; a synchronous internal method is written `public func m() : T`"
+         | (Private | System), LetD (_, {it = FuncE (_, {it = Type.Shared (Type.Write, _); _}, _, _, Some {it = AsyncT (Type.Cmp, _, _); _}, _, _); _}, _) ->
+           err df.at "actor* computation context requires a public method"
+         | _ -> ());
+        (* is_actor_method/is_typ_dec as an actor* body needs them: any named function is a
+           manifest method (actor* methods are local, not shared), and a class is a type dec. *)
+        let manifest = match dec.it with
+          | LetD ({it = VarP _; _}, {it = FuncE _; _}, _) -> true
+          | _ -> false in
+        let typ_like = match dec.it with TypD _ | ClassD _ -> true | _ -> false in
+        if is_public df.it.vis && not manifest && not typ_like then
+          local_error env dec.at "M0125" "public actor field needs to be a manifest function"
+      ) dec_fields
     end;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
@@ -4800,10 +4963,20 @@ and infer_migration_chain env at =
         "--enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)";
      chain
 
+(* An actor* is persistent by default, as an actor is, so a written `persistent` is
+   redundant (M0217). *)
+and check_local_actor_persistence env obj_sort =
+  if not env.pre && obj_sort.it = T.LocalActor && obj_sort.note.it
+     && obj_sort.note.at <> no_region then
+    warn env obj_sort.note.at "M0217" "redundant `persistent` keyword"
+
 and infer_migration env obj_sort exp_opt =
   Option.map
     (fun exp ->
-      if obj_sort.it <> T.Actor then
+      (* `(with migration = f) persistent actor* class` is the actor*'s own migration
+         spelling; its shape check (records of the previous and current layouts) is not
+         implemented yet -- the expression is only typed. *)
+      if obj_sort.it <> T.Actor && obj_sort.it <> T.LocalActor then
         local_error env exp.at "M0209"
           "misplaced actor migration expression on module or object";
       infer_exp_promote { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } exp)
@@ -5110,12 +5283,17 @@ and check_stable_defaults env sort dec_fields =
   end
 
 and check_stab env sort scope dec_fields =
+  (* T.LocalActor shares the (T.Actor | T.Mixin) arms below: a `stable` field of an actor*
+     is checked as an actor's is. Its fields default to Flexible (see the parser), so only an
+     explicit `stable` reaches check_stable. A method field is exempt: an actor's public
+     methods are `shared`, which is stable, but an actor*'s stay local functions (M0280). *)
   let check_stable id at =
     match T.Env.find_opt id scope.Scope.val_env with
     | None -> assert false
     | Some (t, _, _) ->
       let t1 = T.as_immut t in
-      if not (T.stable t1) then
+      if sort.it = T.LocalActor && T.is_func t1 then ()
+      else if not (T.stable t1) then
         local_error env at "M0131"
           "variable %s is declared stable but has non-stable type%a" id
           display_typ t1;
@@ -5127,19 +5305,19 @@ and check_stab env sort scope dec_fields =
       local_error env stab.at "M0132"
         "misplaced stability declaration on field of non-actor";
       []
-    | (T.Actor | T.Mixin), _ , IncludeD (_, _, _, note) ->
+    | (T.Actor | T.Mixin | T.LocalActor), _ , IncludeD (_, _, _, note) ->
       let include_note = Option.get !note in
       let fs = check_stab env sort scope include_note.decs in
       List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
-    | (T.Actor | T.Mixin), Some {it = Stable; _}, VarD (id, _) ->
+    | (T.Actor | T.Mixin | T.LocalActor), Some {it = Stable; _}, VarD (id, _) ->
       check_stable id.it id.at;
       [id]
-    | (T.Actor | T.Mixin), Some {it = Stable; _}, LetD (pat, _, _) when stable_pat pat ->
+    | (T.Actor | T.Mixin | T.LocalActor), Some {it = Stable; _}, LetD (pat, _, _) when stable_pat pat ->
       let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
       List.iter (fun id -> check_stable id pat.at) ids;
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
-    | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
-    | (T.Actor | T.Mixin), Some stab, _ ->
+    | (T.Actor | T.Mixin | T.LocalActor), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
+    | (T.Actor | T.Mixin | T.LocalActor), Some stab, _ ->
       let at, desc =
         if stab.at = no_region
         then df.it.dec.at, "implicit "
@@ -5293,17 +5471,26 @@ and infer_dec env dec : T.typ =
     let (t, _, _, _) = T.Env.find id.it env.vals in
     if not env.pre then begin
       let c = T.Env.find id.it env.typs in
+      check_local_actor_persistence env obj_sort;
       let _typ_opt = infer_migration env obj_sort exp_opt in
       let ve0 = check_class_shared_pat env shared_pat obj_sort in
       let cs, tbs, te, ce = check_typ_binds env typ_binds in
       let env' = adjoin_typs env te ce in
-      let in_actor = obj_sort.it = T.Actor || obj_sort.it == T.Mixin in
+      let in_actor = obj_sort.it = T.Actor || obj_sort.it = T.LocalActor || obj_sort.it == T.Mixin in
       (* Top-level actor class identifier is implicitly public and thus considered used. *)
       if env.in_prog && in_actor then use_identifier env id.it;
+      (* An actor* class is constructed by a synchronous local call, not installed: its
+         parameter is PROJECTED, not serialized, so check_local_actor_value applies, not M0034. *)
+      let is_local_actor = obj_sort.it = T.LocalActor in
+      (* An actor* constructor's refutable pattern is intended: a mismatch traps the
+         construction and rolls it back, so it is not a coverage diagnostic at all (M0145 is
+         an error for an object class). *)
       let t_pat, ve =
-        infer_pat_exhaustive (if in_actor then error else warn) env' pat
+        if is_local_actor then infer_pat true env' pat
+        else infer_pat_exhaustive (if in_actor then error else warn) env' pat
       in
-      if in_actor && not (T.shared t_pat) then
+      if is_local_actor then check_local_actor_value env pat.at "constructor parameter" t_pat;
+      if in_actor && not is_local_actor && not (T.shared t_pat) then
         error_shared env t_pat pat.at "M0034"
           "shared constructor has non-shared parameter type%a"
           display_typ_expand t_pat;
@@ -5323,7 +5510,7 @@ and infer_dec env dec : T.typ =
       leave_scope env ve initial_usage;
       match typ_opt, obj_sort.it with
       | None, _ -> ()
-      | Some { it = AsyncT (T.Fut, _, typ); _ }, T.Actor
+      | Some { it = AsyncT (T.Fut, _, typ); _ }, (T.Actor | T.LocalActor)
       | Some typ, T.(Module | Object) ->
         let t'' = check_typ env'' typ in
         if not (sub env dec.at t' t'') then
@@ -5332,7 +5519,7 @@ and infer_dec env dec : T.typ =
             display_typ_expand t'
             display_typ_expand t''
         else ObjBlockE (exp_opt, obj_sort, (None, typ_opt), dec_fields) |> detect_lost_fields env t''
-      | Some typ, T.Actor ->
+      | Some typ, (T.Actor | T.LocalActor) ->
          local_error env dec.at "M0193" "actor class has non-async return type"
       | _, (T.Memory | T.Mixin) -> assert false
     end;
@@ -5688,9 +5875,13 @@ and infer_dec_valdecs env dec : Scope.t =
     ) ->
     let decs = List.map (fun df -> df.it.dec) dec_fields in
     let obj_scope = T.Env.find id.it env.objs in
+    (* A let-bound actor* literal's members are pre-typed here, before infer_obj
+       sees them; its body is an actor* body for check_shared_pat too (a `shared(ctx)` method
+       returning async* is local), or M0035 fires on a method infer_obj accepts. *)
+    let in_local_actor = obj_sort.it = T.LocalActor in
     let obj_scope' =
       infer_block_valdecs
-        (adjoin {env with pre = true} obj_scope)
+        (adjoin {env with pre = true; in_local_actor} obj_scope)
         decs obj_scope
     in
     let obj_typ = object_of_scope env obj_sort.it dec_fields obj_scope' at in

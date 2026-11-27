@@ -1,0 +1,4 @@
+error[M0001]: unexpected token '*'; pass --experimental-local-actors to enable the `actor*` language extension
+    ┌─ actor-star-needs-flag.mo:2:1
+  2 │  actor* class Counter() {
+    │  ^^^^^^ 

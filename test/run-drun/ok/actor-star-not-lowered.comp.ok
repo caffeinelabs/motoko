@@ -1,0 +1,1 @@
+actor-star-not-lowered.mo:7.21: compile error [M0279], `actor*` cannot be compiled yet: --experimental-local-actors admits its grammar and typing rules only, so `moc --check` accepts a well-typed program that uses `actor*`, but there is no lowering for it

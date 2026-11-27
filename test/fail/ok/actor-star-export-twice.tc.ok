@@ -1,0 +1,2 @@
+actor-star-export-twice.mo:8.23-8.24: type error [M0280], public actor* class K is exported twice; exported class names must be unique in the container (their façades share one Candid interface)
+actor-star-export-twice.mo:8.23-8.24: type error [M0051], duplicate definition for type K in block

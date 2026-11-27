@@ -73,12 +73,14 @@ module Make (Cfg : Config) = struct
     | Type.Mixin -> Atom "Mixin"
     | Type.Module -> Atom "Module"
     | Type.Memory -> Atom "Memory"
+    | Type.LocalActor -> Atom "LocalActor"
 
   let rec exp e = source e.at (annot_typ e.note.note_typ (match e.it with
     | HoleE (_, e) -> "HoleE" $$ [exp !e]
     | VarE x              -> "VarE"      $$ [id x]
     | LitE l              -> "LitE"      $$ [lit !l]
     | ActorUrlE e         -> "ActorUrlE" $$ [exp e]
+    | LocalActorRefE e    -> "LocalActorRefE" $$ [exp e]
     | UnE (ot, uo, e)     -> "UnE"       $$ [operator_type !ot; Arrange_ops.unop uo; exp e]
     | BinE (ot, e1, bo, e2) -> "BinE"    $$ [operator_type !ot; exp e1; Arrange_ops.binop bo; exp e2]
     | RelE (ot, e1, ro, e2) -> "RelE"    $$ [operator_type !ot; exp e1; Arrange_ops.relop ro; exp e2]
