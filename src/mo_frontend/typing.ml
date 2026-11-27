@@ -4518,7 +4518,7 @@ and pub_fields dec_fields : visibility_env =
 and pub_field dec_field xs : visibility_env =
   match dec_field.it with
   | {dec = { it=IncludeD(_, _, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
-  | {vis = { it = Public depr; _}; dec; _} ->
+  | {vis = { it = Public (depr, _); _}; dec; _} ->
     vis_dec T.{depr = depr; track_region = no_region; region = dec_field.at} dec xs
   | _ -> xs
 
@@ -4676,6 +4676,13 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
             "a shared function cannot be private"
       ) dec_fields;
     end;
+    (* a parenthetical before `public` sees the object's own fields *)
+    let par_env = adjoin { env with async = C.NullCap } scope in
+    List.iter (fun df ->
+      match df.it.vis.it with
+      | Public (_, Some par) -> recover (check_pub_parenthetical par_env) par
+      | _ -> ()
+    ) dec_fields;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
@@ -4717,6 +4724,13 @@ and check_parenthetical env typ_opt = function
      List.iter check_lab attrs_flds;
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
      if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
+
+(* No attribute of a `public` declaration is recognised yet *)
+and check_pub_parenthetical env par =
+  match T.promote (infer_exp env par) with
+  | T.Obj (_, [], _) -> warn env par.at "M0211" "redundant empty parenthetical note"
+  | T.Obj (_, f :: _, _) -> warn env par.at "M0212" "unrecognised attribute %s in parenthetical" f.T.lab
+  | _ -> ()
 
 and check_system_fields env sort scope tfs dec_fields =
   List.iter (fun df ->
