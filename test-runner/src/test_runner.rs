@@ -795,6 +795,7 @@ impl TestRunner {
     }
 
     pub fn run(&self) -> std::io::Result<()> {
+        forget_stale_server();
         let ic_config = IcpConfig {
             beta_features: Some(IcpConfigFlag::Enabled),
             ..Default::default()
@@ -823,6 +824,20 @@ impl TestRunner {
         }
         Ok(())
     }
+}
+
+/// `PocketIcBuilder::build` reuses a running server through
+/// `<tmp>/pocket_ic_<pid>.port`. A server outlives the process that started
+/// it (until its TTL) and writes `debug.print` output to that process's
+/// stderr. A process that got a recycled PID would reuse such a stale server,
+/// with correct replies but all `debug.print` output lost. So, once per
+/// process, forget any server left behind by an earlier process with our PID.
+fn forget_stale_server() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let port_file = std::env::temp_dir().join(format!("pocket_ic_{}.port", std::process::id()));
+        let _ = std::fs::remove_file(port_file);
+    });
 }
 
 pub fn run_cmdline_test(buffer: String, subnet_type: SubnetType) {
